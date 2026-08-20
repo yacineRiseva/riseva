@@ -15,6 +15,8 @@ pages=[("accueil","/",None,True),
        ("app-classement","/app/#/classement","u2",False),
        ("app-equipe","/app/#/equipe","u2",False),
        ("app-rapports","/app/#/rapports","u2",False),
+       ("app-mecenat","/app/#/mecenat","u2",False),
+       ("asso-recus","/app/#/recus","u7",False),
        ("asso-dashboard","/app/#/tableau","u7",False),
        ("asso-valider","/app/#/avalider","u7",False),
        ("admin-assos","/app/#/assos","u1",False)]
