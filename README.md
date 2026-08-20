@@ -6,6 +6,7 @@ clôture l'année.
 
 Trois documents font autorité, dans cet ordre :
 
+0. `docs/DOSSIER-FOURNISSEUR.md` — ce qu'il faut avoir sous la main pour vendre.
 1. `SPEC.md` — les règles produit figées.
 2. `DECISIONS.md` — le journal daté des décisions et de ce qu'elles remplacent.
 3. `DESIGN.md` — le design system et ses interdits.
@@ -35,6 +36,8 @@ supabase/
   functions/            fonctions Edge : validation, rapports, reçus fiscaux
   404.html              page d'erreur
 supabase/emails/        gabarits des messages transactionnels
+docs/DOSSIER-FOURNISSEUR.md   ce qu'un acheteur demande, et où le trouver
+docs/modeles/           convention de mécénat de compétences, feuille d'émargement
 scripts/shots.py        captures d'écran automatiques (Playwright)
 scripts/tests.py        tests de bout en bout (49 vérifications)
 ```
