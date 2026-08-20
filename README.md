@@ -19,6 +19,7 @@ public/                 le site et l'application, servis tels quels
   index.html            site vitrine
   inscription.html      préinscription entreprise
   associations.html     page destinée aux associations
+  rejoindre.html        inscription d'un salarié depuis le lien de son entreprise
   asso.html             page publique d'une association, avec le don
   app/                  l'application (entreprise, salarié, association, administration)
     data.js             couche de données : démonstration en mémoire ou Supabase

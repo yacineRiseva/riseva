@@ -71,19 +71,19 @@ function vueConnexion(){
     ["u1", "Espace Riseva",      "Administration de la plateforme"]
   ];
   const el = h(`<div class="login">
-    <aside class="login__aside">
+    <aside class="login__aside grain">
       <svg class="login__river" viewBox="0 0 520 300" aria-hidden="true">
-        <path d="M0 220 C 110 120, 190 270, 300 180 S 450 70, 520 150" fill="none" stroke="var(--brand)" stroke-width="4"/>
+        <path d="M0 220 C 110 120, 190 270, 300 180 S 450 70, 520 150" fill="none" stroke="var(--lime)" stroke-width="4"/>
         <path d="M0 265 C 120 165, 200 305, 320 220 S 460 120, 520 195" fill="none" stroke="var(--brand)" stroke-width="4" opacity=".55"/>
       </svg>
       <img src="/brand/riseva-full-white.png" alt="Riseva">
       <div style="position:relative">
-        <h2 style="color:#fff;max-width:16ch">Une saison. Des actes. Des chiffres.</h2>
-        <p style="margin-top:var(--s5);color:rgba(255,255,255,.6);max-width:38ch">
+        <h2 style="color:var(--paper);max-width:16ch">Une saison. Des actes. Des chiffres.</h2>
+        <p style="margin-top:var(--s5);color:rgba(223,230,208,.62);max-width:38ch">
           Les associations publient ce dont elles ont besoin, vos équipes y répondent,
           et le rapport s'écrit tout seul.</p>
       </div>
-      <p style="font-size:var(--t-xs);color:rgba(255,255,255,.35)">© 2026 Riseva</p>
+      <p style="font-size:var(--t-xs);color:rgba(223,230,208,.4)">© 2026 Riseva</p>
     </aside>
     <div class="login__form"><div class="login__box">
       <p class="eyebrow">Connexion</p>
@@ -91,9 +91,15 @@ function vueConnexion(){
       <p class="muted" style="margin-top:var(--s3);font-size:var(--t-sm)">
         Environnement de démonstration : choisissez l'espace à visiter.</p>
       <div class="stack" style="--gap:var(--s3);margin-top:var(--s8)" id="roles"></div>
+      <hr class="sep">
+      <p class="muted" style="font-size:var(--t-sm)">Pas encore de compte ?</p>
+      <div class="row" style="gap:var(--s2);margin-top:var(--s3)">
+        <button class="btn btn--ghost btn--sm" id="newEnt">Créer un compte entreprise</button>
+        <button class="btn btn--ghost btn--sm" id="newAsso">Inscrire mon association</button>
+      </div>
       <p class="hint" style="margin-top:var(--s6)">
-        En production, l'authentification passe par Supabase (mot de passe ou lien magique)
-        et chaque table est protégée par des politiques RLS.</p>
+        Vous êtes salarié d'une entreprise déjà abonnée ? Utilisez le lien d'inscription
+        que votre employeur vous a transmis.</p>
     </div></div>
   </div>`);
   const box = el.querySelector("#roles");
@@ -105,6 +111,64 @@ function vueConnexion(){
     b.onclick = () => { setSession(uid); location.hash = "#/tableau"; rendre(); };
     box.appendChild(b);
   });
+
+  el.querySelector("#newEnt").onclick = () => {
+    const c = h(`<div class="stack" style="--gap:var(--s4)">
+      <div class="row" style="gap:var(--s4);align-items:stretch">
+        <div class="field" style="flex:1"><label>Entreprise</label><input class="input" id="ent"></div>
+        <div class="field" style="width:130px"><label>Salariés</label><input class="input" id="eff" type="number" min="1" value="50"></div>
+      </div>
+      <div class="row" style="gap:var(--s4);align-items:stretch">
+        <div class="field" style="flex:1"><label>Secteur</label><input class="input" id="sec" placeholder="Industrie, conseil..."></div>
+        <div class="field" style="flex:1"><label>Ville</label><input class="input" id="vil"></div>
+      </div>
+      <div class="field"><label>Votre nom</label><input class="input" id="nom"></div>
+      <div class="field"><label>Votre email professionnel</label><input class="input" id="mail" type="email"></div>
+      <p class="hint">Le nombre de salariés fixe le nombre de places de votre abonnement.
+        Vous recevrez un lien unique à diffuser en interne : chacun crée son compte lui-même.</p>
+    </div>`);
+    modal("Créer un compte entreprise", c, [
+      { label:"Annuler" },
+      { label:"Créer le compte", classe:"btn--primary", onClick: () => {
+          const v = (k) => c.querySelector("#" + k).value.trim();
+          if (!v("ent") || !v("nom") || !v("mail")){ toast("Entreprise, nom et email sont nécessaires."); return false; }
+          const r = DB.creerCompteEntreprise({ entreprise:v("ent"), effectif:v("eff"),
+            nom:v("nom"), email:v("mail"), secteur:v("sec"), ville:v("vil") });
+          setSession(r.utilisateur.id);
+          location.hash = "#/equipe";
+          rendre();
+          toast("Compte créé. Voici votre lien d'inscription.");
+        }}
+    ]);
+  };
+
+  el.querySelector("#newAsso").onclick = () => {
+    const c = h(`<div class="stack" style="--gap:var(--s4)">
+      <div class="field"><label>Association</label><input class="input" id="asso"></div>
+      <div class="row" style="gap:var(--s4);align-items:stretch">
+        <div class="field" style="flex:1"><label>Cause</label><input class="input" id="cause" placeholder="Reforestation, aide alimentaire..."></div>
+        <div class="field" style="flex:1"><label>Ville</label><input class="input" id="vil"></div>
+      </div>
+      <div class="field"><label>En deux phrases, ce que vous faites</label><textarea class="textarea" id="res"></textarea></div>
+      <div class="field"><label>Votre nom</label><input class="input" id="nom"></div>
+      <div class="field"><label>Votre email</label><input class="input" id="mail" type="email"></div>
+      <p class="hint">C'est gratuit et ça le restera. Votre fiche est vérifiée par Riseva avant
+        d'être visible par les entreprises.</p>
+    </div>`);
+    modal("Inscrire mon association", c, [
+      { label:"Annuler" },
+      { label:"Envoyer", classe:"btn--primary", onClick: () => {
+          const v = (k) => c.querySelector("#" + k).value.trim();
+          if (!v("asso") || !v("nom") || !v("mail")){ toast("Association, nom et email sont nécessaires."); return false; }
+          const r = DB.creerCompteAssociation({ association:v("asso"), cause:v("cause"),
+            ville:v("vil"), resume:v("res"), nom:v("nom"), email:v("mail") });
+          setSession(r.utilisateur.id);
+          location.hash = "#/tableau";
+          rendre();
+          toast("Compte créé. Votre fiche attend la validation de Riseva.");
+        }}
+    ]);
+  };
   return el;
 }
 
@@ -124,15 +188,19 @@ function coquille(u, vue, titre, actions = ""){
   const org = u.org ? (DB.entreprise(u.org) || DB.association(u.org)) : null;
 
   const el = h(`<div class="app">
-    <aside class="side">
+    <aside class="side grain">
       <a class="side__brand" href="/"><img src="/brand/riseva-full-white.png" alt="Riseva"></a>
+      <svg class="side__river" viewBox="0 0 240 90" aria-hidden="true">
+        <path d="M-10 66 C 40 26, 82 88, 130 52 S 200 14, 250 44" fill="none" stroke="var(--lime)" stroke-width="2" opacity=".5"/>
+        <path d="M-10 80 C 45 40, 88 102, 136 66 S 205 28, 250 58" fill="none" stroke="var(--brand)" stroke-width="2" opacity=".35"/>
+      </svg>
       ${menu}
       <div class="side__foot">
         <div class="row" style="gap:10px">
           <span class="avatar">${initiales(u.nom)}</span>
           <span style="min-width:0">
-            <b style="display:block;color:#fff;font-size:var(--t-sm)">${esc(u.nom)}</b>
-            <span style="font-size:var(--t-xs);color:rgba(255,255,255,.45);display:block;
+            <b style="display:block;color:var(--paper);font-size:var(--t-sm)">${esc(u.nom)}</b>
+            <span style="font-size:var(--t-xs);color:rgba(223,230,208,.45);display:block;
               overflow:hidden;text-overflow:ellipsis">${esc(org ? org.nom : "Riseva")}</span>
           </span>
         </div>
@@ -172,14 +240,14 @@ function tableauEntreprise(u){
   const ms = DB.missions({ entreprise: eid });
   const validees = ms.filter(m => m.etat === "validee" || m.etat === "validee_auto");
   const enCours = ms.filter(m => m.etat === "engagee" || m.etat === "a_valider");
-  const salaries = DB.utilisateurs().filter(x => x.org === eid && x.role === "salarie" && x.actif);
+  const salaries = DB.salaries(eid).filter(x => x.actif);
   const engages = salaries.filter(x => (x.points || 0) > 0).length;
   const cl = DB.classement();
   const seuilTop = cl[Math.max(0, Math.ceil(total * 0.1) - 1)]?.points ?? 0;
 
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <div class="kpis">
-      ${kpi("Points de la saison", nb(e.points), "+2 480 cette semaine", "up")}
+      ${kpi("Points de la saison", nb(e.points), "+2 480 cette semaine", "up", "kpi--tete grain")}
       ${kpi("Rang", rang + "<sup style='font-size:.55em'>e</sup>", "sur " + total + " entreprises")}
       ${kpi("Missions validées", nb(validees.length), enCours.length + " en cours")}
       ${kpi("Salariés engagés", engages + " / " + salaries.length,
@@ -417,49 +485,145 @@ function vueClassement(u){
 
 function vueEquipe(u){
   const eid = u.org;
-  const gens = DB.utilisateurs().filter(x => x.org === eid && x.role === "salarie");
-  const el = h(`<section class="card">
-    <div class="between" style="margin-bottom:var(--s5)">
-      <div><h3>Salariés</h3>
-      <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
-        ${gens.filter(g => g.actif).length} comptes actifs sur ${gens.length}</p></div>
-      <button class="btn btn--primary btn--sm" id="add">${ICONS.plus} Inviter</button>
+  const gens = DB.salaries(eid);
+  const actifs = gens.filter(g => !g.anonyme);
+  const partis = gens.filter(g => g.anonyme);
+  const si = DB.sieges(eid);
+  const inv = DB.invitationActive(eid);
+  const lien = inv ? `${location.origin}/rejoindre.html?code=${inv.code}` : "";
+
+  const el = h(`<div class="two">
+    <section class="card">
+      <div class="between" style="margin-bottom:var(--s5)">
+        <div><h3>Salariés</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+          ${actifs.length} place${actifs.length > 1 ? "s" : ""} occupée${actifs.length > 1 ? "s" : ""}${
+            partis.length ? ` · ${partis.length} départ${partis.length > 1 ? "s" : ""}` : ""}</p></div>
+        <button class="btn btn--ghost btn--sm" id="add">${ICONS.plus} Ajouter à la main</button>
+      </div>
+      <table class="table"><thead><tr>
+        <th>Nom</th><th>Email</th><th>Points</th><th>État</th><th></th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <div class="stack" style="--gap:var(--s5)">
+      <section class="card kpi kpi--tete grain">
+        <span class="kpi__label">Places occupées</span>
+        <span class="kpi__value">${si.pris} <span style="opacity:.45">/ ${si.total}</span></span>
+        <div class="bar bar--lime" style="margin-top:var(--s3);background:rgba(223,230,208,.16)">
+          <i style="width:${si.total ? (si.pris / si.total) * 100 : 0}%"></i></div>
+        <span class="kpi__delta">${si.restants} place${si.restants > 1 ? "s" : ""} encore disponible${si.restants > 1 ? "s" : ""}</span>
+      </section>
+
+      <section class="card">
+        <div class="between" style="margin-bottom:var(--s4)">
+          <h3>Lien d'inscription</h3>
+          ${inv ? `<span class="badge badge--ok"><span class="dot"></span>Actif</span>`
+                : `<span class="badge badge--warn">Aucun lien</span>`}
+        </div>
+        <p class="muted" style="font-size:var(--t-sm)">
+          Un seul lien à diffuser en interne. Chaque salarié crée son compte lui-même,
+          vous n'avez aucune liste à saisir.</p>
+        ${inv ? `
+        <div class="copyline" style="margin-top:var(--s5)">
+          <input class="input" id="lien" value="${esc(lien)}" readonly>
+          <button class="btn btn--primary btn--sm" id="copy" style="flex:none">Copier</button>
+        </div>
+        <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
+          <div class="between"><span class="muted">Code</span>
+            <strong style="font-family:var(--font-mono)">${esc(inv.code)}</strong></div>
+          <div class="between"><span class="muted">Inscriptions par ce lien</span>
+            <span class="tnum">${inv.utilisees} / ${inv.places}</span></div>
+          <div class="between"><span class="muted">Valable jusqu'au</span>
+            <span>${dateFR(inv.expire_le)}</span></div>
+        </div>
+        <hr class="sep">
+        <div class="row" style="gap:var(--s2)">
+          <button class="btn btn--ghost btn--sm" id="regen">Régénérer</button>
+          <button class="btn btn--danger btn--sm" id="revoke">Révoquer</button>
+        </div>
+        <p class="hint">Régénérer coupe l'ancien lien et en crée un nouveau. Les comptes
+          déjà créés ne sont pas touchés.</p>`
+        : `<button class="btn btn--primary btn--block" style="margin-top:var(--s5)" id="regen">Créer le lien</button>`}
+      </section>
     </div>
-    <table class="table"><thead><tr>
-      <th>Nom</th><th>Email</th><th>Points</th><th>État</th><th></th></tr></thead><tbody></tbody></table>
-  </section>`);
+  </div>`);
+
   const tb = el.querySelector("tbody");
-  gens.forEach(g => {
-    const tr = h(`<tr>
-      <td class="row" style="gap:10px"><span class="avatar">${initiales(g.nom)}</span><strong>${esc(g.nom)}</strong></td>
-      <td class="muted">${esc(g.email)}</td>
+  const ligne = (g) => {
+    const tr = h(`<tr class="${g.anonyme ? "is-anonyme" : ""}">
+      <td><span class="row" style="gap:10px">
+        <span class="avatar ${g.anonyme ? "avatar--anon" : ""}">${g.anonyme ? "—" : initiales(g.nom)}</span>
+        <span><strong>${esc(g.nom)}</strong>${g.anonyme
+          ? `<br><span class="muted" style="font-size:var(--t-xs)">retiré le ${dateFR(g.retire_le || new Date().toISOString())}</span>` : ""}</span>
+      </span></td>
+      <td class="muted">${g.anonyme ? "—" : esc(g.email)}</td>
       <td class="tnum">${nb(g.points || 0)}</td>
-      <td><span class="badge ${g.actif ? "badge--ok" : ""}">${g.actif ? "Actif" : "Désactivé"}</span></td>
+      <td><span class="badge ${g.anonyme ? "" : (g.actif ? "badge--ok" : "badge--warn")}">${
+        g.anonyme ? "Anonymisé" : (g.actif ? "Actif" : "Suspendu")}</span></td>
       <td style="text-align:right"></td></tr>`);
-    if (g.actif){
-      const b = h(`<button class="btn btn--quiet btn--sm">Désactiver</button>`);
-      b.onclick = () => modal("Désactiver ce compte",
-        `<p class="muted">Le compte de ${esc(g.nom)} sera fermé immédiatement.
-         Les points déjà validés restent acquis à l'entreprise.</p>`,
+    if (!g.anonyme){
+      const b = h(`<button class="btn btn--quiet btn--sm">Retirer</button>`);
+      b.onclick = () => modal("Retirer " + g.nom + " de l'équipe",
+        `<p class="muted">Son compte est fermé immédiatement et sa place est rendue à votre abonnement.</p>
+         <p class="muted" style="margin-top:var(--s4)">Son nom et son adresse disparaissent de la
+         plateforme. Il apparaîtra désormais comme <strong>salarié retiré</strong> dans les listes et
+         dans l'historique des missions. Les ${nb(g.points || 0)} points qu'il a rapportés restent
+         acquis à l'entreprise.</p>
+         <p class="hint" style="margin-top:var(--s4)">Cette opération ne se défait pas.</p>`,
         [{ label:"Annuler" },
-         { label:"Désactiver", classe:"btn--primary", onClick: () => {
-             DB.desactiverSalarie(g.id); toast("Compte désactivé."); rendre(); }}]);
+         { label:"Retirer et anonymiser", classe:"btn--primary", onClick: () => {
+             DB.retirerSalarie(g.id); toast("Compte retiré et anonymisé."); rendre(); }}]);
       tr.lastElementChild.appendChild(b);
     }
-    tb.appendChild(tr);
+    return tr;
+  };
+  actifs.forEach(g => tb.appendChild(ligne(g)));
+  partis.forEach(g => tb.appendChild(ligne(g)));
+  if (!gens.length) tb.appendChild(h(`<tr><td colspan="5" class="empty">Personne pour l'instant. Diffusez le lien d'inscription.</td></tr>`));
+
+  el.querySelector("#copy")?.addEventListener("click", () => {
+    const champ = el.querySelector("#lien");
+    champ.select();
+    navigator.clipboard?.writeText(champ.value).catch(() => document.execCommand("copy"));
+    toast("Lien copié.");
   });
+  el.querySelector("#regen")?.addEventListener("click", () => {
+    const corps = h(`<div class="stack" style="--gap:var(--s4)">
+      <p class="muted" style="font-size:var(--t-sm)">Combien de places ce lien peut-il ouvrir ?
+        Il ne pourra jamais dépasser le nombre de places de votre abonnement.</p>
+      <div class="field"><label>Places ouvertes par le lien</label>
+        <input class="input" type="number" id="pl" min="1" max="${si.total}" value="${si.restants || si.total}"></div>
+    </div>`);
+    modal(inv ? "Régénérer le lien" : "Créer le lien", corps, [
+      { label:"Annuler" },
+      { label:inv ? "Régénérer" : "Créer", classe:"btn--primary", onClick: () => {
+          const n = Math.min(Number(corps.querySelector("#pl").value) || 1, si.total);
+          DB.creerInvitation(eid, n);
+          toast("Nouveau lien prêt."); rendre();
+        }}
+    ]);
+  });
+  el.querySelector("#revoke")?.addEventListener("click", () => modal("Révoquer le lien",
+    `<p class="muted">Plus personne ne pourra créer de compte avec ce lien. Les comptes
+     existants ne sont pas touchés.</p>`,
+    [{ label:"Annuler" },
+     { label:"Révoquer", classe:"btn--primary", onClick: () => {
+         DB.revoquerInvitation(inv.id); toast("Lien révoqué."); rendre(); }}]));
+
   el.querySelector("#add").onclick = () => {
     const corps = h(`<div class="stack" style="--gap:var(--s4)">
       <div class="field"><label>Nom et prénom</label><input class="input" id="n" placeholder="Camille Roux"></div>
       <div class="field"><label>Email professionnel</label><input class="input" id="e" type="email" placeholder="camille@entreprise.fr"></div>
-      <p class="hint">Un lien d'activation lui sera envoyé. Aucun mot de passe ne transite par Riseva.</p>
+      <p class="hint">${si.restants} place${si.restants > 1 ? "s" : ""} disponible${si.restants > 1 ? "s" : ""}.
+        Un lien d'activation part vers cette adresse, aucun mot de passe ne transite par Riseva.</p>
     </div>`);
-    modal("Inviter un salarié", corps, [
+    modal("Ajouter un salarié", corps, [
       { label:"Annuler" },
       { label:"Envoyer l'invitation", classe:"btn--primary", onClick: () => {
           const n = corps.querySelector("#n").value.trim(), e = corps.querySelector("#e").value.trim();
           if (!n || !e){ toast("Nom et email sont nécessaires."); return false; }
-          DB.inviterSalarie(u.org, n, e); toast("Invitation envoyée."); rendre();
+          try { DB.inviterSalarie(eid, n, e); } catch (err){ toast(err.message); return false; }
+          toast("Invitation envoyée."); rendre();
         }}
     ]);
   };
@@ -546,6 +710,7 @@ function vueRapports(u){
 
 function vueAbonnement(u){
   const s = DB.saison();
+  const si = DB.sieges(u.org);
   return h(`<div class="two">
     <section class="card" style="padding:var(--s8)">
       <div class="between"><h3>Abonnement ${esc(s.nom)}</h3>
@@ -557,12 +722,16 @@ function vueAbonnement(u){
         <div class="between"><span class="muted">Acompte versé</span><span>${eur(s.acompte)}</span></div>
         <div class="between"><span class="muted">Solde à régler</span>
           <span>${eur(s.prix_min - s.acompte)} à ${eur(s.prix_max - s.acompte)} HT</span></div>
-        <div class="between"><span class="muted">Salariés couverts</span><span>illimité</span></div>
+        <div class="between"><span class="muted">Places de l'abonnement</span>
+          <span class="tnum">${si.pris} / ${si.total}</span></div>
       </div>
+      <hr class="sep">
+      <div class="bar" style="margin-top:var(--s2)"><i style="width:${si.total ? (si.pris / si.total) * 100 : 0}%"></i></div>
       <hr class="sep">
       <p class="muted" style="font-size:var(--t-sm)">
         L'acompte de ${eur(s.acompte)} est remboursé intégralement si la saison ne démarre pas.
-        Aucune commission n'est prélevée sur les dons faits par vos salariés.</p>
+        Aucune commission n'est prélevée sur les dons faits par vos salariés.
+        Un salarié retiré libère sa place immédiatement.</p>
     </section>
     <section class="card">
       <h3>Factures</h3>
@@ -589,7 +758,7 @@ function tableauAsso(u){
   const aValider = ms.filter(m => m.etat === "a_valider");
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <div class="kpis">
-      ${kpi("Annonces ouvertes", nb(annonces.filter(a => a.etat === "ouverte").length))}
+      ${kpi("Annonces ouvertes", nb(annonces.filter(a => a.etat === "ouverte").length), "publiées par vous", "", "kpi--tete grain")}
       ${kpi("Missions engagées", nb(ms.filter(m => m.etat === "engagee").length))}
       ${kpi("À valider", nb(aValider.length), aValider.length ? "action attendue" : "rien en attente",
             aValider.length ? "down" : "")}
@@ -738,7 +907,7 @@ function tableauAdmin(){
   const es = DB.entreprises(), as = DB.associations(), ps = DB.preinscriptions();
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <div class="kpis">
-      ${kpi("Entreprises", nb(es.length), "saison en cours")}
+      ${kpi("Entreprises", nb(es.length), "saison en cours", "", "kpi--tete grain")}
       ${kpi("Associations", nb(as.filter(a => a.valide).length), as.filter(a => !a.valide).length + " en attente")}
       ${kpi("Préinscriptions", nb(ps.length), ps.filter(p => p.etat === "confirmee").length + " confirmées")}
       ${kpi("Points du réseau", nb(es.reduce((s, e) => s + e.points, 0)))}
@@ -763,15 +932,20 @@ function tableauAdmin(){
 
 function vueAdminEntreprises(){
   const el = h(`<section class="card"><table class="table"><thead><tr>
-    <th>Entreprise</th><th>Secteur</th><th>Effectif</th><th>Points</th><th>Rang</th>
+    <th>Entreprise</th><th>Secteur</th><th>Places</th><th>Points</th><th>Rang</th>
   </tr></thead><tbody></tbody></table></section>`);
   const tb = el.querySelector("tbody");
-  DB.classement().forEach(e => tb.appendChild(h(`<tr>
-    <td><strong>${esc(e.nom)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(e.ville)}</span></td>
-    <td class="muted">${esc(e.secteur)}</td>
-    <td class="tnum">${nb(e.effectif)}</td>
-    <td class="tnum"><strong>${nb(e.points)}</strong></td>
-    <td class="tnum">${e.rang}</td></tr>`)));
+  DB.classement().forEach(e => {
+    const si = DB.sieges(e.id);
+    tb.appendChild(h(`<tr>
+      <td><strong>${esc(e.nom)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(e.ville)} · ${nb(e.effectif)} salariés</span></td>
+      <td class="muted">${esc(e.secteur)}</td>
+      <td style="width:22%"><div class="between" style="font-size:var(--t-xs);margin-bottom:5px">
+          <span class="muted tnum">${si.pris} / ${si.total}</span></div>
+        <div class="bar"><i style="width:${si.total ? (si.pris / si.total) * 100 : 0}%"></i></div></td>
+      <td class="tnum"><strong>${nb(e.points)}</strong></td>
+      <td class="tnum">${e.rang}</td></tr>`));
+  });
   return el;
 }
 

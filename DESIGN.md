@@ -18,6 +18,44 @@ Deux conséquences directes :
 
 ## 2. Couleur
 
+> Cette palette n'est pas nouvelle. Elle a été verrouillée le 29/07/2026 dans le brief envoyé
+> au graphiste du logo, puis oubliée. Elle est remise en service ici, c'est elle qui donne au
+> produit sa profondeur et son caractère.
+
+| Rôle | Valeur | Usage |
+|---|---|---|
+| Encre | `#131510` | Couleur primaire de la marque. Titres, boutons d'action, texte fort. |
+| Papier | `#F2F0E9` | Fond général. **Jamais de blanc pur.** Surfaces posées : `#FAF9F5`, flottantes : `#FCFBF8`, creusées : `#EAE7DE`. |
+| Forêt | `#0B2620` / `#0F3D30` / `#1F5C4A` / `#2E7A62` | La profondeur. Barre latérale, sections sombres, carte de tête, courbes. |
+| Lime | `#C9F24B` | **Accent uniquement, et seulement sur fond sombre.** Illisible sur clair. |
+| Mousse | `#DFE6D0` | Fond doux, badges, textes sur forêt. |
+| Bleu eau | `#3D82AD` | Accent secondaire, information. |
+| Ambre | `#C97F1E` | Attention, attente. |
+| Vert du logo | `#6DBE45` | Le pont entre forêt et lime. Écho de la rivière, filets. |
+
+### Comment la profondeur est obtenue
+
+Pas par des dégradés ni du faux relief, tous deux explicitement interdits par le brief de marque.
+Par quatre choses :
+
+1. **L'empilement des surfaces.** Papier `#F2F0E9`, carte `#FAF9F5`, modale `#FCFBF8`, champ creusé
+   `#EAE7DE`. Quatre niveaux qui se distinguent sans une seule bordure marquée.
+2. **Les ombres sont vertes.** Elles sont teintées `rgba(11,38,32,…)`, pas noires. Une ombre noire
+   sur un papier chaud fait sale ; une ombre forêt fait profond.
+3. **Les surfaces sombres portent un grain.** Une texture de bruit à très faible opacité en
+   `mix-blend-mode: overlay` (`.grain`). C'est ce qui empêche un aplat de vert profond de paraître
+   plat, sans dégradé.
+4. **Une carte de tête par écran.** Une seule carte en `#0B2620` avec son chiffre en lime. C'est
+   l'ancre visuelle. Deux, et l'effet disparaît.
+
+### Ce qui reste interdit
+
+Le vert lime en texte sur fond clair. Le vert du logo en texte sur papier (contraste 2,3:1) :
+seul `#3B6D11` passe. Et tous les clichés écologiques listés dans le brief de marque : feuille
+générique, main tenant une pousse, globe entouré de feuillage, flèches de recyclage.
+
+## 2 bis. Ancienne note sur le vert
+
 ### Le vert de marque ne sert jamais de texte sur fond blanc
 
 #6DBE45 sur blanc donne un contraste de **2,31:1**, très en dessous du minimum de 4,5:1.

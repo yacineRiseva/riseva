@@ -40,10 +40,12 @@
 <!-- ============ HERO ============ -->
 <section class="hero">
   <svg class="hero__river" viewBox="0 0 1440 280" preserveAspectRatio="none" aria-hidden="true">
-    <path d="M-20 210 C 220 120, 340 250, 560 190 S 940 90, 1140 170 S 1380 230, 1460 150"
-          fill="none" stroke="var(--brand-200)" stroke-width="2"/>
-    <path d="M-20 250 C 260 170, 380 280, 620 225 S 980 140, 1180 210 S 1400 260, 1460 195"
-          fill="none" stroke="var(--brand-100)" stroke-width="2"/>
+    <path d="M-20 200 C 220 110, 340 240, 560 180 S 940 80, 1140 160 S 1380 220, 1460 140"
+          fill="none" stroke="var(--forest-600)" stroke-width="2" opacity=".38"/>
+    <path d="M-20 226 C 230 136, 352 266, 580 206 S 952 106, 1152 186 S 1388 246, 1460 166"
+          fill="none" stroke="var(--brand)" stroke-width="2" opacity=".3"/>
+    <path d="M-20 258 C 260 170, 380 290, 620 232 S 980 146, 1180 216 S 1400 266, 1460 200"
+          fill="none" stroke="var(--forest-700)" stroke-width="2" opacity=".16"/>
   </svg>
 
   <div class="wrap hero__grid">
@@ -112,7 +114,7 @@
       <div><b>1 an</b><span>Une saison calée sur votre année fiscale</span></div>
       <div><b>3 formats</b><span>Don financier, demi-journée, matériel</span></div>
       <div><b>0 €</b><span>Pour les associations, toujours</span></div>
-      <div><b>4</b><span>Rendez-vous dans l'année, dont le rapport final</span></div>
+      <div><b>1 lien</b><span>À diffuser en interne, chacun crée son compte</span></div>
     </div>
   </div>
 </section>
@@ -177,8 +179,9 @@
       <article class="card card--hover stack" style="--gap:var(--s3)">
         <span class="badge badge--brand">2</span>
         <h3>Le salarié répond</h3>
-        <p class="muted">Il voit les annonces depuis son espace, se positionne, réalise la mission.
-          L'association confirme d'un clic par mail que c'est bien fait.</p>
+        <p class="muted">Vous diffusez un lien unique en interne, chacun crée son compte lui-même.
+          Il voit les annonces, se positionne, réalise la mission. L'association confirme
+          d'un clic par mail.</p>
       </article>
       <article class="card card--hover stack" style="--gap:var(--s3)">
         <span class="badge badge--brand">3</span>
@@ -250,20 +253,20 @@
     <ul class="stack" style="--gap:var(--s4)">
       <li class="row" style="align-items:flex-start;gap:var(--s4)">
         <span class="badge badge--brand">01</span>
-        <div><strong style="color:#fff">Vous gardez la main</strong>
-        <p style="color:rgba(255,255,255,.6);margin-top:4px">Vous validez ou refusez chaque mission.
+        <div><strong style="color:var(--paper)">Vous gardez la main</strong>
+        <p style="color:rgba(223,230,208,.62);margin-top:4px">Vous validez ou refusez chaque mission.
           Une entreprise ne marque des points que si vous confirmez.</p></div>
       </li>
       <li class="row" style="align-items:flex-start;gap:var(--s4)">
         <span class="badge badge--brand">02</span>
-        <div><strong style="color:#fff">L'argent va chez vous</strong>
-        <p style="color:rgba(255,255,255,.6);margin-top:4px">Les dons sont encaissés directement
+        <div><strong style="color:var(--paper)">L'argent va chez vous</strong>
+        <p style="color:rgba(223,230,208,.62);margin-top:4px">Les dons sont encaissés directement
           sur votre compte. Riseva ne touche pas aux fonds.</p></div>
       </li>
       <li class="row" style="align-items:flex-start;gap:var(--s4)">
         <span class="badge badge--brand">03</span>
-        <div><strong style="color:#fff">Partout en France</strong>
-        <p style="color:rgba(255,255,255,.6);margin-top:4px">Aucune restriction de territoire.
+        <div><strong style="color:var(--paper)">Partout en France</strong>
+        <p style="color:rgba(223,230,208,.62);margin-top:4px">Aucune restriction de territoire.
           Une asso rurale a autant sa place qu'une grosse structure parisienne.</p></div>
       </li>
     </ul>
@@ -281,10 +284,10 @@
         vous ne consolidez rien : le trimestriel et l'annuel se génèrent tout seuls.
       </p>
       <ul class="stack" style="--gap:var(--s3);margin-top:var(--s8);font-size:var(--t-sm);color:var(--ink-600)">
-        <li class="row"><span class="dot" style="color:var(--brand)"></span> Points cumulés, rang, évolution trimestre par trimestre</li>
-        <li class="row"><span class="dot" style="color:var(--brand)"></span> Taux de participation de vos salariés</li>
-        <li class="row"><span class="dot" style="color:var(--brand)"></span> Répartition par format et par association</li>
-        <li class="row"><span class="dot" style="color:var(--brand)"></span> Volet impact du réseau, commun à toutes les entreprises</li>
+        <li class="row"><span class="dot" style="color:var(--forest-700)"></span> Points cumulés, rang, évolution trimestre par trimestre</li>
+        <li class="row"><span class="dot" style="color:var(--forest-700)"></span> Taux de participation de vos salariés</li>
+        <li class="row"><span class="dot" style="color:var(--forest-700)"></span> Répartition par format et par association</li>
+        <li class="row"><span class="dot" style="color:var(--forest-700)"></span> Volet impact du réseau, commun à toutes les entreprises</li>
       </ul>
     </div>
     <div class="card" style="padding:var(--s8)">
@@ -364,9 +367,18 @@
       fiscal au nom de l'association, et ne voit jamais passer l'argent.</p>
     </details>
     <details>
+      <summary>Comment inscrire nos salariés ?</summary>
+      <p>Vous ne les inscrivez pas. Vous recevez un lien unique, vous le diffusez comme vous
+      voulez, et chacun crée son compte en trente secondes. Le lien ne peut jamais ouvrir plus
+      de comptes que votre abonnement n'a de places, et vous pouvez le couper ou le régénérer
+      à tout moment depuis votre espace.</p>
+    </details>
+    <details>
       <summary>Que se passe-t-il si un salarié quitte l'entreprise ?</summary>
-      <p>Son compte est désactivé depuis votre espace en une action. Les points déjà validés
-      restent acquis à l'entreprise, c'est le collectif qui compte.</p>
+      <p>Vous le retirez en une action. Son nom et son adresse disparaissent de la plateforme,
+      il apparaît ensuite comme salarié retiré dans les listes et dans l'historique. Les points
+      qu'il a rapportés restent acquis à l'entreprise, et sa place est immédiatement rendue
+      à votre abonnement.</p>
     </details>
     <details>
       <summary>Riseva assure-t-il les missions de bénévolat ?</summary>
@@ -392,11 +404,11 @@
   <div class="wrap">
     <div class="cta">
       <svg class="cta__river" viewBox="0 0 400 200" aria-hidden="true">
-        <path d="M0 150 C 80 60, 140 190, 220 120 S 340 40, 400 100" fill="none" stroke="var(--brand)" stroke-width="3"/>
-        <path d="M0 185 C 90 100, 150 220, 240 155 S 350 80, 400 135" fill="none" stroke="var(--brand)" stroke-width="3" opacity=".5"/>
+        <path d="M0 150 C 80 60, 140 190, 220 120 S 340 40, 400 100" fill="none" stroke="var(--lime)" stroke-width="3"/>
+        <path d="M0 185 C 90 100, 150 220, 240 155 S 350 80, 400 135" fill="none" stroke="var(--lime)" stroke-width="3" opacity=".5"/>
       </svg>
       <div style="position:relative;max-width:44ch">
-        <h2 style="color:#fff">Douze places pour la première saison</h2>
+        <h2 style="color:var(--paper)">Douze places pour la première saison</h2>
         <p class="lede" style="margin-top:var(--s5)">
           Nous démarrons volontairement petit pour accompagner correctement les premières
           entreprises. La préinscription est gratuite et ne vous engage à rien.

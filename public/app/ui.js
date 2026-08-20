@@ -68,8 +68,8 @@ export function modal(titre, corps, actions = []){
   return ov;
 }
 
-export function kpi(label, valeur, delta = "", sens = ""){
-  return `<div class="card kpi">
+export function kpi(label, valeur, delta = "", sens = "", classe = ""){
+  return `<div class="card kpi ${classe}">
     <span class="kpi__label">${esc(label)}</span>
     <span class="kpi__value">${valeur}</span>
     ${delta ? `<span class="kpi__delta ${sens}">${esc(delta)}</span>` : ""}
@@ -115,13 +115,13 @@ export function riviere(valeurs, { hauteur = 150, legendes = [] } = {}){
   return `<figure class="riviere" style="--h:${H}px">
     <svg viewBox="0 0 ${L} ${H}" preserveAspectRatio="none" aria-hidden="true">
       <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%"  stop-color="var(--brand)" stop-opacity=".22"/>
-        <stop offset="100%" stop-color="var(--brand)" stop-opacity="0"/>
+        <stop offset="0%"  stop-color="var(--forest-600)" stop-opacity=".26"/>
+        <stop offset="100%" stop-color="var(--forest-600)" stop-opacity="0"/>
       </linearGradient></defs>
       <path d="${trait} L ${L} ${H} L 0 ${H} Z" fill="url(#${id})"/>
-      <path d="${courbe(pts, 9)}" fill="none" stroke="var(--brand)" stroke-opacity=".32"
+      <path d="${courbe(pts, 9)}" fill="none" stroke="var(--brand)" stroke-opacity=".45"
             stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round"/>
-      <path d="${trait}" fill="none" stroke="var(--brand)" stroke-width="2.5"
+      <path d="${trait}" fill="none" stroke="var(--forest-700)" stroke-width="2.5"
             vector-effect="non-scaling-stroke" stroke-linecap="round"/>
     </svg>
     <span class="riviere__fin" style="left:100%;top:${(dernier[1] / H) * 100}%"></span>

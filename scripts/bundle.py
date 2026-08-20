@@ -43,5 +43,18 @@ app = app.replace('<script type="module" src="/app/app.js"></script>',
 app = inline(app, ["tokens.css","base.css","components.css","app.css"])
 (OUT/"riseva-app.html").write_text(app, encoding="utf-8")
 
+# ---- page publique de rejointe ----------------------------------------
+rej = (R/"rejoindre.html").read_text(encoding="utf-8")
+rej = rej.replace('import { DB, BAREME } from "/app/data.js";', "")
+rej = rej.replace('import { h, esc, nb, toast } from "/app/ui.js";', "")
+rej = rej.replace('const code = new URLSearchParams(location.search).get("code") || "";',
+                  'const code = new URLSearchParams(location.search).get("code") || "LAFARGE-7QK2";')
+rej = rej.replace('<script type="module">',
+                  '<script type="module">\n' + "\n".join(
+                      strip_modules((R/"app"/f).read_text(encoding="utf-8"))
+                      for f in ["data.js","ui.js"]))
+rej = inline(rej, ["tokens.css","base.css","components.css","app.css"])
+(OUT/"riseva-rejoindre.html").write_text(rej, encoding="utf-8")
+
 for f in OUT.iterdir():
     print(f.name, round(f.stat().st_size/1024), "Ko")

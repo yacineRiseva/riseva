@@ -43,6 +43,7 @@ create table entreprise (
   secteur   text,
   ville     text,
   effectif  integer check (effectif >= 0),
+  sieges    integer not null default 0 check (sieges >= 0),  -- places de l'abonnement
   cree_le   timestamptz not null default now()
 );
 
@@ -77,6 +78,9 @@ create table profil (
   entreprise   uuid references entreprise(id) on delete set null,
   association  uuid references association(id) on delete set null,
   actif        boolean not null default true,
+  -- Un salarié retiré n'est pas supprimé : il est vidé. Voir anonymiser_salarie().
+  anonyme      boolean not null default false,
+  retire_le    date,
   cree_le      timestamptz not null default now(),
   constraint profil_une_seule_org check (
     (entreprise is null) or (association is null)
@@ -87,6 +91,24 @@ create table profil (
     (role = 'association'      and association is not null)
   )
 );
+
+-- ---------------------------------------------------------------- invitations
+-- Un lien unique par entreprise. Les salariés créent leur compte eux-mêmes,
+-- l'entreprise n'a aucune liste à saisir.
+create table invitation (
+  id          uuid primary key default gen_random_uuid(),
+  entreprise  uuid not null references entreprise(id) on delete cascade,
+  code        text not null unique,
+  places      integer not null check (places > 0),
+  utilisees   integer not null default 0 check (utilisees >= 0),
+  active      boolean not null default true,
+  cree_par    uuid references profil(id) on delete set null,
+  cree_le     timestamptz not null default now(),
+  expire_le   date not null default (current_date + interval '120 days'),
+  constraint invitation_places check (utilisees <= places)
+);
+-- Un seul lien actif à la fois par entreprise.
+create unique index invitation_une_seule_active on invitation (entreprise) where active;
 
 -- ---------------------------------------------------------------- annonces et missions
 create table annonce (

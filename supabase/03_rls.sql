@@ -11,6 +11,7 @@ alter table abonnement      enable row level security;
 alter table preinscription  enable row level security;
 alter table saison          enable row level security;
 alter table bareme          enable row level security;
+alter table invitation      enable row level security;
 
 -- Helpers
 create or replace function mon_role() returns role_utilisateur
@@ -77,3 +78,46 @@ create policy p_abo_lecture on abonnement for select using (
 -- Préinscriptions : écriture ouverte au public (formulaire), lecture réservée à Riseva
 create policy p_prein_ecriture on preinscription for insert with check (true);
 create policy p_prein_lecture  on preinscription for select using (mon_role() = 'admin');
+
+
+-- ---------------------------------------------------------------- invitations
+-- Seul l'administrateur de l'entreprise voit et gère ses liens.
+create policy p_invit_lecture on invitation for select using (
+  mon_role() = 'admin' or entreprise = mon_entreprise()
+);
+create policy p_invit_ecriture on invitation for insert with check (
+  mon_role() in ('admin','entreprise_admin') and entreprise = mon_entreprise()
+);
+create policy p_invit_maj on invitation for update using (
+  mon_role() = 'admin' or (mon_role() = 'entreprise_admin' and entreprise = mon_entreprise())
+);
+
+-- La page publique de rejointe ne lit jamais la table directement : elle appelle cette
+-- fonction, qui ne renvoie que ce qui est nécessaire pour afficher l'écran d'inscription.
+create or replace function invitation_publique(p_code text)
+returns table (entreprise_nom text, places_restantes integer, valide boolean)
+language sql stable security definer as $$
+  select e.nom,
+         least(i.places - i.utilisees, sieges_restants(e.id)),
+         (i.active and i.expire_le >= current_date
+          and i.utilisees < i.places and sieges_restants(e.id) > 0)
+    from invitation i join entreprise e on e.id = i.entreprise
+   where upper(i.code) = upper(p_code)
+$$;
+revoke all on function invitation_publique(text) from public;
+grant execute on function invitation_publique(text) to anon, authenticated;
+
+-- L'anonymisation n'est ouverte qu'à l'administrateur de l'entreprise concernée.
+create or replace function retirer_salarie(p_profil uuid)
+returns void language plpgsql security definer as $$
+begin
+  if not exists (
+    select 1 from profil p
+     where p.id = p_profil and p.role = 'salarie'
+       and (mon_role() = 'admin'
+            or (mon_role() = 'entreprise_admin' and p.entreprise = mon_entreprise()))
+  ) then
+    raise exception 'Non autorisé';
+  end if;
+  perform anonymiser_salarie(p_profil);
+end $$;

@@ -1,78 +1,113 @@
-/* Riseva - design tokens. Source de vérité : DESIGN.md */
+/* Riseva — design tokens.
+   Palette verrouillée le 29/07/2026 dans le brief envoyé au graphiste, remise en service ici.
+   Règle de base : jamais de blanc pur, jamais de noir pur. Tout est teinté. */
 :root{
-  /* ---- Marque ---- */
-  --brand:#6DBE45;          /* vert du logo. Accents, data, états actifs. Jamais du texte sur blanc. */
-  --brand-600:#5BAA36;
-  --brand-700:#4F9A2E;
-  --brand-800:#3B7C21;      /* texte / lien vert sur blanc, contraste 5.1:1 */
-  --brand-050:#F1F9EC;
-  --brand-100:#DFF1D4;
-  --brand-200:#C2E4AF;
+  /* ---- Encre : la couleur primaire de la marque ---- */
+  --ink:#131510;
+  --ink-900:#0D0F0B;
+  --ink-800:#1D1F18;
+  --ink-700:#2C3026;
+  --ink-600:#4A4F42;
+  --ink-500:#63675C;        /* texte secondaire */
+  --ink-400:#8A8F82;
+  --ink-300:#A8AB9F;
+  --ink-200:#CFD1C6;
+  --ink-100:#E5E2D9;
+  --ink-050:#EFEDE6;
 
-  /* ---- Encre et neutres (légère teinte verte, jamais du gris pur) ---- */
-  --ink:#0F1311;            /* fond sombre, boutons primaires, titres */
-  --ink-800:#1A201D;
-  --ink-700:#272E2B;
-  --ink-600:#434B48;
-  --ink-500:#646C69;        /* texte secondaire */
-  --ink-400:#909794;
-  --ink-300:#BEC3C1;
-  --ink-200:#DEE1E0;
-  --ink-100:#EEF0EF;
-  --ink-050:#F7F8F8;
-  --paper:#FFFFFF;
-  --paper-warm:#FCFCFC;
+  /* ---- Papier : fond chaud, jamais #FFF ---- */
+  --paper:#F2F0E9;
+  --paper-raised:#FAF9F5;   /* cartes, surfaces posées au-dessus du papier */
+  --paper-high:#FCFBF8;     /* modales, surfaces flottantes */
+  --paper-sunk:#EAE7DE;     /* champs, pistes, zones creusées */
+
+  /* ---- Forêt : la profondeur du vert ---- */
+  --forest-900:#0B2620;
+  --forest-800:#0F3D30;
+  --forest-700:#1F5C4A;
+  --forest-600:#2E7A62;
+  --forest-100:#DFE6D0;     /* mousse */
+  --forest-050:#E8F0EA;
+
+  /* ---- Accents ---- */
+  --lime:#C9F24B;           /* accent uniquement, sur fond sombre. Illisible sur clair. */
+  --lime-600:#A9D22B;
+  --brand:#6DBE45;          /* le vert du logo, pont entre forêt et lime */
+  --brand-700:#4F9A2E;
+  --brand-800:#3B6D11;      /* seul vert lisible en texte sur papier */
+  --water:#3D82AD;          /* accent secondaire */
+  --water-100:#DCE9F1;
+  --amber:#C97F1E;
+  --amber-100:#F6EAD5;
 
   /* ---- Sémantique ---- */
-  --ok:#2E9E5B; --ok-bg:#E9F7EE;
-  --warn:#B7791F; --warn-bg:#FDF6E7;
-  --danger:#C0392B; --danger-bg:#FBEDEB;
-  --info:#2F6FB0; --info-bg:#EAF2FA;
+  --ok:#2E7A62; --ok-bg:#DFE6D0;
+  --warn:#C97F1E; --warn-bg:#F6EAD5;
+  --danger:#A63A2B; --danger-bg:#F4E2DE;
+  --info:#3D82AD; --info-bg:#DCE9F1;
 
   /* ---- Typo ---- */
   --font-display:'Instrument Sans','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
   --font-ui:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
-  --font-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --font-mono:ui-monospace,SFMono-Regular,Menlo,monospace;
 
-  --t-display:clamp(2.75rem,1.6rem + 3.4vw,4.25rem);
+  --t-display:clamp(2.75rem,1.5rem + 3.6vw,4.5rem);
   --t-h1:clamp(2rem,1.4rem + 2vw,3rem);
-  --t-h2:clamp(1.5rem,1.2rem + 1vw,2rem);
+  --t-h2:clamp(1.5rem,1.2rem + 1vw,2.125rem);
   --t-h3:1.25rem;
   --t-lg:1.0625rem;
-  --t-base:0.9375rem;   /* application */
-  --t-read:1rem;        /* pages marketing */
+  --t-read:1rem;
+  --t-base:0.9375rem;
   --t-sm:0.8125rem;
   --t-xs:0.75rem;
 
-  --lead-tight:1.08;
+  --lead-tight:1.06;
   --lead-snug:1.25;
   --lead-normal:1.55;
 
-  --track-display:-0.032em;
-  --track-h:-0.02em;
-  --track-wide:0.14em;   /* réservé au wordmark et aux sur-titres */
+  --track-display:-0.034em;
+  --track-h:-0.021em;
+  --track-wide:0.14em;
 
-  /* ---- Espace (base 4) ---- */
+  /* ---- Espace ---- */
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px;
   --s8:32px; --s10:40px; --s12:48px; --s16:64px; --s20:80px; --s24:96px; --s32:128px;
 
   /* ---- Formes ---- */
   --r-xs:8px; --r-sm:8px; --r-md:12px; --r-lg:20px; --r-xl:20px; --r-pill:999px;
-  --line:1px solid rgba(15,19,17,.09);
-  --line-strong:1px solid rgba(15,19,17,.15);
+  --line:1px solid rgba(19,21,16,.10);
+  --line-soft:1px solid rgba(19,21,16,.06);
+  --line-dark:1px solid rgba(223,230,208,.10);
 
-  /* ---- Ombres : basses, jamais au-dessus de .10 d'alpha ---- */
-  --sh-1:0 1px 2px rgba(15,19,17,.05);
-  --sh-2:0 1px 2px rgba(15,19,17,.04), 0 6px 16px -6px rgba(15,19,17,.10);
-  --sh-3:0 1px 3px rgba(15,19,17,.05), 0 18px 40px -18px rgba(15,19,17,.16);
-  --sh-focus:0 0 0 3px rgba(109,190,69,.34);
+  /* ---- Profondeur : les ombres sont vertes, pas grises ---- */
+  --sh-1:0 1px 2px rgba(11,38,32,.06);
+  --sh-2:0 1px 2px rgba(11,38,32,.05), 0 8px 20px -8px rgba(11,38,32,.14);
+  --sh-3:0 2px 4px rgba(11,38,32,.05), 0 24px 48px -20px rgba(11,38,32,.26);
+  --sh-inset:inset 0 1px 0 rgba(255,255,255,.6);
+  --sh-focus:0 0 0 3px rgba(31,92,74,.26);
+  --sh-lime:0 0 0 3px rgba(201,242,75,.26);
 
   /* ---- Layout ---- */
   --wrap:1180px;
   --wrap-app:1560px;
-  --sidebar:236px;
+  --sidebar:244px;
   --header-h:64px;
 
   --ease:cubic-bezier(.22,.61,.36,1);
   --dur:180ms;
+
+  /* ---- Alias hérités de la première version, conservés pour ne rien casser ---- */
+  --brand-050:var(--forest-050);
+  --brand-100:var(--forest-100);
+  --brand-200:#C2D6AC;
+  --brand-600:var(--forest-600);
+  --paper-warm:var(--paper);
 }
+
+/* Grain très léger, appliqué aux surfaces sombres. C'est ce qui empêche un aplat
+   de vert profond de paraître plat, sans recourir à un dégradé ni à un faux relief. */
+.grain{position:relative;isolation:isolate}
+.grain::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;opacity:.32;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.42'/%3E%3C/svg%3E");
+  mix-blend-mode:overlay}
+.grain>*{position:relative;z-index:1}

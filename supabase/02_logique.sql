@@ -65,3 +65,93 @@ end $$;
 create or replace function rafraichir_classement() returns void language sql as $$
   refresh materialized view concurrently classement;
 $$;
+
+
+-- ---------------------------------------------------------------- sièges
+-- Une place occupée par salarié encore identifié. Un salarié anonymisé rend sa place.
+create or replace function sieges_pris(p_entreprise uuid)
+returns integer language sql stable as $$
+  select count(*)::integer from profil
+   where entreprise = p_entreprise and role = 'salarie' and not anonyme
+$$;
+
+create or replace function sieges_restants(p_entreprise uuid)
+returns integer language sql stable as $$
+  select greatest(0, (select sieges from entreprise where id = p_entreprise)
+                     - sieges_pris(p_entreprise))
+$$;
+
+-- Aucun compte salarié ne peut être créé au-delà du nombre de places acheté.
+create or replace function profil_avant_insert() returns trigger language plpgsql as $$
+begin
+  if new.role = 'salarie' and not new.anonyme then
+    if sieges_restants(new.entreprise) <= 0 then
+      raise exception 'Plus aucune place disponible sur cet abonnement';
+    end if;
+  end if;
+  return new;
+end $$;
+
+create trigger trg_profil_avant_insert before insert on profil
+for each row execute function profil_avant_insert();
+
+-- ---------------------------------------------------------------- anonymisation
+-- Retirer un salarié ne supprime pas sa ligne : cela viderait aussi ses missions et
+-- ferait disparaître des points acquis à l'entreprise. On vide l'identité, on garde la trace.
+create or replace function anonymiser_salarie(p_profil uuid)
+returns void language plpgsql security definer as $$
+declare v_entreprise uuid; v_rang integer;
+begin
+  select entreprise into v_entreprise from profil where id = p_profil and role = 'salarie';
+  if v_entreprise is null then raise exception 'Profil salarié introuvable'; end if;
+
+  select count(*) + 1 into v_rang
+    from profil where entreprise = v_entreprise and anonyme;
+
+  update profil
+     set nom       = 'Salarié retiré ' || lpad(v_rang::text, 2, '0'),
+         anonyme   = true,
+         actif     = false,
+         retire_le = current_date
+   where id = p_profil;
+
+  -- L'identité vit dans auth.users : on la neutralise aussi.
+  update auth.users
+     set email = 'retire+' || p_profil || '@riseva.invalid',
+         raw_user_meta_data = '{}'::jsonb,
+         phone = null
+   where id = p_profil;
+
+  -- La place est rendue au lien d'invitation en cours.
+  update invitation set utilisees = greatest(0, utilisees - 1)
+   where entreprise = v_entreprise and active;
+end $$;
+
+-- ---------------------------------------------------------------- invitations
+-- Génère un code lisible, sans caractères ambigus.
+create or replace function nouveau_code(p_entreprise uuid)
+returns text language plpgsql as $$
+declare v_base text; v_suffixe text;
+begin
+  select upper(regexp_replace(nom, '[^A-Za-z]', '', 'g')) into v_base
+    from entreprise where id = p_entreprise;
+  v_base := coalesce(nullif(left(v_base, 7), ''), 'RISEVA');
+  select string_agg(substr('ABCDEFGHJKLMNPQRSTUVWXYZ23456789',
+                           (random() * 31)::integer + 1, 1), '')
+    into v_suffixe from generate_series(1, 4);
+  return v_base || '-' || v_suffixe;
+end $$;
+
+-- Crée un lien et désactive le précédent, en une transaction.
+create or replace function creer_invitation(p_entreprise uuid, p_places integer)
+returns invitation language plpgsql security definer as $$
+declare v invitation%rowtype;
+begin
+  update invitation set active = false where entreprise = p_entreprise and active;
+  insert into invitation (entreprise, code, places, cree_par)
+  values (p_entreprise, nouveau_code(p_entreprise),
+          least(p_places, (select sieges from entreprise where id = p_entreprise)),
+          auth.uid())
+  returning * into v;
+  return v;
+end $$;

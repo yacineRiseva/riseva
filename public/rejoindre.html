@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Riseva — rejoindre mon entreprise</title>
+<link rel="icon" href="/brand/riseva-mark.png">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/base.css">
+<link rel="stylesheet" href="/styles/components.css">
+<link rel="stylesheet" href="/styles/app.css">
+</head>
+<body>
+<div id="root"></div>
+<script type="module">
+import { DB, BAREME } from "/app/data.js";
+import { h, esc, nb, toast } from "/app/ui.js";
+
+const code = new URLSearchParams(location.search).get("code") || "";
+const root = document.getElementById("root");
+
+const cadre = (contenu) => h(`<div class="login">
+  <aside class="login__aside grain">
+    <svg class="login__river" viewBox="0 0 520 300" aria-hidden="true">
+      <path d="M0 220 C 110 120, 190 270, 300 180 S 450 70, 520 150" fill="none" stroke="var(--lime)" stroke-width="4"/>
+      <path d="M0 265 C 120 165, 200 305, 320 220 S 460 120, 520 195" fill="none" stroke="var(--brand)" stroke-width="4" opacity=".55"/>
+    </svg>
+    <img src="/brand/riseva-full-white.png" alt="Riseva">
+    <div style="position:relative">
+      <h2 style="color:var(--paper);max-width:15ch">Votre entreprise joue la saison.</h2>
+      <p style="margin-top:var(--s5);color:rgba(223,230,208,.62);max-width:38ch">
+        Des associations publient de vrais besoins près de chez vous. Vous y répondez quand
+        vous voulez, et chaque action compte pour votre entreprise.</p>
+      <ul class="stack" style="--gap:var(--s3);margin-top:var(--s8);font-size:var(--t-sm);color:rgba(223,230,208,.72)">
+        ${Object.values(BAREME).map(b => `<li class="row">
+          <span class="dot" style="color:var(--lime)"></span>
+          ${esc(b.label)} — ${nb(b.points)} point${b.points > 1 ? "s" : ""} par ${esc(b.unite)}</li>`).join("")}
+      </ul>
+    </div>
+    <p style="font-size:var(--t-xs);color:rgba(223,230,208,.4)">© 2026 Riseva</p>
+  </aside>
+  <div class="login__form"><div class="login__box" id="boite"></div></div>
+</div>`);
+
+const el = cadre();
+root.appendChild(el);
+const boite = el.querySelector("#boite");
+
+const inv = DB.invitationParCode(code);
+const ent = inv ? DB.entreprise(inv.entreprise) : null;
+const restantesLien = inv ? inv.places - inv.utilisees : 0;
+const si = inv ? DB.sieges(inv.entreprise) : null;
+
+function erreur(titre, texte){
+  boite.innerHTML = "";
+  boite.appendChild(h(`<div>
+    <span class="badge badge--danger" style="height:28px">Lien inutilisable</span>
+    <h1 style="margin-top:var(--s5);font-size:var(--t-h2)">${esc(titre)}</h1>
+    <p class="muted" style="margin-top:var(--s4)">${esc(texte)}</p>
+    <a class="btn btn--ghost" style="margin-top:var(--s8)" href="/">Retour au site</a>
+  </div>`));
+}
+
+if (!code)        erreur("Il manque le code", "Demandez à votre entreprise le lien d'inscription complet, il se termine par un code.");
+else if (!inv)    erreur("Ce code n'existe pas", "Vérifiez le lien, ou demandez à votre entreprise de vous le renvoyer.");
+else if (!inv.active) erreur("Ce lien a été désactivé", "Votre entreprise l'a révoqué. Elle peut vous en fournir un nouveau.");
+else if (restantesLien <= 0 || si.restants <= 0)
+                  erreur("Toutes les places sont prises", "L'abonnement de votre entreprise est complet. Parlez-en à la personne qui gère Riseva chez vous.");
+else {
+  boite.appendChild(h(`<div>
+    <p class="eyebrow">Inscription</p>
+    <h1 style="margin-top:var(--s4);font-size:var(--t-h2)">Rejoindre ${esc(ent.nom)}</h1>
+    <p class="muted" style="margin-top:var(--s3);font-size:var(--t-sm)">
+      ${restantesLien} place${restantesLien > 1 ? "s" : ""} encore disponible${restantesLien > 1 ? "s" : ""} sur ce lien.</p>
+    <form class="stack" style="--gap:var(--s4);margin-top:var(--s8)" id="f">
+      <div class="field"><label for="nom">Nom et prénom</label>
+        <input class="input" id="nom" required autocomplete="name"></div>
+      <div class="field"><label for="mail">Email professionnel</label>
+        <input class="input" id="mail" type="email" required autocomplete="email"></div>
+      <label class="checkline"><input type="checkbox" required>
+        <span>J'accepte que mon nom et mes actions soient visibles par mon entreprise sur la
+        plateforme. Si je quitte l'entreprise, mon compte est anonymisé.</span></label>
+      <button class="btn btn--primary btn--lg btn--block" type="submit">Créer mon compte</button>
+      <p class="hint center">Aucun mot de passe ici : vous recevrez un lien de connexion par mail.</p>
+    </form>
+  </div>`));
+
+  boite.querySelector("#f").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const nom = boite.querySelector("#nom").value.trim();
+    const mail = boite.querySelector("#mail").value.trim();
+    let r;
+    try { r = DB.rejoindre(code, nom, mail); }
+    catch (err){ toast(err.message); return; }
+    try { localStorage.setItem("riseva.session", JSON.stringify({ uid: r.utilisateur.id })); } catch {}
+    boite.innerHTML = "";
+    boite.appendChild(h(`<div>
+      <span class="badge badge--ok" style="height:28px"><span class="dot"></span>Compte créé</span>
+      <h1 style="margin-top:var(--s5);font-size:var(--t-h2)">Bienvenue ${esc(nom.split(" ")[0])}</h1>
+      <p class="muted" style="margin-top:var(--s4)">
+        Vous faites maintenant partie de l'équipe ${esc(r.entreprise.nom)} sur Riseva.
+        Un lien de connexion vous a été envoyé sur ${esc(mail)}.</p>
+      <a class="btn btn--primary btn--lg" style="margin-top:var(--s8)" href="/app/#/annonces">
+        Voir les annonces</a>
+    </div>`));
+  });
+}
+</script>
+</body>
+</html>

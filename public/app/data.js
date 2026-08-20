@@ -28,14 +28,14 @@ const seed = {
     etat: "ouverte", prix_min: 3500, prix_max: 4000, acompte: 500
   },
   entreprises: [
-    { id:"e1", nom:"Lafarge Ciments",     effectif:210, points:12480, secteur:"Industrie",  ville:"Lyon" },
-    { id:"e2", nom:"Groupe Vidal",        effectif:340, points:18020, secteur:"Logistique", ville:"Lille" },
-    { id:"e3", nom:"Cabinet Marchand",    effectif:64,  points:15470, secteur:"Conseil",    ville:"Paris" },
-    { id:"e4", nom:"Novaterre",           effectif:120, points:14100, secteur:"Agro",       ville:"Nantes" },
-    { id:"e5", nom:"Atelier Berthier",    effectif:38,  points:11040, secteur:"Artisanat",  ville:"Toulouse" },
-    { id:"e6", nom:"Sirius Assurances",   effectif:520, points:9380,  secteur:"Assurance",  ville:"Bordeaux" },
-    { id:"e7", nom:"Delmas & Fils",       effectif:87,  points:7920,  secteur:"BTP",        ville:"Rennes" },
-    { id:"e8", nom:"Kervella Transport",  effectif:145, points:6410,  secteur:"Transport",  ville:"Brest" }
+    { id:"e1", nom:"Lafarge Ciments",     effectif:210, sieges:210, points:12480, secteur:"Industrie",  ville:"Lyon" },
+    { id:"e2", nom:"Groupe Vidal",        effectif:340, sieges:350, points:18020, secteur:"Logistique", ville:"Lille" },
+    { id:"e3", nom:"Cabinet Marchand",    effectif:64,  sieges:75,  points:15470, secteur:"Conseil",    ville:"Paris" },
+    { id:"e4", nom:"Novaterre",           effectif:120, sieges:120, points:14100, secteur:"Agro",       ville:"Nantes" },
+    { id:"e5", nom:"Atelier Berthier",    effectif:38,  sieges:50,  points:11040, secteur:"Artisanat",  ville:"Toulouse" },
+    { id:"e6", nom:"Sirius Assurances",   effectif:520, sieges:500, points:9380,  secteur:"Assurance",  ville:"Bordeaux" },
+    { id:"e7", nom:"Delmas & Fils",       effectif:87,  sieges:100, points:7920,  secteur:"BTP",        ville:"Rennes" },
+    { id:"e8", nom:"Kervella Transport",  effectif:145, sieges:150, points:6410,  secteur:"Transport",  ville:"Brest" }
   ],
   associations: [
     { id:"a1", nom:"Refuge des Quatre Vents", ville:"Saint-Étienne", cause:"Protection animale",
@@ -97,6 +97,10 @@ const seed = {
     { id:"u7", nom:"Élise Tournier",  email:"elise@quatrevents.org",    role:"association",      org:"a1" },
     { id:"u9", nom:"Paul Girard",     email:"paul@groupe-vidal.fr",     role:"salarie",          org:"e2", points:600, actif:true }
   ],
+  invitations: [
+    { id:"i1", entreprise:"e1", code:"LAFARGE-7QK2", places:210, utilisees:4,
+      active:true, cree_le:J(-30), expire_le:J(120) }
+  ],
   preinscriptions: [
     { id:"p1", entreprise:"Groupe Vidal",     contact:"m.vidal@groupe-vidal.fr", effectif:340, etat:"confirmee",   date:J(-21) },
     { id:"p2", entreprise:"Cabinet Marchand", contact:"rh@cabinet-marchand.fr",  effectif:64,  etat:"preinscrite", date:J(-14) },
@@ -132,6 +136,10 @@ function creerMock(){
     association: (aid) => s.associations.find(a => a.id === aid),
     associations: () => s.associations,
     preinscriptions: () => s.preinscriptions,
+    invitations: (eid) => s.invitations.filter(i => !eid || i.entreprise === eid),
+    invitationActive: (eid) => s.invitations.find(i => i.entreprise === eid && i.active) || null,
+    invitationParCode: (code) => s.invitations.find(i =>
+      i.code.toUpperCase() === String(code || "").trim().toUpperCase()) || null,
     trimestres: () => s.trimestres,
     semaines: () => s.semaines,
 
@@ -194,12 +202,97 @@ function creerMock(){
       } else { m.points = 0; }
       return m;
     },
-    desactiverSalarie(uid){
-      const u = s.utilisateurs.find(x => x.id === uid); if (u) u.actif = false; return u;
+    salaries: (eid, { avecAnonymes = true } = {}) =>
+      s.utilisateurs.filter(u => u.org === eid && u.role === "salarie"
+        && (avecAnonymes || !u.anonyme)),
+
+    /* Sièges : une place occupée par salarié encore identifié.
+       Un salarié retiré, donc anonymisé, rend sa place. */
+    sieges(eid){
+      const e = api.entreprise(eid);
+      const total = e ? (e.sieges || e.effectif || 0) : 0;
+      const pris = api.salaries(eid).filter(u => !u.anonyme).length;
+      return { total, pris, restants: Math.max(0, total - pris) };
     },
+
+    /* Retirer un salarié : on ne supprime pas la ligne, on la vide.
+       Les missions gardent leur trace, les points restent acquis à l'entreprise,
+       mais plus rien ne permet de remonter à la personne. */
+    retirerSalarie(uid){
+      const u = s.utilisateurs.find(x => x.id === uid);
+      if (!u || u.anonyme) return u;
+      const rang = api.salaries(u.org).filter(x => x.anonyme).length + 1;
+      u.anonyme = true;
+      u.actif = false;
+      u.nom = "Salarié retiré " + String(rang).padStart(2, "0");
+      u.email = null;
+      u.retire_le = new Date().toISOString().slice(0, 10);
+      const inv = api.invitationActive(u.org);
+      if (inv && inv.utilisees > 0) inv.utilisees -= 1;
+      return u;
+    },
+
     inviterSalarie(org, nom, email){
-      const u = { id:id("u"), nom, email, role:"salarie", org, points:0, actif:true };
+      const { restants } = api.sieges(org);
+      if (restants <= 0) throw new Error("Plus aucune place disponible sur cet abonnement");
+      const u = { id:id("u"), nom, email, role:"salarie", org, points:0, actif:true, anonyme:false };
       s.utilisateurs.push(u); return u;
+    },
+
+    /* ---- Invitations par lien ---- */
+    creerInvitation(eid, places){
+      s.invitations.filter(i => i.entreprise === eid).forEach(i => i.active = false);
+      const e = api.entreprise(eid);
+      const base = (e.nom || "RISEVA").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 7) || "RISEVA";
+      const suffixe = Array.from({ length: 4 }, (_, k) =>
+        "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[(seq * 7 + k * 13 + s.invitations.length * 5) % 32]).join("");
+      const inv = { id:id("i"), entreprise:eid, code:`${base}-${suffixe}`,
+        places: places || api.sieges(eid).total, utilisees:0, active:true,
+        cree_le:new Date().toISOString().slice(0,10),
+        expire_le:new Date(Date.now() + 120 * 864e5).toISOString().slice(0,10) };
+      seq++;
+      s.invitations.unshift(inv);
+      return inv;
+    },
+    revoquerInvitation(iid){
+      const i = s.invitations.find(x => x.id === iid); if (i) i.active = false; return i;
+    },
+    /* Inscription d'un salarié depuis le lien public. */
+    rejoindre(code, nom, email){
+      const inv = api.invitationParCode(code);
+      if (!inv) throw new Error("Ce lien n'existe pas ou a été révoqué");
+      if (!inv.active) throw new Error("Ce lien a été désactivé par l'entreprise");
+      if (inv.expire_le < new Date().toISOString().slice(0,10)) throw new Error("Ce lien a expiré");
+      if (inv.utilisees >= inv.places) throw new Error("Toutes les places de ce lien ont été prises");
+      const dejaLa = s.utilisateurs.find(u => u.email && email &&
+        u.email.toLowerCase() === email.toLowerCase());
+      if (dejaLa) throw new Error("Un compte existe déjà avec cette adresse");
+      const { restants } = api.sieges(inv.entreprise);
+      if (restants <= 0) throw new Error("L'abonnement de cette entreprise n'a plus de place");
+      const u = { id:id("u"), nom, email, role:"salarie", org:inv.entreprise,
+                  points:0, actif:true, anonyme:false };
+      s.utilisateurs.push(u);
+      inv.utilisees += 1;
+      return { utilisateur:u, entreprise:api.entreprise(inv.entreprise) };
+    },
+
+    /* ---- Création de compte ---- */
+    creerCompteEntreprise({ entreprise, effectif, nom, email, secteur, ville }){
+      const e = { id:id("e"), nom:entreprise, effectif:Number(effectif) || 0,
+        sieges:Number(effectif) || 0, points:0, secteur:secteur || "", ville:ville || "" };
+      s.entreprises.push(e);
+      const u = { id:id("u"), nom, email, role:"entreprise_admin", org:e.id, actif:true };
+      s.utilisateurs.push(u);
+      const inv = api.creerInvitation(e.id, e.sieges);
+      return { entreprise:e, utilisateur:u, invitation:inv };
+    },
+    creerCompteAssociation({ association, cause, ville, resume, nom, email }){
+      const a = { id:id("a"), nom:association, cause:cause || "", ville:ville || "",
+        resume:resume || "", site:"", valide:false };
+      s.associations.push(a);
+      const u = { id:id("u"), nom, email, role:"association", org:a.id, actif:true };
+      s.utilisateurs.push(u);
+      return { association:a, utilisateur:u };
     },
     preinscrire(p){
       const n = { id:id("p"), etat:"preinscrite", date:new Date().toISOString().slice(0,10), ...p };
@@ -221,7 +314,7 @@ function creerMock(){
         parType[a.type] = (parType[a.type] || 0) + m.points;
         if (a.type === "don_financier") euros += m.quantite;
       });
-      const salaries = api.utilisateurs().filter(u => u.org === eid && u.role === "salarie");
+      const salaries = api.salaries(eid);
       return {
         portee, entreprise: e, saison: s.saison,
         points: e.points, rang: api.rangDe(eid), total: s.entreprises.length,

@@ -21,6 +21,16 @@ pas les conversations. Toute nouvelle décision s'ajoute en haut de la section c
 | 25/07/2026 | Axe éditorial : projet fédérateur d'équipes et challenge annuel. | Axe précédent, centré sur le don. |
 | 23/07/2026 | Nom retenu : Riseva. Domaine riseva.fr réservé, hébergement pris. | Nom ouvert. |
 
+## Comptes et accès
+
+| Date | Décision | Remplace |
+|---|---|---|
+| 20/08/2026 | L'inscription des salariés passe par un lien unique avec plafond de places, révocable et régénérable. L'entreprise ne saisit aucune liste. | La saisie manuelle un par un. |
+| 20/08/2026 | L'abonnement ouvre un nombre de places égal à l'effectif. Aucun compte au-delà, contrainte tenue par la base. | Un nombre de salariés illimité, non tenable économiquement. |
+| 20/08/2026 | Retirer un salarié l'anonymise au lieu de le supprimer : identité vidée, points conservés à l'entreprise, place rendue. | La simple désactivation, qui laissait le nom et l'adresse en base. |
+| 20/08/2026 | Une association crée son compte seule mais reste invisible tant que Riseva ne l'a pas validée. | — |
+| 20/08/2026 | Aucun mot de passe : connexion par lien envoyé par mail. | — |
+
 ## Paiement
 
 | Date | Décision | Remplace |
@@ -44,6 +54,8 @@ pas les conversations. Toute nouvelle décision s'ajoute en haut de la section c
 
 | Date | Décision | Remplace |
 |---|---|---|
+| 20/08/2026 | Remise en service de la palette verrouillée le 29/07 : encre #131510, papier chaud #F2F0E9, verts forêt #0B2620/#0F3D30/#1F5C4A, lime #C9F24B en accent, mousse #DFE6D0, bleu eau #3D82AD. | Le blanc pur et le vert clair unique de la première version, qui manquaient de profondeur. |
+| 20/08/2026 | Profondeur obtenue par empilement de surfaces, ombres teintées vert et grain sur les surfaces sombres. Aucun dégradé, aucun faux relief. | — Le brief de marque du 29/07 les interdit explicitement. |
 | 20/08/2026 | La rivière comme signature visuelle : toute évolution dans le temps est dessinée en courbe lissée doublée d'un écho, reprise du monogramme. | Les graphiques en barres génériques. Barres conservées uniquement pour les comparaisons entre entreprises. |
 | 20/08/2026 | Boutons en rectangle arrondi, pilule réservée aux badges. Rayons ramenés à 8 / 12 / 20. | La pilule systématique et cinq valeurs de rayon. Motif : relecture externe, le pattern est daté. |
 | 20/08/2026 | Neutres beaucoup moins teintés de vert. | Des neutres visiblement verts, jugés « éco attendu » à la relecture. |

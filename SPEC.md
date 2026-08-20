@@ -24,6 +24,43 @@ Les associations ne paient rien. Elles publient et valident. C'est leur seul tra
 
 Un compte = un email. Un utilisateur appartient à une seule organisation (entreprise ou association).
 
+## 2 bis. Comptes, places et départs
+
+### Places
+L'abonnement d'une entreprise ouvre un **nombre de places** égal à son effectif déclaré.
+Un compte salarié occupe une place. La plateforme refuse toute création de compte au-delà.
+
+### Inscription par lien
+L'entreprise ne saisit aucune liste. À la création de son compte, elle reçoit **un lien unique**
+contenant un code (`LAFARGE-7QK2`). Elle le diffuse comme elle veut : intranet, mail interne,
+affiche. Chaque salarié crée son compte lui-même en trente secondes.
+
+- Un seul lien actif à la fois par entreprise.
+- Le lien porte son propre plafond de places, qui ne peut jamais dépasser celui de l'abonnement.
+- Il expire au bout de 120 jours.
+- L'entreprise peut le **révoquer** (plus aucune inscription) ou le **régénérer** (l'ancien meurt,
+  un nouveau naît). Les comptes déjà créés ne sont jamais touchés.
+- Une adresse email ne peut créer qu'un seul compte.
+
+### Départ d'un salarié
+Retirer un salarié ne supprime pas sa ligne : cela ferait disparaître des missions et des points
+acquis à l'entreprise. On **vide son identité**, on garde la trace.
+
+- Son nom devient « Salarié retiré 01 », son adresse est effacée, son compte est fermé.
+- Il apparaît anonymisé partout, y compris dans l'historique des missions.
+- Les points qu'il a rapportés **restent acquis à l'entreprise**.
+- Sa **place est immédiatement rendue** à l'abonnement.
+- L'opération est irréversible, et l'écran de confirmation le dit.
+
+### Création de compte
+- **Entreprise** : formulaire, puis le compte administrateur et le lien d'inscription sont créés
+  dans la foulée.
+- **Association** : formulaire, compte créé aussitôt mais fiche **non visible** tant que Riseva
+  ne l'a pas validée.
+- **Salarié** : uniquement par le lien de son entreprise. Aucune autre voie.
+
+Aucun mot de passe ne transite par Riseva : l'authentification se fait par lien de connexion.
+
 ## 3. La saison
 
 - Une saison dure **une année fiscale** (par défaut 1er janvier au 31 décembre, paramétrable par saison).

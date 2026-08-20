@@ -1,15 +1,15 @@
 /* ============ Écran de connexion ============ */
-.login{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;background:var(--paper)}
-.login__aside{background:var(--ink);color:rgba(255,255,255,.7);padding:var(--s16) var(--s12);
+.login{min-height:100vh;display:grid;grid-template-columns:1.05fr 1fr;background:var(--paper)}
+.login__aside{background:var(--forest-900);color:rgba(223,230,208,.72);padding:var(--s16) var(--s12);
   display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
 .login__aside img{height:26px;width:auto;align-self:flex-start;flex:none}
 .login__river{position:absolute;left:-40px;bottom:-30px;width:520px;opacity:.2}
 .login__form{display:grid;place-items:center;padding:var(--s12)}
 .login__box{width:100%;max-width:380px}
 .role{display:flex;gap:var(--s3);align-items:center;width:100%;padding:var(--s4);
-  border:1px solid rgba(15,19,17,.15);border-radius:var(--r-md);background:#fff;cursor:pointer;
+  border:1px solid rgba(15,19,17,.15);border-radius:var(--r-md);background:var(--paper-raised);cursor:pointer;
   text-align:left;transition:border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
-.role:hover{border-color:var(--brand);box-shadow:var(--sh-2)}
+.role:hover{border-color:var(--forest-700);box-shadow:var(--sh-2);transform:translateY(-1px)}
 .role b{display:block;font-weight:600;color:var(--ink)}
 .role span{font-size:var(--t-sm);color:var(--ink-500)}
 @media(max-width:900px){.login{grid-template-columns:1fr}.login__aside{display:none}}
@@ -22,10 +22,10 @@
 
 /* ============ Graphe barres ============ */
 .spark{display:flex;align-items:flex-end;gap:6px;height:120px}
-.spark i{flex:1;background:var(--brand-100);border-radius:5px 5px 2px 2px;position:relative;
+.spark i{flex:1;background:var(--forest-100);border-radius:5px 5px 2px 2px;position:relative;
   transition:background var(--dur) var(--ease)}
-.spark i:hover{background:var(--brand)}
-.spark i:last-child{background:var(--brand)}
+.spark i:hover{background:var(--forest-600)}
+.spark i:last-child{background:var(--forest-700)}
 
 /* ============ Liste d'annonces ============ */
 .offer{display:grid;grid-template-columns:1fr auto;gap:var(--s5);padding:var(--s5) 0;border-top:var(--line)}
@@ -34,19 +34,19 @@
 .offer p{margin-top:6px;font-size:var(--t-sm);color:var(--ink-500);max-width:70ch}
 .offer__meta{display:flex;gap:var(--s4);margin-top:var(--s3);font-size:var(--t-xs);color:var(--ink-400)}
 .offer__side{display:flex;flex-direction:column;align-items:flex-end;gap:var(--s3);white-space:nowrap}
-.offer__pts{font-family:var(--font-display);font-size:1.25rem;font-weight:600;color:var(--brand-800);letter-spacing:-.02em}
+.offer__pts{font-family:var(--font-display);font-size:1.25rem;font-weight:600;color:var(--forest-800);letter-spacing:-.02em}
 
 /* ============ Tabs ============ */
 .tabs{display:flex;gap:var(--s2);border-bottom:var(--line);margin-bottom:var(--s6)}
 .tab{padding:var(--s3) var(--s4);font-size:var(--t-sm);font-weight:550;color:var(--ink-500);
   border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;transition:color var(--dur) var(--ease)}
 .tab:hover{color:var(--ink)}
-.tab.is-active{color:var(--ink);border-bottom-color:var(--brand)}
+.tab.is-active{color:var(--ink);border-bottom-color:var(--forest-700)}
 
 /* ============ Modale ============ */
-.overlay{position:fixed;inset:0;background:rgba(15,19,17,.44);backdrop-filter:blur(3px);
+.overlay{position:fixed;inset:0;background:rgba(11,38,32,.5);backdrop-filter:blur(3px);
   display:grid;place-items:center;padding:var(--s6);z-index:80}
-.modal{background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;padding:var(--s8);
+.modal{background:var(--paper-high);border-radius:var(--r-lg);width:100%;max-width:520px;padding:var(--s8);
   box-shadow:var(--sh-3);max-height:88vh;overflow:auto}
 
 /* ============ Page publique asso ============ */
@@ -54,10 +54,10 @@
 .assoGrid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:var(--s10);align-items:start}
 @media(max-width:900px){.assoGrid{grid-template-columns:1fr}}
 .amountRow{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s2)}
-.amount{height:44px;border:1px solid rgba(15,19,17,.17);border-radius:var(--r-sm);background:#fff;
+.amount{height:44px;border:1px solid rgba(19,21,16,.16);border-radius:var(--r-sm);background:var(--paper-high);
   cursor:pointer;font-weight:550;transition:all var(--dur) var(--ease)}
-.amount:hover{border-color:var(--brand)}
-.amount.is-on{background:var(--brand-050);border-color:var(--brand);color:var(--brand-800)}
+.amount:hover{border-color:var(--forest-700)}
+.amount.is-on{background:var(--forest-050);border-color:var(--forest-700);color:var(--forest-800)}
 
 /* ============ Menu mobile ============ */
 .burger{display:none;margin-left:calc(var(--s3) * -1)}
@@ -66,7 +66,7 @@
 /* ============ Impression ============ */
 @media print{
   .side,.topbar,.tabs,.btn,.toast{display:none !important}
-  .app{display:block;background:#fff}
+  .app{display:block;background:var(--paper)}
   .content{padding:0;max-width:none}
   .card{box-shadow:none;border-color:rgba(0,0,0,.15);break-inside:avoid}
   .two,.kpis,.three{display:grid}
@@ -76,7 +76,13 @@
 /* ============ La rivière : signature visuelle ============ */
 .riviere{margin:0;position:relative}
 .riviere svg{width:100%;height:var(--h,150px);display:block;overflow:visible}
-.riviere__fin{position:absolute;width:9px;height:9px;border-radius:50%;background:var(--brand);
-  border:2px solid var(--paper);transform:translate(-50%,-50%);box-shadow:0 0 0 4px rgba(109,190,69,.16)}
+.riviere__fin{position:absolute;width:10px;height:10px;border-radius:50%;background:var(--forest-700);
+  border:2px solid var(--paper-raised);transform:translate(-50%,-50%);box-shadow:0 0 0 5px rgba(31,92,74,.14)}
 .riviere figcaption{display:flex;justify-content:space-between;margin-top:var(--s5);
   font-size:var(--t-xs);color:var(--ink-400)}
+
+/* Le filet de rivière en pied de barre latérale : la marque rappelée discrètement. */
+.side__river{position:absolute;left:0;right:0;bottom:96px;width:100%;height:90px;
+  pointer-events:none;opacity:.5}
+.side{position:sticky;overflow:hidden}
+.kpi--tete .bar>i{background:var(--lime)}
