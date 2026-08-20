@@ -120,3 +120,7 @@
 .calculBox__l{display:flex;justify-content:space-between;gap:var(--s5);padding:5px 0}
 .calculBox__l--t{border-top:var(--line);margin-top:var(--s2);padding-top:var(--s3);
   font-weight:600;color:var(--ink)}
+.encadreMini{background:var(--warn-bg);border-radius:var(--r-sm);padding:var(--s4);
+  margin-top:var(--s5);font-size:var(--t-sm);color:var(--ink-600)}
+.encadreMini p{margin-top:var(--s2)}
+.encadreMini p:first-child{margin-top:0}

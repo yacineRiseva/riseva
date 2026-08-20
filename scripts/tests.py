@@ -201,6 +201,32 @@ def main():
         p.wait_for_timeout(400)
         verifie("la vérification complète est acceptée", "vérifiée pour une saison" in p.inner_text(".toast"))
 
+        print("\nMécénat et convention")
+        connecte(p, "u2", "#/mecenat")
+        t = norm(p.inner_text(".content"))
+        verifie("le plafond par salarié est rappelé", "12 015 €" in t)
+        verifie("le non déductible est distingué", "Non déductible" in t)
+        p.click("#conv"); p.wait_for_timeout(300)
+        verifie("le choix de la mission s'ouvre", p.is_visible(".modal #mi"))
+        verifie("les deux régimes sont expliqués", "prêt illicite" in p.inner_text(".modal"))
+        with p.context.expect_page() as onglet:
+            p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Générer/.test(b.textContent)).click()")
+        doc = onglet.value
+        doc.wait_for_timeout(400)
+        d = norm(doc.inner_text("body"))
+        verifie("la convention est préremplie", "Convention de mécénat de compétences" in d)
+        verifie("elle cite le bon Cerfa", "16216" in d)
+        verifie("elle avertit sur le prêt de main-d'œuvre", "L. 8241-2" in d)
+        verifie("Riseva n'est pas partie à l'acte", "n'est pas partie" in d)
+        doc.close()
+
+        print("\nIndicateurs de pilote")
+        connecte(p, "u1", "#/pilotes")
+        t = p.inner_text(".content")
+        verifie("les définitions sont publiées", "divisés par" in t or "divisées par" in t)
+        verifie("les indicateurs par entreprise s'affichent",
+                p.eval_on_selector_all("#pe tr", "r=>r.length") >= 4)
+
         print("\nClassement recalculable")
         connecte(p, "u2", "#/classement")
         p.click("#detail"); p.wait_for_timeout(300)

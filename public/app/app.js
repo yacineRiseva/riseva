@@ -67,7 +67,8 @@ const MENUS = {
       ["tableau",       "Tableau de bord", "dashboard"],
       ["entreprises",   "Entreprises",     "building"],
       ["assos",         "Associations",    "heart"],
-      ["preinscriptions","Préinscriptions","users"]
+      ["preinscriptions","Préinscriptions","users"],
+      ["pilotes",       "Indicateurs",     "trophy"]
     ]},
     { groupe: "Paramètres", items: [
       ["saison",  "Saison et barème", "settings"],
@@ -1825,6 +1826,81 @@ function vueAdminPreinscriptions(){
   return el;
 }
 
+function vuePilotes(){
+  const global = DB.indicateurs();
+  const lignes = [
+    ["activation", "Taux d'activation", "%"],
+    ["participation", "Taux de participation", "%"],
+    ["realisation", "Taux de réalisation", "%"],
+    ["validationAuto", "Part de validations sans retour", "%"],
+    ["delaiMedian", "Délai associatif médian", "j"],
+    ["fraicheur", "Fraîcheur des annonces", "%"]
+  ];
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <section class="card card--flat" style="background:var(--forest-050);border-color:transparent">
+      <h3 style="font-size:var(--t-lg)">Les chiffres qu'on peut opposer à un prospect</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:6px;color:var(--ink-600)">
+        Chaque indicateur affiche son numérateur et son dénominateur. Un taux dont on peut
+        changer le dénominateur ne prouve rien, et un acheteur le sait.</p>
+    </section>
+
+    <div class="kpis">
+      ${lignes.slice(0, 4).map(([cle, titre, unite], i) => {
+        const x = global[cle];
+        return kpi(titre, x.valeur === null ? "—" : x.valeur + (unite === "%" ? " %" : " " + unite),
+          x.den ? `${nb(x.num)} sur ${nb(x.den)}` : "", "", i === 0 ? "kpi--tete grain" : "");
+      }).join("")}
+    </div>
+
+    <div class="two">
+      <section class="card">
+        <h3>Définitions</h3>
+        <table class="table" style="margin-top:var(--s5)"><tbody>
+          ${lignes.map(([cle, titre, unite]) => {
+            const x = global[cle];
+            return `<tr>
+              <td style="width:34%"><strong>${esc(titre)}</strong><br>
+                <span class="tnum" style="color:var(--forest-800);font-weight:600">${
+                  x.valeur === null ? "—" : x.valeur + (unite === "%" ? " %" : " jours")}</span></td>
+              <td class="muted">${esc(x.definition)}</td></tr>`;
+          }).join("")}
+        </tbody></table>
+      </section>
+
+      <section class="card">
+        <h3>Par entreprise</h3>
+        <table class="table" style="margin-top:var(--s5)"><thead><tr>
+          <th>Entreprise</th><th>Activation</th><th>Participation</th><th>Réalisation</th>
+        </tr></thead><tbody id="pe"></tbody></table>
+        <hr class="sep">
+        <button class="btn btn--ghost btn--block btn--sm" id="csvI">Exporter les indicateurs</button>
+      </section>
+    </div>
+  </div>`);
+
+  const pe = el.querySelector("#pe");
+  DB.entreprises().forEach(e => {
+    const x = DB.indicateurs(e.id);
+    pe.appendChild(h(`<tr>
+      <td><strong>${esc(e.nom)}</strong></td>
+      <td class="tnum">${x.activation.valeur === null ? "—" : x.activation.valeur + " %"}</td>
+      <td class="tnum">${x.participation.valeur === null ? "—" : x.participation.valeur + " %"}</td>
+      <td class="tnum">${x.realisation.valeur === null ? "—" : x.realisation.valeur + " %"}</td>
+    </tr>`));
+  });
+  el.querySelector("#csvI").onclick = () => {
+    versCSV("riseva-indicateurs.csv",
+      ["Entreprise", "Indicateur", "Valeur", "Numérateur", "Dénominateur", "Définition"],
+      DB.entreprises().flatMap(e => {
+        const x = DB.indicateurs(e.id);
+        return lignes.map(([cle, titre]) => [e.nom, titre, x[cle].valeur ?? "",
+          x[cle].num ?? "", x[cle].den ?? "", x[cle].definition]);
+      }));
+    toast("Export téléchargé.");
+  };
+  return el;
+}
+
 function vueAdminSaison(){
   const sa = DB.saison();
   const el = h(`<div class="two">
@@ -2091,8 +2167,9 @@ function vueMecenat(u){
           <tr><td><strong>Réduction d'impôt, ${Math.round(FISCAL.taux_reduction * 100)} %</strong></td>
               <td class="tnum" style="text-align:right"><strong style="color:var(--forest-800)">${eur(v.reduction)}</strong></td></tr>
         </tbody></table>
-        <div class="row" style="gap:var(--s2);margin-top:var(--s6)">
-          <button class="btn btn--primary btn--sm" id="att">Éditer l'attestation</button>
+        <div class="row" style="gap:var(--s2);margin-top:var(--s6);flex-wrap:wrap">
+          <button class="btn btn--primary btn--sm" id="conv">Éditer une convention</button>
+          <button class="btn btn--ghost btn--sm" id="att">Attestation annuelle</button>
           <button class="btn btn--ghost btn--sm" id="csvM">Exporter le détail</button>
         </div>
       </section>
@@ -2127,6 +2204,42 @@ function vueMecenat(u){
     </div>
   </div>`);
 
+  el.querySelector("#conv").onclick = () => {
+    const ms = DB.missions({ entreprise: u.org }).filter(m => {
+      const a = DB.annonceDe(m);
+      return a && a.type === "benevolat_demi_journee" && a.temps_travail
+             && ["engagee", "a_valider", "validee", "validee_auto"].includes(m.etat);
+    });
+    if (!ms.length){
+      toast("Aucune mission sur le temps de travail pour l'instant.");
+      return;
+    }
+    const corps = h(`<div>
+      <p class="muted" style="font-size:var(--t-sm)">
+        Choisissez la mission : le document est prérempli avec ses dates, son lieu, le salarié
+        concerné et la valorisation au coût de revient.</p>
+      <div class="field" style="margin-top:var(--s5)"><label>Mission</label>
+        <select class="select" id="mi">
+          ${ms.map(m => { const a = DB.annonceDe(m), sal = DB.utilisateur(m.salarie);
+            return `<option value="${m.id}">${esc(a.titre)} — ${esc(sal ? sal.nom : "?")} — ${dateFR(m.date)}</option>`;
+          }).join("")}
+        </select></div>
+      <div class="encadreMini">
+        <p><strong>Deux régimes, et ils ne se valent pas.</strong></p>
+        <p>Pour une tâche délimitée sur une ou deux demi-journées, c'est une prestation de
+        service : la convention suffit. Si l'association encadre réellement votre salarié dans
+        la durée, c'est un prêt de main-d'œuvre, et il faut en plus un avenant à son contrat,
+        son accord écrit et la consultation du CSE. Se tromper expose au prêt illicite.</p>
+      </div>
+    </div>`);
+    modal("Convention de mécénat de compétences", corps, [
+      { label:"Annuler" },
+      { label:"Générer le document", classe:"btn--primary", onClick: () => {
+          const m = ms.find(x => x.id === corps.querySelector("#mi").value);
+          ouvrirConvention(u, m);
+        }}
+    ]);
+  };
   el.querySelector("#att").onclick = () => modal("Attestation de mécénat",
     `<p class="muted">L'attestation reprend les missions réalisées sur le temps de travail,
      leur valorisation au coût de revient et le total de l'assiette. Elle est destinée à votre
@@ -2151,6 +2264,132 @@ function vueMecenat(u){
     toast("Export téléchargé.");
   };
   return el;
+}
+
+/* Ouvre la convention préremplie dans un onglet, prête à imprimer.
+   Riseva prépare, les trois parties signent. Riseva n'est pas partie à l'acte. */
+function ouvrirConvention(u, m){
+  const e = DB.entreprise(u.org);
+  const a = DB.annonceDe(m);
+  const asso = DB.association(a.asso);
+  const sal = DB.utilisateur(m.salarie);
+  const v = DB.valorisationMecenat(u.org);
+  const valorisation = m.quantite * v.coutDemiJournee;
+  const champ = (x) => x || `<span style="background:#F6EAD5;padding:0 4px">[à compléter]</span>`;
+
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
+<title>Convention de mécénat de compétences — ${esc(e.nom)} et ${esc(asso.nom)}</title>
+<style>
+  body{font:15px/1.6 -apple-system,Segoe UI,Inter,sans-serif;color:#2C3026;background:#F2F0E9;
+    margin:0;padding:48px 24px}
+  .p{max-width:760px;margin:0 auto;background:#FAF9F5;padding:56px;border-radius:12px;
+    box-shadow:0 24px 48px -20px rgba(11,38,32,.18)}
+  h1{font-size:24px;letter-spacing:-.02em;color:#131510;margin:0 0 8px}
+  h2{font-size:16px;color:#131510;margin:32px 0 8px;padding-top:20px;border-top:1px solid #E5E2D9}
+  p{margin:10px 0}
+  table{width:100%;border-collapse:collapse;margin:16px 0}
+  td{padding:9px 0;border-bottom:1px solid #E5E2D9;vertical-align:top}
+  td:first-child{color:#63675C;width:44%}
+  .sig{display:flex;gap:24px;margin-top:40px}
+  .sig div{flex:1;border-top:1px solid #131510;padding-top:8px;font-size:13px;color:#63675C;
+    min-height:90px}
+  .note{background:#DFE6D0;border-radius:8px;padding:16px;font-size:13px}
+  @media print{body{background:#fff;padding:0}.p{box-shadow:none;padding:0;background:#fff}
+    .noprint{display:none}}
+  .noprint{text-align:center;margin-bottom:24px}
+  .noprint button{font:inherit;background:#131510;color:#F2F0E9;border:0;border-radius:12px;
+    padding:11px 22px;cursor:pointer}
+</style></head><body>
+<div class="noprint"><button onclick="window.print()">Imprimer ou enregistrer en PDF</button></div>
+<div class="p">
+  <h1>Convention de mécénat de compétences</h1>
+  <p style="color:#63675C">Établie le ${dateFR(new Date().toISOString())} à partir des données
+  de la plateforme Riseva. À relire et à compléter avant signature.</p>
+
+  <h2>Entre les soussignés</h2>
+  <p><strong>${esc(e.nom)}</strong>, SIREN ${champ(esc(e.siret || ""))},
+  dont le siège est ${champ(esc(e.adresse || ""))}, représentée par
+  ${champ(esc(e.referent || ""))}, ci-après « l'Entreprise »,</p>
+  <p><strong>${esc(asso.nom)}</strong>, association régie par la loi du 1<sup>er</sup> juillet 1901,
+  RNA ${champ(esc(asso.rna || ""))}, dont le siège est à ${esc(asso.ville || "")},
+  ci-après « l'Association »,</p>
+  <p>et <strong>${esc(sal ? sal.nom : "")}</strong>, salarié de l'Entreprise, ci-après
+  « le Salarié », qui intervient pour donner son accord exprès.</p>
+
+  <h2>Article 1 — Objet</h2>
+  <p>L'Entreprise met gratuitement à disposition de l'Association les compétences de son
+  personnel, au titre du mécénat prévu à l'article 238 bis du code général des impôts.
+  Cette mise à disposition est consentie à titre gratuit, sans facturation ni refacturation
+  de salaire.</p>
+
+  <h2>Article 2 — La mission</h2>
+  <table>
+    <tr><td>Intitulé</td><td>${esc(a.titre)}</td></tr>
+    <tr><td>Nature des travaux</td><td>${esc(a.description)}</td></tr>
+    <tr><td>Lieu</td><td>${esc(a.lieu || "")}</td></tr>
+    <tr><td>Date</td><td>${dateFR(m.date)}</td></tr>
+    <tr><td>Horaires</td><td>${champ("")}</td></tr>
+    <tr><td>Durée</td><td>${m.quantite} demi-journée${m.quantite > 1 ? "s" : ""}, soit ${m.quantite * 4} heures</td></tr>
+    <tr><td>Référent chez l'Association</td><td>${champ("")}</td></tr>
+  </table>
+  <p>La mission se déroule sur le temps de travail du Salarié, à l'initiative de l'Entreprise.</p>
+
+  <h2>Article 3 — Statut du salarié</h2>
+  <p>Le Salarié demeure salarié de l'Entreprise pendant toute la durée de la mission. Il continue
+  d'être rémunéré par elle et reste soumis à son autorité hiérarchique. Il a donné son accord
+  exprès ; un refus n'aurait entraîné aucune sanction.</p>
+  <div class="note">Si l'Association encadre réellement le Salarié au quotidien, la mise à
+  disposition relève du prêt de main-d'œuvre à but non lucratif (articles L. 8241-1 et L. 8241-2
+  du code du travail). Il faut alors y ajouter un avenant au contrat de travail, l'accord écrit
+  du Salarié et la consultation préalable du comité social et économique.</div>
+
+  <h2>Article 4 — Encadrement, sécurité et assurances</h2>
+  <p>L'Association accueille le Salarié, lui présente les consignes de sécurité et fournit les
+  équipements nécessaires. L'Entreprise reste responsable du respect des règles de santé et de
+  sécurité applicables à son salarié, qui reste couvert par elle au titre des accidents du
+  travail, trajets compris.</p>
+  <table>
+    <tr><td>Assurance de l'Entreprise</td><td>${champ("")}</td></tr>
+    <tr><td>Assurance de l'Association</td><td>${champ("")}</td></tr>
+  </table>
+
+  <h2>Article 5 — Valorisation</h2>
+  <p>L'Entreprise valorise la mise à disposition sous sa seule responsabilité, au coût de revient.</p>
+  <table>
+    <tr><td>Coût journalier chargé retenu</td><td>${eur(e.cout_jour_moyen || 300)}</td></tr>
+    <tr><td>Demi-journées</td><td>${m.quantite}</td></tr>
+    <tr><td>Valorisation</td><td><strong>${eur(valorisation)}</strong></td></tr>
+    <tr><td>Plafond par salarié et par an</td><td>${eur(v.plafondSalarie)}, soit trois fois
+      le plafond mensuel de la Sécurité sociale</td></tr>
+  </table>
+  <p>L'Association reconnaît avoir bénéficié de cette mise à disposition et établit, si elle y
+  est habilitée, le reçu fiscal au modèle Cerfa 16216*01 applicable aux dons des entreprises,
+  sous sa propre numérotation et sa signature. Ni l'Entreprise ni Riseva ne certifient
+  l'éligibilité fiscale de l'Association.</p>
+
+  <h2>Article 6 — Durée et litiges</h2>
+  <p>La convention prend effet à sa signature et s'achève à la fin de la mission. Le Salarié peut
+  l'interrompre à tout moment et regagner son poste. À défaut d'accord amiable, compétence est
+  donnée aux tribunaux du ressort du siège de l'Entreprise.</p>
+
+  <p style="margin-top:32px">Fait en trois exemplaires originaux.</p>
+  <div class="sig">
+    <div>L'Entreprise<br>${esc(e.referent || "")}</div>
+    <div>L'Association<br>${esc(asso.nom)}</div>
+    <div>Le Salarié<br>${esc(sal ? sal.nom : "")}</div>
+  </div>
+
+  <p style="margin-top:40px;font-size:12px;color:#8A8F82">
+    Document préparé par Riseva à partir des données de la mission. Riseva n'est pas partie à la
+    présente convention, ne la signe pas, et n'en garantit ni la validité juridique ni les
+    conséquences fiscales.</p>
+</div></body></html>`;
+
+  const w = window.open("", "_blank");
+  if (!w){ toast("Autorisez les fenêtres pour ouvrir le document."); return; }
+  w.document.write(html);
+  w.document.close();
+  toast("Convention ouverte dans un nouvel onglet.");
 }
 
 function vueRecus(u){
@@ -2347,6 +2586,7 @@ const ROUTES = {
     entreprises:    [vueAdminEntreprises,      "Entreprises"],
     assos:          [vueAdminAssos,            "Associations"],
     preinscriptions:[vueAdminPreinscriptions,  "Préinscriptions"],
+    pilotes:        [vuePilotes,               "Indicateurs"],
     saison:         [vueAdminSaison,           "Saison et barème"],
     journal:        [vueJournal,               "Journal des envois"],
     preferences:    [vuePreferences,           "Préférences"]

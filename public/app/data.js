@@ -775,6 +775,55 @@ function creerMock(){
     },
 
     /* ------------------------------------------------------------------ */
+    /* Indicateurs de pilote                                              */
+    /* ------------------------------------------------------------------ */
+    /* Des chiffres qu'on peut opposer à un prospect. Chaque définition précise son
+       numérateur, son dénominateur et sa période : un taux dont on peut changer le
+       dénominateur ne prouve rien. */
+    indicateurs(eid){
+      const entreprises = eid ? [api.entreprise(eid)].filter(Boolean) : s.entreprises;
+      const ids = entreprises.map(e => e.id);
+      const comptes = s.utilisateurs.filter(u => ids.includes(u.org)
+        && (u.role === "salarie" || u.role === "entreprise_admin") && !u.anonyme);
+      const places = entreprises.reduce((n, e) => n + (e.sieges || e.effectif || 0), 0);
+      const ms = s.missions.filter(m => ids.includes(m.entreprise));
+      const tranchees = ms.filter(m => ["validee", "validee_auto", "refusee"].includes(m.etat));
+      const validees = ms.filter(m => ["validee", "validee_auto"].includes(m.etat));
+      const auto = ms.filter(m => m.etat === "validee_auto");
+      const actifs = comptes.filter(u => ms.some(m => m.salarie === u.id
+        && ["validee", "validee_auto"].includes(m.etat)));
+
+      const delais = tranchees.map(m => {
+        const d = new Date(m.date); const t = new Date(m.date);
+        t.setDate(t.getDate() + (m.etat === "validee_auto" ? 14 : 4)); // démonstration
+        return Math.max(0, Math.round((t - d) / 864e5));
+      }).sort((a, b) => a - b);
+      const mediane = delais.length
+        ? (delais.length % 2 ? delais[(delais.length - 1) / 2]
+           : Math.round((delais[delais.length / 2 - 1] + delais[delais.length / 2]) / 2))
+        : null;
+
+      const ouvertes = s.annonces.filter(a => a.etat === "ouverte");
+      const fraiches = ouvertes.filter(a => a.date >= "2026-08-20");
+
+      const pct = (n, d) => d ? Math.round((n / d) * 1000) / 10 : null;
+      return {
+        activation:   { valeur: pct(comptes.length, places), num: comptes.length, den: places,
+          definition: "Comptes créés et non anonymisés, divisés par les places de l'abonnement." },
+        participation:{ valeur: pct(actifs.length, comptes.length), num: actifs.length, den: comptes.length,
+          definition: "Salariés avec au moins une mission validée, divisés par les comptes actifs, sur la saison." },
+        realisation:  { valeur: pct(validees.length, tranchees.length), num: validees.length, den: tranchees.length,
+          definition: "Missions validées, divisées par les missions tranchées. Les missions encore en cours ne comptent dans aucun des deux." },
+        validationAuto:{ valeur: pct(auto.length, validees.length), num: auto.length, den: validees.length,
+          definition: "Missions comptées faute de réponse de l'association, divisées par les missions validées. Mesure la défaillance du réseau, pas la performance du client." },
+        delaiMedian:  { valeur: mediane, num: mediane, den: null,
+          definition: "Médiane du nombre de jours entre la déclaration du salarié et la décision de l'association, sur les missions tranchées uniquement." },
+        fraicheur:    { valeur: pct(fraiches.length, ouvertes.length), num: fraiches.length, den: ouvertes.length,
+          definition: "Annonces ouvertes dont la date n'est pas dépassée, divisées par les annonces ouvertes." }
+      };
+    },
+
+    /* ------------------------------------------------------------------ */
     /* Rapports                                                           */
     /* ------------------------------------------------------------------ */
     /* Impact du réseau : volet commun à toutes les entreprises de la saison.
