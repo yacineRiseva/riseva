@@ -238,12 +238,18 @@ def main():
         doc = onglet.value
         doc.wait_for_timeout(400)
         d = norm(doc.inner_text("body"))
-        verifie("la convention est préremplie", "Convention de mécénat de compétences" in d)
+        verifie("la convention est préremplie", "Convention de mise à disposition" in d)
         verifie("elle cite le millésime en vigueur du Cerfa", "16216*03" in d)
         verifie("elle se fonde sur le bon article", "L. 8241-3" in d)
         verifie("elle contient les mentions de R. 8241-2",
-                "Finalité au regard" in d and "Salaires, charges et frais facturés" in d
-                and "accord exprès et écrit" in d)
+                "R. 8241-2" in d and "Salaires et charges facturés" in d
+                and "libre, exprès, spécifique et écrit" in d)
+        verifie("elle sépare subordination et autorité fonctionnelle",
+                "pouvoirs juridique et disciplinaire" in d and "autorité fonctionnelle" in d)
+        verifie("elle refuse la valeur fiscale des points",
+                "sans valeur fiscale" in d)
+        verifie("elle borne le rôle de Riseva",
+                "ni assureur, ni conseil fiscal" in d)
         verifie("Riseva n'est pas partie à l'acte", "n'est pas partie" in d)
         doc.close()
 

@@ -2297,6 +2297,11 @@ function vueMecenat(u){
 
 /* Ouvre la convention préremplie dans un onglet, prête à imprimer.
    Riseva prépare, les trois parties signent. Riseva n'est pas partie à l'acte. */
+/* Ouvre la convention préremplie dans un onglet, prête à imprimer.
+   Structure reprise des exigences de R. 8241-2 et des recommandations de prudence :
+   subordination, autorité fonctionnelle, santé-sécurité, valorisation, preuve.
+   Riseva prépare et trace. Elle n'est ni employeur, ni association, ni assureur,
+   ni conseil fiscal, ni émetteur du reçu. */
 function ouvrirConvention(u, m){
   const e = DB.entreprise(u.org);
   const a = DB.annonceDe(m);
@@ -2304,130 +2309,218 @@ function ouvrirConvention(u, m){
   const sal = DB.utilisateur(m.salarie);
   const v = DB.valorisationMecenat(u.org);
   const valorisation = m.quantite * v.coutDemiJournee;
-  const champ = (x) => x || `<span style="background:#F6EAD5;padding:0 4px">[à compléter]</span>`;
+  const champ = (x) => x || `<span class="v">[à compléter]</span>`;
+  const art = (n, titre, corps) =>
+    `<h2>Article ${n} — ${titre}</h2>${corps}`;
 
   const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
-<title>Convention de mécénat de compétences — ${esc(e.nom)} et ${esc(asso.nom)}</title>
+<title>Convention de mise à disposition — ${esc(e.nom)} et ${esc(asso.nom)}</title>
 <style>
-  body{font:15px/1.6 -apple-system,Segoe UI,Inter,sans-serif;color:#2C3026;background:#F2F0E9;
+  body{font:15px/1.62 -apple-system,Segoe UI,Inter,sans-serif;color:#2C3026;background:#F2F0E9;
     margin:0;padding:48px 24px}
-  .p{max-width:760px;margin:0 auto;background:#FAF9F5;padding:56px;border-radius:12px;
+  .p{max-width:780px;margin:0 auto;background:#FAF9F5;padding:56px;border-radius:12px;
     box-shadow:0 24px 48px -20px rgba(11,38,32,.18)}
-  h1{font-size:24px;letter-spacing:-.02em;color:#131510;margin:0 0 8px}
-  h2{font-size:16px;color:#131510;margin:32px 0 8px;padding-top:20px;border-top:1px solid #E5E2D9}
-  p{margin:10px 0}
-  table{width:100%;border-collapse:collapse;margin:16px 0}
+  h1{font-size:25px;letter-spacing:-.022em;color:#131510;margin:0 0 6px}
+  .st{color:#63675C;font-size:14px;margin:0 0 4px}
+  h2{font-size:15px;color:#131510;margin:30px 0 8px;padding-top:18px;border-top:1px solid #E5E2D9}
+  p{margin:9px 0}
+  ul{margin:9px 0;padding-left:20px} li{margin:4px 0}
+  table{width:100%;border-collapse:collapse;margin:14px 0}
   td{padding:9px 0;border-bottom:1px solid #E5E2D9;vertical-align:top}
-  td:first-child{color:#63675C;width:44%}
-  .sig{display:flex;gap:24px;margin-top:40px}
-  .sig div{flex:1;border-top:1px solid #131510;padding-top:8px;font-size:13px;color:#63675C;
-    min-height:90px}
-  .note{background:#DFE6D0;border-radius:8px;padding:16px;font-size:13px}
+  td:first-child{color:#63675C;width:42%}
+  .v{background:#F6EAD5;padding:0 5px;border-radius:3px}
+  .note{background:#DFE6D0;border-radius:8px;padding:15px;font-size:13.5px;margin:14px 0}
+  .cite{border-left:3px solid #1F5C4A;padding:4px 0 4px 16px;margin:14px 0;color:#2C3026}
+  .sig{display:flex;gap:22px;margin-top:36px}
+  .sig div{flex:1;border-top:1px solid #131510;padding-top:8px;font-size:13px;color:#63675C;min-height:92px}
+  .pied{margin-top:36px;font-size:12px;color:#8A8F82}
   @media print{body{background:#fff;padding:0}.p{box-shadow:none;padding:0;background:#fff}
-    .noprint{display:none}}
-  .noprint{text-align:center;margin-bottom:24px}
+    .noprint{display:none}h2{page-break-after:avoid}}
+  .noprint{text-align:center;margin-bottom:22px}
   .noprint button{font:inherit;background:#131510;color:#F2F0E9;border:0;border-radius:12px;
     padding:11px 22px;cursor:pointer}
 </style></head><body>
 <div class="noprint"><button onclick="window.print()">Imprimer ou enregistrer en PDF</button></div>
 <div class="p">
-  <h1>Convention de mécénat de compétences</h1>
-  <p style="color:#63675C">Établie le ${dateFR(new Date().toISOString())} à partir des données
-  de la plateforme Riseva. À relire et à compléter avant signature.</p>
+  <h1>Convention de mise à disposition de personnel</h1>
+  <p class="st">Mécénat de compétences — article L. 8241-3 du code du travail</p>
+  <p class="st">Préparée le ${dateFR(new Date().toISOString())} à partir des données Riseva.
+  À relire, compléter et signer avant la mission. Les champs
+  <span class="v">[à compléter]</span> ne sont pas connus de la plateforme.</p>
 
-  <h2>Entre les soussignés</h2>
-  <p><strong>${esc(e.nom)}</strong>, SIREN ${champ(esc(e.siret || ""))},
-  dont le siège est ${champ(esc(e.adresse || ""))}, représentée par
-  ${champ(esc(e.referent || ""))}, ci-après « l'Entreprise »,</p>
-  <p><strong>${esc(asso.nom)}</strong>, association régie par la loi du 1<sup>er</sup> juillet 1901,
-  RNA ${champ(esc(asso.rna || ""))}, dont le siège est à ${esc(asso.ville || "")},
-  ci-après « l'Association »,</p>
-  <p>et <strong>${esc(sal ? sal.nom : "")}</strong>, salarié de l'Entreprise, ci-après
-  « le Salarié », qui intervient pour donner son accord exprès.</p>
+  ${art(1, "Parties", `
+    <p><strong>${esc(e.nom)}</strong>, ${champ("")} au capital de ${champ("")},
+    SIREN ${champ(esc(e.siret || ""))}, siège ${champ(esc(e.adresse || ""))},
+    représentée par ${champ(esc(e.referent || ""))}, ci-après <strong>l'Entreprise</strong>.</p>
+    <p><strong>${esc(asso.nom)}</strong>, association loi 1901, RNA ${champ(esc(asso.rna || ""))},
+    siège ${champ(esc(asso.ville || ""))}, représentée par
+    ${champ(esc((DB.reglagesRecus(asso.id) || {}).signataire || ""))}, ci-après
+    <strong>l'Association</strong>.</p>
+    <p><strong>${esc(sal ? sal.nom : "")}</strong>, ${champ("")} au sein de l'Entreprise,
+    ci-après <strong>le Salarié</strong>.</p>`)}
 
-  <h2>Article 1 — Objet</h2>
-  <p>L'Entreprise met gratuitement à disposition de l'Association les compétences de son
-  personnel, au titre du mécénat prévu à l'article 238 bis du code général des impôts.
-  Cette mise à disposition est consentie à titre gratuit, sans facturation ni refacturation
-  de salaire.</p>
+  ${art(2, "Objet et régime", `
+    <p>Mise à disposition temporaire et gratuite, dans le cadre d'un mécénat de compétences, sur
+    le fondement des articles <strong>L. 8241-3</strong> et <strong>R. 8241-2</strong> du code du
+    travail. Il s'agit d'un <strong>prêt de personnel</strong>, et non d'une prestation pilotée
+    par Riseva.</p>
+    <div class="note">L'article L. 8241-3 autorise le prêt gratuit au profit des organismes visés
+    aux a à g du 1 de l'article 238 bis du code général des impôts. Aucune condition d'effectif ne
+    s'applique à l'Entreprise dans ce cas, l'opération est réputée sans but lucratif, et sa durée
+    ne peut excéder ${FISCAL.duree_max_mise_a_disposition_ans} ans.</div>`)}
 
-  <h2>Article 2 — La mission</h2>
-  <table>
-    <tr><td>Intitulé</td><td>${esc(a.titre)}</td></tr>
-    <tr><td>Nature des travaux</td><td>${esc(a.description)}</td></tr>
-    <tr><td>Lieu</td><td>${esc(a.lieu || "")}</td></tr>
-    <tr><td>Date</td><td>${dateFR(m.date)}</td></tr>
-    <tr><td>Horaires</td><td>${champ("")}</td></tr>
-    <tr><td>Durée</td><td>${m.quantite} demi-journée${m.quantite > 1 ? "s" : ""}, soit ${m.quantite * 4} heures</td></tr>
-    <tr><td>Référent chez l'Association</td><td>${champ("")}</td></tr>
-  </table>
-  <p>La mission se déroule sur le temps de travail du Salarié, à l'initiative de l'Entreprise.</p>
+  ${art(3, "Finalité", `
+    <p>La mise à disposition s'inscrit dans un partenariat d'intérêt commun entre l'Entreprise et
+    l'Association, répondant au besoin suivant : ${esc(a.description)}</p>`)}
 
-  <h2>Article 3 — Statut du salarié</h2>
-  <table>
-    <tr><td>Identité du Salarié</td><td>${esc(sal ? sal.nom : "")}</td></tr>
-    <tr><td>Qualification</td><td>${champ("")}</td></tr>
-    <tr><td>Durée de la mise à disposition</td><td>${m.quantite} demi-journée${m.quantite > 1 ? "s" : ""}, le ${dateFR(m.date)}</td></tr>
-    <tr><td>Finalité au regard de L. 8241-3</td><td>Mécénat de compétences au profit d'un organisme
-      d'intérêt général éligible à l'article 238 bis du CGI</td></tr>
-    <tr><td>Salaires, charges et frais facturés</td><td>Néant. La mise à disposition est consentie
-      à titre gratuit, l'Entreprise conserve la charge intégrale de la rémunération</td></tr>
-  </table>
-  <p>Le contrat de travail conclu avec l'Entreprise demeure en vigueur. Le Salarié continue d'être
-  rémunéré par elle, reste soumis à son autorité hiérarchique et conserve l'ensemble de ses droits
-  conventionnels.</p>
-  <p>Le Salarié a donné son <strong>accord exprès et écrit</strong> à cette mise à disposition.
-  Un refus n'aurait pu donner lieu ni à sanction, ni à licenciement, ni à mesure discriminatoire.</p>
-  <div class="note">La présente mise à disposition est consentie sur le fondement de
-  l'<strong>article L. 8241-3 du code du travail</strong>, qui autorise le prêt de main-d'œuvre
-  à titre gratuit au profit des organismes visés aux a à g du 1 de l'article 238 bis du CGI.
-  À ce titre, la condition d'effectif de 5 000 salariés ne s'applique pas, la gratuité est
-  expressément permise, et l'opération n'a pas de but lucratif. Sa durée ne peut excéder
-  ${FISCAL.duree_max_mise_a_disposition_ans} ans.<br><br>
-  L'employeur communique au comité social et économique le nombre de conventions conclues et les
-  postes concernés, au titre de la base de données économiques, sociales et environnementales.</div>
+  ${art(4, "Éligibilité et intention libérale", `
+    <p>L'Association déclare relever de l'article 238 bis du code général des impôts, exercer une
+    activité d'intérêt général et être habilitée à délivrer des reçus fiscaux.
+    Rescrit fiscal : ${champ("")}.</p>
+    <p>La mise à disposition ne donne lieu à aucune contrepartie commerciale directe. Seules les
+    contreparties symboliques expressément décrites ci-après sont admises : ${champ("néant")}.</p>`)}
 
-  <h2>Article 4 — Encadrement, sécurité et assurances</h2>
-  <p>L'Association accueille le Salarié, lui présente les consignes de sécurité et fournit les
-  équipements nécessaires. L'Entreprise reste responsable du respect des règles de santé et de
-  sécurité applicables à son salarié, qui reste couvert par elle au titre des accidents du
-  travail, trajets compris.</p>
-  <table>
-    <tr><td>Assurance de l'Entreprise</td><td>${champ("")}</td></tr>
-    <tr><td>Assurance de l'Association</td><td>${champ("")}</td></tr>
-  </table>
+  ${art(5, "Consentement du salarié", `
+    <p>Le Salarié a donné son accord <strong>libre, exprès, spécifique et écrit</strong> à cette
+    mission et à ses dates${m.consentement ? `, enregistré le ${dateFR(m.consentement.donne_le)}
+    sur la plateforme Riseva` : ""}. Une acceptation générale de conditions d'utilisation ne vaut
+    pas consentement au sens de l'article R. 8241-2.</p>
+    <p>Un refus ne peut donner lieu ni à sanction, ni à licenciement, ni à mesure discriminatoire.</p>`)}
 
-  <h2>Article 5 — Valorisation</h2>
-  <p>L'Entreprise valorise la mise à disposition sous sa seule responsabilité, au coût de revient.</p>
-  <table>
-    <tr><td>Coût journalier chargé retenu</td><td>${eur(e.cout_jour_moyen || 300)}</td></tr>
-    <tr><td>Demi-journées</td><td>${m.quantite}</td></tr>
-    <tr><td>Valorisation</td><td><strong>${eur(valorisation)}</strong></td></tr>
-    <tr><td>Plafond par salarié et par an</td><td>${eur(v.plafondSalarie)}, soit trois fois
-      le plafond mensuel de la Sécurité sociale</td></tr>
-  </table>
-  <p>L'Association reconnaît avoir bénéficié de cette mise à disposition et établit, si elle y
-  est habilitée, le reçu fiscal au modèle Cerfa ${FISCAL.cerfa_entreprise} applicable aux dons
-  des entreprises,
-  sous sa propre numérotation et sa signature. Ni l'Entreprise ni Riseva ne certifient
-  l'éligibilité fiscale de l'Association.</p>
+  ${art(6, "Mission", `
+    <table>
+      <tr><td>Intitulé</td><td>${esc(a.titre)}</td></tr>
+      <tr><td>Besoin et tâches réelles</td><td>${esc(a.description)}</td></tr>
+      <tr><td>Résultat attendu</td><td>${champ("")}</td></tr>
+      <tr><td>Compétences mobilisées</td><td>${champ("")}</td></tr>
+      <tr><td>Tâches exclues</td><td>${champ("")}</td></tr>
+      <tr><td>Accès ou habilitations requis</td><td>${champ("")}</td></tr>
+    </table>
+    <p>La mission doit correspondre à une activité réellement et effectivement exécutée.</p>`)}
 
-  <h2>Article 6 — Durée et litiges</h2>
-  <p>La convention prend effet à sa signature et s'achève à la fin de la mission. Le Salarié peut
-  l'interrompre à tout moment et regagner son poste. À défaut d'accord amiable, compétence est
-  donnée aux tribunaux du ressort du siège de l'Entreprise.</p>
+  ${art(7, "Durée, horaires et lieu", `
+    <table>
+      <tr><td>Date prévue</td><td>${dateFR(m.date)}</td></tr>
+      <tr><td>Heures prévues, pauses comprises</td><td>${champ("")}</td></tr>
+      <tr><td>Durée</td><td>${m.quantite} demi-journée${m.quantite > 1 ? "s" : ""},
+        soit ${m.quantite * 4} heures</td></tr>
+      <tr><td>Lieu exact ou distanciel</td><td>${esc(a.lieu || "")}</td></tr>
+      <tr><td>Déplacements prévus</td><td>${champ("")}</td></tr>
+    </table>
+    <p>Les heures sont effectuées <strong>sur le temps de travail autorisé par l'employeur</strong>.
+    Toute modification doit être tracée par écrit.</p>`)}
 
-  <p style="margin-top:32px">Fait en trois exemplaires originaux.</p>
-  <div class="sig">
-    <div>L'Entreprise<br>${esc(e.referent || "")}</div>
-    <div>L'Association<br>${esc(asso.nom)}</div>
-    <div>Le Salarié<br>${esc(sal ? sal.nom : "")}</div>
-  </div>
+  ${art(8, "Contrat de travail et subordination", `
+    <div class="cite">L'Entreprise conserve pendant toute la mise à disposition sa qualité
+    d'employeur ainsi que ses pouvoirs juridique et disciplinaire. L'Association dispose uniquement
+    de l'autorité fonctionnelle nécessaire à l'exécution de la mission décrite. Elle ne peut
+    modifier la mission, les horaires ou le lieu, ni prononcer une sanction : toute difficulté est
+    signalée à l'Entreprise.</div>
+    <p>Le contrat de travail n'est ni rompu ni suspendu. Rémunération, congés, carrière, protection
+    sociale et discipline restent gérés par l'Entreprise. Le retour au poste habituel ou équivalent
+    se fait sans incidence sur la carrière ou la rémunération.</p>`)}
 
-  <p style="margin-top:40px;font-size:12px;color:#8A8F82">
-    Document préparé par Riseva à partir des données de la mission. Riseva n'est pas partie à la
-    présente convention, ne la signe pas, et n'en garantit ni la validité juridique ni les
-    conséquences fiscales.</p>
+  ${art(9, "Autorité fonctionnelle de l'Association", `
+    <table>
+      <tr><td>Référent de l'Association</td><td>${champ("")}</td></tr>
+      <tr><td>Interlocuteur d'urgence</td><td>${champ("")}</td></tr>
+    </table>`)}
+
+  ${art(10, "Santé et sécurité", `
+    <p>L'Association assure l'accueil sécurité, informe des risques du poste et du site, donne les
+    consignes, vérifie les formations ou habilitations nécessaires et fournit les équipements de
+    protection individuelle. Elle est responsable des conditions d'exécution du travail, notamment
+    de la durée du travail, des repos, de la santé et de la sécurité pendant la mission.</p>`)}
+
+  ${art(11, "Conditions financières", `
+    <table>
+      <tr><td>Salaire du Salarié</td><td>Maintenu par l'Entreprise</td></tr>
+      <tr><td>Salaires et charges facturés</td><td><strong>0 €</strong>, mise à disposition gratuite</td></tr>
+      <tr><td>Transports, repas, hébergement, achats</td><td>${champ("néant")}</td></tr>
+    </table>
+    <p>Aucune marge n'est appliquée. Les frais professionnels ne doivent pas être ajoutés
+    silencieusement à la valorisation fiscale.</p>`)}
+
+  ${art(12, "Émargement et preuve", `
+    <p>Seules les heures <strong>réellement exécutées et validées</strong> par l'Association sont
+    retenues. Une réservation, une présence planifiée ou l'attribution de points sur Riseva
+    ne constitue pas une preuve fiscale.</p>
+    <p>La feuille d'émargement, signée par le Salarié et certifiée par le référent de
+    l'Association, est annexée à la présente convention.</p>`)}
+
+  ${art(13, "Valorisation", `
+    <div class="cite">La valorisation fiscale est établie après réalisation de la mission, sous la
+    responsabilité exclusive de l'Entreprise, à partir du temps effectivement validé et de son coût
+    de revient. Les estimations affichées par Riseva, les heures planifiées et les points de
+    classement sont sans valeur fiscale.</div>
+    <table>
+      <tr><td>Coût journalier chargé retenu</td><td>${eur(e.cout_jour_moyen || 300)}</td></tr>
+      <tr><td>Demi-journées prévues</td><td>${m.quantite}</td></tr>
+      <tr><td>Valorisation prévisionnelle</td><td><strong>${eur(valorisation)}</strong></td></tr>
+      <tr><td>Plafond par salarié et par exercice</td><td>${eur(v.plafondSalarie)}, soit trois fois
+        le plafond mensuel de la Sécurité sociale</td></tr>
+    </table>
+    <p>Aucun tarif de consultant, prix de marché ou valeur de points n'entre dans ce calcul.</p>`)}
+
+  ${art(14, "Reçu fiscal", `
+    <p>L'Entreprise communique la valorisation finale. L'Association contrôle la réalité de la
+    mission et son acceptation, puis émet le reçu au modèle <strong>Cerfa
+    ${esc(FISCAL.cerfa_entreprise)}</strong> (2041-MEC-SD), sous sa propre numérotation et la
+    signature d'une personne habilitée.</p>
+    <p>Le reçu mentionne les dates, la description exhaustive de la mission, le détail des salariés
+    concernés et la valorisation communiquée. Un reçu agrégé est possible, à condition de ne pas
+    chevaucher deux exercices fiscaux du donateur.</p>`)}
+
+  ${art(15, "Assurances et responsabilité", `
+    <table>
+      <tr><td>RC professionnelle de l'Entreprise</td><td>${champ("")}</td></tr>
+      <tr><td>RC de l'Association</td><td>${champ("")}</td></tr>
+      <tr><td>Confirmation que la RC de l'Association couvre les salariés mis à disposition</td>
+        <td>${champ("")}</td></tr>
+      <tr><td>Garantie individuelle accident, si la RC ne couvre pas les dommages corporels subis</td>
+        <td>${champ("")}</td></tr>
+    </table>
+    <p>Le Salarié reste couvert par l'Entreprise au titre des accidents du travail et des maladies
+    professionnelles, trajets compris. Aucune clause ne transfère « toute responsabilité » à une
+    seule partie.</p>`)}
+
+  ${art(16, "Accident et incident", `
+    <p>Le Salarié avertit immédiatement l'Association et l'Entreprise. L'Association transmet les
+    circonstances, lieu et témoins à l'Entreprise, qui procède à la déclaration.</p>`)}
+
+  ${art(17, "Confidentialité, données et propriété", `
+    <p>Chaque partie s'engage à la discrétion sur ce qu'elle apprend à l'occasion de la mission.
+    Les livrables éventuels sont ${champ("restitués / cédés / concédés")} à l'Association. Le droit
+    à l'image du Salarié fait l'objet d'un accord séparé. Un régime renforcé s'applique si la
+    mission concerne des mineurs, des personnes vulnérables ou des données sensibles.</p>`)}
+
+  ${art(18, "Suspension et cessation", `
+    <p>Arrêt immédiat en cas de danger, de mission matériellement différente de celle décrite,
+    d'absence d'habilitation ou de manquement grave. Toute annulation ou modification se fait par
+    écrit. La cessation n'a aucun effet défavorable pour le Salarié, qui peut regagner son poste
+    à tout moment sans avoir à se justifier.</p>`)}
+
+  ${art(19, "Preuves, litiges et rôle de Riseva", `
+    <p>Les versions signées, les émargements, les validations et les corrections sont conservés
+    par les parties. <strong>Riseva est l'outil de préparation et de traçabilité : ni employeur,
+    ni association bénéficiaire, ni assureur, ni conseil fiscal, ni émetteur du reçu.</strong></p>
+    <p>À défaut d'accord amiable, compétence est donnée aux tribunaux du ressort du siège de
+    l'Entreprise.</p>`)}
+
+  ${art(20, "Signatures et annexes", `
+    <p>Annexes : fiche mission, calendrier, risques et équipements, feuille d'émargement,
+    justificatifs d'assurance, déclaration d'éligibilité de l'Association.</p>
+    <p>Fait à ${champ("")}, le ${champ("")}, en trois exemplaires originaux.</p>
+    <div class="sig">
+      <div>Pour l'Entreprise<br>${esc(e.referent || "")}</div>
+      <div>Pour l'Association<br>${esc((DB.reglagesRecus(asso.id) || {}).signataire || asso.nom)}</div>
+      <div>Le Salarié<br>${esc(sal ? sal.nom : "")}</div>
+    </div>`)}
+
+  <p class="pied">Document préparé par Riseva — version ${dateFR(new Date().toISOString())},
+  mission ${esc(m.id)}. Riseva n'est pas partie à la présente convention, ne la signe pas, et
+  n'en garantit ni la validité juridique ni les conséquences fiscales. Faites-la relire par
+  votre conseil avant la première signature.</p>
 </div></body></html>`;
 
   const w = window.open("", "_blank");
