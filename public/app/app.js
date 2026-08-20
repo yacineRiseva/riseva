@@ -899,31 +899,43 @@ function vueEquipe(u){
 
 function vueRapports(u){
   const r = DB.rapport(u.org, "annuel");
+  const liste = DB.rapports(u.org);
+  const res = DB.impactReseau();
   const maxT = Math.max(...r.trimestres.map(t => t.points), 1);
+  const v = DB.valorisationMecenat(u.org);
+
   const el = h(`<div class="stack" style="--gap:var(--s5)">
-    <div class="tabs" id="pt">
-      <div class="tab is-active" data-p="annuel">Rapport annuel</div>
-      ${r.trimestres.map(t => `<div class="tab" data-p="${t.nom}">${t.nom}</div>`).join("")}
-    </div>
-    <section class="card" style="padding:var(--s10)">
+    <section class="card">
+      <div class="between" style="margin-bottom:var(--s5)">
+        <div><h3>Vos rapports</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+          Générés automatiquement à la clôture de chaque période. Rien à demander,
+          rien à consolider.</p></div>
+      </div>
+      <table class="table"><thead><tr>
+        <th>Rapport</th><th>Période</th><th>Points</th><th>État</th><th></th>
+      </tr></thead><tbody></tbody></table>
+    </section>
+
+    <section class="card" id="apercu" style="padding:var(--s10)">
       <div class="between" style="align-items:flex-start">
         <div>
-          <p class="eyebrow" id="rTitre">Rapport annuel</p>
+          <p class="eyebrow">Aperçu du rapport annuel</p>
           <h2 style="margin-top:var(--s3)">${esc(r.entreprise.nom)} — ${esc(r.saison.nom)}</h2>
           <p class="muted" style="margin-top:var(--s3);font-size:var(--t-sm)">
-            Généré automatiquement le ${dateFR(new Date().toISOString())} à partir des missions validées.</p>
-          <p class="muted" style="margin-top:6px;font-size:var(--t-sm)" id="rNote">Cumul de la saison, tous trimestres confondus.</p>
+            Construit à partir des missions validées. Ce que vous voyez ici est ce que
+            contiendra le document final.</p>
         </div>
         <div class="row" style="gap:var(--s2)">
-          <button class="btn btn--ghost btn--sm" id="csv">Exporter en CSV</button>
-          <button class="btn btn--ghost btn--sm" id="pdf">Exporter en PDF</button>
+          <button class="btn btn--ghost btn--sm" id="csv">CSV</button>
+          <button class="btn btn--primary btn--sm" id="pdf">Imprimer</button>
         </div>
       </div>
       <hr class="sep">
       <div class="kpis">
-        <div class="card kpi"><span class="kpi__label">Points</span>
-          <span class="kpi__value" id="rPoints">${nb(r.points)}</span></div>
-        ${kpi("Rang final", rangFR(r.rang), "sur " + r.total)}
+        <div class="card kpi kpi--tete grain"><span class="kpi__label">Points retenus</span>
+          <span class="kpi__value">${nb(r.points)}</span></div>
+        ${kpi("Rang", rangFR(r.rang), "sur " + r.total)}
         ${kpi("Salariés engagés", r.salariesEngages + " / " + r.salariesTotal)}
         ${kpi("Associations soutenues", nb(r.associations))}
       </div>
@@ -936,6 +948,16 @@ function vueRapports(u){
               <div><div class="between" style="font-size:var(--t-sm);margin-bottom:6px">
                 <span class="muted">${esc(t.nom)}</span><span class="tnum">${nb(t.points)} pts</span></div>
                 <div class="bar"><i style="width:${(t.points / maxT) * 100}%"></i></div></div>`).join("")}
+          </div>
+          <hr class="sep">
+          <h3>Valorisation fiscale</h3>
+          <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
+            <div class="between"><span class="muted">Assiette mécénat</span>
+              <span class="tnum">${eur(v.assietteRetenue)}</span></div>
+            <div class="between"><span class="muted">Réduction d'impôt estimée</span>
+              <strong class="tnum" style="color:var(--forest-800)">${eur(v.reduction)}</strong></div>
+            <div class="between"><span class="muted">Dont mécénat de compétences</span>
+              <span class="tnum">${eur(v.competencesRetenu)}</span></div>
           </div>
         </div>
         <div>
@@ -958,33 +980,48 @@ function vueRapports(u){
       <hr class="sep">
       <h3>Impact du réseau</h3>
       <p class="muted" style="margin-top:var(--s3);max-width:70ch;font-size:var(--t-sm)">
-        Ce volet est commun à toutes les entreprises de la saison. Il rend compte de ce que les
-        associations du réseau ont accompli grâce à l'ensemble des contributions, sans attribuer
-        un résultat précis à une entreprise en particulier.</p>
+        Ce volet est commun à toutes les entreprises de la saison. Il rend compte de ce que le
+        réseau a accompli dans son ensemble. Aucun de ces chiffres n'est attribuable à une
+        entreprise en particulier, et il ne faut pas les présenter comme tels.</p>
+      <div class="kpis" style="margin-top:var(--s6)">
+        ${kpi("Entreprises engagées", nb(res.entreprises))}
+        ${kpi("Associations soutenues", nb(res.associations))}
+        ${kpi("Heures de bénévolat", nb(res.heures), nb(res.demiJournees) + " demi-journées")}
+        ${kpi("Dons versés", eur(res.euros), nb(res.materiel) + " dons de matériel")}
+      </div>
     </section>
   </div>`);
+
+  const tb = el.querySelector("tbody");
+  liste.forEach(x => {
+    const tr = h(`<tr>
+      <td><strong>${esc(x.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${
+        x.portee === "annuel" ? "Bilan complet de la saison" : "Version courte, remise avec les trophées"}</span></td>
+      <td class="muted">${dateCourte(x.periode.debut)} — ${dateCourte(x.periode.fin)}</td>
+      <td class="tnum">${x.etat === "genere" ? nb(x.points) : "—"}</td>
+      <td><span class="badge ${x.etat === "genere" ? "badge--ok" : ""}">${
+        x.etat === "genere" ? "Généré le " + dateCourte(x.genere_le) : "À la clôture"}</span></td>
+      <td style="text-align:right"></td></tr>`);
+    if (x.etat === "genere"){
+      const b = h(`<button class="btn btn--quiet btn--sm">Ouvrir</button>`);
+      b.onclick = () => { el.querySelector("#apercu").scrollIntoView({ behavior:"smooth" });
+                          toast("Aperçu affiché ci-dessous."); };
+      tr.lastElementChild.appendChild(b);
+    }
+    tb.appendChild(tr);
+  });
+
   el.querySelector("#pdf").onclick = () => { toast("Ouverture de l'aperçu d'impression."); setTimeout(() => window.print(), 400); };
   el.querySelector("#csv").onclick = () => {
     const ms = DB.missions({ entreprise: u.org })
                  .filter(m => m.etat === "validee" || m.etat === "validee_auto");
     versCSV(`riseva-rapport-${r.saison.nom.replace(/\s+/g, "-").toLowerCase()}.csv`,
-      ["Mission", "Association", "Format", "Salarié", "Date", "Quantité", "Points"],
+      ["Mission", "Association", "Format", "Sur le temps de travail", "Salarié", "Date", "Quantité", "Points"],
       ms.map(m => { const a = DB.annonceDe(m), sal = DB.utilisateur(m.salarie);
         return [a.titre, (DB.association(a.asso) || {}).nom, BAREME[a.type].label,
-                sal ? sal.nom : "—", m.date, m.quantite, m.points]; }));
+                a.temps_travail ? "oui" : "non", sal ? sal.nom : "—", m.date, m.quantite, m.points]; }));
     toast("Export téléchargé.");
   };
-  el.querySelectorAll("#pt .tab").forEach(t => t.onclick = () => {
-    el.querySelectorAll("#pt .tab").forEach(x => x.classList.remove("is-active"));
-    t.classList.add("is-active");
-    const p = t.dataset.p;
-    const tri = r.trimestres.find(x => x.nom === p);
-    el.querySelector("#rTitre").textContent = p === "annuel" ? "Rapport annuel" : "Rapport du trimestre " + p;
-    el.querySelector("#rPoints").textContent = nb(tri ? tri.points : r.points);
-    el.querySelector("#rNote").textContent = p === "annuel"
-      ? "Cumul de la saison, tous trimestres confondus."
-      : "Périmètre limité au trimestre " + p + ". Le rapport trimestriel est volontairement plus court.";
-  });
   return el;
 }
 

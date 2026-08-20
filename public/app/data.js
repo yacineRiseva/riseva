@@ -703,6 +703,56 @@ function creerMock(){
       return { montant, nombre, saison: s.saison.nom };
     },
 
+    /* ------------------------------------------------------------------ */
+    /* Rapports                                                           */
+    /* ------------------------------------------------------------------ */
+    /* Impact du réseau : volet commun à toutes les entreprises de la saison.
+       On ne prétend jamais qu'une entreprise a produit tel résultat à elle seule. */
+    impactReseau(){
+      const ms = s.missions.filter(m => m.etat === "validee" || m.etat === "validee_auto");
+      let demiJournees = 0, euros = 0, materiel = 0;
+      ms.forEach(m => {
+        const a = api.annonceDe(m); if (!a) return;
+        if (a.type === "benevolat_demi_journee") demiJournees += m.quantite;
+        if (a.type === "don_financier") euros += Number(m.quantite) || 0;
+        if (a.type === "don_materiel") materiel += m.quantite;
+      });
+      return {
+        entreprises: s.entreprises.length,
+        associations: s.associations.filter(a => a.valide).length,
+        missions: ms.length,
+        demiJournees, euros, materiel,
+        salaries: s.utilisateurs.filter(u => u.role === "salarie" && !u.anonyme).length,
+        heures: demiJournees * 4
+      };
+    },
+
+    /* La liste des rapports d'une entreprise pour la saison en cours : les trimestres
+       déjà clos sont générés, les autres attendent leur échéance. */
+    rapports(eid){
+      const sa = s.saison;
+      const debut = new Date(sa.debut);
+      const bornes = [0, 1, 2, 3].map(i => {
+        const d = new Date(debut); d.setMonth(d.getMonth() + i * 3);
+        const f = new Date(debut); f.setMonth(f.getMonth() + (i + 1) * 3); f.setDate(f.getDate() - 1);
+        return { nom: "T" + (i + 1), debut: d.toISOString().slice(0, 10), fin: f.toISOString().slice(0, 10) };
+      });
+      const aujourdhui = "2026-08-20";
+      const trimestres = s.trimestres;
+      const l = bornes.map((b, i) => ({
+        id: "t" + (i + 1), portee: "trimestriel", titre: "Rapport " + b.nom,
+        periode: b, points: (trimestres[i] || {}).points || 0,
+        etat: b.fin <= aujourdhui ? "genere" : "a_venir",
+        genere_le: b.fin <= aujourdhui ? b.fin : null
+      }));
+      l.push({ id: "annuel", portee: "annuel", titre: "Rapport annuel",
+        periode: { nom: sa.nom, debut: sa.debut, fin: sa.fin },
+        points: api.pointsDe(eid).retenu,
+        etat: sa.fin <= aujourdhui ? "genere" : "a_venir",
+        genere_le: sa.fin <= aujourdhui ? sa.fin : null });
+      return l;
+    },
+
     /* --- rapports --- */
     rapport(eid, portee = "annuel"){
       const e = api.entreprise(eid);
