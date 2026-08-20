@@ -1,0 +1,545 @@
+#!/usr/bin/env python3
+"""Génère les pages statiques de contenu (règlement, sécurité, confidentialité,
+engagements, charte associations) à partir d'une mise en page commune.
+
+Ces pages font partie du dossier qu'un acheteur demande avant de signer. Elles sont
+écrites ici plutôt qu'à la main pour rester cohérentes entre elles.
+"""
+import pathlib, re
+
+RACINE = pathlib.Path(__file__).resolve().parent.parent / "public"
+
+GABARIT = """<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Riseva — {titre}</title>
+<meta name="description" content="{description}">
+<link rel="icon" href="/brand/riseva-mark.png">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/base.css">
+<link rel="stylesheet" href="/styles/components.css">
+<link rel="stylesheet" href="/styles/marketing.css">
+<link rel="stylesheet" href="/styles/doc.css">
+</head>
+<body>
+<header class="nav"><div class="wrap nav__in">
+  <a href="/" class="logo"><img src="/brand/riseva-full.png" alt="Riseva"></a>
+  <nav class="nav__links">
+    <a href="/reglement.html">Règlement</a>
+    <a href="/securite.html">Sécurité</a>
+    <a href="/confidentialite.html">Données</a>
+    <a href="/engagements.html">Engagements</a>
+  </nav>
+  <a class="btn btn--primary btn--sm" href="/inscription.html">Préinscription</a>
+</div></header>
+
+<main class="doc">
+  <div class="wrap doc__grid">
+    <aside class="doc__nav"><div class="doc__navIn">
+      <p class="eyebrow">Le dossier</p>
+      <ul class="stack" style="--gap:var(--s2);margin-top:var(--s4)">
+        <li><a href="/reglement.html">Règlement de la saison</a></li>
+        <li><a href="/charte-associations.html">Charte des associations</a></li>
+        <li><a href="/securite.html">Sécurité</a></li>
+        <li><a href="/confidentialite.html">Données personnelles</a></li>
+        <li><a href="/engagements.html">Engagements de service</a></li>
+        <li><a href="/cgv.html">Conditions de vente</a></li>
+        <li><a href="/mentions.html">Mentions légales</a></li>
+      </ul>
+      <hr class="sep">
+      <p class="hint">Une question précise avant de signer ?<br>
+        <a href="mailto:contact@riseva.fr" style="color:var(--forest-800)">contact@riseva.fr</a></p>
+    </div></aside>
+
+    <article class="doc__corps">
+      <p class="eyebrow">{surtitre}</p>
+      <h1 style="margin-top:var(--s4)">{titre}</h1>
+      <p class="lede" style="margin-top:var(--s5)">{chapo}</p>
+      <p class="doc__maj">Version du {maj}</p>
+      {corps}
+    </article>
+  </div>
+</main>
+
+<footer class="foot"><div class="wrap">
+  <div class="between">
+    <a href="/" class="logo"><img src="/brand/riseva-full.png" alt="Riseva" style="height:20px"></a>
+    <span style="font-size:var(--t-xs);color:var(--ink-400)">© 2026 Riseva · contact@riseva.fr</span>
+  </div>
+</div></footer>
+</body>
+</html>
+"""
+
+MAJ = "20 août 2026"
+
+def ecrire(fichier, **kw):
+    kw.setdefault("maj", MAJ)
+    (RACINE / fichier).write_text(GABARIT.format(**kw), encoding="utf-8")
+    print("écrit", fichier)
+
+# ---------------------------------------------------------------- règlement
+ecrire("reglement.html",
+  surtitre="Le contrat moral",
+  titre="Règlement de la saison",
+  description="Comment les points sont attribués, comment le classement est calculé, et comment un litige se règle. Tout est public et recalculable.",
+  chapo="Un classement qu'on ne peut pas recalculer soi-même n'est pas un classement, c'est une "
+        "affirmation. Voici la règle complète, avec les chiffres et un exemple qui se vérifie à la main.",
+  corps="""
+<h2>1. Le barème</h2>
+<p>Il est fixé par Riseva, identique pour toutes les associations et toutes les entreprises d'une
+même saison. Une association choisit le format et la quantité de son annonce, jamais la valeur
+en points.</p>
+<table>
+  <thead><tr><th>Format</th><th>Unité</th><th>Points</th></tr></thead>
+  <tbody>
+    <tr><td>Don financier</td><td>par tranche de 10 € versés</td><td>1 point</td></tr>
+    <tr><td>Bénévolat</td><td>par demi-journée validée</td><td>150 points</td></tr>
+    <tr><td>Don de matériel</td><td>par don validé</td><td>100 points</td></tr>
+  </tbody>
+</table>
+<p>Le barème est versionné par saison. Une modification ne s'applique jamais en cours de saison :
+elle fausserait un classement déjà commencé. Elle est annoncée au moins un mois avant l'ouverture
+de la saison suivante.</p>
+
+<h2>2. Quand les points sont crédités</h2>
+<ul>
+  <li>Un salarié se positionne sur une annonce : la mission passe en <strong>engagée</strong>,
+      aucun point n'est crédité.</li>
+  <li>Après réalisation, il la déclare faite : elle passe <strong>à valider</strong>.</li>
+  <li>L'association confirme : la mission est <strong>validée</strong> et les points sont crédités
+      à l'entreprise.</li>
+  <li>Sans réponse de l'association sous <strong>quatorze jours</strong>, la mission est comptée
+      comme réalisée. Le client n'est pas pris en otage par l'inaction d'un partenaire non payant.</li>
+  <li>Si l'association refuse, aucun point n'est crédité, elle doit motiver son refus, et le besoin
+      redevient disponible sur l'annonce.</li>
+</ul>
+
+<h2>3. Le plafond par format</h2>
+<p><strong>Aucun format ne peut représenter plus de 50 % des points d'une entreprise sur la
+saison.</strong> Les points au-delà sont écrêtés : ils apparaissent dans ce que l'entreprise a fait,
+mais pas dans son rang.</p>
+<div class="encadre">
+  <p>Cette règle existe pour une raison simple : sans elle, il suffirait de virer de l'argent pour
+  prendre la première place. Le classement mesurerait alors un budget, pas un engagement.</p>
+</div>
+
+<h2>4. Le classement</h2>
+<p>Le classement de référence est <strong>normalisé</strong> : points retenus divisés par l'effectif
+déclaré, et lu <strong>par catégorie de taille</strong>. Comparer une entreprise de quarante
+personnes à un groupe de quatre mille n'a aucun sens.</p>
+<table>
+  <thead><tr><th>Catégorie</th><th>Effectif</th></tr></thead>
+  <tbody>
+    <tr><td>TPE</td><td>moins de 50 salariés</td></tr>
+    <tr><td>PME</td><td>50 à 199 salariés</td></tr>
+    <tr><td>ETI</td><td>200 à 499 salariés</td></tr>
+    <tr><td>Grande entreprise</td><td>500 salariés et plus</td></tr>
+  </tbody>
+</table>
+<p>Le total brut reste consultable comme lecture secondaire. Il n'est jamais le classement officiel.
+Le calcul est refait chaque lundi matin.</p>
+
+<h3>Un exemple qui se vérifie à la main</h3>
+<div class="calcul">
+  <div class="calcul__ligne"><span>Entreprise de 210 salariés</span><span></span></div>
+  <div class="calcul__ligne"><span>Bénévolat : 84 demi-journées × 150</span><span>12 600 pts</span></div>
+  <div class="calcul__ligne"><span>Don financier : 7 800 € ÷ 10 × 1</span><span>780 pts</span></div>
+  <div class="calcul__ligne"><span>Total brut</span><span>13 380 pts</span></div>
+  <div class="calcul__ligne"><span>Plafond par format : 50 % de 13 380</span><span>6 690 pts</span></div>
+  <div class="calcul__ligne"><span>Bénévolat écrêté à 6 690, don retenu en entier</span><span>− 5 910 pts</span></div>
+  <div class="calcul__ligne calcul__ligne--total"><span>Points retenus</span><span>7 470 pts</span></div>
+  <div class="calcul__ligne calcul__ligne--total"><span>Score : 7 470 ÷ 210</span><span>35,6 pts / salarié</span></div>
+</div>
+<p>Chaque entreprise peut télécharger le détail de ses missions au format CSV et refaire ce calcul.
+Si les deux ne concordent pas, écrivez-nous : c'est nous qui avons tort.</p>
+
+<h2>5. Ce que le score n'est pas</h2>
+<p>Le score mesure un <strong>engagement</strong> : du temps donné, du matériel donné, de l'argent
+donné. Ce n'est pas une mesure d'impact environnemental ou social, et Riseva ne le présentera jamais
+comme telle, ni dans l'interface, ni dans les rapports, ni en rendez-vous commercial.</p>
+
+<h2>6. Litiges</h2>
+<ul>
+  <li><strong>Contestation d'un refus.</strong> L'entreprise dispose de quinze jours pour contester
+      un refus de validation. Riseva demande sa version à l'association et tranche par écrit.</li>
+  <li><strong>Contestation d'un score.</strong> Le détail des missions et le calcul sont fournis
+      sous cinq jours ouvrés. Une erreur avérée est corrigée rétroactivement et le classement
+      recalculé.</li>
+  <li><strong>Soupçon de fraude.</strong> Missions déclarées non réalisées, complaisance entre une
+      entreprise et une association : Riseva suspend les points concernés le temps de vérifier, et
+      informe les deux parties. Une fraude établie entraîne l'exclusion de la saison sans
+      remboursement.</li>
+  <li><strong>Arbitrage.</strong> Riseva arbitre en dernier ressort et motive sa décision par écrit.
+      Ces décisions sont consignées et communicables au client sur demande.</li>
+</ul>
+""")
+
+# ---------------------------------------------------------------- charte associations
+ecrire("charte-associations.html",
+  surtitre="Le réseau",
+  titre="Charte et éligibilité des associations",
+  description="Comment une association entre dans le réseau Riseva, ce que nous vérifions, et ce qui entraîne une suspension.",
+  chapo="Une entreprise qui donne engage sa réputation et sa fiscalité. Nous ne pouvons donc pas "
+        "accepter n'importe quelle association, ni garantir ce que nous n'avons pas vérifié.",
+  corps="""
+<h2>Ce que nous vérifions à l'entrée</h2>
+<ul>
+  <li>Existence juridique : numéro RNA ou SIREN, statuts, date de déclaration.</li>
+  <li>Identité du référent et de la personne habilitée à signer les reçus fiscaux.</li>
+  <li>Objet réel de l'association et cohérence avec son activité déclarée.</li>
+  <li>Coordonnées vérifiables : adresse, téléphone, site ou page publique active.</li>
+  <li>Déclaration d'éligibilité au mécénat par l'association elle-même.</li>
+</ul>
+
+<div class="encadre encadre--alerte">
+  <p><strong>Ce que nous ne garantissons pas.</strong> Riseva ne certifie pas l'éligibilité fiscale
+  d'une association. Seule l'association peut l'affirmer, et seule l'administration peut la
+  contester. Une entreprise qui a besoin d'une certitude peut demander à l'association son
+  <strong>rescrit fiscal</strong>. Toute promesse contraire de notre part serait une faute.</p>
+</div>
+
+<h2>Revérification</h2>
+<p>Chaque association est revue <strong>une fois par saison</strong>, et à chaque fois qu'elle
+change de référent ou de signataire. La date de dernière vérification figure sur sa fiche, visible
+par les entreprises.</p>
+
+<h2>Ce qui entraîne une suspension</h2>
+<ul>
+  <li>Annonces sans rapport avec l'objet déclaré.</li>
+  <li>Missions validées qui n'ont pas eu lieu.</li>
+  <li>Coordonnées devenues fausses, ou référent injoignable plus de trente jours.</li>
+  <li>Reçus fiscaux émis alors que l'association n'est plus éligible.</li>
+  <li>Pression sur les salariés d'une entreprise cliente, ou démarchage détourné.</li>
+</ul>
+<p>Une suspension retire immédiatement les annonces de l'association, gèle les points en cours de
+validation liés à ses missions, et informe les entreprises concernées. Elle est motivée par écrit
+et peut être contestée.</p>
+
+<h2>Ce que l'association garde</h2>
+<ul>
+  <li>Le droit de refuser une entreprise, sans avoir à se justifier.</li>
+  <li>La propriété de ses dons : l'argent va directement chez elle, Riseva n'en voit pas la couleur.</li>
+  <li>La liberté de faire la même chose ailleurs. Aucune exclusivité n'est demandée.</li>
+  <li>La possibilité de partir à tout moment, avec ses données.</li>
+</ul>
+
+<h2>Signalement</h2>
+<p>Une entreprise, un salarié ou une association peut signaler un problème à
+<a href="mailto:contact@riseva.fr" style="color:var(--forest-800)">contact@riseva.fr</a>.
+Nous accusons réception sous deux jours ouvrés et rendons une décision motivée sous quinze jours.</p>
+""")
+
+# ---------------------------------------------------------------- sécurité
+ecrire("securite.html",
+  surtitre="Le dossier achats",
+  titre="Sécurité",
+  description="Hébergement, chiffrement, contrôle d'accès, sauvegardes, procédure d'incident. Ce que Riseva fait, et ce qu'elle ne fait pas encore.",
+  chapo="Une jeune entreprise n'a pas d'ISO 27001, et prétendre le contraire se voit tout de suite. "
+        "Voici ce qui est en place, et ce qui ne l'est pas encore.",
+  corps="""
+<h2>Hébergement</h2>
+<table>
+  <thead><tr><th>Élément</th><th>Où</th></tr></thead>
+  <tbody>
+    <tr><td>Application web</td><td>Hébergeur européen, région Union européenne</td></tr>
+    <tr><td>Base de données</td><td>PostgreSQL managé, région Union européenne, chiffré au repos</td></tr>
+    <tr><td>Sauvegardes</td><td>Même région, chiffrées, rétention 30 jours, restauration ponctuelle</td></tr>
+    <tr><td>Envoi des messages</td><td>Prestataire d'emailing, données limitées au strict nécessaire</td></tr>
+    <tr><td>Paiement des dons</td><td>Prestataire spécialisé. Riseva ne stocke aucune donnée bancaire</td></tr>
+  </tbody>
+</table>
+<p>Aucun transfert de données hors de l'Union européenne dans le fonctionnement normal du service.
+La liste datée des sous-traitants figure sur la page <a href="/confidentialite.html">Données personnelles</a>.</p>
+
+<h2>Chiffrement</h2>
+<ul>
+  <li>En transit : TLS 1.2 minimum sur toutes les connexions, HSTS activé.</li>
+  <li>Au repos : chiffrement du disque de la base et des sauvegardes.</li>
+  <li>Secrets applicatifs : variables d'environnement chiffrées, jamais dans le dépôt de code.</li>
+</ul>
+
+<h2>Contrôle d'accès</h2>
+<ul>
+  <li><strong>Sans mot de passe.</strong> La connexion se fait par lien à usage unique valable une
+      heure. Il n'y a donc pas de mot de passe à voler chez nous.</li>
+  <li><strong>Cloisonnement par ligne.</strong> Chaque table de la base porte des politiques de
+      sécurité au niveau de la ligne. Un compte ne peut lire que ce que sa politique autorise,
+      même si une requête est mal écrite côté application.</li>
+  <li><strong>Domaines de messagerie.</strong> Le lien d'inscription d'une entreprise n'accepte que
+      les adresses des domaines qu'elle a déclarés. Un lien qui fuite ne suffit pas à entrer.</li>
+  <li><strong>Rotation et révocation.</strong> L'administrateur peut couper ou régénérer le lien à
+      tout moment, sans toucher aux comptes existants.</li>
+  <li><strong>Deuxième facteur.</strong> Obligatoire pour les comptes d'administration Riseva.
+      Proposé aux administrateurs d'entreprise.</li>
+  <li><strong>Journal des accès.</strong> Inscriptions, créations et révocations de lien, retraits :
+      horodatés, consultables et exportables par l'entreprise. Personne ne peut les effacer.</li>
+</ul>
+
+<h2>Développement</h2>
+<ul>
+  <li>Suite de tests de bout en bout exécutée à chaque modification, couvrant les parcours réels
+      de chacun des quatre rôles.</li>
+  <li>Aucune donnée de production utilisée en développement.</li>
+  <li>Dépendances tierces réduites au minimum. Le cœur de l'application ne dépend d'aucun paquet
+      externe côté navigateur.</li>
+</ul>
+
+<h2>Incident</h2>
+<ul>
+  <li>Détection, qualification et information du client concerné sous <strong>48 heures</strong>.</li>
+  <li>Notification à la CNIL sous 72 heures en cas de violation de données à caractère personnel,
+      conformément à l'article 33 du RGPD.</li>
+  <li>Compte rendu écrit sous quinze jours : ce qui s'est passé, ce qui a été touché, ce qui a été
+      corrigé.</li>
+  <li>Contact sécurité : <a href="mailto:securite@riseva.fr" style="color:var(--forest-800)">securite@riseva.fr</a>.</li>
+</ul>
+
+<div class="encadre encadre--alerte">
+  <p><strong>Ce qui n'est pas en place, et qu'on ne prétendra pas avoir.</strong></p>
+  <ul>
+    <li>Pas de certification ISO 27001 ni SOC 2. Nous sommes une jeune structure.</li>
+    <li>Pas encore de test d'intrusion externe. Il est prévu avant la deuxième saison, et le
+        rapport de synthèse sera communicable aux clients.</li>
+    <li>Pas d'authentification unique d'entreprise (SSO SAML) à ce jour. Prévue si un client la
+        demande, sans surcoût pour les premiers.</li>
+  </ul>
+</div>
+""")
+
+# ---------------------------------------------------------------- données personnelles
+ecrire("confidentialite.html",
+  surtitre="Le dossier achats",
+  titre="Données personnelles",
+  description="Quelles données Riseva traite, pour quoi, combien de temps, avec quels sous-traitants, et comment exercer ses droits.",
+  chapo="Le client est responsable de traitement, Riseva est sous-traitant au sens de l'article 28 "
+        "du RGPD. Un accord de sous-traitance est fourni avec le devis, avant la signature.",
+  corps="""
+<h2>Qui fait quoi</h2>
+<table>
+  <thead><tr><th>Rôle</th><th>Qui</th></tr></thead>
+  <tbody>
+    <tr><td>Responsable de traitement</td><td>L'entreprise cliente, pour les données de ses salariés</td></tr>
+    <tr><td>Sous-traitant</td><td>Riseva</td></tr>
+    <tr><td>Responsable conjoint</td><td>Aucun. Riseva n'utilise jamais les données d'un client pour son propre compte</td></tr>
+  </tbody>
+</table>
+
+<h2>Ce que nous traitons</h2>
+<table>
+  <thead><tr><th>Catégorie</th><th>Données</th><th>Conservation</th></tr></thead>
+  <tbody>
+    <tr><td>Compte salarié</td><td>Nom, prénom, email professionnel</td><td>Durée de l'abonnement, puis anonymisation</td></tr>
+    <tr><td>Activité</td><td>Missions, points, dates</td><td>Durée de l'abonnement + 1 an pour les rapports</td></tr>
+    <tr><td>Dons</td><td>Montant, date, association, identité du donateur</td><td>6 ans, obligation comptable et fiscale</td></tr>
+    <tr><td>Journal des accès</td><td>Événement, horodatage, lien utilisé</td><td>12 mois</td></tr>
+    <tr><td>Facturation</td><td>Raison sociale, SIRET, adresse, factures</td><td>10 ans, obligation légale</td></tr>
+  </tbody>
+</table>
+<p>Aucune donnée sensible au sens de l'article 9 du RGPD n'est collectée. Aucun profilage,
+aucune décision automatisée produisant des effets juridiques. Aucune revente, jamais.</p>
+
+<h2>Le départ d'un salarié</h2>
+<p>Le retrait d'un salarié <strong>anonymise</strong> son compte : nom et adresse effacés, remplacés
+par une mention neutre, y compris dans l'historique des missions. Les points restent acquis à
+l'entreprise parce qu'ils lui appartiennent, mais plus rien ne permet de remonter à la personne.
+L'opération est irréversible et tracée.</p>
+
+<h2>Sous-traitants ultérieurs</h2>
+<table>
+  <thead><tr><th>Prestataire</th><th>Fonction</th><th>Hébergement</th></tr></thead>
+  <tbody>
+    <tr><td>Supabase</td><td>Base de données et authentification</td><td>Union européenne</td></tr>
+    <tr><td>Vercel</td><td>Diffusion de l'application web</td><td>Union européenne</td></tr>
+    <tr><td>Resend</td><td>Envoi des messages transactionnels</td><td>Union européenne</td></tr>
+    <tr><td>Prestataire de don</td><td>Encaissement des dons pour le compte des associations</td><td>France</td></tr>
+  </tbody>
+</table>
+<p>Cette liste est datée et versionnée. Tout ajout est notifié au client trente jours avant, avec
+un droit d'objection motivé.</p>
+
+<h2>Vos droits</h2>
+<ul>
+  <li>Accès, rectification, effacement, limitation, portabilité : par simple demande à
+      <a href="mailto:contact@riseva.fr" style="color:var(--forest-800)">contact@riseva.fr</a>,
+      traitée sous trente jours.</li>
+  <li>Un salarié peut demander l'effacement de son compte sans passer par son employeur.</li>
+  <li>Réclamation possible auprès de la CNIL, 3 place de Fontenoy, 75007 Paris.</li>
+</ul>
+
+<h2>Réversibilité</h2>
+<p>À tout moment et sans frais, l'entreprise exporte l'intégralité de ses données au format CSV
+depuis son espace : équipe, missions, points, dons, factures, journal des accès. À la fin du
+contrat, les données sont supprimées sous trente jours sur demande, ou conservées le temps des
+obligations légales. Un certificat de suppression est fourni si le client le demande.</p>
+
+<h2>Cookies</h2>
+<p>Aucun cookie publicitaire, aucun traceur tiers, aucune mesure d'audience externe. La plateforme
+n'utilise que le stockage local du navigateur pour maintenir la session ouverte. Il n'y a donc pas
+de bandeau à cliquer, parce qu'il n'y a rien à accepter.</p>
+""")
+
+# ---------------------------------------------------------------- engagements de service
+ecrire("engagements.html",
+  surtitre="Le dossier achats",
+  titre="Engagements de service",
+  description="Disponibilité, support, délais de validation, fraîcheur des annonces, réversibilité. Des engagements chiffrés, pas des intentions.",
+  chapo="« Meilleur effort » ne veut rien dire. Voici des chiffres, et ce qui se passe quand nous "
+        "ne les tenons pas.",
+  corps="""
+<h2>Disponibilité</h2>
+<table>
+  <thead><tr><th>Engagement</th><th>Valeur</th></tr></thead>
+  <tbody>
+    <tr><td>Disponibilité mensuelle</td><td>99,5 % hors maintenance annoncée</td></tr>
+    <tr><td>Maintenance planifiée</td><td>Annoncée 5 jours avant, hors heures ouvrées, 4 h maximum par mois</td></tr>
+    <tr><td>Perte de données maximale (RPO)</td><td>24 heures</td></tr>
+    <tr><td>Délai de remise en service (RTO)</td><td>8 heures ouvrées</td></tr>
+  </tbody>
+</table>
+<p>En dessous de 99 % sur un mois, un avoir de 10 % de la mensualité correspondante est appliqué
+sans que le client ait à le demander. En dessous de 95 %, l'avoir passe à 30 % et le client peut
+résilier sans pénalité.</p>
+
+<h2>Support</h2>
+<table>
+  <thead><tr><th>Sévérité</th><th>Exemple</th><th>Prise en charge</th><th>Contournement</th></tr></thead>
+  <tbody>
+    <tr><td>Bloquant</td><td>Plateforme inaccessible, points faux</td><td>4 h ouvrées</td><td>1 jour ouvré</td></tr>
+    <tr><td>Majeur</td><td>Une fonction ne marche pas, export impossible</td><td>1 jour ouvré</td><td>5 jours ouvrés</td></tr>
+    <tr><td>Mineur</td><td>Affichage, confort, demande d'évolution</td><td>3 jours ouvrés</td><td>selon planning</td></tr>
+  </tbody>
+</table>
+<p>Support par email, du lundi au vendredi, 9 h à 18 h. Pour les entreprises de la première saison,
+la personne qui répond est celle qui a construit la plateforme. Pas de niveau 1, pas de ticket qui
+tourne en rond.</p>
+
+<h2>Fraîcheur du réseau associatif</h2>
+<p>Une plateforme d'engagement sans annonces vivantes est une coquille vide. Nous nous engageons sur
+le réseau, pas seulement sur le logiciel.</p>
+<ul>
+  <li>Au moins <strong>huit annonces ouvertes</strong> à tout moment, dont au moins trois de
+      bénévolat, sur la zone géographique de chaque entreprise cliente.</li>
+  <li>Toute annonce dont la date est dépassée depuis plus de sept jours est fermée automatiquement.</li>
+  <li>Une association injoignable plus de trente jours voit ses annonces retirées.</li>
+  <li>Si une entreprise n'a aucune association pertinente dans sa zone, nous en cherchons pour elle.
+      C'est notre travail, pas le sien.</li>
+</ul>
+
+<h2>Délais de validation</h2>
+<ul>
+  <li>Une association a <strong>quatorze jours</strong> pour confirmer une mission. Passé ce délai,
+      la mission est comptée comme réalisée.</li>
+  <li>Relance automatique à sept jours, puis à douze jours.</li>
+  <li>Au-delà de trois défauts de réponse sur une saison, Riseva contacte l'association et peut
+      suspendre ses annonces.</li>
+  <li>Contestation d'un refus : réponse motivée sous quinze jours.</li>
+</ul>
+
+<h2>Réversibilité</h2>
+<ul>
+  <li>Export complet au format CSV, à tout moment, sans frais, depuis l'espace client.</li>
+  <li>À la fin du contrat, les données restent accessibles en lecture <strong>trente jours</strong>.</li>
+  <li>Suppression définitive sur demande, avec certificat, sous trente jours.</li>
+  <li>Aucun format propriétaire, aucune donnée retenue en otage, y compris en cas d'impayé.</li>
+</ul>
+
+<h2>Impayé</h2>
+<p>Une facture en retard suspend la publication de nouvelles missions. Elle ne coupe jamais l'accès
+en lecture, ne supprime aucune donnée et n'annule aucun point acquis. Prendre en otage les données
+d'un client pour se faire payer est une pratique que nous n'aurons pas.</p>
+
+<h2>Évolutions et prix</h2>
+<ul>
+  <li>Le prix est ferme pour la durée de la saison souscrite.</li>
+  <li><strong>Pas de reconduction tacite.</strong> L'abonnement s'arrête à la clôture, après remise
+      du rapport annuel. C'est au client de décider de repartir.</li>
+  <li>Toutes les fonctions décrites au contrat sont incluses. Ni le reporting, ni les exports,
+      ni le support ne sont facturés à part.</li>
+</ul>
+""")
+
+# ---------------------------------------------------------------- CGV
+ecrire("cgv.html",
+  surtitre="Le contrat",
+  titre="Conditions générales de vente",
+  description="Conditions de vente de l'abonnement Riseva aux entreprises.",
+  chapo="Version de travail, à faire relire par un juriste avant la première signature. "
+        "Elle est publiée telle quelle parce qu'un acheteur préfère un document imparfait mais "
+        "disponible à un document promis pour plus tard.",
+  corps="""
+<h2>1. Objet</h2>
+<p>Riseva fournit un service en ligne qui met en relation des entreprises abonnées et des
+associations partenaires, comptabilise les actions réalisées et produit des rapports. Le présent
+document régit la vente de l'abonnement aux entreprises. L'usage de la plateforme par les
+utilisateurs relève des <a href="/cgu.html">conditions d'utilisation</a>.</p>
+
+<h2>2. Commande et durée</h2>
+<ul>
+  <li>La préinscription est gratuite et n'engage à rien.</li>
+  <li>La commande est formée par la signature du devis, qui vaut acceptation des présentes.</li>
+  <li>L'abonnement couvre une <strong>saison</strong>, d'une durée d'une année fiscale.</li>
+  <li>Il n'est pas reconduit tacitement.</li>
+</ul>
+
+<h2>3. Prix et paiement</h2>
+<ul>
+  <li>Le prix figure au devis. Il est ferme pour la durée de la saison.</li>
+  <li>Un acompte de 500 € est versé à la confirmation. Il est déduit du montant total et
+      <strong>remboursé intégralement si la saison ne démarre pas</strong>.</li>
+  <li>Le solde est facturé à l'ouverture de la saison, payable à trente jours.</li>
+  <li>Retard de paiement : intérêts au taux d'intérêt légal majoré de dix points et indemnité
+      forfaitaire de recouvrement de 40 €, conformément à l'article L. 441-10 du code de commerce.</li>
+  <li>Aucune commission n'est prélevée sur les dons.</li>
+</ul>
+
+<h2>4. Places</h2>
+<p>L'abonnement ouvre un nombre de places égal à l'effectif déclaré. Un compte occupe une place.
+Le retrait d'un salarié libère sa place immédiatement. Des places supplémentaires peuvent être
+ajoutées en cours de saison, au prorata.</p>
+
+<h2>5. Obligations du client</h2>
+<ul>
+  <li>Déclarer un effectif exact : il détermine les places et le classement normalisé.</li>
+  <li>Désigner au moins <strong>deux administrateurs</strong>.</li>
+  <li>Déclarer les domaines de messagerie autorisés pour le lien d'inscription.</li>
+  <li>Informer ses salariés du traitement de leurs données, en sa qualité de responsable de traitement.</li>
+</ul>
+
+<h2>6. Obligations de Riseva</h2>
+<ul>
+  <li>Fournir le service conformément aux <a href="/engagements.html">engagements de service</a>.</li>
+  <li>Vérifier les associations selon la <a href="/charte-associations.html">charte</a>, sans
+      garantir leur éligibilité fiscale, qui relève d'elles seules.</li>
+  <li>Appliquer le <a href="/reglement.html">règlement de la saison</a> de façon identique
+      à tous les clients.</li>
+  <li>Traiter les données personnelles en qualité de sous-traitant, dans les conditions de
+      l'accord de sous-traitance annexé au devis.</li>
+</ul>
+
+<h2>7. Responsabilité</h2>
+<ul>
+  <li>Riseva n'organise pas les missions de bénévolat et ne les assure pas. En cas de dommage
+      pendant une mission, la responsabilité relève de l'entreprise et de l'association.</li>
+  <li>Riseva n'encaisse pas les dons et n'émet pas les reçus fiscaux : elle les prépare pour le
+      compte de l'association, seule habilitée à les délivrer et seule responsable de leur
+      régularité.</li>
+  <li>Les estimations de réduction d'impôt fournies par la plateforme sont indicatives et ne
+      valent pas conseil fiscal.</li>
+  <li>La responsabilité de Riseva est plafonnée au montant de l'abonnement de la saison en cours.</li>
+</ul>
+
+<h2>8. Résiliation</h2>
+<ul>
+  <li>Par le client, à tout moment, avec remboursement au prorata si le manquement vient de Riseva.</li>
+  <li>Par Riseva, en cas de non-paiement persistant après deux relances écrites, ou de fraude
+      établie au sens du règlement de la saison.</li>
+  <li>Dans tous les cas, les données restent exportables trente jours.</li>
+</ul>
+
+<h2>9. Droit applicable</h2>
+<p>Droit français. À défaut d'accord amiable, compétence des tribunaux du ressort du siège de Riseva.</p>
+""")

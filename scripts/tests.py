@@ -57,9 +57,33 @@ def main():
         verifie("aucune promesse de tarif figé",
                 "tarif restera" not in p.inner_text("body").lower())
         for page in ["inscription.html", "associations.html", "asso.html?id=a1",
-                     "mentions.html", "cgu.html"]:
+                     "mentions.html", "cgu.html", "cgv.html", "reglement.html",
+                     "charte-associations.html", "securite.html", "confidentialite.html",
+                     "engagements.html"]:
             p.goto(f"{BASE}/{page}", wait_until="networkidle")
             verifie(f"la page {page} se charge", len(p.inner_text("body")) > 400)
+
+        print("\nLe dossier achats")
+        p.goto(BASE + "/reglement.html", wait_until="networkidle")
+        t = norm(p.inner_text(".doc__corps"))
+        verifie("le règlement publie un calcul vérifiable", "35,6 pts / salarié" in t)
+        verifie("le règlement traite les litiges", "Soupçon de fraude" in t)
+        p.goto(BASE + "/securite.html", wait_until="networkidle")
+        t = p.inner_text(".doc__corps")
+        verifie("la sécurité dit ce qui manque", "ISO 27001" in t and "test d'intrusion" in t)
+        verifie("le journal des accès est documenté", "Journal des accès" in t)
+        p.goto(BASE + "/confidentialite.html", wait_until="networkidle")
+        t = p.inner_text(".doc__corps")
+        verifie("les sous-traitants sont listés", "Supabase" in t and "Resend" in t)
+        verifie("les durées de conservation sont données", "10 ans" in t)
+        p.goto(BASE + "/engagements.html", wait_until="networkidle")
+        t = norm(p.inner_text(".doc__corps"))
+        verifie("la disponibilité est chiffrée", "99,5 %" in t)
+        verifie("l'impayé ne coupe pas les données", "en otage" in t)
+        p.goto(BASE + "/404.html", wait_until="networkidle")
+        verifie("la page d'erreur existe", "rivière s'arrête" in p.inner_text("body"))
+        p.goto(BASE + "/robots.txt", wait_until="domcontentloaded")
+        verifie("robots.txt protège l'espace client", "Disallow: /app/" in p.inner_text("body"))
 
         print("\nToutes les vues, tous les rôles")
         for uid, role in [("u2","entreprise"), ("u4","salarié"), ("u7","association"), ("u1","Riseva")]:

@@ -78,7 +78,7 @@
 
 /* ============ Footer ============ */
 .foot{border-top:var(--line);padding-block:var(--s10);font-size:var(--t-sm);color:var(--ink-500)}
-.foot__grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:var(--s8)}
+.foot__grid{display:grid;grid-template-columns:1.6fr repeat(4,1fr);gap:var(--s8)}
 .foot h4{font-size:var(--t-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-400);
   font-family:var(--font-ui);font-weight:600;margin-bottom:var(--s3)}
 .foot li+li{margin-top:var(--s2)}

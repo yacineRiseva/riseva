@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Riseva — Sécurité</title>
+<meta name="description" content="Hébergement, chiffrement, contrôle d'accès, sauvegardes, procédure d'incident. Ce que Riseva fait, et ce qu'elle ne fait pas encore.">
+<link rel="icon" href="/brand/riseva-mark.png">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/base.css">
+<link rel="stylesheet" href="/styles/components.css">
+<link rel="stylesheet" href="/styles/marketing.css">
+<link rel="stylesheet" href="/styles/doc.css">
+</head>
+<body>
+<header class="nav"><div class="wrap nav__in">
+  <a href="/" class="logo"><img src="/brand/riseva-full.png" alt="Riseva"></a>
+  <nav class="nav__links">
+    <a href="/reglement.html">Règlement</a>
+    <a href="/securite.html">Sécurité</a>
+    <a href="/confidentialite.html">Données</a>
+    <a href="/engagements.html">Engagements</a>
+  </nav>
+  <a class="btn btn--primary btn--sm" href="/inscription.html">Préinscription</a>
+</div></header>
+
+<main class="doc">
+  <div class="wrap doc__grid">
+    <aside class="doc__nav"><div class="doc__navIn">
+      <p class="eyebrow">Le dossier</p>
+      <ul class="stack" style="--gap:var(--s2);margin-top:var(--s4)">
+        <li><a href="/reglement.html">Règlement de la saison</a></li>
+        <li><a href="/charte-associations.html">Charte des associations</a></li>
+        <li><a href="/securite.html">Sécurité</a></li>
+        <li><a href="/confidentialite.html">Données personnelles</a></li>
+        <li><a href="/engagements.html">Engagements de service</a></li>
+        <li><a href="/cgv.html">Conditions de vente</a></li>
+        <li><a href="/mentions.html">Mentions légales</a></li>
+      </ul>
+      <hr class="sep">
+      <p class="hint">Une question précise avant de signer ?<br>
+        <a href="mailto:contact@riseva.fr" style="color:var(--forest-800)">contact@riseva.fr</a></p>
+    </div></aside>
+
+    <article class="doc__corps">
+      <p class="eyebrow">Le dossier achats</p>
+      <h1 style="margin-top:var(--s4)">Sécurité</h1>
+      <p class="lede" style="margin-top:var(--s5)">Une jeune entreprise n'a pas d'ISO 27001, et prétendre le contraire se voit tout de suite. Voici ce qui est en place, et ce qui ne l'est pas encore.</p>
+      <p class="doc__maj">Version du 20 août 2026</p>
+      
+<h2>Hébergement</h2>
+<table>
+  <thead><tr><th>Élément</th><th>Où</th></tr></thead>
+  <tbody>
+    <tr><td>Application web</td><td>Hébergeur européen, région Union européenne</td></tr>
+    <tr><td>Base de données</td><td>PostgreSQL managé, région Union européenne, chiffré au repos</td></tr>
+    <tr><td>Sauvegardes</td><td>Même région, chiffrées, rétention 30 jours, restauration ponctuelle</td></tr>
+    <tr><td>Envoi des messages</td><td>Prestataire d'emailing, données limitées au strict nécessaire</td></tr>
+    <tr><td>Paiement des dons</td><td>Prestataire spécialisé. Riseva ne stocke aucune donnée bancaire</td></tr>
+  </tbody>
+</table>
+<p>Aucun transfert de données hors de l'Union européenne dans le fonctionnement normal du service.
+La liste datée des sous-traitants figure sur la page <a href="/confidentialite.html">Données personnelles</a>.</p>
+
+<h2>Chiffrement</h2>
+<ul>
+  <li>En transit : TLS 1.2 minimum sur toutes les connexions, HSTS activé.</li>
+  <li>Au repos : chiffrement du disque de la base et des sauvegardes.</li>
+  <li>Secrets applicatifs : variables d'environnement chiffrées, jamais dans le dépôt de code.</li>
+</ul>
+
+<h2>Contrôle d'accès</h2>
+<ul>
+  <li><strong>Sans mot de passe.</strong> La connexion se fait par lien à usage unique valable une
+      heure. Il n'y a donc pas de mot de passe à voler chez nous.</li>
+  <li><strong>Cloisonnement par ligne.</strong> Chaque table de la base porte des politiques de
+      sécurité au niveau de la ligne. Un compte ne peut lire que ce que sa politique autorise,
+      même si une requête est mal écrite côté application.</li>
+  <li><strong>Domaines de messagerie.</strong> Le lien d'inscription d'une entreprise n'accepte que
+      les adresses des domaines qu'elle a déclarés. Un lien qui fuite ne suffit pas à entrer.</li>
+  <li><strong>Rotation et révocation.</strong> L'administrateur peut couper ou régénérer le lien à
+      tout moment, sans toucher aux comptes existants.</li>
+  <li><strong>Deuxième facteur.</strong> Obligatoire pour les comptes d'administration Riseva.
+      Proposé aux administrateurs d'entreprise.</li>
+  <li><strong>Journal des accès.</strong> Inscriptions, créations et révocations de lien, retraits :
+      horodatés, consultables et exportables par l'entreprise. Personne ne peut les effacer.</li>
+</ul>
+
+<h2>Développement</h2>
+<ul>
+  <li>Suite de tests de bout en bout exécutée à chaque modification, couvrant les parcours réels
+      de chacun des quatre rôles.</li>
+  <li>Aucune donnée de production utilisée en développement.</li>
+  <li>Dépendances tierces réduites au minimum. Le cœur de l'application ne dépend d'aucun paquet
+      externe côté navigateur.</li>
+</ul>
+
+<h2>Incident</h2>
+<ul>
+  <li>Détection, qualification et information du client concerné sous <strong>48 heures</strong>.</li>
+  <li>Notification à la CNIL sous 72 heures en cas de violation de données à caractère personnel,
+      conformément à l'article 33 du RGPD.</li>
+  <li>Compte rendu écrit sous quinze jours : ce qui s'est passé, ce qui a été touché, ce qui a été
+      corrigé.</li>
+  <li>Contact sécurité : <a href="mailto:securite@riseva.fr" style="color:var(--forest-800)">securite@riseva.fr</a>.</li>
+</ul>
+
+<div class="encadre encadre--alerte">
+  <p><strong>Ce qui n'est pas en place, et qu'on ne prétendra pas avoir.</strong></p>
+  <ul>
+    <li>Pas de certification ISO 27001 ni SOC 2. Nous sommes une jeune structure.</li>
+    <li>Pas encore de test d'intrusion externe. Il est prévu avant la deuxième saison, et le
+        rapport de synthèse sera communicable aux clients.</li>
+    <li>Pas d'authentification unique d'entreprise (SSO SAML) à ce jour. Prévue si un client la
+        demande, sans surcoût pour les premiers.</li>
+  </ul>
+</div>
+
+    </article>
+  </div>
+</main>
+
+<footer class="foot"><div class="wrap">
+  <div class="between">
+    <a href="/" class="logo"><img src="/brand/riseva-full.png" alt="Riseva" style="height:20px"></a>
+    <span style="font-size:var(--t-xs);color:var(--ink-400)">© 2026 Riseva · contact@riseva.fr</span>
+  </div>
+</div></footer>
+</body>
+</html>

@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /app/
+Disallow: /rejoindre.html
+
+Sitemap: https://riseva.fr/sitemap.xml
