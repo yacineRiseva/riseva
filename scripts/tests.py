@@ -15,6 +15,10 @@ PORT = 8123
 BASE = f"http://127.0.0.1:{PORT}"
 
 resultats = []
+def norm(t):
+    """Les montants en français contiennent des espaces insécables : on normalise."""
+    return t.replace("\u202f", " ").replace("\u00a0", " ")
+
 def verifie(nom, condition, detail=""):
     resultats.append((nom, bool(condition), detail))
     print(("  ok   " if condition else "  RATÉ ") + nom + (f"  [{detail}]" if detail and not condition else ""))
@@ -144,7 +148,7 @@ def main():
         connecte(p, "u2", "#/parametres")
         p.fill("#cout", "400"); p.click("#save"); p.wait_for_timeout(400)
         p.evaluate("()=>location.hash='#/mecenat'"); p.wait_for_timeout(400)
-        verifie("le coût saisi alimente le mécénat", "840 €" in p.inner_text(".content"),
+        verifie("le coût saisi alimente le mécénat", "840 €" in norm(p.inner_text(".content")),
                 "la réduction doit passer à 840 € avec 400 €/jour")
 
         print("\nEspace Riseva")
