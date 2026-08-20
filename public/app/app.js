@@ -1851,25 +1851,40 @@ function vueAdminPreinscriptions(){
 function vuePilotes(){
   const global = DB.indicateurs();
   const lignes = [
-    ["activation", "Taux d'activation", "%"],
-    ["participation", "Taux de participation", "%"],
+    ["participation", "Participation vérifiée", "%"],
+    ["inscriptionI0", "Inscription sur l'effectif invité", "%"],
+    ["inscriptionS0", "Consommation des places", "%"],
+    ["conversion", "Inscrits devenus acteurs", "%"],
+    ["actions100", "Actions pour 100 salariés invités", ""],
+    ["concentration", "Concentration sur les 10 % les plus actifs", "%"],
+    ["partFormatMax", "Part du format dominant", "%"],
+    ["associations", "Organismes réellement soutenus", ""],
+    ["heuresMecenat", "Heures effectivement émargées", "h"],
     ["realisation", "Taux de réalisation", "%"],
-    ["validationAuto", "Part de validations sans retour", "%"],
-    ["delaiMedian", "Délai associatif médian", "j"],
+    ["validationAuto", "Validations sans retour", "%"],
     ["fraicheur", "Fraîcheur des annonces", "%"]
   ];
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <section class="card card--flat" style="background:var(--forest-050);border-color:transparent">
-      <h3 style="font-size:var(--t-lg)">Les chiffres qu'on peut opposer à un prospect</h3>
+      <h3 style="font-size:var(--t-lg)">Le protocole, figé avant le lancement</h3>
       <p class="muted" style="font-size:var(--t-sm);margin-top:6px;color:var(--ink-600)">
-        Chaque indicateur affiche son numérateur et son dénominateur. Un taux dont on peut
-        changer le dénominateur ne prouve rien, et un acheteur le sait.</p>
+        Un indicateur dont on peut changer le dénominateur en cours de route ne prouve rien.
+        Les repères sont posés à T0, la première communication de lancement, et gelés :
+        période de mesure de 90 jours, clôture des validations 14 jours plus tard.</p>
+      <div class="row" style="gap:var(--s5);flex-wrap:wrap;margin-top:var(--s5);font-size:var(--t-sm)">
+        ${Object.entries(global.reperes).map(([k, v]) =>
+          `<span><strong style="font-family:var(--font-mono)">${k}</strong>
+           <span class="muted"> = ${nb(v)}</span></span>`).join("")}
+      </div>
+      <p class="hint">Une action validée est une combinaison unique salarié × association ×
+        format × date, réalisée dans la période et acceptée avant la clôture. Deux versements
+        au même organisme le même jour ne font qu'une action.</p>
     </section>
 
     <div class="kpis">
       ${lignes.slice(0, 4).map(([cle, titre, unite], i) => {
         const x = global[cle];
-        return kpi(titre, x.valeur === null ? "—" : x.valeur + (unite === "%" ? " %" : " " + unite),
+        return kpi(titre, x.valeur === null ? "—" : x.valeur + (unite ? " " + unite : ""),
           x.den ? `${nb(x.num)} sur ${nb(x.den)}` : "", "", i === 0 ? "kpi--tete grain" : "");
       }).join("")}
     </div>
@@ -1883,7 +1898,7 @@ function vuePilotes(){
             return `<tr>
               <td style="width:34%"><strong>${esc(titre)}</strong><br>
                 <span class="tnum" style="color:var(--forest-800);font-weight:600">${
-                  x.valeur === null ? "—" : x.valeur + (unite === "%" ? " %" : " jours")}</span></td>
+                  x.valeur === null ? "—" : x.valeur + (unite ? " " + unite : "")}</span></td>
               <td class="muted">${esc(x.definition)}</td></tr>`;
           }).join("")}
         </tbody></table>
@@ -1892,7 +1907,7 @@ function vuePilotes(){
       <section class="card">
         <h3>Par entreprise</h3>
         <table class="table" style="margin-top:var(--s5)"><thead><tr>
-          <th>Entreprise</th><th>Activation</th><th>Participation</th><th>Réalisation</th>
+          <th>Entreprise</th><th>Inscription</th><th>Participation</th><th>Réalisation</th>
         </tr></thead><tbody id="pe"></tbody></table>
         <hr class="sep">
         <button class="btn btn--ghost btn--block btn--sm" id="csvI">Exporter les indicateurs</button>
@@ -1905,7 +1920,7 @@ function vuePilotes(){
     const x = DB.indicateurs(e.id);
     pe.appendChild(h(`<tr>
       <td><strong>${esc(e.nom)}</strong></td>
-      <td class="tnum">${x.activation.valeur === null ? "—" : x.activation.valeur + " %"}</td>
+      <td class="tnum">${x.inscriptionI0.valeur === null ? "—" : x.inscriptionI0.valeur + " %"}</td>
       <td class="tnum">${x.participation.valeur === null ? "—" : x.participation.valeur + " %"}</td>
       <td class="tnum">${x.realisation.valeur === null ? "—" : x.realisation.valeur + " %"}</td>
     </tr>`));

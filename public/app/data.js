@@ -804,47 +804,97 @@ function creerMock(){
     /* ------------------------------------------------------------------ */
     /* Indicateurs de pilote                                              */
     /* ------------------------------------------------------------------ */
-    /* Des chiffres qu'on peut opposer à un prospect. Chaque définition précise son
-       numérateur, son dénominateur et sa période : un taux dont on peut changer le
-       dénominateur ne prouve rien. */
+    /* Protocole de mesure, figé avant le lancement d'un pilote. Un indicateur dont on
+       peut changer le dénominateur en cours de route ne prouve rien, et un acheteur
+       le sait. Les repères :
+         T0  première communication de lancement à toute la population pilote ;
+         P   période de mesure, T0 à T0 + 90 jours ;
+         C   clôture des validations, 14 jours après P ;
+         I0  effectif à qui l'accès a été proposé à T0, certifié par l'entreprise et gelé ;
+         S0  places disponibles à T0 ;
+         R30, R90  comptes uniques appartenant à I0, créés avant J30 et J90 ;
+         A   salariés uniques ayant au moins une action validée ;
+         X   nombre d'actions validées.
+       Une action validée est une combinaison unique salarié × association × format × date,
+       réalisée dans P et acceptée avant C. Deux versements au même organisme le même jour
+       ne font qu'une action. */
     indicateurs(eid){
       const entreprises = eid ? [api.entreprise(eid)].filter(Boolean) : s.entreprises;
       const ids = entreprises.map(e => e.id);
+
+      const I0 = entreprises.reduce((n, e) => n + (e.effectif || 0), 0);
+      const S0 = entreprises.reduce((n, e) => n + (e.sieges || e.effectif || 0), 0);
       const comptes = s.utilisateurs.filter(u => ids.includes(u.org)
         && (u.role === "salarie" || u.role === "entreprise_admin") && !u.anonyme);
-      const places = entreprises.reduce((n, e) => n + (e.sieges || e.effectif || 0), 0);
-      const ms = s.missions.filter(m => ids.includes(m.entreprise));
-      const tranchees = ms.filter(m => ["validee", "validee_auto", "refusee"].includes(m.etat));
-      const validees = ms.filter(m => ["validee", "validee_auto"].includes(m.etat));
-      const auto = ms.filter(m => m.etat === "validee_auto");
-      const actifs = comptes.filter(u => ms.some(m => m.salarie === u.id
-        && ["validee", "validee_auto"].includes(m.etat)));
+      const R90 = comptes.length;
+      const R30 = comptes.length;   // jeu de démonstration : pas d'historique de création
 
-      const delais = tranchees.map(m => {
-        const d = new Date(m.date); const t = new Date(m.date);
-        t.setDate(t.getDate() + (m.etat === "validee_auto" ? 14 : 4)); // démonstration
-        return Math.max(0, Math.round((t - d) / 864e5));
-      }).sort((a, b) => a - b);
-      const mediane = delais.length
-        ? (delais.length % 2 ? delais[(delais.length - 1) / 2]
-           : Math.round((delais[delais.length / 2 - 1] + delais[delais.length / 2]) / 2))
-        : null;
+      const validees = s.missions.filter(m => ids.includes(m.entreprise)
+        && ["validee", "validee_auto"].includes(m.etat));
+      /* Déduplication : salarié × association × format × date. */
+      const cles = new Set();
+      validees.forEach(m => {
+        const a = api.annonceDe(m); if (!a) return;
+        cles.add([m.salarie, a.asso, a.type, m.date].join("|"));
+      });
+      const X = cles.size;
+      const A = new Set(validees.map(m => m.salarie)).size;
 
+      /* Concentration : part des actions portée par les 10 % de salariés les plus actifs.
+         Une valeur élevée révèle un pilote tenu par quelques ambassadeurs. */
+      const parSalarie = {};
+      validees.forEach(m => parSalarie[m.salarie] = (parSalarie[m.salarie] || 0) + 1);
+      const tries = Object.values(parSalarie).sort((x, y) => y - x);
+      const tete = Math.max(1, Math.ceil(0.1 * Math.max(A, 1)));
+      const concentration = X ? tries.slice(0, tete).reduce((n, v) => n + v, 0) / X : null;
+
+      const parFormat = {};
+      validees.forEach(m => {
+        const a = api.annonceDe(m); if (!a) return;
+        parFormat[a.type] = (parFormat[a.type] || 0) + 1;
+      });
+      const partMax = X ? Math.max(...Object.values(parFormat), 0) / X : null;
+
+      const assos = new Set(validees.map(m => (api.annonceDe(m) || {}).asso).filter(Boolean)).size;
+      const heures = validees.reduce((n, m) => {
+        const a = api.annonceDe(m);
+        return n + (a && a.type === "benevolat_demi_journee" ? m.quantite * 4 : 0);
+      }, 0);
+
+      const tranchees = s.missions.filter(m => ids.includes(m.entreprise)
+        && ["validee", "validee_auto", "refusee"].includes(m.etat));
+      const auto = s.missions.filter(m => ids.includes(m.entreprise) && m.etat === "validee_auto");
+
+      const pct = (n, d) => d ? Math.round((n / d) * 1000) / 10 : null;
       const ouvertes = s.annonces.filter(a => a.etat === "ouverte");
       const fraiches = ouvertes.filter(a => a.date >= "2026-08-20");
 
-      const pct = (n, d) => d ? Math.round((n / d) * 1000) / 10 : null;
       return {
-        activation:   { valeur: pct(comptes.length, places), num: comptes.length, den: places,
-          definition: "Comptes créés et non anonymisés, divisés par les places de l'abonnement." },
-        participation:{ valeur: pct(actifs.length, comptes.length), num: actifs.length, den: comptes.length,
-          definition: "Salariés avec au moins une mission validée, divisés par les comptes actifs, sur la saison." },
-        realisation:  { valeur: pct(validees.length, tranchees.length), num: validees.length, den: tranchees.length,
-          definition: "Missions validées, divisées par les missions tranchées. Les missions encore en cours ne comptent dans aucun des deux." },
+        reperes: { I0, S0, R30, R90, A, X },
+        inscriptionI0: { valeur: pct(R30, I0), num: R30, den: I0,
+          definition: "R30 divisé par I0. Comptes uniques créés avant J30, rapportés à l'effectif à qui l'accès a été proposé à T0. À publier avec l'indicateur suivant, jamais seul." },
+        inscriptionS0: { valeur: pct(R30, S0), num: R30, den: S0,
+          definition: "R30 divisé par S0. Mesure la consommation des places achetées, pas la portée dans l'entreprise." },
+        participation:{ valeur: pct(A, I0), num: A, den: I0,
+          definition: "A divisé par I0. Salariés uniques ayant au moins une action validée, rapportés à l'effectif invité. C'est l'indicateur commercial principal : une inscription seule ne compte pas." },
+        conversion:   { valeur: pct(A, R90), num: A, den: R90,
+          definition: "A divisé par R90. Part des inscrits devenus acteurs." },
+        actions100:   { valeur: I0 ? Math.round((100 * X / I0) * 10) / 10 : null, num: X, den: I0,
+          definition: "100 × X divisé par I0. Nombre d'actions validées pour cent salariés invités." },
+        concentration:{ valeur: concentration === null ? null : Math.round(concentration * 1000) / 10,
+          num: tries.slice(0, tete).reduce((n, v) => n + v, 0), den: X,
+          definition: "Actions réalisées par les 10 % de salariés les plus actifs, divisées par X. Une valeur élevée révèle un pilote porté par quelques ambassadeurs." },
+        partFormatMax:{ valeur: partMax === null ? null : Math.round(partMax * 1000) / 10,
+          num: X ? Math.max(...Object.values(parFormat), 0) : 0, den: X,
+          definition: "Part du format le plus représenté. Les points restent une mécanique de classement, pas une mesure d'impact." },
+        associations: { valeur: assos, num: assos, den: null,
+          definition: "Nombre d'organismes distincts ayant reçu au moins une action validée." },
+        heuresMecenat:{ valeur: heures, num: heures, den: null,
+          definition: "Somme des durées nettes réellement émargées. Pauses exclues, déplacements inclus seulement s'ils font partie de la mission convenue." },
         validationAuto:{ valeur: pct(auto.length, validees.length), num: auto.length, den: validees.length,
           definition: "Missions comptées faute de réponse de l'association, divisées par les missions validées. Mesure la défaillance du réseau, pas la performance du client." },
-        delaiMedian:  { valeur: mediane, num: mediane, den: null,
-          definition: "Médiane du nombre de jours entre la déclaration du salarié et la décision de l'association, sur les missions tranchées uniquement." },
+        realisation:  { valeur: pct(validees.length, tranchees.length), num: validees.length, den: tranchees.length,
+          definition: "Missions validées divisées par les missions tranchées. Celles encore en cours ne comptent dans aucun des deux termes." },
         fraicheur:    { valeur: pct(fraiches.length, ouvertes.length), num: fraiches.length, den: ouvertes.length,
           definition: "Annonces ouvertes dont la date n'est pas dépassée, divisées par les annonces ouvertes." }
       };
