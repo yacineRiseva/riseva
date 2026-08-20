@@ -88,18 +88,18 @@ const seed = {
   associations: [
     { id:"a1", nom:"Refuge des Quatre Vents", ville:"Saint-Étienne", cause:"Protection animale",
       resume:"Refuge de 180 places qui recueille chiens et chats abandonnés depuis 1998.",
-      site:"", valide:true, rna:"W423001234",
+      site:"", valide:true, rna:"W423001234", verifiee_le:J(-120), a_reverifier_le:J(240), suspendue:false,
       recus:{ actif:true, eligible_mecenat:true, signataire:"Élise Tournier",
               qualite:"Présidente", prochain_numero:47, prefixe:"QV-2027-" } },
     { id:"a2", nom:"Racines Vives", ville:"Clermont-Ferrand", cause:"Reforestation",
       resume:"Replantation de haies bocagères et de forêts mixtes sur des parcelles agricoles.",
-      site:"", valide:true },
+      site:"", valide:true, rna:"W631004567", verifiee_le:J(-60), a_reverifier_le:J(300), suspendue:false },
     { id:"a3", nom:"Rivière Propre 42", ville:"Roanne", cause:"Dépollution",
       resume:"Nettoyage des berges de la Loire et sensibilisation dans les écoles.",
-      site:"", valide:true },
+      site:"", valide:true, rna:"W422009876", verifiee_le:J(-200), a_reverifier_le:J(-20), suspendue:false },
     { id:"a4", nom:"Le Panier Solidaire", ville:"Villeurbanne", cause:"Aide alimentaire",
       resume:"Distribution de 900 colis par mois et maraude hebdomadaire.",
-      site:"", valide:true },
+      site:"", valide:true, rna:"W691002345", verifiee_le:J(-30), a_reverifier_le:J(330), suspendue:false },
     { id:"a5", nom:"Second Souffle", ville:"Grenoble", cause:"Réemploi",
       resume:"Reconditionnement de matériel informatique pour des familles et des écoles.",
       site:"", valide:false }
@@ -501,8 +501,28 @@ function creerMock(){
       const n = { id:id("p"), etat:"preinscrite", date:new Date().toISOString().slice(0,10), ...p };
       s.preinscriptions.unshift(n); return n;
     },
+    /* Vérification d'éligibilité : datée, avec échéance de revérification.
+       Une association jamais revue depuis plus d'une saison est signalée. */
     validerAssociation(aid){
-      const a = s.associations.find(x => x.id === aid); if (a) a.valide = true; return a;
+      const a = s.associations.find(x => x.id === aid);
+      if (a){
+        a.valide = true; a.suspendue = false; a.motif_suspension = null;
+        a.verifiee_le = new Date(2026, 7, 20).toISOString().slice(0, 10);
+        const d = new Date(2026, 7, 20); d.setFullYear(d.getFullYear() + 1);
+        a.a_reverifier_le = d.toISOString().slice(0, 10);
+      }
+      return a;
+    },
+    suspendreAssociation(aid, motif){
+      const a = s.associations.find(x => x.id === aid);
+      if (!a) return null;
+      a.suspendue = true; a.motif_suspension = motif || "non précisé";
+      s.annonces.filter(x => x.asso === aid && x.etat === "ouverte").forEach(x => x.etat = "close");
+      return a;
+    },
+    aReverifier(){
+      const auj = "2026-08-20";
+      return s.associations.filter(a => a.valide && a.a_reverifier_le && a.a_reverifier_le < auj);
     },
 
     /* Journal des messages : ce que la plateforme envoie, reconstruit à partir de l'état.

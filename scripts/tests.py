@@ -187,6 +187,28 @@ def main():
         connecte(p, "u1", "#/saison")
         p.fill("#nom", "Saison test"); p.click("#save"); p.wait_for_timeout(400)
         verifie("la saison est enregistrée", "Saison test" in p.inner_text(".topbar"))
+        connecte(p, "u1", "#/assos")
+        verifie("les associations en retard de vérification sont signalées",
+                "revérifier" in p.inner_text(".content"))
+        p.evaluate("""()=>{const l=[...document.querySelectorAll('tbody tr')].find(r=>/Second Souffle/.test(r.innerText));
+          [...l.querySelectorAll('button')].find(b=>/Valider/.test(b.textContent)).click()}""")
+        p.wait_for_timeout(300)
+        p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Valider pour/.test(b.textContent)).click()")
+        p.wait_for_timeout(300)
+        verifie("valider sans cocher est refusé", "Cochez les cinq points" in p.inner_text(".toast"))
+        p.evaluate("()=>document.querySelectorAll('.modal .v').forEach(c=>c.checked=true)")
+        p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Valider pour/.test(b.textContent)).click()")
+        p.wait_for_timeout(400)
+        verifie("la vérification complète est acceptée", "vérifiée pour une saison" in p.inner_text(".toast"))
+
+        print("\nClassement recalculable")
+        connecte(p, "u2", "#/classement")
+        p.click("#detail"); p.wait_for_timeout(300)
+        t = norm(p.inner_text(".modal"))
+        verifie("le détail du score s'affiche", "Total brut" in t and "pts / salarié" in t)
+        verifie("l'écrêtage est montré", "Plafond par format" in t)
+        p.evaluate("()=>document.querySelector('.overlay').remove()")
+
         connecte(p, "u1", "#/journal")
         verifie("le journal liste des envois", p.eval_on_selector_all("tbody tr", "r=>r.length") > 3)
 

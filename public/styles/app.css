@@ -113,3 +113,10 @@
 .notif__point--info{background:var(--water)}
 .notif__texte{display:block;font-size:var(--t-sm);color:var(--ink-500);margin-top:2px}
 .notif__date{display:block;font-size:var(--t-xs);color:var(--ink-400);margin-top:4px}
+
+/* Le détail du score : la même présentation que l'exemple publié dans le règlement. */
+.calculBox{background:var(--paper-sunk);border-radius:var(--r-md);padding:var(--s5);
+  margin-top:var(--s5);font-variant-numeric:tabular-nums;font-size:var(--t-sm)}
+.calculBox__l{display:flex;justify-content:space-between;gap:var(--s5);padding:5px 0}
+.calculBox__l--t{border-top:var(--line);margin-top:var(--s2);padding-top:var(--s3);
+  font-weight:600;color:var(--ink)}

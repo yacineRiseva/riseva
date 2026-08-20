@@ -738,8 +738,10 @@ function vueClassement(u){
               </div>`).join("")}
           </div>
           <hr class="sep">
+          <button class="btn btn--ghost btn--block btn--sm" id="detail">Comment mon score est calculé</button>
           <p class="hint">Le score mesure un engagement, pas un impact environnemental.
-            Riseva ne le présente jamais comme une mesure scientifique.</p>
+            Riseva ne le présente jamais comme une mesure scientifique.
+            <a href="/reglement.html" target="_blank" style="color:var(--forest-800)">Le règlement complet</a>.</p>
         </section>
       </div>
     </div>
@@ -775,6 +777,49 @@ function vueClassement(u){
     el.querySelectorAll("#modes .tab").forEach(x => x.classList.remove("is-active"));
     t.classList.add("is-active"); mode = t.dataset.m; dessine();
   });
+  el.querySelector("#detail").onclick = () => {
+    const e = DB.entreprise(u.org);
+    const pts = DB.pointsDe(u.org);
+    const base = Math.max(e.effectif || 1, 1);
+    const ms = DB.missions({ entreprise: u.org })
+                 .filter(m => m.etat === "validee" || m.etat === "validee_auto");
+    const corps = h(`<div>
+      <p class="muted" style="font-size:var(--t-sm)">
+        Voici l'addition complète, dans l'ordre du règlement. Vous pouvez la refaire à la main
+        à partir de l'export : si nos deux résultats diffèrent, c'est nous qui avons tort.</p>
+      <div class="calculBox">
+        ${Object.entries(BAREME).map(([k, b]) => {
+          const v = pts.parType[k] || 0;
+          return v ? `<div class="calculBox__l"><span>${esc(b.label)}</span>
+            <span class="tnum">${nb(v)} pts</span></div>` : "";
+        }).join("")}
+        <div class="calculBox__l calculBox__l--t"><span>Total brut</span>
+          <span class="tnum">${nb(pts.brut)} pts</span></div>
+        <div class="calculBox__l"><span class="muted">Plafond par format, 50 % de ${nb(pts.brut)}</span>
+          <span class="tnum muted">${nb(pts.plafond)} pts</span></div>
+        ${pts.ecrete ? `<div class="calculBox__l"><span class="muted">Écrêtage</span>
+          <span class="tnum muted">− ${nb(pts.ecrete)} pts</span></div>` : ""}
+        <div class="calculBox__l calculBox__l--t"><span>Points retenus</span>
+          <span class="tnum">${nb(pts.retenu)} pts</span></div>
+        <div class="calculBox__l"><span class="muted">Effectif déclaré</span>
+          <span class="tnum muted">${nb(base)}</span></div>
+        <div class="calculBox__l calculBox__l--t"><span>Score, ${nb(pts.retenu)} ÷ ${nb(base)}</span>
+          <span class="tnum">${Math.round((pts.retenu / base) * 10) / 10} pts / salarié</span></div>
+      </div>
+      <p class="hint">${ms.length} mission${ms.length > 1 ? "s" : ""} validée${ms.length > 1 ? "s" : ""}
+        entre${ms.length > 1 ? "nt" : ""} dans ce calcul.</p>
+    </div>`);
+    modal("Le détail de votre score", corps, [
+      { label:"Fermer" },
+      { label:"Exporter les missions", classe:"btn--primary", onClick: () => {
+          versCSV("riseva-detail-score.csv",
+            ["Mission", "Association", "Format", "Date", "Quantité", "Points"],
+            ms.map(m => { const a = DB.annonceDe(m);
+              return [a.titre, (DB.association(a.asso) || {}).nom, BAREME[a.type].label,
+                      m.date, m.quantite, m.points]; }));
+          toast("Export téléchargé."); return false; }}
+    ]);
+  };
   el.querySelector("#cat").value = categorie || "";
   el.querySelector("#cat").onchange = (e) => { categorie = e.target.value; dessine(); };
   el.querySelector("#csvCl").onclick = () => {
@@ -1687,22 +1732,78 @@ function vueAdminEntreprises(){
 }
 
 function vueAdminAssos(){
-  const el = h(`<section class="card"><table class="table"><thead><tr>
-    <th>Association</th><th>Cause</th><th>Ville</th><th>Annonces</th><th>État</th><th></th>
-  </tr></thead><tbody></tbody></table></section>`);
+  const aRevoir = DB.aReverifier();
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    ${aRevoir.length ? `<section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
+      <h3 style="font-size:var(--t-lg)">${aRevoir.length} association${aRevoir.length > 1 ? "s" : ""} à revérifier</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:6px;color:var(--ink-600)">
+        La charte prévoit une revérification par saison. Au-delà, on ne sait plus ce qu'on
+        présente aux entreprises.</p>
+    </section>` : ""}
+    <section class="card">
+      <table class="table"><thead><tr>
+        <th>Association</th><th>Cause</th><th>Identifiant</th><th>Vérifiée</th>
+        <th>Annonces</th><th>État</th><th></th>
+      </tr></thead><tbody></tbody></table>
+    </section>
+  </div>`);
   const tb = el.querySelector("tbody");
   DB.associations().forEach(a => {
+    const retard = a.valide && a.a_reverifier_le && a.a_reverifier_le < "2026-08-20";
+    const etat = a.suspendue ? ["Suspendue", "badge--danger"]
+               : !a.valide   ? ["En attente", "badge--warn"]
+               : retard      ? ["À revérifier", "badge--warn"]
+               :               ["Validée", "badge--ok"];
     const tr = h(`<tr>
-      <td><strong>${esc(a.nom)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(a.resume)}</span></td>
-      <td class="muted">${esc(a.cause)}</td>
-      <td class="muted">${esc(a.ville)}</td>
+      <td><strong>${esc(a.nom)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(a.ville || "")} · ${esc(a.resume || "")}</span></td>
+      <td class="muted">${esc(a.cause || "—")}</td>
+      <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(a.rna || "—")}</td>
+      <td class="muted tnum">${a.verifiee_le ? dateCourte(a.verifiee_le) : "—"}</td>
       <td class="tnum">${DB.annonces({ asso: a.id }).length}</td>
-      <td><span class="badge ${a.valide ? "badge--ok" : "badge--warn"}">${a.valide ? "Validée" : "En attente"}</span></td>
+      <td><span class="badge ${etat[1]}">${etat[0]}</span></td>
       <td style="text-align:right"></td></tr>`);
-    if (!a.valide){
-      const b = h(`<button class="btn btn--brand btn--sm">Valider</button>`);
-      b.onclick = () => { DB.validerAssociation(a.id); toast("Association validée."); rendre(); };
-      tr.lastElementChild.appendChild(b);
+    const cell = tr.lastElementChild;
+    if (!a.valide || retard || a.suspendue){
+      const b = h(`<button class="btn btn--forest btn--sm">${a.valide ? "Revérifier" : "Valider"}</button>`);
+      b.onclick = () => modal((a.valide ? "Revérifier " : "Valider ") + a.nom,
+        `<p class="muted">Vérifiez avant de cocher, la charte nous engage :</p>
+         <div class="stack" style="--gap:var(--s3);margin-top:var(--s5)">
+           <label class="checkline"><input type="checkbox" class="v"><span>Existence juridique confirmée (RNA ou SIREN, statuts).</span></label>
+           <label class="checkline"><input type="checkbox" class="v"><span>Référent et signataire des reçus identifiés.</span></label>
+           <label class="checkline"><input type="checkbox" class="v"><span>Objet réel cohérent avec l'activité annoncée.</span></label>
+           <label class="checkline"><input type="checkbox" class="v"><span>Coordonnées vérifiées et actives.</span></label>
+           <label class="checkline"><input type="checkbox" class="v"><span>Éligibilité au mécénat déclarée par l'association elle-même.</span></label>
+         </div>
+         <p class="hint" style="margin-top:var(--s4)">Riseva ne certifie pas l'éligibilité fiscale.
+         Seule l'association peut l'affirmer.</p>`,
+        [{ label:"Annuler" },
+         { label:"Valider pour une saison", classe:"btn--primary", onClick: (md) => {
+             const toutes = [...md.querySelectorAll(".v")].every(x => x.checked);
+             if (!toutes){ toast("Cochez les cinq points, sinon la vérification ne vaut rien."); return false; }
+             DB.validerAssociation(a.id); toast("Association vérifiée pour une saison."); rendre(); }}]);
+      cell.appendChild(b);
+    }
+    if (a.valide && !a.suspendue){
+      const b = h(`<button class="btn btn--quiet btn--sm" style="color:var(--danger)">Suspendre</button>`);
+      b.onclick = () => {
+        const corps = h(`<div>
+          <p class="muted">La suspension retire immédiatement ses annonces, gèle les points en
+          cours de validation liés à ses missions et informe les entreprises concernées.</p>
+          <div class="field" style="margin-top:var(--s5)"><label>Motif, communiqué à l'association</label>
+            <select class="select" id="motif">
+              <option>Annonces sans rapport avec l'objet déclaré</option>
+              <option>Missions validées qui n'ont pas eu lieu</option>
+              <option>Coordonnées fausses ou référent injoignable</option>
+              <option>Reçus fiscaux émis sans éligibilité</option>
+              <option>Pression sur des salariés ou démarchage détourné</option>
+            </select></div></div>`);
+        modal("Suspendre " + a.nom, corps, [
+          { label:"Annuler" },
+          { label:"Suspendre", classe:"btn--primary", onClick: () => {
+              DB.suspendreAssociation(a.id, corps.querySelector("#motif").value);
+              toast("Association suspendue, annonces retirées."); rendre(); }}]);
+      };
+      cell.appendChild(b);
     }
     tb.appendChild(tr);
   });
