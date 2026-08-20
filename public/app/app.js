@@ -256,7 +256,9 @@ function tableauEntreprise(u){
 
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <div class="kpis">
-      ${kpi("Points de la saison", nb(e.points), "+2 480 cette semaine", "up", "kpi--tete grain")}
+      ${kpi("Points de la saison", nb(pts.retenu), pts.ecrete
+            ? nb(pts.ecrete) + " points écrêtés" : "+2 480 cette semaine",
+            pts.ecrete ? "" : "up", "kpi--tete grain")}
       ${kpi("Rang", rang + "<sup style='font-size:.55em'>e</sup>",
             "sur " + total + " · " + (moiCl.categorie ? moiCl.categorie.label.toLowerCase() : ""))}
       ${kpi("Missions validées", nb(validees.length), enCours.length + " en cours")}
@@ -275,12 +277,12 @@ function tableauEntreprise(u){
         <hr class="sep">
         <div class="three">
           ${Object.entries(BAREME).map(([k, b]) => {
-            const pts = validees.filter(m => (DB.annonceDe(m) || {}).type === k)
-                                .reduce((s, m) => s + m.points, 0);
+            const v = pts.parType[k] || 0;
+            const r = pts.retenuParType[k] || 0;
             return `<div class="kpi">
               <span class="kpi__label">${esc(b.label)}</span>
-              <span class="kpi__value" style="font-size:1.4rem">${nb(pts)}</span>
-              <span class="kpi__delta">points</span></div>`;
+              <span class="kpi__value" style="font-size:1.4rem">${nb(r)}</span>
+              <span class="kpi__delta">${v > r ? nb(v - r) + " au-delà du plafond" : "points retenus"}</span></div>`;
           }).join("")}
         </div>
       </section>

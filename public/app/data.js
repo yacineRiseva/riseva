@@ -182,7 +182,23 @@ function creerMock(){
         const a = api.annonceDe(m); if (!a) return;
         parType[a.type] = (parType[a.type] || 0) + m.points;
       });
-      const brut = Object.values(parType).reduce((x, y) => x + y, 0);
+      let brut = Object.values(parType).reduce((x, y) => x + y, 0);
+
+      /* Jeu de démonstration : les entreprises portent un total de saison qui couvre
+         plus de missions que celles détaillées ici. On complète la ventilation au prorata
+         du mélange observé, pour que le tableau de bord et le classement racontent la
+         même histoire. En production, `brut` vient uniquement des missions. */
+      const totalSaison = (api.entreprise(eid) || {}).points || 0;
+      if (totalSaison > brut){
+        const manque = totalSaison - brut;
+        const mix = brut > 0
+          ? Object.fromEntries(Object.entries(parType).map(([k, v]) => [k, v / brut]))
+          : { benevolat_demi_journee: 0.62, don_materiel: 0.26, don_financier: 0.12 };
+        Object.entries(mix).forEach(([k, part]) => {
+          parType[k] = (parType[k] || 0) + Math.round(manque * part);
+        });
+        brut = Object.values(parType).reduce((x, y) => x + y, 0);
+      }
       const plafond = Math.round(brut * PLAFOND_PAR_FORMAT);
       const retenuParType = {};
       let retenu = 0, ecrete = 0;
