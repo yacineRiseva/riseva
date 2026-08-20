@@ -1,5 +1,5 @@
 import { DB, BAREME, ETATS_MISSION, connecterSupabase } from "./data.js";
-import { h, esc, nb, eur, dateFR, dateCourte, initiales, ICONS, toast, modal, kpi, spark } from "./ui.js";
+import { h, esc, nb, eur, dateFR, dateCourte, initiales, ICONS, toast, modal, kpi, spark, riviere } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
 /* Session                                                             */
@@ -142,6 +142,9 @@ function coquille(u, vue, titre, actions = ""){
     <div class="main">
       <header class="topbar">
         <div class="row" style="gap:var(--s4)">
+          <button class="btn btn--quiet btn--sm burger" id="burger" aria-label="Ouvrir le menu">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+              stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
           <strong style="font-family:var(--font-display);font-size:var(--t-lg)">${esc(titre)}</strong>
           <span class="badge badge--brand"><span class="dot"></span>${esc(DB.saison().nom)}</span>
         </div>
@@ -151,6 +154,9 @@ function coquille(u, vue, titre, actions = ""){
     </div>
   </div>`);
   el.querySelector("#out").onclick = () => { setSession(null); location.hash = ""; rendre(); };
+  const cote = el.querySelector(".side");
+  el.querySelector("#burger").onclick = () => cote.classList.toggle("is-open");
+  cote.addEventListener("click", (e) => { if (e.target.closest(".side__link")) cote.classList.remove("is-open"); });
   el.querySelector("#slot").appendChild(vue);
   return el;
 }
@@ -187,7 +193,7 @@ function tableauEntreprise(u){
           <p class="muted" style="font-size:var(--t-sm);margin-top:4px">Douze dernières semaines</p></div>
           <span class="badge badge--ok"><span class="dot"></span>En progression</span>
         </div>
-        ${spark(DB.semaines())}
+        ${riviere(DB.semaines(), { hauteur: 150, legendes: ["il y a 12 semaines", "aujourd\u2019hui"] })}
         <hr class="sep">
         <div class="three">
           ${Object.entries(BAREME).map(([k, b]) => {
@@ -464,23 +470,25 @@ function vueRapports(u){
   const r = DB.rapport(u.org, "annuel");
   const maxT = Math.max(...r.trimestres.map(t => t.points), 1);
   const el = h(`<div class="stack" style="--gap:var(--s5)">
-    <div class="tabs">
-      <div class="tab is-active">Rapport annuel</div>
-      <div class="tab">T1</div><div class="tab">T2</div><div class="tab">T3</div><div class="tab">T4</div>
+    <div class="tabs" id="pt">
+      <div class="tab is-active" data-p="annuel">Rapport annuel</div>
+      ${r.trimestres.map(t => `<div class="tab" data-p="${t.nom}">${t.nom}</div>`).join("")}
     </div>
     <section class="card" style="padding:var(--s10)">
       <div class="between" style="align-items:flex-start">
         <div>
-          <p class="eyebrow">Rapport annuel</p>
+          <p class="eyebrow" id="rTitre">Rapport annuel</p>
           <h2 style="margin-top:var(--s3)">${esc(r.entreprise.nom)} — ${esc(r.saison.nom)}</h2>
           <p class="muted" style="margin-top:var(--s3);font-size:var(--t-sm)">
             Généré automatiquement le ${dateFR(new Date().toISOString())} à partir des missions validées.</p>
+          <p class="muted" style="margin-top:6px;font-size:var(--t-sm)" id="rNote">Cumul de la saison, tous trimestres confondus.</p>
         </div>
         <button class="btn btn--ghost btn--sm" id="pdf">Exporter en PDF</button>
       </div>
       <hr class="sep">
       <div class="kpis">
-        ${kpi("Points de la saison", nb(r.points))}
+        <div class="card kpi"><span class="kpi__label">Points</span>
+          <span class="kpi__value" id="rPoints">${nb(r.points)}</span></div>
         ${kpi("Rang final", r.rang + "<sup style='font-size:.55em'>e</sup>", "sur " + r.total)}
         ${kpi("Salariés engagés", r.salariesEngages + " / " + r.salariesTotal)}
         ${kpi("Associations soutenues", nb(r.associations))}
@@ -522,6 +530,17 @@ function vueRapports(u){
     </section>
   </div>`);
   el.querySelector("#pdf").onclick = () => { toast("Ouverture de l'aperçu d'impression."); setTimeout(() => window.print(), 400); };
+  el.querySelectorAll("#pt .tab").forEach(t => t.onclick = () => {
+    el.querySelectorAll("#pt .tab").forEach(x => x.classList.remove("is-active"));
+    t.classList.add("is-active");
+    const p = t.dataset.p;
+    const tri = r.trimestres.find(x => x.nom === p);
+    el.querySelector("#rTitre").textContent = p === "annuel" ? "Rapport annuel" : "Rapport du trimestre " + p;
+    el.querySelector("#rPoints").textContent = nb(tri ? tri.points : r.points);
+    el.querySelector("#rNote").textContent = p === "annuel"
+      ? "Cumul de la saison, tous trimestres confondus."
+      : "Périmètre limité au trimestre " + p + ". Le rapport trimestriel est volontairement plus court.";
+  });
   return el;
 }
 
@@ -727,7 +746,7 @@ function tableauAdmin(){
     <div class="two">
       <section class="card">
         <h3>Activité du réseau</h3>
-        <div style="margin-top:var(--s6)">${spark(DB.semaines())}</div>
+        <div style="margin-top:var(--s6)">${riviere(DB.semaines(), { hauteur: 150, legendes: ["il y a 12 semaines", "aujourd\u2019hui"] })}</div>
       </section>
       <section class="card">
         <h3>À traiter</h3>

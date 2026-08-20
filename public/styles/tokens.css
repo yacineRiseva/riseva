@@ -10,18 +10,18 @@
   --brand-200:#C2E4AF;
 
   /* ---- Encre et neutres (légère teinte verte, jamais du gris pur) ---- */
-  --ink:#0D1512;            /* fond sombre, boutons primaires, titres */
-  --ink-800:#16211C;
-  --ink-700:#22302A;
-  --ink-600:#3A4A43;
-  --ink-500:#5A6B63;        /* texte secondaire */
-  --ink-400:#8A9A93;
-  --ink-300:#B9C5BF;
-  --ink-200:#DCE3E0;
-  --ink-100:#EDF1EF;
-  --ink-050:#F6F8F7;
+  --ink:#0F1311;            /* fond sombre, boutons primaires, titres */
+  --ink-800:#1A201D;
+  --ink-700:#272E2B;
+  --ink-600:#434B48;
+  --ink-500:#646C69;        /* texte secondaire */
+  --ink-400:#909794;
+  --ink-300:#BEC3C1;
+  --ink-200:#DEE1E0;
+  --ink-100:#EEF0EF;
+  --ink-050:#F7F8F8;
   --paper:#FFFFFF;
-  --paper-warm:#FBFCFB;
+  --paper-warm:#FCFCFC;
 
   /* ---- Sémantique ---- */
   --ok:#2E9E5B; --ok-bg:#E9F7EE;
@@ -39,7 +39,8 @@
   --t-h2:clamp(1.5rem,1.2rem + 1vw,2rem);
   --t-h3:1.25rem;
   --t-lg:1.0625rem;
-  --t-base:0.9375rem;
+  --t-base:0.9375rem;   /* application */
+  --t-read:1rem;        /* pages marketing */
   --t-sm:0.8125rem;
   --t-xs:0.75rem;
 
@@ -56,20 +57,20 @@
   --s8:32px; --s10:40px; --s12:48px; --s16:64px; --s20:80px; --s24:96px; --s32:128px;
 
   /* ---- Formes ---- */
-  --r-xs:8px; --r-sm:10px; --r-md:14px; --r-lg:20px; --r-xl:28px; --r-pill:999px;
-  --line:1px solid rgba(13,21,18,.08);
-  --line-strong:1px solid rgba(13,21,18,.14);
+  --r-xs:8px; --r-sm:8px; --r-md:12px; --r-lg:20px; --r-xl:20px; --r-pill:999px;
+  --line:1px solid rgba(15,19,17,.09);
+  --line-strong:1px solid rgba(15,19,17,.15);
 
   /* ---- Ombres : basses, jamais au-dessus de .10 d'alpha ---- */
-  --sh-1:0 1px 2px rgba(13,21,18,.05);
-  --sh-2:0 1px 2px rgba(13,21,18,.04), 0 6px 16px -6px rgba(13,21,18,.10);
-  --sh-3:0 1px 3px rgba(13,21,18,.05), 0 18px 40px -18px rgba(13,21,18,.18);
+  --sh-1:0 1px 2px rgba(15,19,17,.05);
+  --sh-2:0 1px 2px rgba(15,19,17,.04), 0 6px 16px -6px rgba(15,19,17,.10);
+  --sh-3:0 1px 3px rgba(15,19,17,.05), 0 18px 40px -18px rgba(15,19,17,.16);
   --sh-focus:0 0 0 3px rgba(109,190,69,.34);
 
   /* ---- Layout ---- */
   --wrap:1180px;
   --wrap-app:1560px;
-  --sidebar:252px;
+  --sidebar:236px;
   --header-h:64px;
 
   --ease:cubic-bezier(.22,.61,.36,1);

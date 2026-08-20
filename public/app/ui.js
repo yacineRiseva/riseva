@@ -81,3 +81,50 @@ export function spark(valeurs){
   return `<div class="spark">${valeurs.map(v =>
     `<i style="height:${Math.max(6, (v / max) * 100)}%" title="${nb(v)} points"></i>`).join("")}</div>`;
 }
+
+/* La rivière : la signature visuelle de Riseva, reprise du logo.
+   Une courbe lissée, doublée d'un écho plus fin en dessous, comme le trait du monogramme.
+   Sert partout où l'on montre une évolution dans le temps. */
+export function riviere(valeurs, { hauteur = 150, legendes = [] } = {}){
+  const L = 1000, H = hauteur, marge = 14;
+  const max = Math.max(...valeurs, 1);
+  const min = Math.min(...valeurs, 0);
+  const pas = L / Math.max(valeurs.length - 1, 1);
+  const pts = valeurs.map((v, i) => [
+    i * pas,
+    marge + (H - marge * 2) * (1 - (v - min) / Math.max(max - min, 1))
+  ]);
+
+  // Lissage Catmull-Rom converti en courbes de Bézier cubiques.
+  const courbe = (p, decalage = 0) => {
+    const q = p.map(([x, y]) => [x, y + decalage]);
+    let d = `M ${q[0][0]} ${q[0][1]}`;
+    for (let i = 0; i < q.length - 1; i++){
+      const p0 = q[i - 1] || q[i], p1 = q[i], p2 = q[i + 1], p3 = q[i + 2] || q[i + 1];
+      d += ` C ${p1[0] + (p2[0] - p0[0]) / 6} ${p1[1] + (p2[1] - p0[1]) / 6},`
+        +  ` ${p2[0] - (p3[0] - p1[0]) / 6} ${p2[1] - (p3[1] - p1[1]) / 6},`
+        +  ` ${p2[0]} ${p2[1]}`;
+    }
+    return d;
+  };
+
+  const trait = courbe(pts);
+  const dernier = pts[pts.length - 1];
+  const id = "riv" + Math.abs(valeurs.reduce((a, b) => a + b, 0));
+
+  return `<figure class="riviere" style="--h:${H}px">
+    <svg viewBox="0 0 ${L} ${H}" preserveAspectRatio="none" aria-hidden="true">
+      <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"  stop-color="var(--brand)" stop-opacity=".22"/>
+        <stop offset="100%" stop-color="var(--brand)" stop-opacity="0"/>
+      </linearGradient></defs>
+      <path d="${trait} L ${L} ${H} L 0 ${H} Z" fill="url(#${id})"/>
+      <path d="${courbe(pts, 9)}" fill="none" stroke="var(--brand)" stroke-opacity=".32"
+            stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round"/>
+      <path d="${trait}" fill="none" stroke="var(--brand)" stroke-width="2.5"
+            vector-effect="non-scaling-stroke" stroke-linecap="round"/>
+    </svg>
+    <span class="riviere__fin" style="left:100%;top:${(dernier[1] / H) * 100}%"></span>
+    ${legendes.length ? `<figcaption>${legendes.map(l => `<span>${esc(l)}</span>`).join("")}</figcaption>` : ""}
+  </figure>`;
+}

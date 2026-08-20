@@ -44,6 +44,10 @@ pas les conversations. Toute nouvelle décision s'ajoute en haut de la section c
 
 | Date | Décision | Remplace |
 |---|---|---|
+| 20/08/2026 | La rivière comme signature visuelle : toute évolution dans le temps est dessinée en courbe lissée doublée d'un écho, reprise du monogramme. | Les graphiques en barres génériques. Barres conservées uniquement pour les comparaisons entre entreprises. |
+| 20/08/2026 | Boutons en rectangle arrondi, pilule réservée aux badges. Rayons ramenés à 8 / 12 / 20. | La pilule systématique et cinq valeurs de rayon. Motif : relecture externe, le pattern est daté. |
+| 20/08/2026 | Neutres beaucoup moins teintés de vert. | Des neutres visiblement verts, jugés « éco attendu » à la relecture. |
+| 20/08/2026 | Barre latérale allégée : 236 px, fond moins noir, état actif marqué par un filet vert. Le principe de la barre sombre est conservé. | La relecture externe recommandait de l'abandonner. Refusé : direction validée par le fondateur le 31/07. |
 | 20/08/2026 | Bouton principal en encre noire, vert réservé aux accents et à la donnée. | Le vert en aplat sur les boutons, cause principale de l'effet daté. |
 | 20/08/2026 | Design system figé dans `DESIGN.md` et `tokens.css`. On ne rediscute plus les valeurs page par page. | Six itérations rejetées entre le 28 et le 31/07. |
 | 30/07/2026 | Logo reçu : monogramme R dans un carré, rivière, vert #6DBE45. | — |

@@ -1,3 +1,6 @@
+/* Les pages marketing lisent en 16px, l'application en 15px. */
+.hero,.section,.foot{font-size:var(--t-read)}
+.hero .muted,.section .muted,.section p:not(.hint):not(.eyebrow){font-size:inherit}
 /* ============ Hero ============ */
 .hero{position:relative;overflow:hidden;padding-top:var(--s20);padding-bottom:var(--s24);
   background:linear-gradient(180deg,var(--paper) 0%,var(--paper-warm) 100%)}
@@ -43,7 +46,7 @@
 .beat__pin{position:absolute;top:6px;left:0;width:16px;height:16px;border-radius:50%;
   background:#fff;border:3px solid var(--brand)}
 .beat h3{margin-bottom:var(--s2)}
-.beat p{font-size:var(--t-sm);color:var(--ink-500)}
+.beat p{font-size:var(--t-base);color:var(--ink-500)}
 .beat small{display:block;font-size:var(--t-xs);font-weight:600;letter-spacing:.08em;
   text-transform:uppercase;color:var(--brand-800);margin-bottom:6px}
 

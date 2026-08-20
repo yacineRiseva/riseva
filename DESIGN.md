@@ -102,7 +102,21 @@ immédiatement « vieux ».
 
 On ne copie pas leur couleur, on copie leur discipline.
 
-## 8. Structure type du tableau de bord
+## 8. La rivière
+
+C'est la seule chose du système qui n'appartienne qu'à Riseva. Partout où l'on montre une
+évolution dans le temps, on ne dessine pas des barres : on dessine une rivière. Une courbe lissée
+avec un aplat dégradé sous elle, doublée d'un écho plus fin en dessous, exactement comme le double
+trait du monogramme. Un point plein marque la valeur du jour.
+
+C'est implémenté dans `riviere()` (`public/app/ui.js`), à partir d'un lissage Catmull-Rom.
+Les barres restent réservées aux comparaisons entre entreprises, où la longueur doit se lire
+au pixel près.
+
+Sans cet élément, le système produirait un très bon SaaS générique. C'est la différence entre
+une interface propre et une interface reconnaissable sans son logo.
+
+## 9. Structure type du tableau de bord
 
 De haut en bas, sans exception :
 
@@ -113,3 +127,35 @@ De haut en bas, sans exception :
 4. Un bloc large en dessous : ce sur quoi l'utilisateur peut agir tout de suite.
 
 Le classement n'est jamais la première chose affichée. C'est une conséquence, pas un but.
+
+## 10. Relecture externe
+
+Le système a été soumis à une critique extérieure (ChatGPT, 20/08/2026). Ce qui a été retenu,
+et ce qui a été écarté.
+
+**Retenu**
+
+- *« Pilule systématique pour les boutons : la pilule permanente sent le pattern générique. »*
+  Les boutons passent en rectangle arrondi (12 px, 14 px en grande taille). La pilule est
+  désormais réservée aux badges et aux étiquettes.
+- *« Le vocabulaire de rayons est trop large. »* Ramené de cinq valeurs à trois : 8, 12, 20.
+- *« Des neutres trop visiblement verts font poussiéreux et attendu pour une marque RSE.
+  Les neutres doivent paraître neutres avant qu'on remarque leur sous-ton. »* La teinte a été
+  fortement réduite, elle reste présente mais n'est plus perceptible au premier regard.
+- *« Corps 15 px acceptable pour une application dense, 16 px sur le marketing. »* Appliqué :
+  16 px sur les pages publiques, 15 px dans l'application.
+- *« Il manque un élément réellement propriétaire, sinon c'est un très bon SaaS générique. »*
+  C'est ce qui a donné la rivière de la section 8.
+
+**Écarté, et pourquoi**
+
+- *« La barre latérale sombre fixe est le pattern le plus datable. »* C'est la direction que
+  le fondateur a validée le 31/07/2026 après six rejets, on ne la remet pas en cause. Elle a en
+  revanche été allégée : 236 px au lieu de 252, fond moins noir, état actif signalé par un filet
+  vert de 2 px plutôt que par un aplat vert.
+- *« Instrument Sans + Inter, c'est safe et peu propriétaire. »* Exact, mais changer de fonte
+  au moment de figer le système, c'est rouvrir la porte à six nouvelles itérations. Le caractère
+  passe par la hiérarchie typographique et par la rivière, pas par une fonte exotique.
+
+Verdict de la relecture sur le point le plus important : *« Je ne changerais ni le noir ni le
+vert. Le vrai risque n'est pas d'être vieillot, c'est d'être un très bon SaaS générique. »*
