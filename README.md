@@ -33,7 +33,10 @@ supabase/
   03_rls.sql            politiques de sécurité ligne à ligne
   04_seed.sql           saison et barème de départ
   functions/            fonctions Edge : validation, rapports, reçus fiscaux
+  404.html              page d'erreur
+supabase/emails/        gabarits des messages transactionnels
 scripts/shots.py        captures d'écran automatiques (Playwright)
+scripts/tests.py        tests de bout en bout (49 vérifications)
 ```
 
 ## Faire tourner en local
@@ -47,6 +50,17 @@ python3 -m http.server 8080 --directory public
 
 L'application démarre sur un jeu de démonstration en mémoire. L'écran de connexion propose
 les quatre espaces (entreprise, salarié, association, administration).
+
+## Vérifier que tout marche
+
+```bash
+python3 scripts/tests.py
+```
+
+Le script lance un serveur, ouvre Chromium et parcourt les vrais écrans : toutes les vues de
+tous les rôles, le parcours d'une mission de bout en bout, le quota de places, l'anonymisation
+d'un départ, le lien d'inscription, la publication d'une annonce, les réglages de saison.
+Il sort en erreur au premier échec.
 
 ## Brancher Supabase
 

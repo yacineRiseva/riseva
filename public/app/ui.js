@@ -128,3 +128,38 @@ export function riviere(valeurs, { hauteur = 150, legendes = [] } = {}){
     ${legendes.length ? `<figcaption>${legendes.map(l => `<span>${esc(l)}</span>`).join("")}</figcaption>` : ""}
   </figure>`;
 }
+
+/* Export CSV. Point-virgule et BOM : c'est ce qu'Excel en français attend,
+   sans quoi les accents cassent et tout se retrouve dans une seule colonne. */
+export function versCSV(nomFichier, entetes, lignes){
+  const cellule = (v) => {
+    const t = String(v ?? "");
+    return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  const contenu = "\uFEFF" + [entetes, ...lignes].map(l => l.map(cellule).join(";")).join("\r\n");
+  const url = URL.createObjectURL(new Blob([contenu], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = nomFichier;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* État vide : un titre, une phrase, et si possible une action. Jamais un simple « aucun résultat ». */
+export function vide({ titre, texte, action }){
+  const el = h(`<div class="empty">
+    <svg viewBox="0 0 120 44" style="width:120px;margin:0 auto var(--s5);opacity:.5">
+      <path d="M2 32 C 24 12, 44 44, 64 26 S 100 6, 118 20" fill="none"
+        stroke="var(--forest-600)" stroke-width="2" stroke-linecap="round"/>
+      <path d="M2 40 C 26 20, 46 52, 66 34 S 102 14, 118 28" fill="none"
+        stroke="var(--brand)" stroke-width="2" stroke-linecap="round" opacity=".45"/>
+    </svg>
+    <h3 style="margin-bottom:var(--s2)">${esc(titre)}</h3>
+    <p class="muted" style="max-width:44ch;margin-inline:auto">${esc(texte)}</p>
+  </div>`);
+  if (action){
+    const b = h(`<button class="btn btn--ghost" style="margin-top:var(--s6)">${esc(action.label)}</button>`);
+    b.onclick = action.onClick;
+    el.appendChild(b);
+  }
+  return el;
+}

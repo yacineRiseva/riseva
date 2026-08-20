@@ -324,6 +324,41 @@ function creerMock(){
       const a = s.associations.find(x => x.id === aid); if (a) a.valide = true; return a;
     },
 
+    /* Journal des messages : ce que la plateforme envoie, reconstruit à partir de l'état.
+       Sert à l'écran de contrôle de Riseva et de garde-fou : si un message n'a pas de
+       déclencheur visible ici, c'est qu'il ne part pas. */
+    journal(){
+      const j = [];
+      s.missions.forEach(m => {
+        const a = api.annonceDe(m); if (!a) return;
+        const asso = api.association(a.asso), e = api.entreprise(m.entreprise),
+              sal = api.utilisateur(m.salarie);
+        const qui = sal ? sal.nom : "un salarié";
+        if (m.etat === "engagee")
+          j.push({ date:m.date, type:"mission_engagee", vers:asso.nom,
+            sujet:`Quelqu'un vient pour « ${a.titre} »`, etat:"envoyé" });
+        if (m.etat === "a_valider")
+          j.push({ date:m.date, type:"demande_validation", vers:asso.nom,
+            sujet:`${a.titre} : c'est bien fait ?`, etat:"en attente de réponse" });
+        if (m.etat === "validee")
+          j.push({ date:m.date, type:"mission_validee", vers:qui,
+            sujet:`${asso.nom} a confirmé votre mission`, etat:"envoyé" });
+        if (m.etat === "validee_auto")
+          j.push({ date:m.date, type:"validation_auto", vers:e ? e.nom : "entreprise",
+            sujet:`Mission comptée sans retour de ${asso.nom}`, etat:"envoyé" });
+      });
+      s.preinscriptions.forEach(p => j.push({ date:p.date, type:"preinscription",
+        vers:p.entreprise, sujet:`La place de ${p.entreprise} est réservée`, etat:"envoyé" }));
+      s.invitations.forEach(i => {
+        const e = api.entreprise(i.entreprise);
+        j.push({ date:i.cree_le, type:"bienvenue_entreprise", vers:e ? e.nom : "entreprise",
+          sujet:`${e ? e.nom : "Votre entreprise"} est inscrite pour la saison`, etat:"envoyé" });
+      });
+      s.associations.filter(a => a.valide).forEach(a => j.push({ date:s.saison.debut,
+        type:"association_validee", vers:a.nom, sujet:`${a.nom} est en ligne`, etat:"envoyé" }));
+      return j.sort((x, y) => String(y.date).localeCompare(String(x.date)));
+    },
+
     /* --- rapports --- */
     rapport(eid, portee = "annuel"){
       const e = api.entreprise(eid);

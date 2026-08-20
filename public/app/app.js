@@ -1,5 +1,5 @@
 import { DB, BAREME, ETATS_MISSION, connecterSupabase } from "./data.js";
-import { h, esc, nb, eur, dateFR, dateCourte, initiales, ICONS, toast, modal, kpi, spark, riviere } from "./ui.js";
+import { h, esc, nb, eur, dateFR, dateCourte, initiales, ICONS, toast, modal, kpi, spark, riviere, versCSV, vide } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
 /* Session                                                             */
@@ -37,6 +37,9 @@ const MENUS = {
       ["annonces",   "Annonces",        "megaphone"],
       ["missions",   "Mes missions",    "check"],
       ["classement", "Classement",      "trophy"]
+    ]},
+    { groupe: "Moi", items: [
+      ["activite", "Mon activité", "users"]
     ]}
   ],
   association: [
@@ -55,7 +58,8 @@ const MENUS = {
       ["preinscriptions","Préinscriptions","users"]
     ]},
     { groupe: "Paramètres", items: [
-      ["saison", "Saison et barème", "settings"]
+      ["saison",  "Saison et barème", "settings"],
+      ["journal", "Journal des envois", "report"]
     ]}
   ]
 };
@@ -320,7 +324,11 @@ function tableauEntreprise(u){
 
 function listeAnnonces(annonces, u){
   const box = h(`<div></div>`);
-  if (!annonces.length){ box.appendChild(h(`<p class="empty">Aucune annonce ouverte pour le moment.</p>`)); return box; }
+  if (!annonces.length){
+    box.appendChild(vide({ titre:"Aucune annonce ouverte",
+      texte:"Les associations du réseau publient au fil de leurs besoins. Revenez dans quelques jours, ou élargissez vos filtres." }));
+    return box;
+  }
   annonces.forEach(a => {
     const asso = DB.association(a.asso);
     const b = BAREME[a.type];
@@ -447,7 +455,8 @@ function vueMissions(u){
       <th>Points</th><th>État</th><th></th></tr></thead><tbody></tbody></table>
   </section>`);
   const tb = el.querySelector("tbody");
-  if (!ms.length) tb.appendChild(h(`<tr><td colspan="7" class="empty">Aucune mission pour l'instant.</td></tr>`));
+  if (!ms.length) tb.appendChild(h(`<tr><td colspan="7" class="empty">
+    Aucune mission pour l'instant. Tout part d'une annonce à laquelle quelqu'un répond.</td></tr>`));
   ms.forEach(m => {
     const a = DB.annonceDe(m), asso = DB.association(a.asso), s = DB.utilisateur(m.salarie);
     const tr = h(`<tr>
@@ -477,7 +486,10 @@ function vueClassement(u){
       <div class="between" style="margin-bottom:var(--s5)">
         <div><h3>Classement de la saison</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:4px">Recalculé chaque lundi matin</p></div>
-        <span class="badge">Semaine 34</span>
+        <div class="row" style="gap:var(--s2)">
+          <span class="badge">Semaine 34</span>
+          <button class="btn btn--ghost btn--sm" id="csvCl">Exporter</button>
+        </div>
       </div>
       <table class="table table--rank"><tbody></tbody></table>
     </section>
@@ -498,6 +510,11 @@ function vueClassement(u){
         entreprises. Il sera recalibré à la fin de la première saison.</p>
     </section>
   </div>`);
+  el.querySelector("#csvCl").onclick = () => {
+    versCSV("riseva-classement.csv", ["Rang", "Entreprise", "Secteur", "Ville", "Effectif", "Points"],
+      cl.map(e => [e.rang, e.nom, e.secteur, e.ville, e.effectif, e.points]));
+    toast("Export téléchargé.");
+  };
   const tb = el.querySelector("tbody");
   cl.forEach(e => {
     const moiOrg = e.id === u.org;
@@ -527,7 +544,10 @@ function vueEquipe(u){
         <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
           ${actifs.length} place${actifs.length > 1 ? "s" : ""} occupée${actifs.length > 1 ? "s" : ""}${
             partis.length ? ` · ${partis.length} départ${partis.length > 1 ? "s" : ""}` : ""}</p></div>
-        <button class="btn btn--ghost btn--sm" id="add">${ICONS.plus} Ajouter à la main</button>
+        <div class="row" style="gap:var(--s2)">
+          <button class="btn btn--ghost btn--sm" id="csvEq">Exporter</button>
+          <button class="btn btn--ghost btn--sm" id="add">${ICONS.plus} Ajouter</button>
+        </div>
       </div>
       <table class="table"><thead><tr>
         <th>Nom</th><th>Email</th><th>Points</th><th>État</th><th></th></tr></thead><tbody></tbody></table>
@@ -638,6 +658,12 @@ function vueEquipe(u){
      { label:"Révoquer", classe:"btn--primary", onClick: () => {
          DB.revoquerInvitation(inv.id); toast("Lien révoqué."); rendre(); }}]));
 
+  el.querySelector("#csvEq").onclick = () => {
+    versCSV("riseva-equipe.csv", ["Nom", "Email", "Points", "État"],
+      gens.map(g => [g.nom, g.email || "", g.points || 0,
+        g.anonyme ? "Anonymisé" : (g.actif ? "Actif" : "Suspendu")]));
+    toast("Export téléchargé.");
+  };
   el.querySelector("#add").onclick = () => {
     const corps = h(`<div class="stack" style="--gap:var(--s4)">
       <div class="field"><label>Nom et prénom</label><input class="input" id="n" placeholder="Camille Roux"></div>
@@ -675,7 +701,10 @@ function vueRapports(u){
             Généré automatiquement le ${dateFR(new Date().toISOString())} à partir des missions validées.</p>
           <p class="muted" style="margin-top:6px;font-size:var(--t-sm)" id="rNote">Cumul de la saison, tous trimestres confondus.</p>
         </div>
-        <button class="btn btn--ghost btn--sm" id="pdf">Exporter en PDF</button>
+        <div class="row" style="gap:var(--s2)">
+          <button class="btn btn--ghost btn--sm" id="csv">Exporter en CSV</button>
+          <button class="btn btn--ghost btn--sm" id="pdf">Exporter en PDF</button>
+        </div>
       </div>
       <hr class="sep">
       <div class="kpis">
@@ -722,6 +751,16 @@ function vueRapports(u){
     </section>
   </div>`);
   el.querySelector("#pdf").onclick = () => { toast("Ouverture de l'aperçu d'impression."); setTimeout(() => window.print(), 400); };
+  el.querySelector("#csv").onclick = () => {
+    const ms = DB.missions({ entreprise: u.org })
+                 .filter(m => m.etat === "validee" || m.etat === "validee_auto");
+    versCSV(`riseva-rapport-${r.saison.nom.replace(/\s+/g, "-").toLowerCase()}.csv`,
+      ["Mission", "Association", "Format", "Salarié", "Date", "Quantité", "Points"],
+      ms.map(m => { const a = DB.annonceDe(m), sal = DB.utilisateur(m.salarie);
+        return [a.titre, (DB.association(a.asso) || {}).nom, BAREME[a.type].label,
+                sal ? sal.nom : "—", m.date, m.quantite, m.points]; }));
+    toast("Export téléchargé.");
+  };
   el.querySelectorAll("#pt .tab").forEach(t => t.onclick = () => {
     el.querySelectorAll("#pt .tab").forEach(x => x.classList.remove("is-active"));
     t.classList.add("is-active");
@@ -927,7 +966,8 @@ function vueAValider(u){
       <th>Mission</th><th>Entreprise</th><th>Salarié</th><th>Date</th><th>État</th><th></th>
     </tr></thead><tbody></tbody></table></section>`);
   const tb = el.querySelector("tbody");
-  if (!ms.length) tb.appendChild(h(`<tr><td colspan="6" class="empty">Rien à confirmer. Tout est à jour.</td></tr>`));
+  if (!ms.length) tb.appendChild(h(`<tr><td colspan="6" class="empty">
+    Rien à confirmer, tout est à jour. Nous vous écrirons dès qu'une mission arrivera à échéance.</td></tr>`));
   ms.forEach(m => {
     const a = DB.annonceDe(m), e = DB.entreprise(m.entreprise), s = DB.utilisateur(m.salarie);
     const tr = h(`<tr>
@@ -1127,6 +1167,170 @@ function vueAdminSaison(){
   return el;
 }
 
+function vueActivite(u){
+  const ms = DB.missions({ salarie: u.id });
+  const validees = ms.filter(m => m.etat === "validee" || m.etat === "validee_auto");
+  const e = DB.entreprise(u.org);
+  const parType = {};
+  validees.forEach(m => {
+    const a = DB.annonceDe(m); if (!a) return;
+    parType[a.type] = (parType[a.type] || 0) + m.points;
+  });
+  const equipe = DB.salaries(u.org).filter(x => !x.anonyme)
+                   .sort((a, b) => (b.points || 0) - (a.points || 0));
+  const monRang = equipe.findIndex(x => x.id === u.id) + 1;
+  const part = e && e.points ? Math.round(((u.points || 0) / e.points) * 100) : 0;
+
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <div class="kpis">
+      ${kpi("Mes points", nb(u.points || 0), `${part} % du total de l'entreprise`, "", "kpi--tete grain")}
+      ${kpi("Missions réalisées", nb(validees.length), ms.length - validees.length + " en cours")}
+      ${kpi("Rang dans l'équipe", monRang + "<sup style='font-size:.55em'>e</sup>", "sur " + equipe.length)}
+      ${kpi("Demi-journées", nb(validees.filter(m => (DB.annonceDe(m) || {}).type === "benevolat_demi_journee")
+        .reduce((n, m) => n + m.quantite, 0)), "de bénévolat")}
+    </div>
+
+    <div class="two">
+      <section class="card">
+        <div class="between" style="margin-bottom:var(--s5)">
+          <h3>Ce que vous avez fait</h3>
+          <button class="btn btn--ghost btn--sm" id="csv">Exporter</button>
+        </div>
+        <div id="hist"></div>
+      </section>
+
+      <div class="stack" style="--gap:var(--s5)">
+        <section class="card">
+          <h3>Par format</h3>
+          <div class="stack" style="--gap:var(--s4);margin-top:var(--s5)">
+            ${Object.entries(BAREME).map(([k, b]) => {
+              const p = parType[k] || 0;
+              const max = Math.max(...Object.values(parType), 1);
+              return `<div><div class="between" style="font-size:var(--t-sm);margin-bottom:6px">
+                <span class="muted">${esc(b.label)}</span><span class="tnum">${nb(p)} pts</span></div>
+                <div class="bar"><i style="width:${(p / max) * 100}%"></i></div></div>`;
+            }).join("")}
+          </div>
+        </section>
+        <section class="card">
+          <h3>L'équipe</h3>
+          <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
+            ${equipe.slice(0, 6).map((x, i) => `<div class="between" ${x.id === u.id
+              ? 'style="font-weight:600;color:var(--forest-800)"' : ""}>
+              <span class="row" style="gap:10px"><span class="muted tnum" style="width:14px">${i + 1}</span>
+                ${esc(x.nom)}${x.id === u.id ? " (vous)" : ""}</span>
+              <span class="tnum">${nb(x.points || 0)}</span></div>`).join("")}
+          </div>
+          <hr class="sep">
+          <p class="hint">Ce classement interne ne sort jamais de votre entreprise.
+            Seul le total collectif apparaît dans le classement général.</p>
+        </section>
+      </div>
+    </div>
+  </div>`);
+
+  const hist = el.querySelector("#hist");
+  if (!ms.length){
+    hist.appendChild(vide({
+      titre: "Rien encore",
+      texte: "Vous n'avez pas encore répondu à une annonce. Il y en a sûrement une près de chez vous.",
+      action: { label: "Voir les annonces", onClick: () => { location.hash = "#/annonces"; } }
+    }));
+  } else {
+    const t = h(`<table class="table"><thead><tr>
+      <th>Mission</th><th>Association</th><th>Date</th><th>Points</th><th>État</th>
+    </tr></thead><tbody></tbody></table>`);
+    const tb = t.querySelector("tbody");
+    ms.forEach(m => {
+      const a = DB.annonceDe(m), asso = DB.association(a.asso);
+      tb.appendChild(h(`<tr>
+        <td><strong>${esc(a.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(BAREME[a.type].label)}</span></td>
+        <td class="muted">${esc(asso.nom)}</td>
+        <td class="muted tnum">${dateCourte(m.date)}</td>
+        <td class="tnum"><strong>${nb(m.points)}</strong></td>
+        <td><span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].label}</span></td>
+      </tr>`));
+    });
+    hist.appendChild(t);
+  }
+
+  el.querySelector("#csv").onclick = () => {
+    versCSV(`riseva-mon-activite.csv`,
+      ["Mission", "Association", "Format", "Date", "Points", "État"],
+      ms.map(m => {
+        const a = DB.annonceDe(m);
+        return [a.titre, (DB.association(a.asso) || {}).nom, BAREME[a.type].label,
+                m.date, m.points, ETATS_MISSION[m.etat].label];
+      }));
+    toast("Export téléchargé.");
+  };
+  return el;
+}
+
+function vueJournal(){
+  const j = DB.journal();
+  const libelles = {
+    bienvenue_entreprise: "Bienvenue entreprise",
+    preinscription: "Préinscription reçue",
+    mission_engagee: "Engagement sur une annonce",
+    demande_validation: "Demande de validation",
+    mission_validee: "Mission confirmée",
+    validation_auto: "Validation sans retour",
+    association_validee: "Association validée"
+  };
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <section class="card card--pad-sm">
+      <div class="row" style="gap:var(--s3);flex-wrap:wrap">
+        <input class="input" id="q" placeholder="Filtrer par destinataire ou par objet" style="flex:1;min-width:240px">
+        <select class="select" id="type" style="width:260px">
+          <option value="">Tous les messages</option>
+          ${Object.entries(libelles).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}
+        </select>
+        <button class="btn btn--ghost btn--sm" id="csv">Exporter</button>
+      </div>
+    </section>
+    <section class="card">
+      <p class="muted" style="font-size:var(--t-sm);margin-bottom:var(--s5)">
+        Tout ce que la plateforme envoie, reconstruit à partir de l'état réel. Si un message
+        n'apparaît pas ici, c'est qu'il ne part pas.</p>
+      <div id="l"></div>
+    </section>
+  </div>`);
+  const dessine = () => {
+    const q = el.querySelector("#q").value.trim().toLowerCase();
+    const type = el.querySelector("#type").value;
+    const l = j.filter(x => (!type || x.type === type) &&
+      (!q || (x.vers + " " + x.sujet).toLowerCase().includes(q)));
+    const box = el.querySelector("#l");
+    box.innerHTML = "";
+    if (!l.length){
+      box.appendChild(vide({ titre:"Aucun message", texte:"Rien ne correspond à ce filtre." }));
+      return;
+    }
+    const t = h(`<table class="table"><thead><tr>
+      <th>Date</th><th>Message</th><th>Destinataire</th><th>Objet</th><th>État</th>
+    </tr></thead><tbody></tbody></table>`);
+    const tb = t.querySelector("tbody");
+    l.forEach(x => tb.appendChild(h(`<tr>
+      <td class="muted tnum">${dateCourte(x.date)}</td>
+      <td><strong>${esc(libelles[x.type] || x.type)}</strong></td>
+      <td class="muted">${esc(x.vers)}</td>
+      <td class="muted">${esc(x.sujet)}</td>
+      <td><span class="badge ${x.etat === "envoyé" ? "badge--ok" : "badge--warn"}">${esc(x.etat)}</span></td>
+    </tr>`)));
+    box.appendChild(t);
+  };
+  el.querySelector("#q").addEventListener("input", dessine);
+  el.querySelector("#type").addEventListener("change", dessine);
+  el.querySelector("#csv").onclick = () => {
+    versCSV("riseva-journal.csv", ["Date", "Message", "Destinataire", "Objet", "État"],
+      j.map(x => [x.date, libelles[x.type] || x.type, x.vers, x.sujet, x.etat]));
+    toast("Export téléchargé.");
+  };
+  dessine();
+  return el;
+}
+
 /* ------------------------------------------------------------------ */
 /* Routeur                                                             */
 /* ------------------------------------------------------------------ */
@@ -1144,7 +1348,8 @@ const ROUTES = {
     tableau:   [tableauEntreprise, "Tableau de bord"],
     annonces:  [vueAnnonces,       "Annonces"],
     missions:  [vueMissions,       "Mes missions"],
-    classement:[vueClassement,     "Classement"]
+    classement:[vueClassement,     "Classement"],
+    activite:  [vueActivite,       "Mon activité"]
   },
   association: {
     tableau:    [tableauAsso,  "Tableau de bord"],
@@ -1158,7 +1363,8 @@ const ROUTES = {
     entreprises:    [vueAdminEntreprises,      "Entreprises"],
     assos:          [vueAdminAssos,            "Associations"],
     preinscriptions:[vueAdminPreinscriptions,  "Préinscriptions"],
-    saison:         [vueAdminSaison,           "Saison et barème"]
+    saison:         [vueAdminSaison,           "Saison et barème"],
+    journal:        [vueJournal,               "Journal des envois"]
   }
 };
 
