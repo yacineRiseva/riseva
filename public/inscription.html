@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Riseva — réserver une place pour la saison</title>
+<link rel="icon" href="/brand/riseva-mark.png">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/base.css">
+<link rel="stylesheet" href="/styles/components.css">
+<link rel="stylesheet" href="/styles/marketing.css">
+<link rel="stylesheet" href="/styles/app.css">
+</head>
+<body>
+<header class="nav"><div class="wrap nav__in">
+  <a href="/" class="logo"><img src="/brand/riseva-full.png" alt="Riseva"></a>
+  <a class="btn btn--quiet btn--sm" href="/">Retour au site</a>
+</div></header>
+
+<main class="section">
+  <div class="wrap" style="max-width:980px">
+    <div class="assoGrid">
+      <section>
+        <p class="eyebrow">Préinscription</p>
+        <h1 style="margin-top:var(--s4)">Réserver une place pour la saison 2027</h1>
+        <p class="lede" style="margin-top:var(--s5)">
+          Gratuit, sans engagement et sans carte bancaire. Nous revenons vers vous avec une
+          date d'ouverture et le détail de ce qui sera mis en place chez vous.
+        </p>
+
+        <form class="card" style="margin-top:var(--s8);padding:var(--s8)" id="f">
+          <div class="stack" style="--gap:var(--s5)">
+            <div class="row" style="gap:var(--s4);align-items:stretch">
+              <div class="field" style="flex:1"><label for="ent">Entreprise</label>
+                <input class="input" id="ent" name="ent" required placeholder="Raison sociale"></div>
+              <div class="field" style="flex:1"><label for="eff">Effectif</label>
+                <select class="select" id="eff" name="eff">
+                  <option>Moins de 50</option><option>50 à 149</option>
+                  <option>150 à 499</option><option>500 et plus</option>
+                </select></div>
+            </div>
+            <div class="row" style="gap:var(--s4);align-items:stretch">
+              <div class="field" style="flex:1"><label for="nom">Votre nom</label>
+                <input class="input" id="nom" name="nom" required></div>
+              <div class="field" style="flex:1"><label for="fonction">Votre fonction</label>
+                <input class="input" id="fonction" name="fonction" placeholder="RH, RSE, direction..."></div>
+            </div>
+            <div class="field"><label for="mail">Email professionnel</label>
+              <input class="input" id="mail" name="mail" type="email" required></div>
+            <div class="field"><label for="tel">Téléphone (facultatif)</label>
+              <input class="input" id="tel" name="tel" type="tel"></div>
+            <div class="field"><label for="mot">Quelque chose à nous dire ?</label>
+              <textarea class="textarea" id="mot" name="mot" placeholder="Une association que vous soutenez déjà, une contrainte de calendrier, une question."></textarea></div>
+            <label class="checkline">
+              <input type="checkbox" required>
+              <span>J'accepte d'être recontacté au sujet de la saison 2027. Aucune donnée n'est
+              transmise à un tiers.</span>
+            </label>
+            <button class="btn btn--primary btn--lg btn--block" type="submit">Envoyer ma préinscription</button>
+            <p class="hint center">
+              Étape suivante, plus tard et seulement si vous le décidez : un acompte de 500 €
+              confirme votre place, et il vous est remboursé si la saison ne démarre pas.</p>
+          </div>
+        </form>
+      </section>
+
+      <aside class="stack" style="--gap:var(--s5)">
+        <div class="card">
+          <h3>Ce que vous réservez</h3>
+          <div class="stack" style="--gap:var(--s4);margin-top:var(--s5);font-size:var(--t-sm)">
+            <div class="row" style="align-items:flex-start;gap:var(--s3)">
+              <span class="dot" style="color:var(--brand);margin-top:8px"></span>
+              <span>Une place parmi les douze de la première saison</span></div>
+            <div class="row" style="align-items:flex-start;gap:var(--s3)">
+              <span class="dot" style="color:var(--brand);margin-top:8px"></span>
+              <span>Un accompagnement direct au lancement, sans passer par un support</span></div>
+            <div class="row" style="align-items:flex-start;gap:var(--s3)">
+              <span class="dot" style="color:var(--brand);margin-top:8px"></span>
+              <span>Des associations cherchées dans votre secteur si vous n'en avez pas</span></div>
+          </div>
+        </div>
+        <div class="card card--flat" style="background:var(--brand-050);border-color:var(--brand-200)">
+          <h3 style="font-size:var(--t-lg)">Combien ça coûte</h3>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+            L'abonnement annuel se situe entre 3 500 et 4 000 € HT selon la taille de l'entreprise.
+            Pas de commission sur les dons, pas de facturation par salarié.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+</main>
+
+<script>
+document.getElementById('f').addEventListener('submit', function(e){
+  e.preventDefault();
+  const d = Object.fromEntries(new FormData(this).entries());
+  // En production : POST vers une fonction Edge Supabase qui écrit dans `preinscription`
+  // et envoie l'accusé de réception. Ici on se contente d'un état local.
+  this.innerHTML = '<div class="center" style="padding:var(--s10) 0">' +
+    '<span class="badge badge--ok" style="height:28px">Préinscription enregistrée</span>' +
+    '<h3 style="margin-top:var(--s5)">Merci ' + (d.nom||'').split(' ')[0] + '</h3>' +
+    '<p class="muted" style="margin-top:var(--s3)">Nous revenons vers vous sous quarante-huit heures ' +
+    'sur ' + (d.mail||'') + '. Rien ne vous est demandé d\'ici là.</p></div>';
+});
+</script>
+</body>
+</html>

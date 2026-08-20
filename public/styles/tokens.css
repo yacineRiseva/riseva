@@ -1,0 +1,77 @@
+/* Riseva - design tokens. Source de vérité : DESIGN.md */
+:root{
+  /* ---- Marque ---- */
+  --brand:#6DBE45;          /* vert du logo. Accents, data, états actifs. Jamais du texte sur blanc. */
+  --brand-600:#5BAA36;
+  --brand-700:#4F9A2E;
+  --brand-800:#3B7C21;      /* texte / lien vert sur blanc, contraste 5.1:1 */
+  --brand-050:#F1F9EC;
+  --brand-100:#DFF1D4;
+  --brand-200:#C2E4AF;
+
+  /* ---- Encre et neutres (légère teinte verte, jamais du gris pur) ---- */
+  --ink:#0D1512;            /* fond sombre, boutons primaires, titres */
+  --ink-800:#16211C;
+  --ink-700:#22302A;
+  --ink-600:#3A4A43;
+  --ink-500:#5A6B63;        /* texte secondaire */
+  --ink-400:#8A9A93;
+  --ink-300:#B9C5BF;
+  --ink-200:#DCE3E0;
+  --ink-100:#EDF1EF;
+  --ink-050:#F6F8F7;
+  --paper:#FFFFFF;
+  --paper-warm:#FBFCFB;
+
+  /* ---- Sémantique ---- */
+  --ok:#2E9E5B; --ok-bg:#E9F7EE;
+  --warn:#B7791F; --warn-bg:#FDF6E7;
+  --danger:#C0392B; --danger-bg:#FBEDEB;
+  --info:#2F6FB0; --info-bg:#EAF2FA;
+
+  /* ---- Typo ---- */
+  --font-display:'Instrument Sans','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-ui:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+
+  --t-display:clamp(2.75rem,1.6rem + 3.4vw,4.25rem);
+  --t-h1:clamp(2rem,1.4rem + 2vw,3rem);
+  --t-h2:clamp(1.5rem,1.2rem + 1vw,2rem);
+  --t-h3:1.25rem;
+  --t-lg:1.0625rem;
+  --t-base:0.9375rem;
+  --t-sm:0.8125rem;
+  --t-xs:0.75rem;
+
+  --lead-tight:1.08;
+  --lead-snug:1.25;
+  --lead-normal:1.55;
+
+  --track-display:-0.032em;
+  --track-h:-0.02em;
+  --track-wide:0.14em;   /* réservé au wordmark et aux sur-titres */
+
+  /* ---- Espace (base 4) ---- */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px;
+  --s8:32px; --s10:40px; --s12:48px; --s16:64px; --s20:80px; --s24:96px; --s32:128px;
+
+  /* ---- Formes ---- */
+  --r-xs:8px; --r-sm:10px; --r-md:14px; --r-lg:20px; --r-xl:28px; --r-pill:999px;
+  --line:1px solid rgba(13,21,18,.08);
+  --line-strong:1px solid rgba(13,21,18,.14);
+
+  /* ---- Ombres : basses, jamais au-dessus de .10 d'alpha ---- */
+  --sh-1:0 1px 2px rgba(13,21,18,.05);
+  --sh-2:0 1px 2px rgba(13,21,18,.04), 0 6px 16px -6px rgba(13,21,18,.10);
+  --sh-3:0 1px 3px rgba(13,21,18,.05), 0 18px 40px -18px rgba(13,21,18,.18);
+  --sh-focus:0 0 0 3px rgba(109,190,69,.34);
+
+  /* ---- Layout ---- */
+  --wrap:1180px;
+  --wrap-app:1560px;
+  --sidebar:252px;
+  --header-h:64px;
+
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --dur:180ms;
+}

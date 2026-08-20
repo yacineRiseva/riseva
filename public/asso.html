@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Riseva — page association</title>
+<link rel="icon" href="/brand/riseva-mark.png">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/tokens.css">
+<link rel="stylesheet" href="/styles/base.css">
+<link rel="stylesheet" href="/styles/components.css">
+<link rel="stylesheet" href="/styles/marketing.css">
+<link rel="stylesheet" href="/styles/app.css">
+</head>
+<body>
+<header class="nav"><div class="wrap nav__in">
+  <a href="/" class="logo"><img src="/brand/riseva-full.png" alt="Riseva"></a>
+  <a class="btn btn--quiet btn--sm" href="/associations.html">Toutes les associations</a>
+</div></header>
+
+<main id="root"></main>
+
+<footer class="foot"><div class="wrap between">
+  <a href="/" class="logo"><img src="/brand/riseva-full.png" alt="Riseva" style="height:20px"></a>
+  <span style="font-size:var(--t-xs);color:var(--ink-400)">© 2026 Riseva</span>
+</div></footer>
+
+<script type="module">
+import { DB, BAREME } from "/app/data.js";
+import { h, esc, nb, eur, dateFR, toast } from "/app/ui.js";
+
+const id = new URLSearchParams(location.search).get("id") || "a1";
+const a = DB.association(id) || DB.associations()[0];
+const annonces = DB.annonces({ asso: a.id, ouvertes: true });
+
+const root = document.getElementById("root");
+root.appendChild(h(`<section class="assoHero"><div class="wrap">
+  <p class="eyebrow">${esc(a.cause)} · ${esc(a.ville)}</p>
+  <h1 class="display" style="margin-top:var(--s5);max-width:18ch">${esc(a.nom)}</h1>
+  <p class="lede" style="margin-top:var(--s6)">${esc(a.resume)}</p>
+</div></section>`));
+
+const corps = h(`<section class="section"><div class="wrap assoGrid">
+  <div>
+    <h2>Leurs besoins en ce moment</h2>
+    <div class="card" style="margin-top:var(--s6)" id="liste"></div>
+  </div>
+  <aside class="card" style="padding:var(--s8);position:sticky;top:88px">
+    <h3>Faire un don</h3>
+    <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+      Le paiement est encaissé directement par l'association. Riseva ne prélève rien et vous
+      envoie le reçu fiscal automatiquement.</p>
+    <div class="amountRow" style="margin-top:var(--s6)" id="amts"></div>
+    <div class="field" style="margin-top:var(--s4)">
+      <label for="libre">Autre montant</label>
+      <input class="input" id="libre" type="number" min="5" placeholder="En euros">
+    </div>
+    <p class="hint" id="pts"></p>
+    <button class="btn btn--brand btn--block btn--lg" style="margin-top:var(--s5)" id="go">Donner</button>
+    <p class="hint center" style="margin-top:var(--s4)">Paiement sécurisé. Reçu fiscal ouvrant droit
+      à réduction d'impôt selon la législation en vigueur.</p>
+  </aside>
+</div></section>`);
+root.appendChild(corps);
+
+const liste = corps.querySelector("#liste");
+if (!annonces.length) liste.appendChild(h(`<p class="empty">Aucun besoin publié pour le moment.</p>`));
+annonces.forEach(an => {
+  const b = BAREME[an.type];
+  liste.appendChild(h(`<article class="offer">
+    <div>
+      <div class="row" style="gap:var(--s3)">
+        <span class="badge badge--brand">${esc(b.label)}</span>
+        <span class="muted" style="font-size:var(--t-sm)">${dateFR(an.date)}</span>
+      </div>
+      <h4 style="margin-top:var(--s3)">${esc(an.titre)}</h4>
+      <p>${esc(an.description)}</p>
+      <div class="offer__meta"><span>${esc(an.lieu)}</span><span>·</span>
+        <span>${an.type === "don_financier" ? eur(an.restant) + " restants" : an.restant + (an.restant > 1 ? " places" : " place")}</span></div>
+    </div>
+    <div class="offer__side">
+      <span class="offer__pts">${an.type === "don_financier" ? b.points + " pt / 10 €" : nb(b.points) + " pts"}</span>
+    </div>
+  </article>`));
+});
+
+let montant = 50;
+const amts = corps.querySelector("#amts"), libre = corps.querySelector("#libre"), pts = corps.querySelector("#pts");
+const maj = () => { pts.textContent = `Soit ${nb(DB.pointsPour("don_financier", montant))} points pour l'entreprise du donateur.`; };
+[20, 50, 100, 250].forEach(v => {
+  const b = h(`<button class="amount ${v === 50 ? "is-on" : ""}">${v} €</button>`);
+  b.onclick = () => { montant = v; libre.value = ""; 
+    amts.querySelectorAll(".amount").forEach(x => x.classList.remove("is-on")); b.classList.add("is-on"); maj(); };
+  amts.appendChild(b);
+});
+libre.oninput = () => { montant = Number(libre.value) || 0;
+  amts.querySelectorAll(".amount").forEach(x => x.classList.remove("is-on")); maj(); };
+maj();
+corps.querySelector("#go").onclick = () =>
+  toast("Le module de paiement sera branché dès l'obtention de l'accès partenaire.");
+</script>
+</body>
+</html>
