@@ -1,4 +1,4 @@
-import { DB, BAREME, ETATS_MISSION, connecterSupabase } from "./data.js";
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, connecterSupabase } from "./data.js";
 import { h, esc, nb, eur, dateFR, dateCourte, initiales, ICONS, toast, modal, kpi, spark, riviere, versCSV, vide } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
@@ -239,20 +239,26 @@ function coquille(u, vue, titre, actions = ""){
 function tableauEntreprise(u){
   const eid = u.org;
   const e = DB.entreprise(eid);
-  const rang = DB.rangDe(eid);
-  const total = DB.entreprises().length;
+  const clCat = DB.classement();
+  const moiCl = clCat.find(x => x.id === eid) || {};
+  const catId = moiCl.categorie ? moiCl.categorie.id : null;
+  const dansCat = DB.classement({ categorie: catId });
+  const rang = dansCat.findIndex(x => x.id === eid) + 1;
+  const total = dansCat.length;
+  const pts = DB.pointsDe(eid);
   const ms = DB.missions({ entreprise: eid });
   const validees = ms.filter(m => m.etat === "validee" || m.etat === "validee_auto");
   const enCours = ms.filter(m => m.etat === "engagee" || m.etat === "a_valider");
   const salaries = DB.salaries(eid).filter(x => x.actif);
   const engages = salaries.filter(x => (x.points || 0) > 0).length;
-  const cl = DB.classement();
-  const seuilTop = cl[Math.max(0, Math.ceil(total * 0.1) - 1)]?.points ?? 0;
+  const seuilTop = dansCat[Math.max(0, Math.ceil(total * 0.1) - 1)]?.parSalarie ?? 0;
+  const monParSalarie = moiCl.parSalarie || 0;
 
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <div class="kpis">
       ${kpi("Points de la saison", nb(e.points), "+2 480 cette semaine", "up", "kpi--tete grain")}
-      ${kpi("Rang", rang + "<sup style='font-size:.55em'>e</sup>", "sur " + total + " entreprises")}
+      ${kpi("Rang", rang + "<sup style='font-size:.55em'>e</sup>",
+            "sur " + total + " · " + (moiCl.categorie ? moiCl.categorie.label.toLowerCase() : ""))}
       ${kpi("Missions validées", nb(validees.length), enCours.length + " en cours")}
       ${kpi("Salariés engagés", engages + " / " + salaries.length,
             Math.round((engages / Math.max(salaries.length,1)) * 100) + " % de l'effectif actif")}
@@ -283,12 +289,16 @@ function tableauEntreprise(u){
         <section class="card">
           <h3>Objectif du trimestre</h3>
           <p class="muted" style="font-size:var(--t-sm);margin-top:6px">
-            Il vous manque ${nb(Math.max(0, seuilTop - e.points))} points pour entrer
-            dans les 10 % les plus actifs.</p>
+            ${monParSalarie >= seuilTop
+              ? "Vous êtes dans les 10 % les plus actifs de votre catégorie."
+              : `Il vous manque ${Math.max(0, Math.round((seuilTop - monParSalarie) * 10) / 10)} points par salarié pour entrer dans les 10 % de votre catégorie.`}</p>
           <div class="bar" style="margin-top:var(--s5)">
-            <i style="width:${Math.min(100, (e.points / Math.max(seuilTop,1)) * 100)}%"></i></div>
+            <i style="width:${Math.min(100, (monParSalarie / Math.max(seuilTop, 0.1)) * 100)}%"></i></div>
           <div class="between" style="margin-top:var(--s3);font-size:var(--t-xs);color:var(--ink-400)">
-            <span>${nb(e.points)}</span><span>${nb(seuilTop)}</span></div>
+            <span>${monParSalarie} pts/salarié</span><span>${seuilTop}</span></div>
+          ${pts.ecrete ? `<p class="hint" style="margin-top:var(--s4)">
+            ${nb(pts.ecrete)} points ne comptent pas au classement : un format ne peut pas
+            peser plus de la moitié de votre total.</p>` : ""}
         </section>
 
         <section class="card">
@@ -298,6 +308,16 @@ function tableauEntreprise(u){
         </section>
       </div>
     </div>
+
+    <section class="card" id="demarrage" style="display:none">
+      <div class="between" style="margin-bottom:var(--s5)">
+        <div><h3>Mise en route</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+          Quatre choses à faire avant que la saison prenne vraiment.</p></div>
+        <span class="badge badge--brand" id="dprogres"></span>
+      </div>
+      <div class="stack" style="--gap:var(--s3)" id="dliste"></div>
+    </section>
 
     <section class="card">
       <div class="between" style="margin-bottom:var(--s5)">
@@ -319,6 +339,52 @@ function tableauEntreprise(u){
   });
 
   el.querySelector("#reco").appendChild(listeAnnonces(DB.annonces({ ouvertes:true }).slice(0, 3), u));
+
+  if (u.role === "entreprise_admin"){
+    const inv = DB.invitationActive(eid);
+    const si = DB.sieges(eid);
+    const etapes = [
+      { fait: !!inv, titre: "Créer le lien d'inscription",
+        texte: "Un seul lien, à diffuser en interne.", vers: "#/equipe" },
+      { fait: !!(inv && inv.teste), titre: "Tester le lien avant de le diffuser",
+        texte: "Ouvrez-le vous-même une fois : c'est la meilleure façon d'éviter d'envoyer un lien mort à trois cents personnes.",
+        action: inv ? { label: "Ouvrir le lien", fn: () => {
+          window.open(`/rejoindre.html?code=${inv.code}`, "_blank");
+          inv.teste = true; toast("Lien ouvert dans un nouvel onglet."); } } : null },
+      { fait: si.pris > 1, titre: "Diffuser le lien à vos équipes",
+        texte: si.pris > 1 ? `${si.pris} personnes ont déjà créé leur compte.`
+                           : "Personne n'a encore rejoint. Intranet, mail interne, affiche : au choix.",
+        vers: "#/equipe" },
+      { fait: DB.administrateurs(eid).length > 1, titre: "Nommer un deuxième administrateur",
+        texte: "Un seul compte qui peut agir, c'est une panne en cas d'absence.", vers: "#/equipe" }
+    ];
+    const restantes = etapes.filter(e => !e.fait);
+    if (restantes.length){
+      const bloc = el.querySelector("#demarrage");
+      bloc.style.display = "";
+      el.querySelector("#dprogres").textContent =
+        `${etapes.length - restantes.length} / ${etapes.length}`;
+      const liste = el.querySelector("#dliste");
+      etapes.forEach(et => {
+        const ligne = h(`<div class="row" style="align-items:flex-start;gap:var(--s4);
+          padding:var(--s3) 0;border-top:var(--line-soft)">
+          <span style="color:${et.fait ? "var(--forest-700)" : "var(--ink-300)"};margin-top:2px">
+            ${et.fait ? ICONS.check : ICONS.clock}</span>
+          <div style="flex:1">
+            <strong style="${et.fait ? "color:var(--ink-400);text-decoration:line-through" : ""}">${esc(et.titre)}</strong>
+            <p class="muted" style="font-size:var(--t-sm);margin-top:2px">${esc(et.texte)}</p>
+          </div></div>`);
+        if (!et.fait && et.action){
+          const b = h(`<button class="btn btn--ghost btn--sm">${esc(et.action.label)}</button>`);
+          b.onclick = () => { et.action.fn(); };
+          ligne.appendChild(b);
+        } else if (!et.fait && et.vers){
+          ligne.appendChild(h(`<a class="btn btn--ghost btn--sm" href="${et.vers}">Y aller</a>`));
+        }
+        liste.appendChild(ligne);
+      });
+    }
+  }
   return el;
 }
 
@@ -478,53 +544,118 @@ function vueMissions(u){
 }
 
 function vueClassement(u){
-  const cl = DB.classement();
-  const seuil = Math.ceil(cl.length * 0.1);
-  const max = cl[0].points;
-  const el = h(`<div class="two">
-    <section class="card">
-      <div class="between" style="margin-bottom:var(--s5)">
-        <div><h3>Classement de la saison</h3>
-        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">Recalculé chaque lundi matin</p></div>
-        <div class="row" style="gap:var(--s2)">
-          <span class="badge">Semaine 34</span>
-          <button class="btn btn--ghost btn--sm" id="csvCl">Exporter</button>
+  const monEnt = DB.entreprise(u.org);
+  const maCat = monEnt ? monEnt : null;
+  let mode = "normalise";
+  let categorie = maCat ? DB.classement().find(e => e.id === u.org)?.categorie.id : null;
+
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <section class="card card--pad-sm">
+      <div class="row" style="gap:var(--s3);flex-wrap:wrap">
+        <div class="tabs" style="border:0;margin:0" id="modes">
+          <div class="tab is-active" data-m="normalise">Points par salarié</div>
+          <div class="tab" data-m="brut">Total brut</div>
         </div>
+        <span style="flex:1"></span>
+        <select class="select" id="cat" style="width:230px">
+          <option value="">Toutes les tailles</option>
+          ${CATEGORIES.map(c => `<option value="${c.id}">${esc(c.label)}</option>`).join("")}
+        </select>
+        <button class="btn btn--ghost btn--sm" id="csvCl">Exporter</button>
       </div>
-      <table class="table table--rank"><tbody></tbody></table>
     </section>
-    <section class="card">
-      <h3>Comment on marque</h3>
-      <div class="stack" style="--gap:var(--s5);margin-top:var(--s5)">
-        ${Object.entries(BAREME).map(([k, b]) => `
-          <div class="row" style="align-items:flex-start;gap:var(--s4)">
-            <span style="color:var(--brand-800)">${ICONS[b.icone]}</span>
-            <div><strong>${esc(b.label)}</strong>
-            <p class="muted" style="font-size:var(--t-sm);margin-top:2px">
-              ${b.points} point${b.points > 1 ? "s" : ""} par ${esc(b.unite)}</p></div>
-          </div>`).join("")}
+
+    <div class="two">
+      <section class="card">
+        <div class="between" style="margin-bottom:var(--s5)">
+          <div><h3>Classement de la saison</h3>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:4px" id="sousTitre"></p></div>
+          <span class="badge">Semaine 34</span>
+        </div>
+        <table class="table table--rank"><thead><tr>
+          <th></th><th>Entreprise</th><th></th><th style="text-align:right">Score</th>
+        </tr></thead><tbody></tbody></table>
+      </section>
+
+      <div class="stack" style="--gap:var(--s5)">
+        <section class="card">
+          <h3>Comment le score est calculé</h3>
+          <div class="stack" style="--gap:var(--s4);margin-top:var(--s5);font-size:var(--t-sm)">
+            <div><strong>Points par salarié</strong>
+              <p class="muted" style="margin-top:2px">Les points retenus divisés par l'effectif.
+              C'est la lecture principale : une entreprise de quarante personnes et un groupe de
+              quatre mille n'ont ni le même potentiel, ni le même taux de participation.</p></div>
+            <div><strong>Plafond par format</strong>
+              <p class="muted" style="margin-top:2px">Aucun format ne peut peser plus de
+              ${Math.round(PLAFOND_PAR_FORMAT * 100)} % des points d'une entreprise.
+              Sans ce plafond, il suffirait de virer de l'argent pour truster le classement.</p></div>
+            <div><strong>Total brut</strong>
+              <p class="muted" style="margin-top:2px">Gardé comme lecture secondaire, jamais
+              comme classement de référence.</p></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h3>Le barème</h3>
+          <div class="stack" style="--gap:var(--s4);margin-top:var(--s5)">
+            ${Object.entries(BAREME).map(([k, b]) => `
+              <div class="row" style="align-items:flex-start;gap:var(--s4)">
+                <span style="color:var(--forest-700)">${ICONS[b.icone]}</span>
+                <div><strong>${esc(b.label)}</strong>
+                <p class="muted" style="font-size:var(--t-sm);margin-top:2px">
+                  ${b.points} point${b.points > 1 ? "s" : ""} par ${esc(b.unite)}</p></div>
+              </div>`).join("")}
+          </div>
+          <hr class="sep">
+          <p class="hint">Le score mesure un engagement, pas un impact environnemental.
+            Riseva ne le présente jamais comme une mesure scientifique.</p>
+        </section>
       </div>
-      <hr class="sep">
-      <p class="muted" style="font-size:var(--t-sm)">
-        Le barème est fixé par Riseva, identique pour toutes les associations et toutes les
-        entreprises. Il sera recalibré à la fin de la première saison.</p>
-    </section>
+    </div>
   </div>`);
+
+  const dessine = () => {
+    const cl = DB.classement({ mode, categorie: categorie || null });
+    const seuil = Math.max(1, Math.ceil(cl.length * 0.1));
+    const cle = mode === "brut" ? "points" : "parSalarie";
+    const max = Math.max(...cl.map(e => e[cle]), 1);
+    el.querySelector("#sousTitre").textContent = mode === "brut"
+      ? "Total des points retenus, toutes tailles confondues si aucun filtre"
+      : "Points retenus rapportés à l'effectif, recalculé chaque lundi";
+    const tb = el.querySelector("tbody");
+    tb.innerHTML = "";
+    if (!cl.length){ tb.appendChild(h(`<tr><td colspan="4" class="empty">Aucune entreprise dans cette catégorie.</td></tr>`)); return; }
+    cl.forEach(e => {
+      const moiOrg = e.id === u.org;
+      tb.appendChild(h(`<tr style="${moiOrg ? "background:var(--forest-050)" : ""}">
+        <td>${e.rang}</td>
+        <td><strong>${esc(e.nom)}</strong>${moiOrg ? ` <span class="muted">(vous)</span>` : ""}${
+          e.rang <= seuil ? ` <span class="badge badge--brand" style="height:20px;margin-left:6px">top 10 %</span>` : ""}
+          <br><span class="muted" style="font-size:var(--t-xs)">${esc(e.categorie.label)} · ${e.participation} % de participation${
+            e.ecrete ? ` · ${nb(e.ecrete)} points écrêtés` : ""}</span></td>
+        <td style="width:30%"><div class="bar"><i style="width:${(e[cle] / max) * 100}%"></i></div></td>
+        <td class="tnum" style="text-align:right"><strong>${mode === "brut" ? nb(e.points) : e.parSalarie}</strong>
+          <br><span class="muted" style="font-size:var(--t-xs)">${mode === "brut" ? "points" : "pts / salarié"}</span></td>
+      </tr>`));
+    });
+  };
+
+  el.querySelectorAll("#modes .tab").forEach(t => t.onclick = () => {
+    el.querySelectorAll("#modes .tab").forEach(x => x.classList.remove("is-active"));
+    t.classList.add("is-active"); mode = t.dataset.m; dessine();
+  });
+  el.querySelector("#cat").value = categorie || "";
+  el.querySelector("#cat").onchange = (e) => { categorie = e.target.value; dessine(); };
   el.querySelector("#csvCl").onclick = () => {
-    versCSV("riseva-classement.csv", ["Rang", "Entreprise", "Secteur", "Ville", "Effectif", "Points"],
-      cl.map(e => [e.rang, e.nom, e.secteur, e.ville, e.effectif, e.points]));
+    const cl = DB.classement({ mode, categorie: categorie || null });
+    versCSV("riseva-classement.csv",
+      ["Rang", "Entreprise", "Catégorie", "Effectif", "Points retenus", "Points bruts",
+       "Points par salarié", "Participation %"],
+      cl.map(e => [e.rang, e.nom, e.categorie.label, e.effectif, e.points, e.brut,
+                   e.parSalarie, e.participation]));
     toast("Export téléchargé.");
   };
-  const tb = el.querySelector("tbody");
-  cl.forEach(e => {
-    const moiOrg = e.id === u.org;
-    tb.appendChild(h(`<tr style="${moiOrg ? "background:var(--brand-050)" : ""}">
-      <td>${e.rang}</td>
-      <td><strong>${esc(e.nom)}</strong>${moiOrg ? ` <span class="muted">(vous)</span>` : ""}${e.rang <= seuil ? ` <span class="badge badge--brand" style="height:20px;margin-left:6px">top 10 %</span>` : ""}
-        <br><span class="muted" style="font-size:var(--t-xs)">${esc(e.secteur)} · ${esc(e.ville)} · ${e.effectif} salariés</span></td>
-      <td style="width:34%"><div class="bar"><i style="width:${(e.points / max) * 100}%"></i></div></td>
-      <td class="tnum" style="text-align:right"><strong>${nb(e.points)}</strong></td></tr>`));
-  });
+  dessine();
   return el;
 }
 
@@ -607,10 +738,30 @@ function vueEquipe(u){
       <td class="muted">${g.anonyme ? "—" : esc(g.email)}</td>
       <td class="tnum">${nb(g.points || 0)}</td>
       <td><span class="badge ${g.anonyme ? "" : (g.actif ? "badge--ok" : "badge--warn")}">${
-        g.anonyme ? "Anonymisé" : (g.actif ? "Actif" : "Suspendu")}</span></td>
+        g.anonyme ? "Anonymisé" : (g.actif ? "Actif" : "Suspendu")}</span>${
+        g.role === "entreprise_admin" ? ` <span class="badge badge--info" style="margin-left:4px">Admin</span>` : ""}</td>
       <td style="text-align:right"></td></tr>`);
     if (!g.anonyme){
-      const b = h(`<button class="btn btn--quiet btn--sm">Retirer</button>`);
+      const admins = DB.administrateurs(eid);
+      if (g.role === "salarie"){
+        const pa = h(`<button class="btn btn--quiet btn--sm">Nommer admin</button>`);
+        pa.onclick = () => modal("Nommer " + g.nom + " administrateur",
+          `<p class="muted">Il pourra gérer l'équipe, le lien d'inscription, les rapports et
+           l'abonnement, comme vous.</p>
+           <p class="hint" style="margin-top:var(--s4)">Avoir un seul administrateur est fragile :
+           si vous partez en congés ou quittez l'entreprise, plus personne ne peut agir.</p>`,
+          [{ label:"Annuler" },
+           { label:"Nommer administrateur", classe:"btn--primary", onClick: () => {
+               DB.promouvoirAdmin(g.id); toast("Administrateur nommé."); rendre(); }}]);
+        tr.lastElementChild.appendChild(pa);
+      } else if (admins.length > 1 && g.id !== u.id){
+        const ra = h(`<button class="btn btn--quiet btn--sm">Retirer les droits</button>`);
+        ra.onclick = () => { try { DB.retrograderAdmin(g.id); } catch (e){ toast(e.message); return; }
+          toast("Droits retirés."); rendre(); };
+        tr.lastElementChild.appendChild(ra);
+      }
+      const dernierAdmin = g.role === "entreprise_admin" && admins.length <= 1;
+      const b = h(`<button class="btn btn--quiet btn--sm"${dernierAdmin ? " disabled title=\"Nommez un autre administrateur avant de retirer celui-ci\"" : ""}>Retirer</button>`);
       b.onclick = () => modal("Retirer " + g.nom + " de l'équipe",
         `<p class="muted">Son compte est fermé immédiatement et sa place est rendue à votre abonnement.</p>
          <p class="muted" style="margin-top:var(--s4)">Son nom et son adresse disparaissent de la
@@ -620,7 +771,8 @@ function vueEquipe(u){
          <p class="hint" style="margin-top:var(--s4)">Cette opération ne se défait pas.</p>`,
         [{ label:"Annuler" },
          { label:"Retirer et anonymiser", classe:"btn--primary", onClick: () => {
-             DB.retirerSalarie(g.id); toast("Compte retiré et anonymisé."); rendre(); }}]);
+             try { DB.retirerSalarie(g.id); } catch (err){ toast(err.message); return false; }
+             toast("Compte retiré et anonymisé."); rendre(); }}]);
       tr.lastElementChild.appendChild(b);
     }
     return tr;
@@ -955,37 +1107,103 @@ function formAnnonce(u, existante = null){
 }
 
 function vueAValider(u){
-  const ms = DB.missions({ asso: u.org }).filter(m => m.etat === "a_valider" || m.etat === "engagee");
-  const el = h(`<section class="card">
-    <div class="between" style="margin-bottom:var(--s5)">
-      <div><h3>Missions à confirmer</h3>
-      <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
-        Sans réponse de votre part sous quatorze jours, la mission est comptée comme réalisée.</p></div>
-    </div>
-    <table class="table"><thead><tr>
-      <th>Mission</th><th>Entreprise</th><th>Salarié</th><th>Date</th><th>État</th><th></th>
-    </tr></thead><tbody></tbody></table></section>`);
+  const toutes = DB.missions({ asso: u.org })
+                   .filter(m => m.etat === "a_valider" || m.etat === "engagee");
+  const aValider = toutes.filter(m => m.etat === "a_valider");
+  const selection = new Set();
+
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    ${aValider.length ? `<section class="card card--dark grain">
+      <div class="between" style="flex-wrap:wrap;gap:var(--s4)">
+        <div>
+          <h3>${aValider.length} mission${aValider.length > 1 ? "s" : ""} attend${aValider.length > 1 ? "ent" : ""} votre réponse</h3>
+          <p class="muted" style="margin-top:6px;font-size:var(--t-sm)">
+            Tant que vous n'avez pas répondu, l'entreprise ne marque rien. Vous pouvez tout
+            confirmer d'un coup si tout s'est bien passé.</p>
+        </div>
+        <div class="row" style="gap:var(--s2)">
+          <button class="btn btn--outlineDark btn--sm" id="tout">Tout sélectionner</button>
+          <button class="btn btn--onDark btn--sm" id="lot">Confirmer la sélection (<span id="n">0</span>)</button>
+        </div>
+      </div>
+    </section>` : ""}
+
+    <section class="card">
+      <div class="between" style="margin-bottom:var(--s5)">
+        <div><h3>Missions à confirmer</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+          Sans réponse de votre part sous quatorze jours, la mission est comptée comme réalisée.</p></div>
+      </div>
+      <table class="table"><thead><tr>
+        <th style="width:36px"></th><th>Mission</th><th>Entreprise</th><th>Salarié</th>
+        <th>Date</th><th>Délai</th><th>État</th><th></th>
+      </tr></thead><tbody></tbody></table>
+    </section>
+  </div>`);
+
+  const majCompteur = () => {
+    const n = el.querySelector("#n"); if (n) n.textContent = selection.size;
+    const b = el.querySelector("#lot"); if (b) b.disabled = selection.size === 0;
+  };
+
   const tb = el.querySelector("tbody");
-  if (!ms.length) tb.appendChild(h(`<tr><td colspan="6" class="empty">
-    Rien à confirmer, tout est à jour. Nous vous écrirons dès qu'une mission arrivera à échéance.</td></tr>`));
-  ms.forEach(m => {
-    const a = DB.annonceDe(m), e = DB.entreprise(m.entreprise), s = DB.utilisateur(m.salarie);
+  if (!toutes.length){
+    tb.appendChild(h(`<tr><td colspan="8"></td></tr>`));
+    tb.querySelector("td").appendChild(vide({
+      titre: "Tout est à jour",
+      texte: "Rien à confirmer pour l'instant. Nous vous écrirons dès qu'une mission arrivera à échéance."
+    }));
+  }
+  toutes.forEach(m => {
+    const a = DB.annonceDe(m), e = DB.entreprise(m.entreprise), sal = DB.utilisateur(m.salarie);
+    const jours = DB.joursAvantAuto(m);
     const tr = h(`<tr>
+      <td>${m.etat === "a_valider" ? `<input type="checkbox" style="accent-color:var(--forest-700);width:16px;height:16px">` : ""}</td>
       <td><strong>${esc(a.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(BAREME[a.type].label)} · ${nb(m.points)} pts</span></td>
       <td class="muted">${esc(e ? e.nom : "—")}</td>
-      <td class="muted">${esc(s ? s.nom : "—")}</td>
+      <td class="muted">${esc(sal ? sal.nom : "—")}</td>
       <td class="muted tnum">${dateCourte(m.date)}</td>
+      <td>${jours === null ? '<span class="muted">—</span>'
+            : `<span class="badge ${jours <= 3 ? "badge--warn" : ""}">${jours} j</span>`}</td>
       <td><span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].label}</span></td>
       <td style="text-align:right"></td></tr>`);
+    const cb = tr.querySelector("input");
+    if (cb) cb.onchange = () => { cb.checked ? selection.add(m.id) : selection.delete(m.id); majCompteur(); };
     if (m.etat === "a_valider"){
-      const ok = h(`<button class="btn btn--brand btn--sm">Confirmer</button>`);
+      const ok = h(`<button class="btn btn--forest btn--sm">Confirmer</button>`);
       const no = h(`<button class="btn btn--quiet btn--sm">Refuser</button>`);
       ok.onclick = () => { DB.validerMission(m.id, true);  toast("Mission confirmée, points crédités."); rendre(); };
-      no.onclick = () => { DB.validerMission(m.id, false); toast("Mission refusée."); rendre(); };
+      no.onclick = () => modal("Refuser cette mission",
+        `<p class="muted">La mission sera marquée comme non réalisée et l'entreprise ne marquera
+         aucun point. Le besoin redevient disponible sur votre annonce.</p>
+         <div class="field" style="margin-top:var(--s5)"><label>Un mot d'explication, pour l'entreprise</label>
+           <textarea class="textarea" id="mot" placeholder="Personne n'est venu, ou la mission a été écourtée..."></textarea></div>`,
+        [{ label:"Annuler" },
+         { label:"Refuser", classe:"btn--primary", onClick: () => {
+             DB.validerMission(m.id, false); toast("Mission refusée, l'entreprise est prévenue."); rendre(); }}]);
       tr.lastElementChild.append(no, ok);
     }
     tb.appendChild(tr);
   });
+
+  el.querySelector("#tout")?.addEventListener("click", () => {
+    const cases = [...el.querySelectorAll("tbody input[type=checkbox]")];
+    const tousCoches = cases.every(c => c.checked);
+    cases.forEach(c => { c.checked = !tousCoches; c.dispatchEvent(new Event("change")); });
+  });
+  el.querySelector("#lot")?.addEventListener("click", () => {
+    const n = selection.size;
+    modal(`Confirmer ${n} mission${n > 1 ? "s" : ""}`,
+      `<p class="muted">Vous attestez que ${n > 1 ? "ces missions ont" : "cette mission a"}
+       bien été réalisée${n > 1 ? "s" : ""}. Les points seront crédités immédiatement aux
+       entreprises concernées.</p>`,
+      [{ label:"Annuler" },
+       { label:"Tout confirmer", classe:"btn--primary", onClick: () => {
+           const faits = DB.validerLot([...selection], true);
+           toast(`${faits} mission${faits > 1 ? "s" : ""} confirmée${faits > 1 ? "s" : ""}.`);
+           rendre(); }}]);
+  });
+  majCompteur();
   return el;
 }
 

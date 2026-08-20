@@ -9,6 +9,22 @@ export const BAREME = {
   don_materiel:           { label: "Don de matériel", unite: "don validé",   points: 100, icone: "box"  }
 };
 
+/* Règle anti-optimisation : aucun format ne peut peser plus de la moitié des points
+   d'une entreprise sur une saison. Sans ce plafond, il suffirait de virer de l'argent
+   pour truster le classement, ce qui viderait le jeu de son sens. */
+export const PLAFOND_PAR_FORMAT = 0.5;
+
+/* Catégories de taille. Comparer une entreprise de 40 salariés à une de 4 000 n'a
+   aucun sens : le classement principal est normalisé, et il se lit par catégorie. */
+export const CATEGORIES = [
+  { id:"tpe", label:"Moins de 50 salariés",  min:0,   max:49 },
+  { id:"pme", label:"50 à 199 salariés",     min:50,  max:199 },
+  { id:"eti", label:"200 à 499 salariés",    min:200, max:499 },
+  { id:"ge",  label:"500 salariés et plus",  min:500, max:Infinity }
+];
+export const categorieDe = (effectif) =>
+  CATEGORIES.find(c => effectif >= c.min && effectif <= c.max) || CATEGORIES[0];
+
 export const ETATS_MISSION = {
   engagee:      { label: "Engagée",            badge: "badge--info"   },
   a_valider:    { label: "À valider",          badge: "badge--warn"   },
@@ -156,11 +172,53 @@ function creerMock(){
 
     annonceDe: (mission) => s.annonces.find(a => a.id === mission.annonce),
 
-    classement(){
-      return clone(s.entreprises).sort((a,b) => b.points - a.points)
-        .map((e,i) => ({ ...e, rang: i + 1 }));
+    /* Points bruts d'une entreprise, ventilés par format, avec le plafond appliqué.
+       On garde les deux chiffres : ce qui a été fait, et ce qui compte au classement. */
+    pointsDe(eid){
+      const ms = api.missions({ entreprise: eid })
+                   .filter(m => m.etat === "validee" || m.etat === "validee_auto");
+      const parType = {};
+      ms.forEach(m => {
+        const a = api.annonceDe(m); if (!a) return;
+        parType[a.type] = (parType[a.type] || 0) + m.points;
+      });
+      const brut = Object.values(parType).reduce((x, y) => x + y, 0);
+      const plafond = Math.round(brut * PLAFOND_PAR_FORMAT);
+      const retenuParType = {};
+      let retenu = 0, ecrete = 0;
+      Object.entries(parType).forEach(([k, v]) => {
+        const r = Math.min(v, plafond);
+        retenuParType[k] = r; retenu += r; ecrete += v - r;
+      });
+      return { brut, retenu, ecrete, parType, retenuParType, plafond };
     },
-    rangDe(eid){ return this.classement().findIndex(e => e.id === eid) + 1; },
+
+    /* Classement. Deux lectures :
+       - normalisé (par défaut) : points retenus rapportés au nombre de salariés,
+         ce qui met une PME et un grand groupe sur le même plan ;
+       - brut : le total, gardé comme lecture secondaire. */
+    classement({ mode = "normalise", categorie = null } = {}){
+      let l = clone(s.entreprises).map(e => {
+        const p = api.pointsDe(e.id);
+        const sal = api.salaries(e.id).filter(u => !u.anonyme);
+        const engages = sal.filter(u => (u.points || 0) > 0).length;
+        const base = Math.max(e.effectif || sal.length || 1, 1);
+        return { ...e,
+          points: p.retenu || e.points || 0,
+          brut: p.brut || e.points || 0,
+          ecrete: p.ecrete,
+          parSalarie: Math.round(((p.retenu || e.points || 0) / base) * 10) / 10,
+          participation: sal.length ? Math.round((engages / sal.length) * 100) : 0,
+          categorie: categorieDe(e.effectif || 0)
+        };
+      });
+      if (categorie) l = l.filter(e => e.categorie.id === categorie);
+      const cle = mode === "brut" ? "points" : "parSalarie";
+      return l.sort((a, b) => b[cle] - a[cle]).map((e, i) => ({ ...e, rang: i + 1 }));
+    },
+    rangDe(eid, options){
+      return this.classement(options).findIndex(e => e.id === eid) + 1;
+    },
 
     pointsPour(type, quantite){
       const b = BAREME[type];
@@ -213,6 +271,36 @@ function creerMock(){
     declarerFaite(mid){
       const m = s.missions.find(x => x.id === mid); if (m) m.etat = "a_valider"; return m;
     },
+    /* Validation en masse : la lenteur d'une association bloque les points de plusieurs
+       entreprises à la fois. On lui donne de quoi trancher d'un coup. */
+    validerLot(ids, ok){
+      let n = 0;
+      ids.forEach(id => { if (api.validerMission(id, ok)) n++; });
+      return n;
+    },
+    /* Jours restants avant la validation automatique. */
+    joursAvantAuto(m){
+      if (m.etat !== "a_valider") return null;
+      const limite = new Date(m.date); limite.setDate(limite.getDate() + 14);
+      return Math.max(0, Math.ceil((limite - new Date(2026, 7, 20)) / 864e5));
+    },
+    /* Deuxième administrateur : un seul compte admin par entreprise est trop fragile. */
+    promouvoirAdmin(uid){
+      const u = s.utilisateurs.find(x => x.id === uid);
+      if (!u || u.role !== "salarie" || u.anonyme) return null;
+      u.role = "entreprise_admin"; return u;
+    },
+    retrograderAdmin(uid){
+      const u = s.utilisateurs.find(x => x.id === uid);
+      if (!u || u.role !== "entreprise_admin") return null;
+      const autres = s.utilisateurs.filter(x => x.org === u.org
+        && x.role === "entreprise_admin" && x.id !== uid && x.actif);
+      if (!autres.length) throw new Error("Il doit rester au moins un administrateur");
+      u.role = "salarie"; return u;
+    },
+    administrateurs: (eid) => s.utilisateurs.filter(u => u.org === eid
+      && u.role === "entreprise_admin" && u.actif),
+
     validerMission(mid, ok){
       const m = s.missions.find(x => x.id === mid); if (!m) return null;
       m.etat = ok ? "validee" : "refusee";
@@ -224,8 +312,10 @@ function creerMock(){
       } else { m.points = 0; }
       return m;
     },
+    /* Les administrateurs occupent aussi une place : ce sont des comptes de l'entreprise. */
     salaries: (eid, { avecAnonymes = true } = {}) =>
-      s.utilisateurs.filter(u => u.org === eid && u.role === "salarie"
+      s.utilisateurs.filter(u => u.org === eid
+        && (u.role === "salarie" || u.role === "entreprise_admin")
         && (avecAnonymes || !u.anonyme)),
 
     /* Sièges : une place occupée par salarié encore identifié.
@@ -243,6 +333,8 @@ function creerMock(){
     retirerSalarie(uid){
       const u = s.utilisateurs.find(x => x.id === uid);
       if (!u || u.anonyme) return u;
+      if (u.role === "entreprise_admin" && api.administrateurs(u.org).length <= 1)
+        throw new Error("C'est le dernier administrateur. Nommez-en un autre avant de le retirer.");
       const rang = api.salaries(u.org).filter(x => x.anonyme).length + 1;
       u.anonyme = true;
       u.actif = false;

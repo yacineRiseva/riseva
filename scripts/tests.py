@@ -80,7 +80,8 @@ def main():
         print("\nQuota de places et anonymisation")
         connecte(p, "u2", "#/equipe")
         avant = p.inner_text(".kpi--tete .kpi__value")
-        p.evaluate("()=>document.querySelectorAll('tbody tr')[0].querySelector('button').click()")
+        p.evaluate("""()=>{const l=[...document.querySelectorAll('tbody tr')].find(r=>/Malik/.test(r.innerText));
+          [...l.querySelectorAll('button')].find(b=>b.textContent==='Retirer').click()}""")
         p.wait_for_timeout(250)
         p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Retirer et/.test(b.textContent)).click()")
         p.wait_for_timeout(500)
@@ -88,6 +89,10 @@ def main():
         verifie("la place est rendue", avant != apres, f"{avant} -> {apres}")
         verifie("le salarié est anonymisé", "Salarié retiré" in p.inner_text("tbody"))
         verifie("son email a disparu", "malik@" not in p.inner_text("tbody"))
+        # le dernier administrateur ne peut pas se retirer lui-même
+        etat = p.evaluate("""()=>{const l=[...document.querySelectorAll('tbody tr')].find(r=>/Claire/.test(r.innerText));
+          const b=[...l.querySelectorAll('button')].find(x=>x.textContent==='Retirer'); return !!(b&&b.disabled)}""")
+        verifie("le dernier administrateur est protégé", etat)
         p.evaluate("()=>location.hash='#/missions'"); p.wait_for_timeout(300)
         verifie("l'historique est anonymisé aussi", "Salarié retiré" in p.inner_text("tbody"))
 

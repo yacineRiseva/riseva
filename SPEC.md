@@ -102,6 +102,46 @@ Le barème v1 ci-dessus est **provisoire et révisable à la fin de la première
 
 Les points sont crédités à l'**entreprise**, et attribués nominativement au salarié pour son propre suivi.
 
+## 5 bis. Le classement, et pourquoi il est normalisé
+
+Un classement brut entre une entreprise de 40 salariés et un groupe de 4 000 n'a aucun sens,
+et un classement dont on peut acheter la première place n'en a pas davantage. Trois règles
+protègent la crédibilité du jeu.
+
+### Classement principal : points par salarié
+Le classement de référence divise les points retenus par l'effectif déclaré, et se lit
+**par catégorie de taille** : moins de 50, 50 à 199, 200 à 499, 500 et plus. Le total brut
+reste consultable, mais comme lecture secondaire, jamais comme classement officiel.
+
+### Plafond par format
+**Aucun format ne peut peser plus de 50 % des points d'une entreprise sur la saison.**
+Sans ce plafond, il suffirait de virer de l'argent pour truster le classement, ce qui viderait
+le jeu de son sens. Les points au-delà du plafond sont affichés comme « écrêtés » : ils comptent
+dans ce que l'entreprise a fait, pas dans son rang.
+
+### Ce que le score n'est pas
+Le score mesure un **engagement**, pas un impact environnemental. Riseva ne le présente jamais
+comme une mesure scientifique, ni dans l'interface, ni dans les rapports, ni en démarchage.
+
+## 5 ter. Le goulot de validation
+
+Si les associations ne valident pas, les salariés n'ont pas leurs points, les entreprises voient
+des données incomplètes et le jeu perd sa crédibilité. Quatre garde-fous :
+
+- Délai affiché en clair sur chaque mission en attente, en jours.
+- Validation en masse : l'association coche et confirme tout d'un coup.
+- Validation automatique au bout de quatorze jours sans réponse.
+- Refus motivé : l'association explique, l'entreprise est prévenue, le besoin redevient disponible.
+
+## 5 quater. Les rôles dans l'entreprise
+
+- **Administrateur** : gère l'équipe, le lien, les rapports, l'abonnement. Il peut en nommer d'autres.
+- **Salarié** : répond aux annonces, voit le classement et son activité.
+
+Un administrateur peut nommer un salarié administrateur. Le **dernier administrateur ne peut
+pas être retiré** : il faut en nommer un autre avant. Un seul compte capable d'agir est une
+panne en attente.
+
 ## 6. L'argent
 
 ### Abonnement entreprise

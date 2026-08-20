@@ -7,6 +7,11 @@ pas les conversations. Toute nouvelle décision s'ajoute en haut de la section c
 
 | Date | Décision | Remplace |
 |---|---|---|
+| 20/08/2026 | Classement principal normalisé : points par salarié, lu par catégorie de taille. Le total brut devient une lecture secondaire. | Le classement brut unique, structurellement injuste entre une PME et un grand groupe. Signalé à la relecture externe du 20/08. |
+| 20/08/2026 | Plafond : aucun format ne peut peser plus de 50 % des points d'une entreprise sur une saison. | Rien. Ajout destiné à empêcher d'acheter la première place à coups de dons. |
+| 20/08/2026 | Le score est présenté comme une mesure d'engagement, jamais comme une mesure d'impact environnemental. | Une formulation qui aurait été indéfendable face à un client sérieux. |
+| 20/08/2026 | Validation en masse pour les associations, délai affiché en jours, refus motivé. | La validation une par une, qui faisait de l'association un goulot d'étranglement. |
+| 20/08/2026 | Plusieurs administrateurs possibles dans une entreprise, le dernier ne peut pas être retiré. | Un administrateur unique, panne en attente. |
 | 30/07/2026 | Le barème est fixé par la plateforme, par type d'annonce, appliqué automatiquement. | La version du même jour, 4 minutes plus tôt, où les associations choisissaient les points de leurs annonces. |
 | 30/07/2026 | Préinscription gratuite, puis acompte de 500 € à la confirmation, remboursé si la saison ne démarre pas. | Rien, c'est un ajout tardif destiné à relancer la prospection avant la fin du développement. |
 | 30/07/2026 | Trophées et rapport allégés à chaque trimestre, mise en avant du top 10 %. | Complète le rythme annuel, ne le remplace pas. |
