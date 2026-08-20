@@ -557,6 +557,17 @@ function creerMock(){
       });
       s.associations.filter(a => a.valide).forEach(a => j.push({ date:s.saison.debut,
         type:"association_validee", vers:a.nom, sujet:`${a.nom} est en ligne`, etat:"envoyé" }));
+      s.entreprises.forEach(e => {
+        const si = api.sieges(e.id);
+        if (si.total && si.restants <= Math.max(2, Math.round(si.total * 0.1)))
+          j.push({ date:s.saison.debut, type:"quota", vers:e.nom,
+            sujet:`Il reste ${si.restants} places chez ${e.nom}`, etat:"envoyé" });
+        j.push({ date:s.saison.debut, type:"recap_hebdo", vers:e.nom,
+          sujet:"Votre semaine sur Riseva", etat:"programmé chaque lundi" });
+      });
+      const jrs = api.joursAvantFinSaison();
+      if (jrs <= 60) s.entreprises.forEach(e => j.push({ date:s.saison.fin, type:"fin_saison",
+        vers:e.nom, sujet:`Votre saison Riseva se termine dans ${jrs} jours`, etat:"programmé" }));
       return j.sort((x, y) => String(y.date).localeCompare(String(x.date)));
     },
 

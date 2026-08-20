@@ -267,8 +267,109 @@ export const associationValidee = (p: { association: string; url: string }) =>
   bouton: { texte: "Publier une annonce", url: p.url }
 });
 
+/* ------------------------------------------------------------------ */
+/* 11. Entreprise : le quota de places se remplit                      */
+/* ------------------------------------------------------------------ */
+export const quotaPresqueAtteint = (p: {
+  entreprise: string; restantes: number; total: number; url: string;
+}) => message(`Il reste ${p.restantes} places chez ${p.entreprise}`, {
+  titre: "Votre équipe approche de sa limite",
+  preheader: `${p.restantes} places libres sur ${p.total}.`,
+  corps: `<p>Bonjour,</p>
+    <p>Il reste <strong style="color:${COULEURS.encre}">${p.restantes} places</strong> sur les
+    ${p.total} de votre abonnement. Au-delà, le lien d'inscription refusera les nouveaux comptes.</p>
+    <p>Deux façons de faire de la place : retirer les salariés partis, ce qui libère leur place
+    immédiatement, ou ajouter des places au prorata de la saison restante.</p>`,
+  bouton: { texte: "Gérer l'équipe", url: p.url }
+});
+
+/* ------------------------------------------------------------------ */
+/* 12. Salarié : une mission n'a pas été retenue                       */
+/* ------------------------------------------------------------------ */
+export const missionRefusee = (p: {
+  prenom: string; mission: string; association: string; motif?: string;
+}) => message(`Un point à vérifier sur « ${p.mission} »`, {
+  titre: "Cette mission n'a pas été retenue",
+  preheader: `${p.association} a indiqué que la mission n'a pas eu lieu comme prévu.`,
+  corps: `<p>Bonjour ${echappe(p.prenom)},</p>
+    <p>${echappe(p.association)} a indiqué que « ${echappe(p.mission)} » n'a pas eu lieu comme
+    prévu. Aucun point n'a été crédité.</p>
+    ${p.motif ? `<p style="background:${COULEURS.mousse};border-radius:8px;padding:12px 16px">
+      « ${echappe(p.motif)} »</p>` : ""}
+    <p>Si c'est une erreur, répondez à ce message : nous demandons sa version à l'association
+    et nous tranchons par écrit sous quinze jours.</p>`
+});
+
+/* ------------------------------------------------------------------ */
+/* 13. Entreprise : le récapitulatif du lundi                          */
+/* ------------------------------------------------------------------ */
+/* Un seul mail par semaine plutôt qu'une alerte par événement : c'est ce qui évite
+   que les équipes filtrent Riseva au bout de trois semaines. */
+export const recapHebdo = (p: {
+  entreprise: string; points: number; gagnes: number; rang: number; categorie: string;
+  nouvelles: number; aFaire: number; url: string;
+}) => message(`Votre semaine sur Riseva`, {
+  titre: `+${p.gagnes} points cette semaine`,
+  preheader: `${p.rang}e de votre catégorie, ${p.nouvelles} nouvelles annonces.`,
+  corps: `<p>Bonjour,</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+      style="margin:8px 0 20px;border-top:1px solid ${COULEURS.filet}">
+      <tr><td style="padding:12px 0;border-bottom:1px solid ${COULEURS.filet}">Points de la semaine</td>
+        <td align="right" style="padding:12px 0;border-bottom:1px solid ${COULEURS.filet};
+          color:${COULEURS.encre};font-weight:600">+${p.gagnes}</td></tr>
+      <tr><td style="padding:12px 0;border-bottom:1px solid ${COULEURS.filet}">Total</td>
+        <td align="right" style="padding:12px 0;border-bottom:1px solid ${COULEURS.filet};
+          color:${COULEURS.encre};font-weight:600">${p.points.toLocaleString("fr-FR")}</td></tr>
+      <tr><td style="padding:12px 0;border-bottom:1px solid ${COULEURS.filet}">Rang, ${echappe(p.categorie)}</td>
+        <td align="right" style="padding:12px 0;border-bottom:1px solid ${COULEURS.filet};
+          color:${COULEURS.encre};font-weight:600">${p.rang}</td></tr>
+    </table>
+    <p>${p.nouvelles} nouvelle${p.nouvelles > 1 ? "s" : ""} annonce${p.nouvelles > 1 ? "s" : ""}
+    depuis lundi dernier${p.aFaire ? `, et ${p.aFaire} chose${p.aFaire > 1 ? "s" : ""} qui
+    attend${p.aFaire > 1 ? "ent" : ""} de votre côté` : ""}.</p>`,
+  bouton: { texte: "Ouvrir mon espace", url: p.url },
+  pied: "Vous pouvez couper ce récapitulatif dans vos préférences, sans perdre les notifications."
+});
+
+/* ------------------------------------------------------------------ */
+/* 14. Entreprise : le trophée du trimestre                            */
+/* ------------------------------------------------------------------ */
+export const tropheeTrimestre = (p: {
+  entreprise: string; trimestre: string; rang: number; categorie: string; url: string;
+}) => message(`${p.entreprise} entre dans le top 10 % du ${p.trimestre}`, {
+  titre: "Un trophée pour votre équipe",
+  preheader: `${p.rang}e de la catégorie ${p.categorie} ce trimestre.`,
+  corps: `<p>Bonjour,</p>
+    <p>${echappe(p.entreprise)} figure dans les 10 % les plus actifs de sa catégorie
+    (${echappe(p.categorie)}) sur le ${echappe(p.trimestre)}, à la ${p.rang}<sup>e</sup> place.</p>
+    <p>Le trophée et les affiches partent par courrier cette semaine. Dites-nous si l'adresse
+    de livraison a changé.</p>
+    <p>Le détail du calcul est dans votre espace, et le règlement complet est public : vous
+    pouvez refaire l'addition.</p>`,
+  bouton: { texte: "Voir le classement", url: p.url }
+});
+
+/* ------------------------------------------------------------------ */
+/* 15. Entreprise : la saison se termine                               */
+/* ------------------------------------------------------------------ */
+export const finDeSaison = (p: {
+  entreprise: string; saison: string; jours: number; url: string;
+}) => message(`Votre saison Riseva se termine dans ${p.jours} jours`, {
+  titre: "La saison se termine bientôt",
+  preheader: "Pas de reconduction tacite : rien ne se passe si vous ne faites rien.",
+  corps: `<p>Bonjour,</p>
+    <p>La ${echappe(p.saison)} de ${echappe(p.entreprise)} se termine dans ${p.jours} jours.
+    Le rapport annuel sera généré automatiquement à la clôture.</p>
+    <p><strong style="color:${COULEURS.encre}">Il n'y a pas de reconduction tacite.</strong>
+    Si vous ne faites rien, l'abonnement s'arrête et vous gardez l'accès à vos données pendant
+    trente jours, le temps de tout exporter. Rien à résilier, rien à surveiller.</p>
+    <p>Si vous voulez repartir pour une saison, dites-le nous et nous préparons le devis.</p>`,
+  bouton: { texte: "Décider maintenant", url: p.url }
+});
+
 export const TOUS = {
   bienvenueEntreprise, bienvenueSalarie, lienConnexion, demandeValidation,
-  missionValidee, missionEngagee, rapportTrimestriel, recuFiscal,
-  preinscriptionRecue, associationValidee
+  missionValidee, missionEngagee, missionRefusee, rapportTrimestriel, recuFiscal,
+  preinscriptionRecue, associationValidee, quotaPresqueAtteint, recapHebdo,
+  tropheeTrimestre, finDeSaison
 };

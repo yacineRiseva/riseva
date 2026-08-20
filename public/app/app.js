@@ -1995,7 +1995,10 @@ function vueJournal(){
     demande_validation: "Demande de validation",
     mission_validee: "Mission confirmée",
     validation_auto: "Validation sans retour",
-    association_validee: "Association validée"
+    association_validee: "Association validée",
+    quota: "Alerte de places",
+    recap_hebdo: "Récapitulatif hebdomadaire",
+    fin_saison: "Fin de saison"
   };
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <section class="card card--pad-sm">
@@ -2035,7 +2038,8 @@ function vueJournal(){
       <td><strong>${esc(libelles[x.type] || x.type)}</strong></td>
       <td class="muted">${esc(x.vers)}</td>
       <td class="muted">${esc(x.sujet)}</td>
-      <td><span class="badge ${x.etat === "envoyé" ? "badge--ok" : "badge--warn"}">${esc(x.etat)}</span></td>
+      <td><span class="badge ${x.etat === "envoyé" ? "badge--ok"
+        : /programmé/.test(x.etat) ? "badge--info" : "badge--warn"}">${esc(x.etat)}</span></td>
     </tr>`)));
     box.appendChild(t);
   };
