@@ -44,6 +44,15 @@ pas les conversations. Toute nouvelle décision s'ajoute en haut de la section c
 | 30/07/2026 | Demande d'accès partenaire à l'API HelloAsso déposée. **Statut : sans réponse.** Aucun SIREN à cette date. | — |
 | 30/07/2026 | L'argent des dons ne transite jamais par Riseva. | — |
 
+## Fiscalité et conformité
+
+| Date | Décision | Remplace |
+|---|---|---|
+| 20/08/2026 | Le reçu fiscal est émis par l'association, Riseva le prépare et l'envoie. Sans signataire, qualité, éligibilité déclarée et numérotation, la plateforme n'émet rien. | « Riseva génère et envoie le reçu fiscal au nom de l'association. » Formulation juridiquement fausse : seul l'organisme bénéficiaire peut délivrer un reçu, et il porte seul la responsabilité (art. 1740 A du CGI). Corrigée sur tout le site. |
+| 20/08/2026 | Riseva fournit à l'association le récapitulatif de sa déclaration annuelle des dons, obligatoire depuis 2021. | Rien, c'est un ajout. |
+| 20/08/2026 | Distinction entre mission sur le temps de travail (mécénat de compétences, déductible) et sur le temps personnel (bénévolat, non déductible). Portée par l'annonce. | Un format de bénévolat unique, qui aurait laissé croire que tout est valorisable. |
+| 20/08/2026 | Écran Mécénat côté entreprise : assiette, plafonds, report, réduction estimée à 60 %. Valeurs fiscales regroupées dans un objet paramétrable, jamais codées en dur. | Rien. C'est l'argument qui justifie économiquement l'abonnement. |
+
 ## Technique
 
 | Date | Décision | Remplace |

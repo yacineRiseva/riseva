@@ -1,4 +1,4 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, connecterSupabase } from "./data.js";
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, connecterSupabase } from "./data.js";
 import { h, esc, nb, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, versCSV, vide } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
@@ -28,6 +28,7 @@ const MENUS = {
     { groupe: "Entreprise", items: [
       ["equipe",     "Équipe",       "users"],
       ["rapports",   "Rapports",     "report"],
+      ["mecenat",    "Mécénat",      "coins"],
       ["abonnement", "Abonnement",   "card"]
     ]}
   ],
@@ -47,7 +48,8 @@ const MENUS = {
       ["tableau",   "Tableau de bord",   "dashboard"],
       ["mesannonces","Mes annonces",     "megaphone"],
       ["avalider",  "Missions à valider","check"],
-      ["page",      "Ma page publique",  "heart"]
+      ["page",      "Ma page publique",  "heart"],
+      ["recus",     "Reçus fiscaux",     "report"]
     ]}
   ],
   admin: [
@@ -408,6 +410,7 @@ function listeAnnonces(annonces, u){
       <div>
         <div class="row" style="gap:var(--s3)">
           <span class="badge badge--brand">${esc(b.label)}</span>
+          ${a.temps_travail ? `<span class="badge badge--info" title="Mécénat de compétences, valorisable fiscalement">Sur le temps de travail</span>` : ""}
           <span class="muted" style="font-size:var(--t-sm)">${esc(asso.nom)}</span>
         </div>
         <h4 style="margin-top:var(--s3)">${esc(a.titre)}</h4>
@@ -1074,11 +1077,21 @@ function formAnnonce(u, existante = null){
       <div class="field" style="flex:1"><label>Date</label><input class="input" id="d" type="date"></div>
     </div>
     <div class="field"><label>Lieu</label><input class="input" id="lieu" placeholder="Ville ou adresse"></div>
+    <label class="checkline" id="ttWrap"><input type="checkbox" id="tt">
+      <span>Mission proposée sur le temps de travail des salariés.
+      <span class="muted">Dans ce cas elle relève du mécénat de compétences et l'entreprise peut
+      la valoriser fiscalement. Une mission le week-end ou le soir ne coche pas cette case.</span></span></label>
   </div>`);
   corps.querySelector("#d").value = existante
     ? existante.date
     : new Date(Date.now() + 12 * 864e5).toISOString().slice(0, 10);
+  const majTT = () => {
+    corps.querySelector("#ttWrap").style.display =
+      corps.querySelector("#type").value === "benevolat_demi_journee" ? "" : "none";
+  };
+  corps.querySelector("#type").addEventListener("change", majTT);
   if (existante){
+    corps.querySelector("#tt").checked = !!existante.temps_travail;
     corps.querySelector("#type").value = existante.type;
     corps.querySelector("#type").disabled = true;
     corps.querySelector("#titre").value = existante.titre;
@@ -1086,6 +1099,7 @@ function formAnnonce(u, existante = null){
     corps.querySelector("#q").value = existante.quantite;
     corps.querySelector("#lieu").value = existante.lieu || "";
   }
+  majTT();
   modal(existante ? "Modifier l'annonce" : "Publier une annonce", corps, [
     { label:"Annuler" },
     { label:existante ? "Enregistrer" : "Publier", classe:"btn--primary", onClick: () => {
@@ -1096,11 +1110,13 @@ function formAnnonce(u, existante = null){
           const pris = existante.quantite - existante.restant;
           if (q < pris){ toast("Déjà " + pris + " engagement(s), la quantité ne peut pas descendre en dessous."); return false; }
           DB.modifierAnnonce(existante.id, { titre:v("titre"), description:v("desc"),
-            quantite:q, restant:q - pris, date:v("d"), lieu:v("lieu") });
+            quantite:q, restant:q - pris, date:v("d"), lieu:v("lieu"),
+            temps_travail: corps.querySelector("#tt").checked });
           toast("Annonce mise à jour.");
         } else {
           DB.creerAnnonce({ asso: u.org, type: v("type"), titre: v("titre"), description: v("desc"),
-            quantite: Number(v("q")) || 1, date: v("d"), lieu: v("lieu") || DB.association(u.org).ville });
+            quantite: Number(v("q")) || 1, date: v("d"), lieu: v("lieu") || DB.association(u.org).ville,
+            temps_travail: corps.querySelector("#tt").checked });
           toast("Annonce publiée.");
         }
         rendre();
@@ -1551,6 +1567,201 @@ function vueJournal(){
   return el;
 }
 
+function vueMecenat(u){
+  const v = DB.valorisationMecenat(u.org);
+  const e = DB.entreprise(u.org);
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <div class="kpis">
+      ${kpi("Réduction d'impôt estimée", eur(v.reduction),
+            `${Math.round(FISCAL.taux_reduction * 100)} % de ${eur(v.assietteRetenue)}`, "", "kpi--tete grain")}
+      ${kpi("Dons financiers", eur(v.dons), "versés par vos salariés")}
+      ${kpi("Mécénat de compétences", eur(v.competencesRetenu),
+            `${v.demiJourneesTT} demi-journées sur le temps de travail`)}
+      ${kpi("Reportable", eur(v.reportable),
+            v.reportable ? `sur ${FISCAL.report_annees} exercices` : "rien au-dessus du plafond")}
+    </div>
+
+    <div class="two">
+      <section class="card" style="padding:var(--s8)">
+        <h3>Le calcul, ligne par ligne</h3>
+        <table class="table" style="margin-top:var(--s5)"><tbody>
+          <tr><td>Dons financiers de la saison</td>
+              <td class="tnum" style="text-align:right">${eur(v.dons)}</td></tr>
+          <tr><td>Mécénat de compétences, au coût de revient<br>
+              <span class="muted" style="font-size:var(--t-xs)">${v.demiJourneesTT} demi-journées ×
+              ${eur(v.coutDemiJournee)}, ${v.salariesConcernes} salarié${v.salariesConcernes > 1 ? "s" : ""} concerné${v.salariesConcernes > 1 ? "s" : ""}</span></td>
+              <td class="tnum" style="text-align:right">${eur(v.competencesBrut)}</td></tr>
+          ${v.ecreteParSalarie ? `<tr><td class="muted">Au-delà du plafond de ${eur(v.plafondSalarie)} par salarié</td>
+              <td class="tnum" style="text-align:right;color:var(--ink-400)">− ${eur(v.ecreteParSalarie)}</td></tr>` : ""}
+          <tr><td><strong>Assiette</strong></td>
+              <td class="tnum" style="text-align:right"><strong>${eur(v.assiette)}</strong></td></tr>
+          <tr><td class="muted">Plafond de l'entreprise<br>
+              <span style="font-size:var(--t-xs)">le plus élevé entre ${eur(FISCAL.plafond_plancher)}
+              et ${(FISCAL.plafond_taux_ca * 1000)} ‰ du chiffre d'affaires</span></td>
+              <td class="tnum" style="text-align:right">${eur(v.plafondEntreprise)}</td></tr>
+          ${v.reportable ? `<tr><td class="muted">Excédent reporté sur les exercices suivants</td>
+              <td class="tnum" style="text-align:right">${eur(v.reportable)}</td></tr>` : ""}
+          <tr><td><strong>Réduction d'impôt, ${Math.round(FISCAL.taux_reduction * 100)} %</strong></td>
+              <td class="tnum" style="text-align:right"><strong style="color:var(--forest-800)">${eur(v.reduction)}</strong></td></tr>
+        </tbody></table>
+        <div class="row" style="gap:var(--s2);margin-top:var(--s6)">
+          <button class="btn btn--primary btn--sm" id="att">Éditer l'attestation</button>
+          <button class="btn btn--ghost btn--sm" id="csvM">Exporter le détail</button>
+        </div>
+      </section>
+
+      <div class="stack" style="--gap:var(--s5)">
+        <section class="card">
+          <h3>Ce qui compte, et ce qui ne compte pas</h3>
+          <div class="stack" style="--gap:var(--s4);margin-top:var(--s5);font-size:var(--t-sm)">
+            <div><span class="badge badge--ok">Déductible</span>
+              <p class="muted" style="margin-top:6px">Une mission réalisée <strong>sur le temps de
+              travail</strong>, à l'initiative de l'entreprise. C'est du mécénat de compétences :
+              le salarié reste payé par vous, et la mise à disposition se valorise au coût de revient.</p></div>
+            <div><span class="badge">Non déductible</span>
+              <p class="muted" style="margin-top:6px">Une mission faite sur le temps personnel du
+              salarié. C'est du bénévolat, ça compte pour vos points et pour vos équipes,
+              mais pas pour votre impôt. ${v.demiJourneesPerso} demi-journée${v.demiJourneesPerso > 1 ? "s" : ""}
+              dans ce cas cette saison.</p></div>
+          </div>
+          <hr class="sep">
+          <p class="hint">Chiffres ${FISCAL.annee}. Plafond par salarié : trois fois le plafond
+            mensuel de la Sécurité sociale, soit ${eur(FISCAL.plafond_mecenat_par_salarie)}.</p>
+        </section>
+
+        <section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
+          <h3 style="font-size:var(--t-lg)">Une estimation, pas une déclaration</h3>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);color:var(--ink-600)">
+            Riseva calcule à partir de ce qui s'est réellement passé sur la plateforme et du coût
+            journalier moyen que vous avez renseigné. C'est votre expert-comptable qui arrête les
+            chiffres définitifs, et l'éligibilité de chaque association au mécénat reste à vérifier.</p>
+        </section>
+      </div>
+    </div>
+  </div>`);
+
+  el.querySelector("#att").onclick = () => modal("Attestation de mécénat",
+    `<p class="muted">L'attestation reprend les missions réalisées sur le temps de travail,
+     leur valorisation au coût de revient et le total de l'assiette. Elle est destinée à votre
+     comptabilité et aux associations bénéficiaires, qui doivent la contresigner.</p>
+     <p class="hint" style="margin-top:var(--s4)">Le coût journalier moyen actuellement retenu est
+     de ${eur(e.cout_jour_moyen || 300)}. Vous pouvez le corriger dans les paramètres de l'entreprise.</p>`,
+    [{ label:"Fermer" },
+     { label:"Imprimer", classe:"btn--primary", onClick: () => setTimeout(() => window.print(), 300) }]);
+
+  el.querySelector("#csvM").onclick = () => {
+    const ms = DB.missions({ entreprise: u.org })
+                 .filter(m => m.etat === "validee" || m.etat === "validee_auto");
+    versCSV("riseva-mecenat.csv",
+      ["Mission", "Association", "Format", "Sur le temps de travail", "Salarié", "Date",
+       "Quantité", "Valorisation"],
+      ms.map(m => { const a = DB.annonceDe(m), sal = DB.utilisateur(m.salarie);
+        const val = a.type === "benevolat_demi_journee" && a.temps_travail
+          ? m.quantite * v.coutDemiJournee
+          : (a.type === "don_financier" ? m.quantite : 0);
+        return [a.titre, (DB.association(a.asso) || {}).nom, BAREME[a.type].label,
+                a.temps_travail ? "oui" : "non", sal ? sal.nom : "—", m.date, m.quantite, val]; }));
+    toast("Export téléchargé.");
+  };
+  return el;
+}
+
+function vueRecus(u){
+  const aid = u.org;
+  const r = DB.reglagesRecus(aid);
+  const prets = DB.recusPrets(aid);
+  const recap = DB.recapRecus(aid);
+  const a = DB.association(aid);
+
+  const el = h(`<div class="two">
+    <section class="card" style="padding:var(--s8)">
+      <div class="between" style="margin-bottom:var(--s5)">
+        <h3>Vos reçus fiscaux</h3>
+        <span class="badge ${prets ? "badge--ok" : "badge--warn"}">${prets ? "Émission active" : "Incomplet"}</span>
+      </div>
+      <p class="muted" style="font-size:var(--t-sm)">
+        Riseva prépare le reçu et l'envoie au donateur, mais <strong style="color:var(--ink)">c'est
+        votre association qui l'émet</strong> : sous votre numéro d'ordre, avec votre signature, et
+        sous votre responsabilité. La loi ne permet pas à un tiers de délivrer un reçu à votre place.
+      </p>
+
+      <div class="stack" style="--gap:var(--s4);margin-top:var(--s6)">
+        <label class="checkline"><input type="checkbox" id="elig" ${r.eligible_mecenat ? "checked" : ""}>
+          <span>Je certifie que ${esc(a.nom)} est éligible au mécénat au sens de l'article 200
+          du CGI, et habilitée à délivrer des reçus fiscaux.</span></label>
+        <div class="row" style="gap:var(--s4);align-items:stretch">
+          <div class="field" style="flex:1"><label>Signataire habilité</label>
+            <input class="input" id="sig" value="${esc(r.signataire || "")}" placeholder="Prénom Nom"></div>
+          <div class="field" style="flex:1"><label>Qualité</label>
+            <input class="input" id="qual" value="${esc(r.qualite || "")}" placeholder="Président, trésorier..."></div>
+        </div>
+        <div class="row" style="gap:var(--s4);align-items:stretch">
+          <div class="field" style="flex:1"><label>Préfixe de numérotation</label>
+            <input class="input" id="pref" value="${esc(r.prefixe || "")}" placeholder="QV-2027-"></div>
+          <div class="field" style="width:180px"><label>Prochain numéro</label>
+            <input class="input" id="num" type="number" min="1" value="${r.prochain_numero || 1}"></div>
+        </div>
+        <label class="checkline"><input type="checkbox" id="actif" ${r.actif ? "checked" : ""}>
+          <span>Émettre automatiquement un reçu à chaque don encaissé.</span></label>
+      </div>
+
+      <button class="btn btn--primary" style="margin-top:var(--s6)" id="save">Enregistrer</button>
+      <p class="hint">Sans ces réglages, Riseva n'émet rien plutôt que d'émettre un reçu irrégulier.
+        Un reçu délivré à tort expose l'association à une amende égale à 25 % des sommes qui y
+        figurent (article 1740 A du CGI).</p>
+    </section>
+
+    <div class="stack" style="--gap:var(--s5)">
+      <section class="card kpi kpi--tete grain">
+        <span class="kpi__label">Dons de la saison</span>
+        <span class="kpi__value">${eur(recap.montant)}</span>
+        <span class="kpi__delta">${recap.nombre} reçu${recap.nombre > 1 ? "s" : ""} à émettre</span>
+      </section>
+
+      <section class="card">
+        <h3>Déclaration annuelle</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+          Depuis 2021, toute association qui délivre des reçus doit déclarer chaque année le
+          montant global des dons portés sur ses reçus et leur nombre, dans les trois mois
+          suivant la clôture de son exercice.</p>
+        <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
+          <div class="between"><span class="muted">Montant global</span>
+            <strong class="tnum">${eur(recap.montant)}</strong></div>
+          <div class="between"><span class="muted">Nombre de reçus</span>
+            <strong class="tnum">${recap.nombre}</strong></div>
+          <div class="between"><span class="muted">Exercice</span><span>${esc(recap.saison)}</span></div>
+        </div>
+        <button class="btn btn--ghost btn--block" style="margin-top:var(--s6)" id="csvR">Exporter le détail des dons</button>
+      </section>
+    </div>
+  </div>`);
+
+  el.querySelector("#save").onclick = () => {
+    DB.majReglagesRecus(aid, {
+      eligible_mecenat: el.querySelector("#elig").checked,
+      actif: el.querySelector("#actif").checked,
+      signataire: el.querySelector("#sig").value.trim(),
+      qualite: el.querySelector("#qual").value.trim(),
+      prefixe: el.querySelector("#pref").value.trim(),
+      prochain_numero: Number(el.querySelector("#num").value) || 1
+    });
+    toast(DB.recusPrets(aid) ? "Réglages enregistrés, l'émission est active."
+                             : "Enregistré. L'émission reste inactive tant qu'il manque un réglage.");
+    rendre();
+  };
+  el.querySelector("#csvR").onclick = () => {
+    const ms = DB.missions({ asso: aid })
+                 .filter(m => (DB.annonceDe(m) || {}).type === "don_financier"
+                           && (m.etat === "validee" || m.etat === "validee_auto"));
+    versCSV("riseva-dons.csv", ["Date", "Entreprise", "Donateur", "Montant", "Annonce"],
+      ms.map(m => { const an = DB.annonceDe(m), sal = DB.utilisateur(m.salarie);
+        return [m.date, (DB.entreprise(m.entreprise) || {}).nom, sal ? sal.nom : "—",
+                m.quantite, an.titre]; }));
+    toast("Export téléchargé.");
+  };
+  return el;
+}
+
 /* ------------------------------------------------------------------ */
 /* Routeur                                                             */
 /* ------------------------------------------------------------------ */
@@ -1562,6 +1773,7 @@ const ROUTES = {
     classement:[vueClassement,     "Classement"],
     equipe:    [vueEquipe,         "Équipe"],
     rapports:  [vueRapports,       "Rapports"],
+    mecenat:   [vueMecenat,        "Mécénat"],
     abonnement:[vueAbonnement,     "Abonnement"]
   },
   salarie: {
@@ -1576,7 +1788,8 @@ const ROUTES = {
     mesannonces:[(u) => { const d = h(`<section class="card"></section>`);
                           d.appendChild(tableAnnoncesAsso(DB.annonces({ asso: u.org }), u)); return d; }, "Mes annonces"],
     avalider:   [vueAValider,  "Missions à valider"],
-    page:       [vuePageAsso,  "Ma page publique"]
+    page:       [vuePageAsso,  "Ma page publique"],
+    recus:      [vueRecus,     "Reçus fiscaux"]
   },
   admin: {
     tableau:        [tableauAdmin,             "Tableau de bord"],

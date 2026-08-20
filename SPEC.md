@@ -153,6 +153,25 @@ panne en attente.
 - Interdit : promettre que le tarif restera identique pour les premières entreprises. Retiré le 29/07/2026,
   reconfirmé le 30/07/2026. Ne doit réapparaître nulle part.
 
+### Le reçu fiscal : qui l'émet
+
+**Seule l'association bénéficiaire peut délivrer un reçu fiscal.** Le document doit émaner de
+l'organisme, porter son numéro d'ordre dans une numérotation continue, et être signé par une
+personne habilitée. Aucun tiers ne peut le délivrer à sa place.
+
+Riseva **prépare et envoie**, l'association **émet et répond**. Concrètement :
+
+- L'association déclare son éligibilité au mécénat, désigne un signataire habilité et sa qualité,
+  et fournit son préfixe et son compteur de numérotation.
+- Tant qu'un de ces réglages manque, **la plateforme n'émet rien**. Émettre un reçu irrégulier
+  expose l'association à une amende égale à 25 % des sommes qui y figurent (article 1740 A du CGI).
+- Riseva fournit à l'association le récapitulatif dont elle a besoin pour sa **déclaration annuelle
+  des dons** (montant global porté sur les reçus et nombre de reçus), obligatoire depuis 2021,
+  à déposer dans les trois mois suivant la clôture de son exercice.
+
+Toute formulation laissant croire que Riseva émet le reçu « au nom de » l'association est à
+proscrire, sur le site comme en démarchage.
+
 ### Dons aux associations
 - Le formulaire de don est **hébergé sur Riseva** (widget partenaire HelloAsso intégré).
 - L'argent **ne transite pas par Riseva**. Il va directement à l'association.
@@ -160,6 +179,41 @@ panne en attente.
 - Statut du partenariat HelloAsso : **demande d'accès API déposée le 30/07/2026, sans réponse à ce jour.**
   Tant qu'elle n'a pas abouti, le code passe par une couche `PaiementProvider` avec deux implémentations
   possibles (`helloasso`, `stripe`) et une implémentation `mock` pour le développement.
+
+## 6 bis. Le mécénat, et ce qu'il rapporte au client
+
+C'est l'argument économique du produit, et il doit être exact.
+
+### Les deux formes qui ouvrent droit à réduction
+
+| | Déductible | Pourquoi |
+|---|---|---|
+| Don financier de l'entreprise | oui | Mécénat classique, article 238 bis du CGI |
+| Mission **sur le temps de travail** | oui | Mécénat de compétences : mise à disposition de personnel |
+| Mission sur le **temps personnel** | non | C'est du bénévolat, à l'initiative du salarié |
+
+La distinction est portée par l'annonce : l'association coche « sur le temps de travail » quand
+la mission est proposée pendant les heures ouvrées. Elle se propage à la mission et au calcul.
+
+### Les chiffres (millésime 2026, paramétrables)
+
+- **Réduction d'impôt : 60 %** du montant, ramenée à 40 % pour la fraction d'un même don qui
+  dépasse 2 M€.
+- **Plafond annuel** : le plus élevé entre **20 000 €** et **5 ‰ du chiffre d'affaires HT**.
+  L'excédent est reportable sur les **cinq exercices** suivants.
+- **Mécénat de compétences** : valorisation au **coût de revient** (rémunération brute chargée,
+  au prorata du temps mis à disposition), plafonnée à **trois fois le plafond mensuel de la
+  Sécurité sociale par salarié et par an**. PMSS 2026 = 4 005 €, soit **12 015 €**.
+
+Ces valeurs vivent dans un objet `FISCAL` et non dans le code des écrans : elles changent chaque
+année, le produit ne doit pas être redéployé pour ça.
+
+### Ce que Riseva dit, et ne dit pas
+
+Riseva produit une **estimation**, à partir de ce qui s'est réellement passé sur la plateforme et
+du coût journalier moyen renseigné par l'entreprise. C'est l'expert-comptable qui arrête les
+chiffres, et l'éligibilité de chaque association au mécénat reste à vérifier. Jamais de promesse
+de montant, jamais de « déclaration » prête à déposer.
 
 ## 7. Les associations
 

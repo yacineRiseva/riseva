@@ -25,6 +25,27 @@ export const CATEGORIES = [
 export const categorieDe = (effectif) =>
   CATEGORIES.find(c => effectif >= c.min && effectif <= c.max) || CATEGORIES[0];
 
+/* Cadre fiscal, sourcé et paramétrable plutôt que codé en dur : ces valeurs bougent
+   chaque année et le produit ne doit pas avoir à être redéployé pour ça.
+   - Réduction d'impôt mécénat : 60 % du don (art. 238 bis du CGI), 40 % au-delà de
+     2 M€ pour un même don.
+   - Plafond annuel : le plus élevé entre 20 000 € et 5 ‰ du chiffre d'affaires HT.
+     Excédent reportable sur les cinq exercices suivants.
+   - Mécénat de compétences : valorisation au coût de revient (rémunération brute
+     chargée, au prorata du temps), plafonnée à trois fois le plafond mensuel de la
+     Sécurité sociale par salarié et par an. PMSS 2026 = 4 005 €, donc 12 015 €. */
+export const FISCAL = {
+  annee: 2026,
+  taux_reduction: 0.60,
+  seuil_taux_reduit: 2_000_000,
+  taux_reduit: 0.40,
+  plafond_plancher: 20_000,
+  plafond_taux_ca: 0.005,
+  report_annees: 5,
+  pmss: 4005,
+  get plafond_mecenat_par_salarie(){ return this.pmss * 3; }
+};
+
 export const ETATS_MISSION = {
   engagee:      { label: "Engagée",            badge: "badge--info"   },
   a_valider:    { label: "À valider",          badge: "badge--warn"   },
@@ -44,19 +65,21 @@ const seed = {
     etat: "ouverte", prix_min: 3500, prix_max: 4000, acompte: 500
   },
   entreprises: [
-    { id:"e1", nom:"Lafarge Ciments",     effectif:210, sieges:210, points:12480, secteur:"Industrie",  ville:"Lyon" },
-    { id:"e2", nom:"Groupe Vidal",        effectif:340, sieges:350, points:18020, secteur:"Logistique", ville:"Lille" },
-    { id:"e3", nom:"Cabinet Marchand",    effectif:64,  sieges:75,  points:15470, secteur:"Conseil",    ville:"Paris" },
-    { id:"e4", nom:"Novaterre",           effectif:120, sieges:120, points:14100, secteur:"Agro",       ville:"Nantes" },
-    { id:"e5", nom:"Atelier Berthier",    effectif:38,  sieges:50,  points:11040, secteur:"Artisanat",  ville:"Toulouse" },
-    { id:"e6", nom:"Sirius Assurances",   effectif:520, sieges:500, points:9380,  secteur:"Assurance",  ville:"Bordeaux" },
-    { id:"e7", nom:"Delmas & Fils",       effectif:87,  sieges:100, points:7920,  secteur:"BTP",        ville:"Rennes" },
-    { id:"e8", nom:"Kervella Transport",  effectif:145, sieges:150, points:6410,  secteur:"Transport",  ville:"Brest" }
+    { id:"e1", nom:"Lafarge Ciments",     effectif:210, sieges:210, ca:48_000_000, cout_jour_moyen:340, points:12480, secteur:"Industrie",  ville:"Lyon" },
+    { id:"e2", nom:"Groupe Vidal",        effectif:340, sieges:350, ca:62_000_000, cout_jour_moyen:290, points:18020, secteur:"Logistique", ville:"Lille" },
+    { id:"e3", nom:"Cabinet Marchand",    effectif:64,  sieges:75,  ca:9_800_000,  cout_jour_moyen:520,  points:15470, secteur:"Conseil",    ville:"Paris" },
+    { id:"e4", nom:"Novaterre",           effectif:120, sieges:120, ca:21_000_000, cout_jour_moyen:310, points:14100, secteur:"Agro",       ville:"Nantes" },
+    { id:"e5", nom:"Atelier Berthier",    effectif:38,  sieges:50,  ca:3_400_000,  cout_jour_moyen:280,  points:11040, secteur:"Artisanat",  ville:"Toulouse" },
+    { id:"e6", nom:"Sirius Assurances",   effectif:520, sieges:500, ca:140_000_000, cout_jour_moyen:400, points:9380,  secteur:"Assurance",  ville:"Bordeaux" },
+    { id:"e7", nom:"Delmas & Fils",       effectif:87,  sieges:100, ca:12_000_000, cout_jour_moyen:300, points:7920,  secteur:"BTP",        ville:"Rennes" },
+    { id:"e8", nom:"Kervella Transport",  effectif:145, sieges:150, ca:18_000_000, cout_jour_moyen:270, points:6410,  secteur:"Transport",  ville:"Brest" }
   ],
   associations: [
     { id:"a1", nom:"Refuge des Quatre Vents", ville:"Saint-Étienne", cause:"Protection animale",
       resume:"Refuge de 180 places qui recueille chiens et chats abandonnés depuis 1998.",
-      site:"", valide:true },
+      site:"", valide:true, rna:"W423001234",
+      recus:{ actif:true, eligible_mecenat:true, signataire:"Élise Tournier",
+              qualite:"Présidente", prochain_numero:47, prefixe:"QV-2027-" } },
     { id:"a2", nom:"Racines Vives", ville:"Clermont-Ferrand", cause:"Reforestation",
       resume:"Replantation de haies bocagères et de forêts mixtes sur des parcelles agricoles.",
       site:"", valide:true },
@@ -71,10 +94,10 @@ const seed = {
       site:"", valide:false }
   ],
   annonces: [
-    { id:"an1", asso:"a1", type:"benevolat_demi_journee", titre:"Sortie des chiens et entretien des box",
+    { id:"an1", asso:"a1", type:"benevolat_demi_journee", temps_travail:false, titre:"Sortie des chiens et entretien des box",
       description:"Nous manquons de bras le samedi matin. Six personnes suffisent pour sortir 40 chiens et remettre les box en état.",
       quantite:6, restant:4, date:J(9), lieu:"Saint-Étienne", etat:"ouverte" },
-    { id:"an2", asso:"a2", type:"benevolat_demi_journee", titre:"Plantation de 400 arbres à Beaumont",
+    { id:"an2", asso:"a2", type:"benevolat_demi_journee", temps_travail:true, titre:"Plantation de 400 arbres à Beaumont",
       description:"Chantier de plantation sur une parcelle de deux hectares. Aucune compétence particulière requise, on fournit le matériel.",
       quantite:12, restant:9, date:J(16), lieu:"Beaumont (63)", etat:"ouverte" },
     { id:"an3", asso:"a3", type:"don_materiel", titre:"Waders et gants de protection",
@@ -89,7 +112,7 @@ const seed = {
     { id:"an6", asso:"a2", type:"don_financier", titre:"Achat de 1 200 plants de charme",
       description:"Un plant coûte 2,10 € livré. Objectif : sécuriser la campagne de plantation d'automne.",
       quantite:2520, restant:2520, date:J(52), lieu:"Clermont-Ferrand", etat:"ouverte" },
-    { id:"an7", asso:"a3", type:"benevolat_demi_journee", titre:"Nettoyage des berges, secteur amont",
+    { id:"an7", asso:"a3", type:"benevolat_demi_journee", temps_travail:true, titre:"Nettoyage des berges, secteur amont",
       description:"Ramassage sur trois kilomètres de berges. Prévoir des bottes.",
       quantite:15, restant:0, date:J(-4), lieu:"Roanne", etat:"close" }
   ],
@@ -465,6 +488,85 @@ function creerMock(){
       s.associations.filter(a => a.valide).forEach(a => j.push({ date:s.saison.debut,
         type:"association_validee", vers:a.nom, sujet:`${a.nom} est en ligne`, etat:"envoyé" }));
       return j.sort((x, y) => String(y.date).localeCompare(String(x.date)));
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* Mécénat                                                            */
+    /* ------------------------------------------------------------------ */
+    /* Une mission n'est valorisable en mécénat de compétences que si elle a eu lieu
+       sur le temps de travail, à l'initiative de l'entreprise. Une demi-journée un
+       samedi matin, c'est du bénévolat : estimable, mais pas déductible. */
+    valorisationMecenat(eid){
+      const ms = api.missions({ entreprise: eid })
+                   .filter(m => m.etat === "validee" || m.etat === "validee_auto");
+      const e = api.entreprise(eid) || {};
+      const coutDemiJournee = (e.cout_jour_moyen || 300) / 2;
+
+      const parSalarie = {};
+      let dons = 0, demiJourneesTT = 0, demiJourneesPerso = 0;
+
+      ms.forEach(m => {
+        const a = api.annonceDe(m); if (!a) return;
+        if (a.type === "don_financier"){ dons += Number(m.quantite) || 0; return; }
+        if (a.type !== "benevolat_demi_journee") return;
+        if (!a.temps_travail){ demiJourneesPerso += m.quantite; return; }
+        demiJourneesTT += m.quantite;
+        parSalarie[m.salarie] = (parSalarie[m.salarie] || 0) + m.quantite * coutDemiJournee;
+      });
+
+      const plafondSal = FISCAL.plafond_mecenat_par_salarie;
+      let competencesBrut = 0, competencesRetenu = 0;
+      Object.values(parSalarie).forEach(v => {
+        competencesBrut += v;
+        competencesRetenu += Math.min(v, plafondSal);
+      });
+
+      const assiette = dons + competencesRetenu;
+      const plafondEntreprise = Math.max(FISCAL.plafond_plancher,
+        Math.round((e.ca || 0) * FISCAL.plafond_taux_ca));
+      const assietteRetenue = Math.min(assiette, plafondEntreprise);
+      const reportable = Math.max(0, assiette - plafondEntreprise);
+      const reduction = Math.round(assietteRetenue * FISCAL.taux_reduction);
+
+      return {
+        dons, demiJourneesTT, demiJourneesPerso,
+        coutDemiJournee, competencesBrut, competencesRetenu,
+        ecreteParSalarie: competencesBrut - competencesRetenu,
+        plafondSalarie: plafondSal,
+        assiette, plafondEntreprise, assietteRetenue, reportable, reduction,
+        salariesConcernes: Object.keys(parSalarie).length
+      };
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* Reçus fiscaux                                                      */
+    /* ------------------------------------------------------------------ */
+    /* Riseva prépare et envoie. L'émetteur reste l'association : c'est elle qui porte
+       le numéro d'ordre, la signature et la responsabilité (art. 1740 A du CGI).
+       Sans réglages complets, la plateforme refuse d'émettre. */
+    reglagesRecus: (aid) => (api.association(aid) || {}).recus || {
+      actif:false, eligible_mecenat:false, signataire:"", qualite:"",
+      prochain_numero:1, prefixe:"" },
+    majReglagesRecus(aid, champs){
+      const a = api.association(aid); if (!a) return null;
+      a.recus = { ...api.reglagesRecus(aid), ...champs };
+      return a.recus;
+    },
+    recusPrets(aid){
+      const r = api.reglagesRecus(aid);
+      return !!(r.actif && r.eligible_mecenat && r.signataire && r.qualite && r.prefixe);
+    },
+    /* Récapitulatif à reporter dans la déclaration annuelle des dons, obligatoire
+       depuis 2021 : montant global des dons portés sur les reçus, et nombre de reçus. */
+    recapRecus(aid){
+      const ms = api.missions({ asso: aid })
+                   .filter(m => m.etat === "validee" || m.etat === "validee_auto");
+      let montant = 0, nombre = 0;
+      ms.forEach(m => {
+        const a = api.annonceDe(m);
+        if (a && a.type === "don_financier"){ montant += Number(m.quantite) || 0; nombre++; }
+      });
+      return { montant, nombre, saison: s.saison.nom };
     },
 
     /* --- rapports --- */
