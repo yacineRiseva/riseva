@@ -6,27 +6,46 @@ signature. Riseva le fournit parce qu'un client qui doit l'écrire lui-même ne 
 
 ---
 
-## Avant de choisir le modèle : deux montages, deux régimes
+## Le bon fondement juridique
 
-Le mécénat de compétences prend l'une ou l'autre de ces formes, et elles n'ont pas les mêmes
-obligations. Choisir au hasard, c'est prendre le risque d'un prêt de main-d'œuvre illicite
-(article L. 8241-1 du code du travail).
+Mettre un salarié à disposition d'une association, c'est du prêt de main-d'œuvre. Prêter à but
+lucratif est interdit (article L. 8241-1 du code du travail) : il faut donc se placer dans un
+régime dérogatoire, et il y en a deux. Choisir le mauvais, c'est risquer la requalification en
+prêt illicite.
 
-| | Prestation de service | Prêt de main-d'œuvre à but non lucratif |
+| | **L. 8241-3**, le bon régime ici | L. 8241-2, le régime général |
 |---|---|---|
-| Objet | Une tâche déterminée et délimitée | Une mission générale et évolutive |
-| Qui dirige au quotidien | L'entreprise mécène | L'association bénéficiaire |
-| Pièces | Convention de mécénat | Convention **+ avenant au contrat de travail + accord écrit du salarié + consultation du CSE** |
-| Base légale | Article 238 bis du CGI | Articles L. 8241-1 et L. 8241-2 du code du travail |
+| Bénéficiaire | Organismes visés aux a à g du 1 de l'article 238 bis du CGI, donc les associations éligibles au mécénat | Toute entreprise |
+| Condition d'effectif du prêteur | **Aucune** dans ce cas | — |
+| Gratuité | **Expressément autorisée** : facturation possible à zéro | Refacturation à l'euro près exigée |
+| Durée | Trois ans maximum | — |
+| But lucratif | Réputé absent par le texte | À démontrer |
+| Pièces | Convention conforme à R. 8241-2 + accord exprès et écrit du salarié + information du CSE | Convention + **avenant au contrat de travail** + accord du salarié + consultation du CSE |
 
-**Dans les deux cas, le lien de subordination reste chez l'employeur.** Le salarié continue
-d'être rémunéré par son entreprise et reste couvert par elle au titre des accidents du travail.
+Pour Riseva, c'est **L. 8241-3** qui s'applique : les associations partenaires sont éligibles au
+mécénat, la mise à disposition est gratuite, et la durée se compte en demi-journées.
 
-Pour les missions courtes proposées sur Riseva (une à quelques demi-journées, une tâche précise
-décrite dans l'annonce), la **prestation de service** est en général la qualification juste :
-le besoin est délimité, la mission n'évolue pas. Dès que l'association encadre réellement le
-salarié dans la durée, on bascule sur le régime du prêt de main-d'œuvre et les trois pièces
-supplémentaires deviennent obligatoires.
+### Les cinq mentions exigées par l'article R. 8241-2
+
+La convention **doit** contenir, sous peine d'être inopposable :
+
+1. l'identité et la qualification du salarié concerné ;
+2. le mode de détermination des salaires, charges sociales et frais professionnels facturés
+   (ici : néant, la mise à disposition étant gratuite) ;
+3. la durée de la mise à disposition ;
+4. la finalité de l'opération au regard de l'article L. 8241-3 ;
+5. les missions confiées au salarié.
+
+S'y ajoutent trois obligations qui ne sont pas dans la convention mais qui conditionnent sa
+validité :
+
+- **L'accord exprès et écrit du salarié.** Un refus ne peut donner lieu ni à sanction, ni à
+  licenciement, ni à mesure discriminatoire.
+- **Le maintien du contrat de travail.** Le salarié reste rémunéré par son employeur, sous son
+  autorité, et conserve ses droits conventionnels. Il reste couvert par elle au titre des
+  accidents du travail.
+- **L'information du comité social et économique** : nombre de conventions conclues et postes
+  concernés, versés à la base de données économiques, sociales et environnementales.
 
 ---
 
@@ -87,9 +106,19 @@ et des accords d'entreprise.
 Le Salarié a donné son **accord exprès et écrit** à cette mise à disposition. Un refus de sa
 part n'aurait entraîné ni sanction, ni rupture, ni mesure discriminatoire.
 
-*[Si la mission relève du prêt de main-d'œuvre : ajouter ici la référence à l'avenant au contrat
-de travail conclu le [date], précisant les tâches confiées, les horaires et le lieu d'exécution,
-et mentionner la consultation préalable du comité social et économique intervenue le [date].]*
+**Mentions de l'article R. 8241-2**
+
+| Mention exigée | Valeur |
+|---|---|
+| Identité du salarié | [nom] |
+| Qualification | [poste, classification] |
+| Durée de la mise à disposition | [n] demi-journées, le [dates] |
+| Finalité au regard de L. 8241-3 | Mécénat de compétences au profit d'un organisme d'intérêt général éligible à l'article 238 bis du CGI |
+| Salaires, charges et frais facturés | Néant. La mise à disposition est gratuite, l'Entreprise conserve la charge intégrale de la rémunération |
+
+L'Entreprise communique au comité social et économique le nombre de conventions conclues au titre
+de l'article L. 8241-3 et les postes concernés, dans le cadre de la base de données économiques,
+sociales et environnementales.
 
 ### Article 4 — Encadrement et sécurité
 
@@ -127,8 +156,10 @@ Cette valorisation est plafonnée, par salarié et par exercice, à **trois fois
 de la Sécurité sociale**, soit **12 015 € pour 2026**.
 
 L'Association reconnaît avoir bénéficié de cette mise à disposition. Elle établit, si elle y est
-habilitée, le reçu fiscal correspondant, **au modèle Cerfa 16216\*01** applicable aux dons des
-entreprises (article 238 bis du CGI), sous sa propre numérotation et sa signature.
+habilitée, le reçu fiscal correspondant, **au modèle 2041-MEC-SD, Cerfa 16216\*03**, millésime en
+vigueur en 2026 pour les dons des entreprises (article 238 bis du CGI), sous sa propre numérotation
+et sa signature. Un millésime périmé peut être écarté en cas de contrôle : vérifiez la version
+en vigueur sur impots.gouv.fr avant d'éditer.
 
 Ni l'Entreprise ni Riseva ne certifient l'éligibilité fiscale de l'Association. Celle-ci la
 déclare et en répond.
@@ -142,7 +173,8 @@ communication sans son accord écrit préalable.
 ### Article 8 — Durée, modification, résiliation
 
 La présente convention prend effet à sa signature et s'achève à la fin de la mission décrite
-à l'article 2. Toute modification fait l'objet d'un avenant écrit.
+à l'article 2. Sa durée ne peut en aucun cas excéder trois ans, plafond fixé par l'article
+L. 8241-3. Toute modification fait l'objet d'un avenant écrit.
 
 Chaque partie peut y mettre fin par écrit, sans préavis en cas de manquement grave, et sous
 sept jours dans les autres cas. Le Salarié peut interrompre la mission à tout moment et

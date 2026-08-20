@@ -215,8 +215,11 @@ def main():
         doc.wait_for_timeout(400)
         d = norm(doc.inner_text("body"))
         verifie("la convention est préremplie", "Convention de mécénat de compétences" in d)
-        verifie("elle cite le bon Cerfa", "16216" in d)
-        verifie("elle avertit sur le prêt de main-d'œuvre", "L. 8241-2" in d)
+        verifie("elle cite le millésime en vigueur du Cerfa", "16216*03" in d)
+        verifie("elle se fonde sur le bon article", "L. 8241-3" in d)
+        verifie("elle contient les mentions de R. 8241-2",
+                "Finalité au regard" in d and "Salaires, charges et frais facturés" in d
+                and "accord exprès et écrit" in d)
         verifie("Riseva n'est pas partie à l'acte", "n'est pas partie" in d)
         doc.close()
 

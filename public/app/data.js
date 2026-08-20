@@ -43,7 +43,14 @@ export const FISCAL = {
   plafond_taux_ca: 0.005,
   report_annees: 5,
   pmss: 4005,
-  get plafond_mecenat_par_salarie(){ return this.pmss * 3; }
+  get plafond_mecenat_par_salarie(){ return this.pmss * 3; },
+
+  /* Les millésimes des formulaires changent, et un ancien modèle peut être écarté
+     en cas de contrôle. Ils vivent donc ici, pas dans le code des écrans.
+     Vérifiés le 20/08/2026 sur impots.gouv.fr. */
+  cerfa_particulier: "11580*05",   // 2041-RD, dons des particuliers, art. 200 du CGI
+  cerfa_entreprise:  "16216*03",   // 2041-MEC-SD, dons des entreprises, art. 238 bis du CGI
+  duree_max_mise_a_disposition_ans: 3   // article L. 8241-3 du code du travail
 };
 
 export const ETATS_MISSION = {

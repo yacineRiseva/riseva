@@ -2335,13 +2335,28 @@ function ouvrirConvention(u, m){
   <p>La mission se déroule sur le temps de travail du Salarié, à l'initiative de l'Entreprise.</p>
 
   <h2>Article 3 — Statut du salarié</h2>
-  <p>Le Salarié demeure salarié de l'Entreprise pendant toute la durée de la mission. Il continue
-  d'être rémunéré par elle et reste soumis à son autorité hiérarchique. Il a donné son accord
-  exprès ; un refus n'aurait entraîné aucune sanction.</p>
-  <div class="note">Si l'Association encadre réellement le Salarié au quotidien, la mise à
-  disposition relève du prêt de main-d'œuvre à but non lucratif (articles L. 8241-1 et L. 8241-2
-  du code du travail). Il faut alors y ajouter un avenant au contrat de travail, l'accord écrit
-  du Salarié et la consultation préalable du comité social et économique.</div>
+  <table>
+    <tr><td>Identité du Salarié</td><td>${esc(sal ? sal.nom : "")}</td></tr>
+    <tr><td>Qualification</td><td>${champ("")}</td></tr>
+    <tr><td>Durée de la mise à disposition</td><td>${m.quantite} demi-journée${m.quantite > 1 ? "s" : ""}, le ${dateFR(m.date)}</td></tr>
+    <tr><td>Finalité au regard de L. 8241-3</td><td>Mécénat de compétences au profit d'un organisme
+      d'intérêt général éligible à l'article 238 bis du CGI</td></tr>
+    <tr><td>Salaires, charges et frais facturés</td><td>Néant. La mise à disposition est consentie
+      à titre gratuit, l'Entreprise conserve la charge intégrale de la rémunération</td></tr>
+  </table>
+  <p>Le contrat de travail conclu avec l'Entreprise demeure en vigueur. Le Salarié continue d'être
+  rémunéré par elle, reste soumis à son autorité hiérarchique et conserve l'ensemble de ses droits
+  conventionnels.</p>
+  <p>Le Salarié a donné son <strong>accord exprès et écrit</strong> à cette mise à disposition.
+  Un refus n'aurait pu donner lieu ni à sanction, ni à licenciement, ni à mesure discriminatoire.</p>
+  <div class="note">La présente mise à disposition est consentie sur le fondement de
+  l'<strong>article L. 8241-3 du code du travail</strong>, qui autorise le prêt de main-d'œuvre
+  à titre gratuit au profit des organismes visés aux a à g du 1 de l'article 238 bis du CGI.
+  À ce titre, la condition d'effectif de 5 000 salariés ne s'applique pas, la gratuité est
+  expressément permise, et l'opération n'a pas de but lucratif. Sa durée ne peut excéder
+  ${FISCAL.duree_max_mise_a_disposition_ans} ans.<br><br>
+  L'employeur communique au comité social et économique le nombre de conventions conclues et les
+  postes concernés, au titre de la base de données économiques, sociales et environnementales.</div>
 
   <h2>Article 4 — Encadrement, sécurité et assurances</h2>
   <p>L'Association accueille le Salarié, lui présente les consignes de sécurité et fournit les
@@ -2363,7 +2378,8 @@ function ouvrirConvention(u, m){
       le plafond mensuel de la Sécurité sociale</td></tr>
   </table>
   <p>L'Association reconnaît avoir bénéficié de cette mise à disposition et établit, si elle y
-  est habilitée, le reçu fiscal au modèle Cerfa 16216*01 applicable aux dons des entreprises,
+  est habilitée, le reçu fiscal au modèle Cerfa ${FISCAL.cerfa_entreprise} applicable aux dons
+  des entreprises,
   sous sa propre numérotation et sa signature. Ni l'Entreprise ni Riseva ne certifient
   l'éligibilité fiscale de l'Association.</p>
 
@@ -2412,10 +2428,10 @@ function vueRecus(u){
       </p>
       <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
         <div class="row" style="align-items:flex-start;gap:var(--s3)">
-          <span class="badge">Cerfa 11580*05</span>
+          <span class="badge">Cerfa ${esc(FISCAL.cerfa_particulier)}</span>
           <span class="muted">Don d'un salarié à titre personnel, article 200 du CGI.</span></div>
         <div class="row" style="align-items:flex-start;gap:var(--s3)">
-          <span class="badge">Cerfa 16216*01</span>
+          <span class="badge">Cerfa ${esc(FISCAL.cerfa_entreprise)}</span>
           <span class="muted">Don ou mécénat de l'entreprise, article 238 bis du CGI.
             Obligatoire depuis le 1<sup>er</sup> janvier 2022.</span></div>
       </div>

@@ -157,8 +157,11 @@ panne en attente.
 
 | Qui donne | Modèle | Base légale |
 |---|---|---|
-| Un salarié, de sa poche | **Cerfa 11580*05** | Article 200 du CGI |
-| L'entreprise (don ou mécénat de compétences) | **Cerfa 16216*01** | Article 238 bis du CGI, obligatoire depuis le 01/01/2022 |
+| Un salarié, de sa poche | **Cerfa 11580*05** (2041-RD) | Article 200 du CGI |
+| L'entreprise (don ou mécénat de compétences) | **Cerfa 16216*03** (2041-MEC-SD), millésime 2026 | Article 238 bis du CGI, obligatoire depuis le 01/01/2022 |
+
+Les millésimes changent, et un modèle périmé peut être écarté en cas de contrôle. Ils vivent
+donc dans l'objet `FISCAL` et sont datés de leur dernière vérification.
 
 Un salarié qui donne personnellement reste un particulier, même si son geste rapporte des points
 à son entreprise. Se tromper de modèle, c'est un reçu inopposable.
@@ -193,6 +196,17 @@ proscrire, sur le site comme en démarchage.
 ## 6 bis. Le mécénat, et ce qu'il rapporte au client
 
 C'est l'argument économique du produit, et il doit être exact.
+
+### Le fondement juridique de la mise à disposition
+
+Prêter un salarié à titre lucratif est interdit. Riseva se place sous l'**article L. 8241-3 du
+code du travail**, qui autorise le prêt gratuit au profit des organismes visés aux a à g du 1 de
+l'article 238 bis du CGI. Dans ce cadre : aucune condition d'effectif pour l'entreprise prêteuse,
+gratuité expressément permise, durée maximale de trois ans, et pas de but lucratif à démontrer.
+
+La convention doit contenir les cinq mentions de l'article R. 8241-2, et il faut l'accord exprès
+et écrit du salarié ainsi que l'information du CSE. La plateforme génère la convention préremplie
+avec ces mentions.
 
 ### Les deux formes qui ouvrent droit à réduction
 
