@@ -153,6 +153,16 @@ panne en attente.
 - Interdit : promettre que le tarif restera identique pour les premières entreprises. Retiré le 29/07/2026,
   reconfirmé le 30/07/2026. Ne doit réapparaître nulle part.
 
+### Deux modèles de reçu, et ils ne sont pas interchangeables
+
+| Qui donne | Modèle | Base légale |
+|---|---|---|
+| Un salarié, de sa poche | **Cerfa 11580*05** | Article 200 du CGI |
+| L'entreprise (don ou mécénat de compétences) | **Cerfa 16216*01** | Article 238 bis du CGI, obligatoire depuis le 01/01/2022 |
+
+Un salarié qui donne personnellement reste un particulier, même si son geste rapporte des points
+à son entreprise. Se tromper de modèle, c'est un reçu inopposable.
+
 ### Le reçu fiscal : qui l'émet
 
 **Seule l'association bénéficiaire peut délivrer un reçu fiscal.** Le document doit émaner de

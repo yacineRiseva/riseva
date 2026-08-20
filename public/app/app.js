@@ -30,7 +30,8 @@ const MENUS = {
       ["tableau",    "Tableau de bord", "dashboard"],
       ["annonces",   "Annonces",        "megaphone"],
       ["missions",   "Nos missions",    "check"],
-      ["classement", "Classement",      "trophy"]
+      ["classement", "Classement",      "trophy"],
+      ["annuaire",   "Associations",    "heart"]
     ]},
     { groupe: "Entreprise", items: [
       ["equipe",     "Équipe",       "users"],
@@ -45,7 +46,8 @@ const MENUS = {
       ["tableau",    "Tableau de bord", "dashboard"],
       ["annonces",   "Annonces",        "megaphone"],
       ["missions",   "Mes missions",    "check"],
-      ["classement", "Classement",      "trophy"]
+      ["classement", "Classement",      "trophy"],
+      ["annuaire",   "Associations",    "heart"]
     ]},
     { groupe: "Moi", items: [
       ["activite", "Mon activité", "users"]
@@ -573,6 +575,74 @@ function vueAnnonces(u){
   return el;
 }
 
+function vueAnnuaire(u){
+  const assos = DB.associations().filter(a => a.valide);
+  const causes = [...new Set(assos.map(a => a.cause).filter(Boolean))].sort();
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <section class="card card--pad-sm">
+      <div class="row" style="gap:var(--s3);flex-wrap:wrap">
+        <input class="input" id="q" placeholder="Rechercher une association, une ville, une cause" style="flex:1;min-width:240px">
+        <select class="select" id="cause" style="width:230px">
+          <option value="">Toutes les causes</option>
+          ${causes.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("")}
+        </select>
+        <select class="select" id="tri" style="width:200px">
+          <option value="nom">Ordre alphabétique</option>
+          <option value="annonces">Le plus de besoins</option>
+        </select>
+      </div>
+    </section>
+    <div id="liste" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))"></div>
+  </div>`);
+
+  const dessine = () => {
+    const q = el.querySelector("#q").value.trim().toLowerCase();
+    const cause = el.querySelector("#cause").value;
+    const tri = el.querySelector("#tri").value;
+    let l = assos.filter(a => (!cause || a.cause === cause) &&
+      (!q || (a.nom + " " + a.ville + " " + a.cause + " " + a.resume).toLowerCase().includes(q)));
+    const nbAnn = (a) => DB.annonces({ asso: a.id, ouvertes: true }).length;
+    l = [...l].sort((a, b) => tri === "annonces" ? nbAnn(b) - nbAnn(a) : a.nom.localeCompare(b.nom));
+
+    const box = el.querySelector("#liste");
+    box.innerHTML = "";
+    if (!l.length){
+      box.appendChild(vide({ titre:"Aucune association", texte:"Aucune ne correspond à cette recherche." }));
+      return;
+    }
+    l.forEach(a => {
+      const n = nbAnn(a);
+      const c = h(`<article class="card card--hover stack" style="--gap:var(--s3)">
+        <div class="row" style="gap:var(--s3);flex-wrap:wrap">
+          <span class="badge badge--brand">${esc(a.cause || "Association")}</span>
+          <span class="muted" style="font-size:var(--t-sm)">${esc(a.ville)}</span>
+        </div>
+        <h3>${esc(a.nom)}</h3>
+        <p class="muted" style="font-size:var(--t-sm)">${esc(a.resume)}</p>
+        <div class="between" style="margin-top:auto;padding-top:var(--s4);border-top:var(--line-soft)">
+          <span class="muted" style="font-size:var(--t-sm)">${n} besoin${n > 1 ? "s" : ""} ouvert${n > 1 ? "s" : ""}</span>
+          <span class="row" style="gap:var(--s2)">
+            <a class="btn btn--quiet btn--sm" href="/asso.html?id=${a.id}" target="_blank">Sa page</a>
+            <button class="btn btn--ghost btn--sm">Ses annonces</button>
+          </span>
+        </div>
+      </article>`);
+      c.querySelector("button").onclick = () => {
+        location.hash = "#/annonces";
+        setTimeout(() => {
+          const sel = document.querySelector("#asso");
+          if (sel){ sel.value = a.id; sel.dispatchEvent(new Event("change")); }
+        }, 120);
+      };
+      box.appendChild(c);
+    });
+  };
+  el.querySelector("#q").addEventListener("input", dessine);
+  ["cause","tri"].forEach(id => el.querySelector("#" + id).addEventListener("change", dessine));
+  dessine();
+  return el;
+}
+
 function vueMissions(u){
   const filtre = u.role === "salarie" ? { salarie: u.id } : { entreprise: u.org };
   const ms = DB.missions(filtre);
@@ -756,6 +826,24 @@ function vueEquipe(u){
 
       <section class="card">
         <div class="between" style="margin-bottom:var(--s4)">
+          <h3>Domaines autorisés</h3>
+          <span class="badge ${DB.domaines(eid).length ? "badge--ok" : "badge--danger"}">${
+            DB.domaines(eid).length ? "Restreint" : "Ouvert à tous"}</span>
+        </div>
+        <p class="muted" style="font-size:var(--t-sm)">
+          Seules les adresses de ces domaines peuvent créer un compte avec votre lien.
+          <strong style="color:var(--ink)">Sans restriction, un lien qui fuite laisse
+          n'importe qui entrer chez vous.</strong></p>
+        <div class="field" style="margin-top:var(--s5)">
+          <input class="input" id="dom" value="${esc(DB.domaines(eid).join(", "))}"
+            placeholder="entreprise.fr, filiale.com">
+          <p class="hint">Séparés par des virgules. Laisser vide retire la protection.</p>
+        </div>
+        <button class="btn btn--primary btn--sm" style="margin-top:var(--s3)" id="saveDom">Enregistrer</button>
+      </section>
+
+      <section class="card">
+        <div class="between" style="margin-bottom:var(--s4)">
           <h3>Lien d'inscription</h3>
           ${inv ? `<span class="badge badge--ok"><span class="dot"></span>Actif</span>`
                 : `<span class="badge badge--warn">Aucun lien</span>`}
@@ -842,6 +930,12 @@ function vueEquipe(u){
   partis.forEach(g => tb.appendChild(ligne(g)));
   if (!gens.length) tb.appendChild(h(`<tr><td colspan="5" class="empty">Personne pour l'instant. Diffusez le lien d'inscription.</td></tr>`));
 
+  el.querySelector("#saveDom").onclick = () => {
+    const l = el.querySelector("#dom").value.split(",").filter(x => x.trim());
+    DB.majDomaines(eid, l);
+    toast(l.length ? "Domaines enregistrés." : "Restriction retirée.");
+    rendre();
+  };
   el.querySelector("#copy")?.addEventListener("click", () => {
     const champ = el.querySelector("#lien");
     champ.select();
@@ -1184,6 +1278,16 @@ function vueParametres(u){
       </section>
 
       <section class="card">
+        <div class="between" style="margin-bottom:var(--s4)">
+          <h3>Journal des accès</h3>
+          <button class="btn btn--ghost btn--sm" id="csvA">Exporter</button>
+        </div>
+        <p class="muted" style="font-size:var(--t-sm)">
+          Qui a rejoint, quand, avec quel lien, et ce qui a été révoqué. Conservé toute la saison.</p>
+        <div style="margin-top:var(--s5);max-height:260px;overflow:auto" id="acces"></div>
+      </section>
+
+      <section class="card">
         <h3>Vos données</h3>
         <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
           <div class="between"><span class="muted">Hébergement</span><span>Union européenne</span></div>
@@ -1209,6 +1313,29 @@ function vueParametres(u){
       effectif: Number(v("eff")) || e.effectif
     });
     toast("Paramètres enregistrés."); rendre();
+  };
+  const libelles = { inscription:"Inscription", creation_lien:"Création du lien",
+                     revocation_lien:"Révocation du lien", retrait:"Retrait d'un salarié" };
+  const boxA = el.querySelector("#acces");
+  const journalAcces = DB.acces(u.org);
+  if (!journalAcces.length) boxA.appendChild(h(`<p class="muted" style="font-size:var(--t-sm)">Rien encore.</p>`));
+  else {
+    const t = h(`<table class="table"><tbody></tbody></table>`);
+    journalAcces.forEach(a => {
+      const who = a.utilisateur ? DB.utilisateur(a.utilisateur) : null;
+      t.querySelector("tbody").appendChild(h(`<tr>
+        <td class="muted tnum" style="width:70px">${dateCourte(a.date)}</td>
+        <td><strong>${esc(libelles[a.quoi] || a.quoi)}</strong>${who ? ` — ${esc(who.nom)}` : ""}</td>
+        <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs);text-align:right">${esc(a.code || "")}</td>
+      </tr>`));
+    });
+    boxA.appendChild(t);
+  }
+  el.querySelector("#csvA").onclick = () => {
+    versCSV("riseva-journal-acces.csv", ["Date", "Événement", "Personne", "Lien"],
+      journalAcces.map(a => { const w = a.utilisateur ? DB.utilisateur(a.utilisateur) : null;
+        return [a.date, libelles[a.quoi] || a.quoi, w ? w.nom : "", a.code || ""]; }));
+    toast("Export téléchargé.");
   };
   el.querySelector("#exp").onclick = () => {
     const ms = DB.missions({ entreprise: u.org });
@@ -1939,6 +2066,17 @@ function vueRecus(u){
         votre association qui l'émet</strong> : sous votre numéro d'ordre, avec votre signature, et
         sous votre responsabilité. La loi ne permet pas à un tiers de délivrer un reçu à votre place.
       </p>
+      <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
+        <div class="row" style="align-items:flex-start;gap:var(--s3)">
+          <span class="badge">Cerfa 11580*05</span>
+          <span class="muted">Don d'un salarié à titre personnel, article 200 du CGI.</span></div>
+        <div class="row" style="align-items:flex-start;gap:var(--s3)">
+          <span class="badge">Cerfa 16216*01</span>
+          <span class="muted">Don ou mécénat de l'entreprise, article 238 bis du CGI.
+            Obligatoire depuis le 1<sup>er</sup> janvier 2022.</span></div>
+      </div>
+      <p class="hint">Riseva choisit le bon modèle selon l'origine du don. Vous pouvez l'adapter
+        à vos couleurs, à condition de conserver toutes les mentions obligatoires.</p>
 
       <div class="stack" style="--gap:var(--s4);margin-top:var(--s6)">
         <label class="checkline"><input type="checkbox" id="elig" ${r.eligible_mecenat ? "checked" : ""}>
@@ -2073,6 +2211,7 @@ const ROUTES = {
     annonces:  [vueAnnonces,       "Annonces"],
     missions:  [vueMissions,       "Nos missions"],
     classement:[vueClassement,     "Classement"],
+    annuaire:  [vueAnnuaire,       "Associations"],
     equipe:    [vueEquipe,         "Équipe"],
     rapports:  [vueRapports,       "Rapports"],
     mecenat:   [vueMecenat,        "Mécénat"],
@@ -2085,6 +2224,7 @@ const ROUTES = {
     annonces:  [vueAnnonces,       "Annonces"],
     missions:  [vueMissions,       "Mes missions"],
     classement:[vueClassement,     "Classement"],
+    annuaire:  [vueAnnuaire,       "Associations"],
     activite:  [vueActivite,       "Mon activité"],
     preferences:[vuePreferences,   "Préférences"]
   },

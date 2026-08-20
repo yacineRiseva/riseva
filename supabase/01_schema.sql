@@ -44,6 +44,13 @@ create table entreprise (
   ville     text,
   effectif  integer check (effectif >= 0),
   sieges    integer not null default 0 check (sieges >= 0),  -- places de l'abonnement
+  ca                integer,        -- chiffre d'affaires HT, pour le plafond de 5 pour mille
+  cout_jour_moyen   integer,        -- coût chargé d'une journée salarié, pour la valorisation
+  siret     text,
+  adresse   text,
+  -- Domaines de messagerie acceptés par le lien d'inscription. Vide = aucune restriction,
+  -- ce que l'interface signale comme un risque.
+  domaines  text[] not null default '{}',
   cree_le   timestamptz not null default now()
 );
 
@@ -51,11 +58,23 @@ create table association (
   id        uuid primary key default gen_random_uuid(),
   nom       text not null,
   rna       text,
+  siren     text,
   cause     text,
   ville     text,
   resume    text,
   site      text,
   valide    boolean not null default false,
+  verifiee_le      date,          -- date de la dernière vérification d'éligibilité
+  a_reverifier_le  date,          -- échéance de revérification
+  suspendue        boolean not null default false,
+  motif_suspension text,
+  -- Réglages des reçus fiscaux. L'association est l'émetteur, Riseva ne fait que préparer.
+  recus_actif      boolean not null default false,
+  recus_eligible   boolean not null default false,   -- éligibilité au mécénat déclarée
+  recus_signataire text,
+  recus_qualite    text,
+  recus_prefixe    text,
+  recus_numero     integer not null default 1,       -- numérotation continue, propriété de l'asso
   cree_le   timestamptz not null default now()
 );
 
@@ -116,6 +135,8 @@ create table annonce (
   association  uuid not null references association(id) on delete cascade,
   saison       uuid not null references saison(id) on delete cascade,
   type         type_annonce not null,
+  -- Mission proposée sur le temps de travail : conditionne le mécénat de compétences.
+  temps_travail boolean not null default false,
   titre        text not null,
   description  text not null,
   quantite     numeric not null check (quantite > 0),   -- euros, ou nombre de demi-journées, ou nombre de dons
@@ -145,15 +166,40 @@ create index on mission (entreprise);
 create index on mission (annonce);
 create index on mission (etat);
 
+-- ---------------------------------------------------------------- journal des accès
+-- Qui a rejoint, quand, avec quel lien, et ce qui a été révoqué.
+-- Demandé par tout acheteur qui prend la sécurité au sérieux.
+create type evenement_acces as enum
+  ('inscription','creation_lien','revocation_lien','retrait','connexion','export');
+
+create table acces (
+  id          uuid primary key default gen_random_uuid(),
+  entreprise  uuid references entreprise(id) on delete cascade,
+  utilisateur uuid references profil(id) on delete set null,
+  quoi        evenement_acces not null,
+  code        text,
+  ip          inet,
+  agent       text,
+  cree_le     timestamptz not null default now()
+);
+create index on acces (entreprise, cree_le desc);
+
 -- ---------------------------------------------------------------- dons
+create type origine_don as enum ('particulier','entreprise');
+
 create table don (
   id           uuid primary key default gen_random_uuid(),
   mission      uuid references mission(id) on delete set null,
   association  uuid not null references association(id) on delete cascade,
   entreprise   uuid references entreprise(id) on delete set null,
   montant      numeric not null check (montant > 0),
+  origine      origine_don not null default 'particulier',
   fournisseur  text not null default 'helloasso',
   reference    text,                      -- identifiant de la transaction chez le fournisseur
+  -- Modèle officiel retenu : 11580*05 pour un particulier (art. 200),
+  -- 16216*01 pour une entreprise (art. 238 bis). Ils ne sont pas interchangeables.
+  recu_modele  text,
+  recu_numero  text,
   recu_emis_le timestamptz,
   cree_le      timestamptz not null default now()
 );

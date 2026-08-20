@@ -77,7 +77,10 @@ else {
       <div class="field"><label for="nom">Nom et prénom</label>
         <input class="input" id="nom" required autocomplete="name"></div>
       <div class="field"><label for="mail">Email professionnel</label>
-        <input class="input" id="mail" type="email" required autocomplete="email"></div>
+        <input class="input" id="mail" type="email" required autocomplete="email">
+        ${DB.domaines(inv.entreprise).length
+          ? `<p class="hint">Ce lien n'accepte que les adresses en @${DB.domaines(inv.entreprise).join(", @")}.</p>`
+          : ""}</div>
       <label class="checkline"><input type="checkbox" required>
         <span>J'accepte que mon nom et mes actions soient visibles par mon entreprise sur la
         plateforme. Si je quitte l'entreprise, mon compte est anonymisé.</span></label>

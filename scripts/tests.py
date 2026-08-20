@@ -110,6 +110,14 @@ def main():
         p.goto(f"{BASE}/rejoindre.html?code=INEXISTANT-0000", wait_until="networkidle")
         p.wait_for_timeout(300)
         verifie("un code inconnu est refusé", "n'existe pas" in p.inner_text("body"))
+        # domaine de messagerie : le lien ne doit pas laisser entrer n'importe qui
+        p.goto(f"{BASE}/rejoindre.html?code=LAFARGE-7QK2", wait_until="networkidle")
+        p.wait_for_timeout(300)
+        verifie("le domaine autorisé est annoncé", "lafarge-ciments.fr" in p.inner_text("body"))
+        p.fill("#nom", "Intrus Extérieur"); p.fill("#mail", "intrus@gmail.com")
+        p.check("input[type=checkbox]"); p.click("button[type=submit]"); p.wait_for_timeout(400)
+        verifie("une adresse hors domaine est refusée",
+                "n'accepte que" in p.inner_text(".toast"))
 
         print("\nAssociation")
         connecte(p, "u7", "#/mesannonces")

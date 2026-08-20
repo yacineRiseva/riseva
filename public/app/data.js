@@ -67,6 +67,7 @@ const seed = {
   entreprises: [
     { id:"e1", nom:"Lafarge Ciments",     effectif:210, sieges:210, ca:48_000_000, cout_jour_moyen:340,
       referent:"Claire Fontaine", referent_mail:"claire@lafarge-ciments.fr", siret:"39312091600025",
+      domaines:["lafarge-ciments.fr"],
       adresse:"12 rue des Docks, 69009 Lyon", points:12480, secteur:"Industrie",  ville:"Lyon" },
     { id:"e2", nom:"Groupe Vidal",        effectif:340, sieges:350, ca:62_000_000, cout_jour_moyen:290, points:18020, secteur:"Logistique", ville:"Lille" },
     { id:"e3", nom:"Cabinet Marchand",    effectif:64,  sieges:75,  ca:9_800_000,  cout_jour_moyen:520,  points:15470, secteur:"Conseil",    ville:"Paris" },
@@ -145,6 +146,12 @@ const seed = {
     { id:"u6", nom:"Nadia Berrada",   email:"nadia@lafarge-ciments.fr", role:"salarie",          org:"e1", points:0,   actif:false },
     { id:"u7", nom:"Élise Tournier",  email:"elise@quatrevents.org",    role:"association",      org:"a1" },
     { id:"u9", nom:"Paul Girard",     email:"paul@groupe-vidal.fr",     role:"salarie",          org:"e2", points:600, actif:true }
+  ],
+  acces: [
+    { id:"ac1", entreprise:"e1", utilisateur:"u3", quoi:"inscription", code:"LAFARGE-7QK2", date:J(-28) },
+    { id:"ac2", entreprise:"e1", utilisateur:"u4", quoi:"inscription", code:"LAFARGE-7QK2", date:J(-27) },
+    { id:"ac3", entreprise:"e1", utilisateur:"u5", quoi:"inscription", code:"LAFARGE-7QK2", date:J(-25) },
+    { id:"ac4", entreprise:"e1", utilisateur:"u2", quoi:"creation_lien", code:"LAFARGE-7QK2", date:J(-30) }
   ],
   invitations: [
     { id:"i1", entreprise:"e1", code:"LAFARGE-7QK2", places:210, utilisees:4,
@@ -392,6 +399,7 @@ function creerMock(){
       u.retire_le = new Date().toISOString().slice(0, 10);
       const inv = api.invitationActive(u.org);
       if (inv && inv.utilisees > 0) inv.utilisees -= 1;
+      api.tracer(u.org, uid, "retrait", null);
       return u;
     },
 
@@ -415,11 +423,38 @@ function creerMock(){
         expire_le:new Date(Date.now() + 120 * 864e5).toISOString().slice(0,10) };
       seq++;
       s.invitations.unshift(inv);
+      api.tracer(eid, null, "creation_lien", inv.code);
       return inv;
     },
     revoquerInvitation(iid){
-      const i = s.invitations.find(x => x.id === iid); if (i) i.active = false; return i;
+      const i = s.invitations.find(x => x.id === iid);
+      if (i){ i.active = false; api.tracer(i.entreprise, null, "revocation_lien", i.code); }
+      return i;
     },
+    /* Domaines de messagerie autorisés : sans cette barrière, un lien qui fuite permet à
+       n'importe qui de créer un compte dans l'entreprise. C'est le premier point que
+       vérifie un acheteur, et il a raison. */
+    domaines: (eid) => (api.entreprise(eid) || {}).domaines || [],
+    majDomaines(eid, liste){
+      const e = api.entreprise(eid); if (!e) return null;
+      e.domaines = liste.map(d => d.trim().toLowerCase().replace(/^@/, "")).filter(Boolean);
+      return e.domaines;
+    },
+    domaineAutorise(eid, email){
+      const l = api.domaines(eid);
+      if (!l.length) return true;                    // aucune restriction déclarée
+      const d = String(email || "").split("@")[1];
+      return !!d && l.includes(d.toLowerCase());
+    },
+
+    /* Journal des accès : qui a rejoint, quand, avec quel lien. */
+    acces: (eid) => s.acces.filter(a => !eid || a.entreprise === eid)
+                          .sort((x, y) => String(y.date).localeCompare(String(x.date))),
+    tracer(entreprise, utilisateur, quoi, code){
+      s.acces.unshift({ id:id("ac"), entreprise, utilisateur, quoi, code,
+        date:new Date().toISOString().slice(0,10) });
+    },
+
     /* Inscription d'un salarié depuis le lien public. */
     rejoindre(code, nom, email){
       const inv = api.invitationParCode(code);
@@ -427,6 +462,10 @@ function creerMock(){
       if (!inv.active) throw new Error("Ce lien a été désactivé par l'entreprise");
       if (inv.expire_le < new Date().toISOString().slice(0,10)) throw new Error("Ce lien a expiré");
       if (inv.utilisees >= inv.places) throw new Error("Toutes les places de ce lien ont été prises");
+      if (!api.domaineAutorise(inv.entreprise, email)){
+        const l = api.domaines(inv.entreprise);
+        throw new Error("Ce lien n'accepte que les adresses en @" + l.join(", @"));
+      }
       const dejaLa = s.utilisateurs.find(u => u.email && email &&
         u.email.toLowerCase() === email.toLowerCase());
       if (dejaLa) throw new Error("Un compte existe déjà avec cette adresse");
@@ -436,6 +475,7 @@ function creerMock(){
                   points:0, actif:true, anonyme:false };
       s.utilisateurs.push(u);
       inv.utilisees += 1;
+      api.tracer(inv.entreprise, u.id, "inscription", inv.code);
       return { utilisateur:u, entreprise:api.entreprise(inv.entreprise) };
     },
 

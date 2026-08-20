@@ -12,6 +12,7 @@ alter table preinscription  enable row level security;
 alter table saison          enable row level security;
 alter table bareme          enable row level security;
 alter table invitation      enable row level security;
+alter table acces           enable row level security;
 
 -- Helpers
 create or replace function mon_role() returns role_utilisateur
@@ -106,6 +107,23 @@ language sql stable security definer as $$
 $$;
 revoke all on function invitation_publique(text) from public;
 grant execute on function invitation_publique(text) to anon, authenticated;
+
+-- Journal des accès : lecture réservée à l'entreprise concernée et à Riseva.
+-- Personne ne peut l'effacer, pas même l'administrateur de l'entreprise.
+create policy p_acces_lecture on acces for select using (
+  mon_role() = 'admin' or entreprise = mon_entreprise()
+);
+
+-- Le lien d'inscription ne peut créer un compte que sur un domaine déclaré.
+create or replace function domaine_autorise(p_entreprise uuid, p_email text)
+returns boolean language sql stable as $$
+  select case
+    when coalesce(array_length(domaines, 1), 0) = 0 then true
+    else lower(split_part(p_email, '@', 2)) = any (
+      select lower(d) from unnest(domaines) as d)
+  end
+  from entreprise where id = p_entreprise
+$$;
 
 -- L'anonymisation n'est ouverte qu'à l'administrateur de l'entreprise concernée.
 create or replace function retirer_salarie(p_profil uuid)
