@@ -65,7 +65,9 @@ const seed = {
     etat: "ouverte", prix_min: 3500, prix_max: 4000, acompte: 500
   },
   entreprises: [
-    { id:"e1", nom:"Lafarge Ciments",     effectif:210, sieges:210, ca:48_000_000, cout_jour_moyen:340, points:12480, secteur:"Industrie",  ville:"Lyon" },
+    { id:"e1", nom:"Lafarge Ciments",     effectif:210, sieges:210, ca:48_000_000, cout_jour_moyen:340,
+      referent:"Claire Fontaine", referent_mail:"claire@lafarge-ciments.fr", siret:"39312091600025",
+      adresse:"12 rue des Docks, 69009 Lyon", points:12480, secteur:"Industrie",  ville:"Lyon" },
     { id:"e2", nom:"Groupe Vidal",        effectif:340, sieges:350, ca:62_000_000, cout_jour_moyen:290, points:18020, secteur:"Logistique", ville:"Lille" },
     { id:"e3", nom:"Cabinet Marchand",    effectif:64,  sieges:75,  ca:9_800_000,  cout_jour_moyen:520,  points:15470, secteur:"Conseil",    ville:"Paris" },
     { id:"e4", nom:"Novaterre",           effectif:120, sieges:120, ca:21_000_000, cout_jour_moyen:310, points:14100, secteur:"Agro",       ville:"Nantes" },
@@ -73,6 +75,14 @@ const seed = {
     { id:"e6", nom:"Sirius Assurances",   effectif:520, sieges:500, ca:140_000_000, cout_jour_moyen:400, points:9380,  secteur:"Assurance",  ville:"Bordeaux" },
     { id:"e7", nom:"Delmas & Fils",       effectif:87,  sieges:100, ca:12_000_000, cout_jour_moyen:300, points:7920,  secteur:"BTP",        ville:"Rennes" },
     { id:"e8", nom:"Kervella Transport",  effectif:145, sieges:150, ca:18_000_000, cout_jour_moyen:270, points:6410,  secteur:"Transport",  ville:"Brest" }
+  ],
+  contrats: [
+    { entreprise:"e1", statut:"actif", signe_le:J(-40), debut:"2027-01-01", fin:"2027-12-31",
+      montant_ht:3800, acompte:500, reconduction:false,
+      factures:[
+        { ref:"RSV-2026-0007", libelle:"Acompte saison 2027", montant:500,  date:J(-40), echeance:J(-10), etat:"payee" },
+        { ref:"RSV-2027-0031", libelle:"Solde saison 2027",   montant:3300, date:"2027-01-05", echeance:"2027-02-04", etat:"a_venir" }
+      ] }
   ],
   associations: [
     { id:"a1", nom:"Refuge des Quatre Vents", ville:"Saint-Étienne", cause:"Protection animale",
@@ -488,6 +498,130 @@ function creerMock(){
       s.associations.filter(a => a.valide).forEach(a => j.push({ date:s.saison.debut,
         type:"association_validee", vers:a.nom, sujet:`${a.nom} est en ligne`, etat:"envoyé" }));
       return j.sort((x, y) => String(y.date).localeCompare(String(x.date)));
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* Notifications                                                      */
+    /* ------------------------------------------------------------------ */
+    /* Dérivées de l'état, pas stockées : une notification qui ne correspond plus à
+       rien disparaît d'elle-même. Chacune sait à qui elle s'adresse et où elle mène. */
+    notifications(uid){
+      const u = api.utilisateur(uid); if (!u) return [];
+      const n = [];
+      const pousser = (o) => n.push({ id:o.id, date:o.date, titre:o.titre, texte:o.texte,
+        vers:o.vers, ton:o.ton || "info" });
+
+      if (u.role === "salarie" || u.role === "entreprise_admin"){
+        api.missions({ entreprise:u.org }).forEach(m => {
+          const a = api.annonceDe(m); if (!a) return;
+          const asso = api.association(a.asso);
+          if (m.etat === "validee")
+            pousser({ id:"mv" + m.id, date:m.date, ton:"ok",
+              titre:`+${m.points} points`,
+              texte:`${asso.nom} a confirmé « ${a.titre} ».`, vers:"#/missions" });
+          if (m.etat === "refusee")
+            pousser({ id:"mr" + m.id, date:m.date, ton:"alerte",
+              titre:"Une mission n'a pas été retenue",
+              texte:`${asso.nom} a indiqué que « ${a.titre} » n'a pas eu lieu.`, vers:"#/missions" });
+          if (m.etat === "engagee" && m.salarie === uid)
+            pousser({ id:"me" + m.id, date:m.date, ton:"info",
+              titre:"Mission à venir",
+              texte:`« ${a.titre} » le ${new Date(m.date).toLocaleDateString("fr-FR")}. Pensez à la déclarer une fois faite.`,
+              vers:"#/missions" });
+        });
+      }
+      if (u.role === "entreprise_admin"){
+        const si = api.sieges(u.org);
+        if (si.total && si.restants <= Math.max(2, Math.round(si.total * 0.1)))
+          pousser({ id:"quota", date:s.saison.debut, ton:"alerte",
+            titre:"Votre équipe approche de sa limite",
+            texte:`${si.restants} place${si.restants > 1 ? "s" : ""} restante${si.restants > 1 ? "s" : ""} sur ${si.total}.`,
+            vers:"#/equipe" });
+        const f = api.etatFacturation(u.org);
+        f.enRetard.forEach(x => pousser({ id:"fa" + x.ref, date:x.echeance, ton:"alerte",
+          titre:"Facture en retard", texte:`${x.libelle}, échéance dépassée.`, vers:"#/abonnement" }));
+        if (api.administrateurs(u.org).length < 2)
+          pousser({ id:"admin1", date:s.saison.debut, ton:"info",
+            titre:"Un seul administrateur",
+            texte:"Nommez un deuxième compte capable d'agir, au cas où.", vers:"#/equipe" });
+        const j = api.joursAvantFinSaison();
+        if (j <= 60) pousser({ id:"fin", date:s.saison.fin, ton:"info",
+          titre:"La saison se termine bientôt",
+          texte:`${j} jours avant la clôture et le rapport annuel.`, vers:"#/abonnement" });
+      }
+      if (u.role === "association"){
+        const aValider = api.missions({ asso:u.org, etat:"a_valider" });
+        if (aValider.length) pousser({ id:"av", date:aValider[0].date, ton:"alerte",
+          titre:`${aValider.length} mission${aValider.length > 1 ? "s" : ""} à confirmer`,
+          texte:"Tant que vous n'avez pas répondu, l'entreprise ne marque rien.", vers:"#/avalider" });
+        api.missions({ asso:u.org, etat:"engagee" }).forEach(m => {
+          const a = api.annonceDe(m), sal = api.utilisateur(m.salarie), e = api.entreprise(m.entreprise);
+          pousser({ id:"eng" + m.id, date:m.date, ton:"info",
+            titre:"Quelqu'un vient",
+            texte:`${sal ? sal.nom : "Un salarié"} de ${e ? e.nom : "une entreprise"} sur « ${a.titre} ».`,
+            vers:"#/mesannonces" });
+        });
+        if (!api.recusPrets(u.org)) pousser({ id:"recus", date:s.saison.debut, ton:"alerte",
+          titre:"Reçus fiscaux inactifs",
+          texte:"Il manque un réglage, aucun reçu ne part pour l'instant.", vers:"#/recus" });
+      }
+      if (u.role === "admin"){
+        s.associations.filter(a => !a.valide).forEach(a =>
+          pousser({ id:"va" + a.id, date:s.saison.debut, ton:"alerte",
+            titre:"Association à valider", texte:a.nom + " attend votre vérification.", vers:"#/assos" }));
+        s.preinscriptions.filter(p => p.etat === "preinscrite").forEach(p =>
+          pousser({ id:"pr" + p.id, date:p.date, ton:"info",
+            titre:"Préinscription à traiter", texte:p.entreprise + " attend une réponse.", vers:"#/preinscriptions" }));
+      }
+      return n.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    },
+    preferences(uid){
+      const u = api.utilisateur(uid);
+      return (u && u.prefs) || { mail_mission:true, mail_hebdo:true, mail_saison:true };
+    },
+    majPreferences(uid, champs){
+      const u = api.utilisateur(uid); if (!u) return null;
+      u.prefs = { ...api.preferences(uid), ...champs };
+      return u.prefs;
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* Contrat, facturation, renouvellement                               */
+    /* ------------------------------------------------------------------ */
+    contrat: (eid) => s.contrats.find(c => c.entreprise === eid) || null,
+    contrats: () => s.contrats,
+    majContrat(eid, champs){
+      const c = api.contrat(eid); if (!c) return null;
+      Object.assign(c, champs); return c;
+    },
+    /* Une facture impayée après échéance suspend l'accès en écriture, jamais la lecture :
+       on ne prend pas en otage les données d'un client. */
+    etatFacturation(eid){
+      const c = api.contrat(eid);
+      if (!c) return { statut:"aucun", enRetard:[], du:0 };
+      const aujourdhui = "2026-08-20";
+      const enRetard = c.factures.filter(f => f.etat !== "payee" && f.echeance < aujourdhui);
+      const du = c.factures.filter(f => f.etat !== "payee").reduce((n, f) => n + f.montant, 0);
+      return { statut:c.statut, enRetard, du, contrat:c };
+    },
+    marquerFacturePayee(eid, ref){
+      const c = api.contrat(eid); if (!c) return null;
+      const f = c.factures.find(x => x.ref === ref); if (f) f.etat = "payee";
+      return f;
+    },
+    /* Renouvellement : jamais tacite. Décision du 20/08/2026. */
+    reconduire(eid, oui){
+      const c = api.contrat(eid); if (!c) return null;
+      c.reconduction = !!oui; return c;
+    },
+    joursAvantFinSaison(){
+      const fin = new Date(s.saison.fin);
+      return Math.max(0, Math.ceil((fin - new Date(2026, 7, 20)) / 864e5));
+    },
+
+    majEntreprise(eid, champs){
+      const e = api.entreprise(eid); if (!e) return null;
+      Object.assign(e, champs); return e;
     },
 
     /* ------------------------------------------------------------------ */

@@ -5,6 +5,13 @@ import { h, esc, nb, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, m
 /* Session                                                             */
 /* ------------------------------------------------------------------ */
 const CLE = "riseva.session";
+const CLE_LUES = "riseva.notifs.lues";
+const lues = () => { try { return new Set(JSON.parse(localStorage.getItem(CLE_LUES) || "[]")); }
+                     catch { return new Set(); } };
+const marquerLues = (ids) => {
+  const s = lues(); ids.forEach(i => s.add(i));
+  try { localStorage.setItem(CLE_LUES, JSON.stringify([...s])); } catch {}
+};
 let session = null;
 try { session = JSON.parse(localStorage.getItem(CLE) || "null"); } catch { session = null; }
 
@@ -29,7 +36,8 @@ const MENUS = {
       ["equipe",     "Équipe",       "users"],
       ["rapports",   "Rapports",     "report"],
       ["mecenat",    "Mécénat",      "coins"],
-      ["abonnement", "Abonnement",   "card"]
+      ["abonnement", "Abonnement",   "card"],
+      ["parametres", "Paramètres",   "settings"]
     ]}
   ],
   salarie: [
@@ -222,7 +230,12 @@ function coquille(u, vue, titre, actions = ""){
           <strong style="font-family:var(--font-display);font-size:var(--t-lg)">${esc(titre)}</strong>
           <span class="badge badge--brand"><span class="dot"></span>${esc(DB.saison().nom)}</span>
         </div>
-        <div class="row">${actions}</div>
+        <div class="row">${actions}
+          <div class="notifs">
+            <button class="btn btn--quiet btn--sm notifs__btn" id="cloche" aria-label="Notifications">
+              ${ICONS.cloche}<span class="notifs__pastille" id="pastille"></span></button>
+          </div>
+        </div>
       </header>
       <div class="content" id="slot"></div>
     </div>
@@ -230,6 +243,49 @@ function coquille(u, vue, titre, actions = ""){
   el.querySelector("#out").onclick = () => { setSession(null); location.hash = ""; rendre(); };
   const cote = el.querySelector(".side");
   el.querySelector("#burger").onclick = () => cote.classList.toggle("is-open");
+
+  const notifs = DB.notifications(u.id);
+  const dejaLues = lues();
+  const nonLues = notifs.filter(n => !dejaLues.has(n.id));
+  const pastille = el.querySelector("#pastille");
+  if (nonLues.length){ pastille.textContent = nonLues.length > 9 ? "9+" : nonLues.length;
+                       pastille.classList.add("is-on"); }
+  el.querySelector("#cloche").onclick = (ev) => {
+    ev.stopPropagation();
+    const existant = document.querySelector(".panneau");
+    if (existant){ existant.remove(); return; }
+    const p = h(`<div class="panneau">
+      <div class="panneau__tete">
+        <strong>Notifications</strong>
+        ${notifs.length ? `<button class="btn btn--quiet btn--sm" id="tout">Tout marquer comme lu</button>` : ""}
+      </div>
+      <div class="panneau__corps"></div>
+      <a class="panneau__pied" href="#/preferences">Préférences de notification</a>
+    </div>`);
+    const corps = p.querySelector(".panneau__corps");
+    if (!notifs.length){
+      corps.appendChild(h(`<p class="muted" style="padding:var(--s6);text-align:center;font-size:var(--t-sm)">
+        Rien pour l'instant.</p>`));
+    }
+    notifs.forEach(n => {
+      const nouvelle = !dejaLues.has(n.id);
+      const li = h(`<a class="notif ${nouvelle ? "is-new" : ""}" href="${n.vers}">
+        <span class="notif__point notif__point--${n.ton}"></span>
+        <span><strong>${esc(n.titre)}</strong>
+          <span class="notif__texte">${esc(n.texte)}</span>
+          <span class="notif__date">${dateCourte(n.date)}</span></span>
+      </a>`);
+      li.addEventListener("click", () => { marquerLues([n.id]); p.remove(); });
+      corps.appendChild(li);
+    });
+    p.querySelector("#tout")?.addEventListener("click", () => {
+      marquerLues(notifs.map(n => n.id)); p.remove(); rendre();
+    });
+    el.querySelector(".notifs").appendChild(p);
+    setTimeout(() => document.addEventListener("click", function fermer(e){
+      if (!p.contains(e.target)){ p.remove(); document.removeEventListener("click", fermer); }
+    }), 0);
+  };
   cote.addEventListener("click", (e) => { if (e.target.closest(".side__link")) cote.classList.remove("is-open"); });
   el.querySelector("#slot").appendChild(vue);
   return el;
@@ -933,42 +989,204 @@ function vueRapports(u){
 }
 
 function vueAbonnement(u){
-  const s = DB.saison();
+  const sa = DB.saison();
   const si = DB.sieges(u.org);
-  return h(`<div class="two">
-    <section class="card" style="padding:var(--s8)">
-      <div class="between"><h3>Abonnement ${esc(s.nom)}</h3>
-        <span class="badge badge--ok"><span class="dot"></span>Actif</span></div>
-      <hr class="sep">
-      <div class="stack" style="--gap:var(--s4);font-size:var(--t-sm)">
-        <div class="between"><span class="muted">Période</span>
-          <span>${dateFR(s.debut)} — ${dateFR(s.fin)}</span></div>
-        <div class="between"><span class="muted">Acompte versé</span><span>${eur(s.acompte)}</span></div>
-        <div class="between"><span class="muted">Solde à régler</span>
-          <span>${eur(s.prix_min - s.acompte)} à ${eur(s.prix_max - s.acompte)} HT</span></div>
-        <div class="between"><span class="muted">Places de l'abonnement</span>
-          <span class="tnum">${si.pris} / ${si.total}</span></div>
+  const f = DB.etatFacturation(u.org);
+  const c = f.contrat;
+  const jours = DB.joursAvantFinSaison();
+  const etats = { payee:["Payée","badge--ok"], a_venir:["À venir",""],
+                  envoyee:["Envoyée","badge--info"], en_retard:["En retard","badge--danger"] };
+
+  if (!c) return h(`<section class="card"><p class="empty">Aucun contrat rattaché à cette entreprise.</p></section>`);
+
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    ${f.enRetard.length ? `<section class="card card--flat" style="background:var(--danger-bg);border-color:transparent">
+      <div class="between" style="flex-wrap:wrap;gap:var(--s4)">
+        <div><h3 style="font-size:var(--t-lg);color:var(--danger)">${f.enRetard.length} facture${f.enRetard.length > 1 ? "s" : ""} en retard</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px;color:var(--ink-600)">
+          Vos données restent accessibles et vos points sont conservés. Seule la publication de
+          nouvelles missions est suspendue en attendant le règlement.</p></div>
+        <span class="tnum" style="font-weight:600">${eur(f.du)} dus</span>
       </div>
-      <hr class="sep">
-      <div class="bar" style="margin-top:var(--s2)"><i style="width:${si.total ? (si.pris / si.total) * 100 : 0}%"></i></div>
-      <hr class="sep">
-      <p class="muted" style="font-size:var(--t-sm)">
-        L'acompte de ${eur(s.acompte)} est remboursé intégralement si la saison ne démarre pas.
-        Aucune commission n'est prélevée sur les dons faits par vos salariés.
-        Un salarié retiré libère sa place immédiatement.</p>
-    </section>
-    <section class="card">
-      <h3>Factures</h3>
-      <div class="stack" style="--gap:var(--s4);margin-top:var(--s5);font-size:var(--t-sm)">
-        <div class="between"><span>Acompte ${esc(s.nom)}</span>
-          <span class="row"><span class="tnum muted">${eur(s.acompte)}</span>
-          <span class="badge badge--ok">Payée</span></span></div>
-        <div class="between"><span>Solde ${esc(s.nom)}</span>
-          <span class="row"><span class="tnum muted">à venir</span>
-          <span class="badge">À l'ouverture</span></span></div>
+    </section>` : ""}
+
+    <div class="kpis">
+      ${kpi("Abonnement", eur(c.montant_ht) + " HT", esc(sa.nom), "", "kpi--tete grain")}
+      ${kpi("Places", si.pris + " / " + si.total, si.restants + " disponibles")}
+      ${kpi("Fin de saison", jours + " j", dateFR(sa.fin))}
+      ${kpi("Reste à régler", eur(f.du), f.du ? "prochaine échéance" : "tout est à jour")}
+    </div>
+
+    <div class="two">
+      <section class="card">
+        <div class="between" style="margin-bottom:var(--s5)">
+          <h3>Factures</h3>
+          <button class="btn btn--ghost btn--sm" id="csvF">Exporter</button>
+        </div>
+        <table class="table"><thead><tr>
+          <th>Référence</th><th>Libellé</th><th>Émise</th><th>Échéance</th>
+          <th style="text-align:right">Montant</th><th>État</th><th></th>
+        </tr></thead><tbody></tbody></table>
+      </section>
+
+      <div class="stack" style="--gap:var(--s5)">
+        <section class="card">
+          <h3>Le contrat</h3>
+          <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
+            <div class="between"><span class="muted">Statut</span>
+              <span class="badge ${c.statut === "actif" ? "badge--ok" : "badge--warn"}">${
+                c.statut === "actif" ? "Actif" : "Suspendu"}</span></div>
+            <div class="between"><span class="muted">Signé le</span><span>${dateFR(c.signe_le)}</span></div>
+            <div class="between"><span class="muted">Période</span>
+              <span>${dateFR(c.debut)} — ${dateFR(c.fin)}</span></div>
+            <div class="between"><span class="muted">Acompte versé</span><span class="tnum">${eur(c.acompte)}</span></div>
+            <div class="between"><span class="muted">Places incluses</span><span class="tnum">${si.total}</span></div>
+          </div>
+          <hr class="sep">
+          <p class="muted" style="font-size:var(--t-sm)">
+            L'acompte de ${eur(c.acompte)} est remboursé intégralement si la saison ne démarre pas.
+            Aucune commission n'est prélevée sur les dons. Un salarié retiré libère sa place
+            immédiatement.</p>
+        </section>
+
+        <section class="card">
+          <div class="between" style="margin-bottom:var(--s4)">
+            <h3>Saison suivante</h3>
+            <span class="badge ${c.reconduction ? "badge--ok" : ""}">${c.reconduction ? "Reconduite" : "Non décidée"}</span>
+          </div>
+          <p class="muted" style="font-size:var(--t-sm)">
+            <strong style="color:var(--ink)">Pas de reconduction tacite.</strong> Votre abonnement
+            prend fin à la clôture de la saison, après remise du rapport annuel. Vous décidez
+            ensuite, sans rien à résilier.</p>
+          <div class="row" style="gap:var(--s2);margin-top:var(--s5)">
+            <button class="btn ${c.reconduction ? "btn--ghost" : "btn--primary"} btn--sm" id="rec">
+              ${c.reconduction ? "Annuler la reconduction" : "Reconduire pour la saison suivante"}</button>
+          </div>
+        </section>
       </div>
-    </section>
+    </div>
   </div>`);
+
+  const tb = el.querySelector("tbody");
+  c.factures.forEach(fa => {
+    const enRetard = fa.etat !== "payee" && fa.echeance < "2026-08-20";
+    const cle = enRetard ? "en_retard" : fa.etat;
+    const tr = h(`<tr>
+      <td style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(fa.ref)}</td>
+      <td><strong>${esc(fa.libelle)}</strong></td>
+      <td class="muted tnum">${dateCourte(fa.date)}</td>
+      <td class="muted tnum">${dateCourte(fa.echeance)}</td>
+      <td class="tnum" style="text-align:right"><strong>${eur(fa.montant)}</strong></td>
+      <td><span class="badge ${(etats[cle] || etats.a_venir)[1]}">${(etats[cle] || etats.a_venir)[0]}</span></td>
+      <td style="text-align:right"></td></tr>`);
+    const b = h(`<button class="btn btn--quiet btn--sm">Télécharger</button>`);
+    b.onclick = () => toast("La facture s'ouvre dans l'aperçu d'impression.");
+    tr.lastElementChild.appendChild(b);
+    tb.appendChild(tr);
+  });
+
+  el.querySelector("#csvF").onclick = () => {
+    versCSV("riseva-factures.csv", ["Référence", "Libellé", "Émise", "Échéance", "Montant", "État"],
+      c.factures.map(fa => [fa.ref, fa.libelle, fa.date, fa.echeance, fa.montant, fa.etat]));
+    toast("Export téléchargé.");
+  };
+  el.querySelector("#rec").onclick = () => {
+    DB.reconduire(u.org, !c.reconduction);
+    toast(c.reconduction ? "Reconduction annulée." : "Reconduction enregistrée, nous reviendrons vers vous.");
+    rendre();
+  };
+  return el;
+}
+
+function vueParametres(u){
+  const e = DB.entreprise(u.org);
+  const si = DB.sieges(u.org);
+  const el = h(`<div class="two">
+    <section class="card" style="padding:var(--s8)">
+      <h3>Votre entreprise</h3>
+      <div class="stack" style="--gap:var(--s4);margin-top:var(--s6)">
+        <div class="field"><label>Raison sociale</label><input class="input" id="nom" value="${esc(e.nom)}"></div>
+        <div class="row" style="gap:var(--s4);align-items:stretch">
+          <div class="field" style="flex:1"><label>SIRET</label>
+            <input class="input" id="siret" value="${esc(e.siret || "")}" placeholder="14 chiffres"></div>
+          <div class="field" style="flex:1"><label>Secteur</label>
+            <input class="input" id="secteur" value="${esc(e.secteur || "")}"></div>
+        </div>
+        <div class="field"><label>Adresse de facturation</label>
+          <input class="input" id="adresse" value="${esc(e.adresse || "")}"></div>
+        <div class="row" style="gap:var(--s4);align-items:stretch">
+          <div class="field" style="flex:1"><label>Référent Riseva</label>
+            <input class="input" id="ref" value="${esc(e.referent || "")}"></div>
+          <div class="field" style="flex:1"><label>Son email</label>
+            <input class="input" id="refmail" type="email" value="${esc(e.referent_mail || "")}"></div>
+        </div>
+      </div>
+      <button class="btn btn--primary" style="margin-top:var(--s6)" id="save">Enregistrer</button>
+    </section>
+
+    <div class="stack" style="--gap:var(--s5)">
+      <section class="card">
+        <h3>Données de valorisation</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+          Ces deux chiffres servent uniquement à estimer votre mécénat. Ils ne sortent jamais
+          de votre espace et n'apparaissent dans aucun classement.</p>
+        <div class="stack" style="--gap:var(--s4);margin-top:var(--s5)">
+          <div class="field"><label>Chiffre d'affaires HT du dernier exercice</label>
+            <input class="input" id="ca" type="number" min="0" value="${e.ca || 0}">
+            <p class="hint">Sert à calculer le plafond de 5 ‰. En dessous de 4 M€, c'est le
+              plancher de 20 000 € qui s'applique de toute façon.</p></div>
+          <div class="field"><label>Coût journalier moyen chargé d'un salarié</label>
+            <input class="input" id="cout" type="number" min="0" value="${e.cout_jour_moyen || 300}">
+            <p class="hint">Rémunération brute plus charges, divisée par 220 jours ouvrés.
+              Une demi-journée de mécénat de compétences vaut la moitié.</p></div>
+          <div class="field"><label>Effectif déclaré</label>
+            <input class="input" id="eff" type="number" min="1" value="${e.effectif || 0}">
+            <p class="hint">Sert au classement normalisé. ${si.pris} place${si.pris > 1 ? "s" : ""}
+              occupée${si.pris > 1 ? "s" : ""} sur ${si.total}.</p></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>Vos données</h3>
+        <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
+          <div class="between"><span class="muted">Hébergement</span><span>Union européenne</span></div>
+          <div class="between"><span class="muted">Sous-traitance</span>
+            <a href="/confidentialite.html" style="color:var(--forest-800)">liste des sous-traitants</a></div>
+          <div class="between"><span class="muted">Réversibilité</span><span>export complet à tout moment</span></div>
+        </div>
+        <div class="row" style="gap:var(--s2);margin-top:var(--s5)">
+          <button class="btn btn--ghost btn--sm" id="exp">Exporter toutes nos données</button>
+        </div>
+        <p class="hint">Un export complet au format CSV : équipe, missions, points, dons,
+          factures. Rien ne vous retient chez nous.</p>
+      </section>
+    </div>
+  </div>`);
+
+  el.querySelector("#save").onclick = () => {
+    const v = (id) => el.querySelector("#" + id).value;
+    DB.majEntreprise(u.org, {
+      nom: v("nom").trim() || e.nom, siret: v("siret").trim(), secteur: v("secteur").trim(),
+      adresse: v("adresse").trim(), referent: v("ref").trim(), referent_mail: v("refmail").trim(),
+      ca: Number(v("ca")) || 0, cout_jour_moyen: Number(v("cout")) || 300,
+      effectif: Number(v("eff")) || e.effectif
+    });
+    toast("Paramètres enregistrés."); rendre();
+  };
+  el.querySelector("#exp").onclick = () => {
+    const ms = DB.missions({ entreprise: u.org });
+    versCSV("riseva-export-complet.csv",
+      ["Type", "Libellé", "Association", "Salarié", "Date", "Quantité", "Points", "État"],
+      [...ms.map(m => { const a = DB.annonceDe(m), sal = DB.utilisateur(m.salarie);
+          return ["mission", a.titre, (DB.association(a.asso) || {}).nom, sal ? sal.nom : "—",
+                  m.date, m.quantite, m.points, ETATS_MISSION[m.etat].label]; }),
+       ...DB.salaries(u.org).map(g => ["salarié", g.nom, "", g.email || "", "", "", g.points || 0,
+          g.anonyme ? "anonymisé" : (g.actif ? "actif" : "suspendu")]),
+       ...((DB.contrat(u.org) || {}).factures || []).map(f =>
+          ["facture", f.libelle, "", f.ref, f.date, "", f.montant, f.etat])]);
+    toast("Export complet téléchargé.");
+  };
+  return el;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1762,6 +1980,53 @@ function vueRecus(u){
   return el;
 }
 
+function vuePreferences(u){
+  const p = DB.preferences(u.id);
+  const lignes = [
+    ["mail_mission", "Missions et validations",
+     "Un mail quand une association confirme ou refuse une mission, et quand quelqu'un se positionne sur une de vos annonces."],
+    ["mail_hebdo", "Récapitulatif hebdomadaire",
+     "Un seul mail le lundi avec le classement, les nouvelles annonces et ce qui vous attend. C'est le réglage qui remplace le mieux les alertes une par une."],
+    ["mail_saison", "Trimestres et fin de saison",
+     "Trophées, rapports trimestriels, rapport annuel et échéances de la saison."]
+  ];
+  const el = h(`<div class="two">
+    <section class="card" style="padding:var(--s8)">
+      <h3>Ce que vous recevez par mail</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+        Les notifications restent visibles dans la cloche même si vous coupez les mails.
+        Nous n'envoyons jamais de message commercial à vos salariés.</p>
+      <div class="stack" style="--gap:var(--s5);margin-top:var(--s6)" id="l"></div>
+      <button class="btn btn--primary" style="margin-top:var(--s8)" id="save">Enregistrer</button>
+    </section>
+    <section class="card">
+      <h3>Notifications en cours</h3>
+      <div class="stack" style="--gap:var(--s3);margin-top:var(--s5)" id="apercu"></div>
+    </section>
+  </div>`);
+  const box = el.querySelector("#l");
+  lignes.forEach(([cle, titre, texte]) => {
+    box.appendChild(h(`<label class="checkline" style="align-items:flex-start">
+      <input type="checkbox" data-p="${cle}" ${p[cle] ? "checked" : ""}>
+      <span><strong style="color:var(--ink)">${esc(titre)}</strong>
+        <span style="display:block;margin-top:2px">${esc(texte)}</span></span></label>`));
+  });
+  const ap = el.querySelector("#apercu");
+  const n = DB.notifications(u.id);
+  if (!n.length) ap.appendChild(h(`<p class="muted" style="font-size:var(--t-sm)">Rien en attente.</p>`));
+  n.slice(0, 6).forEach(x => ap.appendChild(h(`<div class="row" style="align-items:flex-start;gap:var(--s3)">
+    <span class="notif__point notif__point--${x.ton}" style="margin-top:7px"></span>
+    <span style="font-size:var(--t-sm)"><strong>${esc(x.titre)}</strong>
+      <span class="muted" style="display:block">${esc(x.texte)}</span></span></div>`)));
+  el.querySelector("#save").onclick = () => {
+    const champs = {};
+    el.querySelectorAll("[data-p]").forEach(i => champs[i.dataset.p] = i.checked);
+    DB.majPreferences(u.id, champs);
+    toast("Préférences enregistrées.");
+  };
+  return el;
+}
+
 /* ------------------------------------------------------------------ */
 /* Routeur                                                             */
 /* ------------------------------------------------------------------ */
@@ -1774,14 +2039,17 @@ const ROUTES = {
     equipe:    [vueEquipe,         "Équipe"],
     rapports:  [vueRapports,       "Rapports"],
     mecenat:   [vueMecenat,        "Mécénat"],
-    abonnement:[vueAbonnement,     "Abonnement"]
+    abonnement:[vueAbonnement,     "Abonnement"],
+    parametres:[vueParametres,     "Paramètres"],
+    preferences:[vuePreferences,   "Préférences"]
   },
   salarie: {
     tableau:   [tableauEntreprise, "Tableau de bord"],
     annonces:  [vueAnnonces,       "Annonces"],
     missions:  [vueMissions,       "Mes missions"],
     classement:[vueClassement,     "Classement"],
-    activite:  [vueActivite,       "Mon activité"]
+    activite:  [vueActivite,       "Mon activité"],
+    preferences:[vuePreferences,   "Préférences"]
   },
   association: {
     tableau:    [tableauAsso,  "Tableau de bord"],
@@ -1789,7 +2057,8 @@ const ROUTES = {
                           d.appendChild(tableAnnoncesAsso(DB.annonces({ asso: u.org }), u)); return d; }, "Mes annonces"],
     avalider:   [vueAValider,  "Missions à valider"],
     page:       [vuePageAsso,  "Ma page publique"],
-    recus:      [vueRecus,     "Reçus fiscaux"]
+    recus:      [vueRecus,     "Reçus fiscaux"],
+    preferences:[vuePreferences, "Préférences"]
   },
   admin: {
     tableau:        [tableauAdmin,             "Tableau de bord"],
@@ -1797,7 +2066,8 @@ const ROUTES = {
     assos:          [vueAdminAssos,            "Associations"],
     preinscriptions:[vueAdminPreinscriptions,  "Préinscriptions"],
     saison:         [vueAdminSaison,           "Saison et barème"],
-    journal:        [vueJournal,               "Journal des envois"]
+    journal:        [vueJournal,               "Journal des envois"],
+    preferences:    [vuePreferences,           "Préférences"]
   }
 };
 
