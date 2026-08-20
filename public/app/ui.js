@@ -17,6 +17,8 @@ export const dateFR = (s) => new Date(s).toLocaleDateString("fr-FR",
 export const dateCourte = (s) => new Date(s).toLocaleDateString("fr-FR",
   { day:"2-digit", month:"short" });
 
+export const rangFR = (n) => n + "<sup style='font-size:.55em'>" + (n === 1 ? "er" : "e") + "</sup>";
+
 export const initiales = (nom) => nom.split(/\s+/).slice(0,2).map(m => m[0]).join("").toUpperCase();
 
 /* Icônes : traits fins, 1.6px, jamais de pictos pleins. */

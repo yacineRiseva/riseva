@@ -1,5 +1,5 @@
 import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, connecterSupabase } from "./data.js";
-import { h, esc, nb, eur, dateFR, dateCourte, initiales, ICONS, toast, modal, kpi, spark, riviere, versCSV, vide } from "./ui.js";
+import { h, esc, nb, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, versCSV, vide } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
 /* Session                                                             */
@@ -259,7 +259,7 @@ function tableauEntreprise(u){
       ${kpi("Points de la saison", nb(pts.retenu), pts.ecrete
             ? nb(pts.ecrete) + " points écrêtés" : "+2 480 cette semaine",
             pts.ecrete ? "" : "up", "kpi--tete grain")}
-      ${kpi("Rang", rang + "<sup style='font-size:.55em'>e</sup>",
+      ${kpi("Rang", rangFR(rang),
             "sur " + total + " · " + (moiCl.categorie ? moiCl.categorie.label.toLowerCase() : ""))}
       ${kpi("Missions validées", nb(validees.length), enCours.length + " en cours")}
       ${kpi("Salariés engagés", engages + " / " + salaries.length,
@@ -864,7 +864,7 @@ function vueRapports(u){
       <div class="kpis">
         <div class="card kpi"><span class="kpi__label">Points</span>
           <span class="kpi__value" id="rPoints">${nb(r.points)}</span></div>
-        ${kpi("Rang final", r.rang + "<sup style='font-size:.55em'>e</sup>", "sur " + r.total)}
+        ${kpi("Rang final", rangFR(r.rang), "sur " + r.total)}
         ${kpi("Salariés engagés", r.salariesEngages + " / " + r.salariesTotal)}
         ${kpi("Associations soutenues", nb(r.associations))}
       </div>
@@ -1405,7 +1405,7 @@ function vueActivite(u){
     <div class="kpis">
       ${kpi("Mes points", nb(u.points || 0), `${part} % du total de l'entreprise`, "", "kpi--tete grain")}
       ${kpi("Missions réalisées", nb(validees.length), ms.length - validees.length + " en cours")}
-      ${kpi("Rang dans l'équipe", monRang + "<sup style='font-size:.55em'>e</sup>", "sur " + equipe.length)}
+      ${kpi("Rang dans l'équipe", rangFR(monRang), "sur " + equipe.length)}
       ${kpi("Demi-journées", nb(validees.filter(m => (DB.annonceDe(m) || {}).type === "benevolat_demi_journee")
         .reduce((n, m) => n + m.quantite, 0)), "de bénévolat")}
     </div>
