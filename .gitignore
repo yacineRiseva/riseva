@@ -2,3 +2,4 @@ public/app/config.js
 shots/
 .DS_Store
 .env
+dist/
