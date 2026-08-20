@@ -609,6 +609,28 @@ function creerMock(){
     fermerAnnonce(aid){
       const a = s.annonces.find(x => x.id === aid); if (a) a.etat = "close"; return a;
     },
+    rouvrirAnnonce(aid){
+      const a = s.annonces.find(x => x.id === aid);
+      if (a && a.restant > 0) a.etat = "ouverte";
+      return a;
+    },
+    modifierAnnonce(aid, champs){
+      const a = s.annonces.find(x => x.id === aid);
+      if (!a) return null;
+      Object.assign(a, champs);
+      return a;
+    },
+    supprimerAnnonce(aid){
+      const engagees = s.missions.filter(m => m.annonce === aid && m.etat !== "refusee");
+      if (engagees.length) throw new Error("Des salariés se sont déjà engagés, l'annonce ne peut plus être supprimée. Fermez-la.");
+      s.annonces = s.annonces.filter(x => x.id !== aid);
+      return true;
+    },
+    majSaison(champs){ Object.assign(s.saison, champs); return s.saison; },
+    majBareme(type, points){
+      if (BAREME[type] && points > 0) BAREME[type].points = Number(points);
+      return BAREME;
+    },
     engager({ annonce, entreprise, salarie, quantite }){
       const a = s.annonces.find(x => x.id === annonce);
       if (!a || a.etat !== "ouverte") throw new Error("Annonce indisponible");
@@ -1294,23 +1316,51 @@ function ouvrirEngagement(a, u){
 }
 
 function vueAnnonces(u){
+  const assos = DB.associations().filter(a => a.valide);
   const el = h(`<div class="stack" style="--gap:var(--s5)">
-    <div class="tabs" id="tabs">
-      <div class="tab is-active" data-t="">Toutes</div>
-      ${Object.entries(BAREME).map(([k, b]) => `<div class="tab" data-t="${k}">${esc(b.label)}</div>`).join("")}
-    </div>
-    <section class="card" id="liste"></section>
+    <section class="card card--pad-sm">
+      <div class="row" style="gap:var(--s3);flex-wrap:wrap">
+        <input class="input" id="q" placeholder="Rechercher un besoin, une ville, une association" style="flex:1;min-width:240px">
+        <select class="select" id="type" style="width:200px">
+          <option value="">Tous les formats</option>
+          ${Object.entries(BAREME).map(([k, b]) => `<option value="${k}">${esc(b.label)}</option>`).join("")}
+        </select>
+        <select class="select" id="asso" style="width:220px">
+          <option value="">Toutes les associations</option>
+          ${assos.map(a => `<option value="${a.id}">${esc(a.nom)}</option>`).join("")}
+        </select>
+        <select class="select" id="tri" style="width:180px">
+          <option value="date">Date la plus proche</option>
+          <option value="points">Plus de points</option>
+        </select>
+      </div>
+    </section>
+    <section class="card"><div id="liste"></div></section>
   </div>`);
-  const dessine = (type) => {
-    const l = el.querySelector("#liste");
-    l.innerHTML = "";
-    l.appendChild(listeAnnonces(DB.annonces({ ouvertes:true, type: type || undefined }), u));
+
+  const dessine = () => {
+    const q = el.querySelector("#q").value.trim().toLowerCase();
+    const type = el.querySelector("#type").value;
+    const asso = el.querySelector("#asso").value;
+    const tri = el.querySelector("#tri").value;
+    let l = DB.annonces({ ouvertes: true, type: type || undefined });
+    if (asso) l = l.filter(a => a.asso === asso);
+    if (q) l = l.filter(a => {
+      const nomAsso = (DB.association(a.asso) || {}).nom || "";
+      return (a.titre + " " + a.description + " " + a.lieu + " " + nomAsso).toLowerCase().includes(q);
+    });
+    l = [...l].sort((a, b) => tri === "points"
+      ? DB.pointsPour(b.type, b.restant) - DB.pointsPour(a.type, a.restant)
+      : String(a.date).localeCompare(String(b.date)));
+    const box = el.querySelector("#liste");
+    box.innerHTML = "";
+    box.appendChild(h(`<p class="muted" style="font-size:var(--t-sm);margin-bottom:var(--s4)">
+      ${l.length} annonce${l.length > 1 ? "s" : ""} ouverte${l.length > 1 ? "s" : ""}</p>`));
+    box.appendChild(listeAnnonces(l, u));
   };
-  el.querySelectorAll(".tab").forEach(t => t.onclick = () => {
-    el.querySelectorAll(".tab").forEach(x => x.classList.remove("is-active"));
-    t.classList.add("is-active"); dessine(t.dataset.t);
-  });
-  dessine("");
+  el.querySelector("#q").addEventListener("input", dessine);
+  ["type","asso","tri"].forEach(id => el.querySelector("#" + id).addEventListener("change", dessine));
+  dessine();
   return el;
 }
 
@@ -1691,26 +1741,57 @@ function tableauAsso(u){
       </section>
     </div>
   </div>`);
-  el.querySelector("#l").appendChild(tableAnnoncesAsso(annonces));
+  el.querySelector("#l").appendChild(tableAnnoncesAsso(annonces, u));
   el.querySelector("#new").onclick = () => formAnnonce(u);
   return el;
 }
 
-function tableAnnoncesAsso(annonces){
+function tableAnnoncesAsso(annonces, u){
   const t = h(`<table class="table"><thead><tr>
-    <th>Annonce</th><th>Format</th><th>Reste</th><th>État</th></tr></thead><tbody></tbody></table>`);
+    <th>Annonce</th><th>Format</th><th>Reste</th><th>État</th><th></th></tr></thead><tbody></tbody></table>`);
   const tb = t.querySelector("tbody");
-  if (!annonces.length) tb.appendChild(h(`<tr><td colspan="4" class="empty">Aucune annonce publiée.</td></tr>`));
-  annonces.forEach(a => tb.appendChild(h(`<tr>
-    <td><strong>${esc(a.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${dateFR(a.date)}</span></td>
-    <td class="muted">${esc(BAREME[a.type].label)}</td>
-    <td class="tnum">${a.type === "don_financier" ? eur(a.restant) : a.restant + " / " + a.quantite}</td>
-    <td><span class="badge ${a.etat === "ouverte" ? "badge--ok" : ""}">${a.etat === "ouverte" ? "Ouverte" : "Close"}</span></td>
-  </tr>`)));
+  if (!annonces.length)
+    tb.appendChild(h(`<tr><td colspan="5" class="empty">Aucune annonce publiée.</td></tr>`));
+  annonces.forEach(a => {
+    const engagees = DB.missions({}).filter(m => m.annonce === a.id && m.etat !== "refusee").length;
+    const tr = h(`<tr>
+      <td><strong>${esc(a.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${dateFR(a.date)} · ${esc(a.lieu || "")}${
+        engagees ? ` · ${engagees} engagement${engagees > 1 ? "s" : ""}` : ""}</span></td>
+      <td class="muted">${esc(BAREME[a.type].label)}</td>
+      <td class="tnum">${a.type === "don_financier" ? eur(a.restant) : a.restant + " / " + a.quantite}</td>
+      <td><span class="badge ${a.etat === "ouverte" ? "badge--ok" : ""}">${a.etat === "ouverte" ? "Ouverte" : "Close"}</span></td>
+      <td style="text-align:right"></td></tr>`);
+    if (u){
+      const cell = tr.lastElementChild;
+      const bEdit = h(`<button class="btn btn--quiet btn--sm">Modifier</button>`);
+      bEdit.onclick = () => formAnnonce(u, a);
+      cell.appendChild(bEdit);
+      if (a.etat === "ouverte"){
+        const b = h(`<button class="btn btn--quiet btn--sm">Fermer</button>`);
+        b.onclick = () => { DB.fermerAnnonce(a.id); toast("Annonce fermée."); rendre(); };
+        cell.appendChild(b);
+      } else if (a.restant > 0){
+        const b = h(`<button class="btn btn--quiet btn--sm">Rouvrir</button>`);
+        b.onclick = () => { DB.rouvrirAnnonce(a.id); toast("Annonce rouverte."); rendre(); };
+        cell.appendChild(b);
+      }
+      if (!engagees){
+        const b = h(`<button class="btn btn--quiet btn--sm" style="color:var(--danger)">Supprimer</button>`);
+        b.onclick = () => modal("Supprimer cette annonce",
+          `<p class="muted">Personne ne s'y est engagé, elle peut disparaître sans laisser de trace.</p>`,
+          [{ label:"Annuler" },
+           { label:"Supprimer", classe:"btn--primary", onClick: () => {
+               try { DB.supprimerAnnonce(a.id); } catch (e){ toast(e.message); return false; }
+               toast("Annonce supprimée."); rendre(); }}]);
+        cell.appendChild(b);
+      }
+    }
+    tb.appendChild(tr);
+  });
   return t;
 }
 
-function formAnnonce(u){
+function formAnnonce(u, existante = null){
   const corps = h(`<div class="stack" style="--gap:var(--s4)">
     <div class="field"><label>Format</label>
       <select class="select" id="type">
@@ -1727,15 +1808,35 @@ function formAnnonce(u){
     </div>
     <div class="field"><label>Lieu</label><input class="input" id="lieu" placeholder="Ville ou adresse"></div>
   </div>`);
-  corps.querySelector("#d").value = new Date(Date.now() + 12 * 864e5).toISOString().slice(0, 10);
-  modal("Publier une annonce", corps, [
+  corps.querySelector("#d").value = existante
+    ? existante.date
+    : new Date(Date.now() + 12 * 864e5).toISOString().slice(0, 10);
+  if (existante){
+    corps.querySelector("#type").value = existante.type;
+    corps.querySelector("#type").disabled = true;
+    corps.querySelector("#titre").value = existante.titre;
+    corps.querySelector("#desc").value = existante.description;
+    corps.querySelector("#q").value = existante.quantite;
+    corps.querySelector("#lieu").value = existante.lieu || "";
+  }
+  modal(existante ? "Modifier l'annonce" : "Publier une annonce", corps, [
     { label:"Annuler" },
-    { label:"Publier", classe:"btn--primary", onClick: () => {
+    { label:existante ? "Enregistrer" : "Publier", classe:"btn--primary", onClick: () => {
         const v = (id) => corps.querySelector("#" + id).value.trim();
         if (!v("titre") || !v("desc")){ toast("Le titre et la description sont nécessaires."); return false; }
-        DB.creerAnnonce({ asso: u.org, type: v("type"), titre: v("titre"), description: v("desc"),
-          quantite: Number(v("q")) || 1, date: v("d"), lieu: v("lieu") || DB.association(u.org).ville });
-        toast("Annonce publiée."); rendre();
+        if (existante){
+          const q = Number(v("q")) || 1;
+          const pris = existante.quantite - existante.restant;
+          if (q < pris){ toast("Déjà " + pris + " engagement(s), la quantité ne peut pas descendre en dessous."); return false; }
+          DB.modifierAnnonce(existante.id, { titre:v("titre"), description:v("desc"),
+            quantite:q, restant:q - pris, date:v("d"), lieu:v("lieu") });
+          toast("Annonce mise à jour.");
+        } else {
+          DB.creerAnnonce({ asso: u.org, type: v("type"), titre: v("titre"), description: v("desc"),
+            quantite: Number(v("q")) || 1, date: v("d"), lieu: v("lieu") || DB.association(u.org).ville });
+          toast("Annonce publiée.");
+        }
+        rendre();
       }}
   ]);
 }
@@ -1892,36 +1993,64 @@ function vueAdminPreinscriptions(){
 }
 
 function vueAdminSaison(){
-  const s = DB.saison();
-  return h(`<div class="two">
+  const sa = DB.saison();
+  const el = h(`<div class="two">
     <section class="card" style="padding:var(--s8)">
-      <h3>${esc(s.nom)}</h3>
+      <div class="between"><h3>${esc(sa.nom)}</h3>
+        <span class="badge ${sa.etat === "ouverte" ? "badge--ok" : "badge--warn"}">${
+          sa.etat === "ouverte" ? "Ouverte" : sa.etat === "close" ? "Close" : "Brouillon"}</span></div>
       <div class="stack" style="--gap:var(--s4);margin-top:var(--s6)">
-        <div class="row" style="gap:var(--s4)">
-          <div class="field" style="flex:1"><label>Début</label><input class="input" type="date" value="${s.debut}"></div>
-          <div class="field" style="flex:1"><label>Fin</label><input class="input" type="date" value="${s.fin}"></div>
+        <div class="field"><label>Nom de la saison</label><input class="input" id="nom" value="${esc(sa.nom)}"></div>
+        <div class="row" style="gap:var(--s4);align-items:stretch">
+          <div class="field" style="flex:1"><label>Début</label><input class="input" type="date" id="debut" value="${sa.debut}"></div>
+          <div class="field" style="flex:1"><label>Fin</label><input class="input" type="date" id="fin" value="${sa.fin}"></div>
         </div>
-        <div class="row" style="gap:var(--s4)">
-          <div class="field" style="flex:1"><label>Prix plancher HT</label><input class="input" type="number" value="${s.prix_min}"></div>
-          <div class="field" style="flex:1"><label>Prix plafond HT</label><input class="input" type="number" value="${s.prix_max}"></div>
+        <div class="row" style="gap:var(--s4);align-items:stretch">
+          <div class="field" style="flex:1"><label>Prix plancher HT</label><input class="input" type="number" id="pmin" value="${sa.prix_min}"></div>
+          <div class="field" style="flex:1"><label>Prix plafond HT</label><input class="input" type="number" id="pmax" value="${sa.prix_max}"></div>
         </div>
-        <div class="field"><label>Acompte à la confirmation</label><input class="input" type="number" value="${s.acompte}">
+        <div class="field"><label>Acompte à la confirmation</label><input class="input" type="number" id="ac" value="${sa.acompte}">
           <p class="hint">Remboursé intégralement si la saison ne démarre pas.</p></div>
+        <div class="field"><label>État</label>
+          <select class="select" id="etat">
+            <option value="brouillon">Brouillon</option>
+            <option value="ouverte">Ouverte</option>
+            <option value="close">Close</option>
+          </select></div>
       </div>
-      <button class="btn btn--primary" style="margin-top:var(--s6)">Enregistrer la saison</button>
+      <button class="btn btn--primary" style="margin-top:var(--s6)" id="save">Enregistrer la saison</button>
     </section>
+
     <section class="card">
       <h3>Barème</h3>
       <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
-        Versionné par saison. Un changement en cours de saison fausserait le classement,
-        il ne s'applique donc qu'à la saison suivante.</p>
+        Versionné par saison. Un changement en cours de saison fausserait le classement :
+        il ne s'applique donc qu'à partir de la saison suivante.</p>
       <div class="stack" style="--gap:var(--s4);margin-top:var(--s6)">
         ${Object.entries(BAREME).map(([k, b]) => `
           <div class="field"><label>${esc(b.label)} — par ${esc(b.unite)}</label>
-            <input class="input" type="number" value="${b.points}"></div>`).join("")}
+            <input class="input" type="number" min="1" data-bareme="${k}" value="${b.points}"></div>`).join("")}
       </div>
+      <button class="btn btn--ghost" style="margin-top:var(--s6)" id="saveB">Enregistrer le barème</button>
+      <hr class="sep">
+      <p class="hint">Le barème appliqué aux missions déjà validées n'est jamais recalculé.
+        Les points acquis restent acquis.</p>
     </section>
   </div>`);
+  el.querySelector("#etat").value = sa.etat;
+  el.querySelector("#save").onclick = () => {
+    const v = (id) => el.querySelector("#" + id).value;
+    if (v("fin") <= v("debut")){ toast("La fin doit tomber après le début."); return; }
+    DB.majSaison({ nom:v("nom").trim() || sa.nom, debut:v("debut"), fin:v("fin"),
+      prix_min:Number(v("pmin")), prix_max:Number(v("pmax")),
+      acompte:Number(v("ac")), etat:v("etat") });
+    toast("Saison enregistrée."); rendre();
+  };
+  el.querySelector("#saveB").onclick = () => {
+    el.querySelectorAll("[data-bareme]").forEach(i => DB.majBareme(i.dataset.bareme, i.value));
+    toast("Barème enregistré pour la saison suivante."); rendre();
+  };
+  return el;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1946,7 +2075,7 @@ const ROUTES = {
   association: {
     tableau:    [tableauAsso,  "Tableau de bord"],
     mesannonces:[(u) => { const d = h(`<section class="card"></section>`);
-                          d.appendChild(tableAnnoncesAsso(DB.annonces({ asso: u.org }))); return d; }, "Mes annonces"],
+                          d.appendChild(tableAnnoncesAsso(DB.annonces({ asso: u.org }), u)); return d; }, "Mes annonces"],
     avalider:   [vueAValider,  "Missions à valider"],
     page:       [vuePageAsso,  "Ma page publique"]
   },

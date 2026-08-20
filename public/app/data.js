@@ -178,6 +178,28 @@ function creerMock(){
     fermerAnnonce(aid){
       const a = s.annonces.find(x => x.id === aid); if (a) a.etat = "close"; return a;
     },
+    rouvrirAnnonce(aid){
+      const a = s.annonces.find(x => x.id === aid);
+      if (a && a.restant > 0) a.etat = "ouverte";
+      return a;
+    },
+    modifierAnnonce(aid, champs){
+      const a = s.annonces.find(x => x.id === aid);
+      if (!a) return null;
+      Object.assign(a, champs);
+      return a;
+    },
+    supprimerAnnonce(aid){
+      const engagees = s.missions.filter(m => m.annonce === aid && m.etat !== "refusee");
+      if (engagees.length) throw new Error("Des salariés se sont déjà engagés, l'annonce ne peut plus être supprimée. Fermez-la.");
+      s.annonces = s.annonces.filter(x => x.id !== aid);
+      return true;
+    },
+    majSaison(champs){ Object.assign(s.saison, champs); return s.saison; },
+    majBareme(type, points){
+      if (BAREME[type] && points > 0) BAREME[type].points = Number(points);
+      return BAREME;
+    },
     engager({ annonce, entreprise, salarie, quantite }){
       const a = s.annonces.find(x => x.id === annonce);
       if (!a || a.etat !== "ouverte") throw new Error("Annonce indisponible");
