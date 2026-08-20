@@ -510,6 +510,14 @@ function ouvrirEngagement(a, u){
       L'argent ne transite pas par Riseva et le reçu fiscal vous est envoyé automatiquement.</p>` : ""}
     ${a.type === "benevolat_demi_journee" ? `<p class="hint">Riseva n'assure pas les missions de
       bénévolat. En cas d'incident, la relation reste entre votre entreprise et l'association.</p>` : ""}
+    ${a.temps_travail ? `<div class="encadreMini">
+      <p><strong>Mission sur le temps de travail.</strong> Votre employeur vous met à disposition
+      de l'association pour cette mission précise, à cette date précise. Vous restez son salarié,
+      payé par lui et couvert par lui. Vous pouvez refuser sans aucune conséquence.</p>
+      <label class="checkline" style="margin-top:var(--s3)"><input type="checkbox" id="consent">
+        <span>Je donne mon accord pour <strong>${esc(a.titre)}</strong>, le
+        ${dateFR(a.date)}.</span></label>
+    </div>` : ""}
   </div>`);
   const q = corps.querySelector("#q"), calc = corps.querySelector("#calc");
   const maj = () => { calc.textContent = `Soit ${nb(DB.pointsPour(a.type, Number(q.value) || 0))} points pour votre entreprise.`; };
@@ -519,7 +527,9 @@ function ouvrirEngagement(a, u){
     { label: "Annuler" },
     { label: "Confirmer", classe: "btn--primary", onClick: () => {
         try {
-          DB.engager({ annonce: a.id, entreprise: u.org, salarie: u.id, quantite: Number(q.value) });
+          const cons = corps.querySelector("#consent");
+          DB.engager({ annonce: a.id, entreprise: u.org, salarie: u.id,
+            quantite: Number(q.value), consentement: cons ? cons.checked : false });
           toast("Vous êtes positionné. L'association sera prévenue.");
           rendre();
         } catch (err){ toast(err.message); return false; }
@@ -1513,9 +1523,19 @@ function formAnnonce(u, existante = null){
   corps.querySelector("#d").value = existante
     ? existante.date
     : new Date(Date.now() + 12 * 864e5).toISOString().slice(0, 10);
+  const eligible = DB.eligibleMecenat(u.org);
   const majTT = () => {
-    corps.querySelector("#ttWrap").style.display =
-      corps.querySelector("#type").value === "benevolat_demi_journee" ? "" : "none";
+    const visible = corps.querySelector("#type").value === "benevolat_demi_journee";
+    corps.querySelector("#ttWrap").style.display = visible ? "" : "none";
+    if (visible && !eligible){
+      const c = corps.querySelector("#tt");
+      c.checked = false; c.disabled = true;
+      if (!corps.querySelector("#ttNote"))
+        corps.querySelector("#ttWrap").insertAdjacentHTML("afterend",
+          `<p class="hint" id="ttNote">Pour proposer une mission sur le temps de travail, déclarez
+           d'abord votre éligibilité au mécénat dans <a href="#/recus" style="color:var(--forest-800)">Reçus fiscaux</a>.
+           Sans cela, l'entreprise n'aurait rien à valoriser.</p>`);
+    }
   };
   corps.querySelector("#type").addEventListener("change", majTT);
   if (existante){
@@ -1542,9 +1562,11 @@ function formAnnonce(u, existante = null){
             temps_travail: corps.querySelector("#tt").checked });
           toast("Annonce mise à jour.");
         } else {
-          DB.creerAnnonce({ asso: u.org, type: v("type"), titre: v("titre"), description: v("desc"),
-            quantite: Number(v("q")) || 1, date: v("d"), lieu: v("lieu") || DB.association(u.org).ville,
-            temps_travail: corps.querySelector("#tt").checked });
+          try {
+            DB.creerAnnonce({ asso: u.org, type: v("type"), titre: v("titre"), description: v("desc"),
+              quantite: Number(v("q")) || 1, date: v("d"), lieu: v("lieu") || DB.association(u.org).ville,
+              temps_travail: corps.querySelector("#tt").checked });
+          } catch (err){ toast(err.message); return false; }
           toast("Annonce publiée.");
         }
         rendre();
@@ -2196,9 +2218,16 @@ function vueMecenat(u){
         <section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
           <h3 style="font-size:var(--t-lg)">Une estimation, pas une déclaration</h3>
           <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);color:var(--ink-600)">
-            Riseva calcule à partir de ce qui s'est réellement passé sur la plateforme et du coût
-            journalier moyen que vous avez renseigné. C'est votre expert-comptable qui arrête les
-            chiffres définitifs, et l'éligibilité de chaque association au mécénat reste à vérifier.</p>
+            La valorisation fiscale est établie <strong>après réalisation</strong> de la mission,
+            sous votre responsabilité exclusive, à partir du temps effectivement validé et de votre
+            coût de revient.</p>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);color:var(--ink-600)">
+            <strong>Les estimations affichées ici, les heures planifiées et les points de classement
+            sont sans valeur fiscale.</strong> Seules les heures réellement exécutées et validées
+            par l'association comptent. Votre expert-comptable arrête les chiffres.</p>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);color:var(--ink-600)">
+            Riseva est l'outil de préparation et de traçabilité : ni employeur, ni association
+            bénéficiaire, ni assureur, ni conseil fiscal, ni émetteur du reçu.</p>
         </section>
       </div>
     </div>

@@ -143,6 +143,27 @@ def main():
         verifie("une adresse hors domaine est refusée",
                 "n'accepte que" in p.inner_text(".toast"))
 
+        print("\nConsentement et éligibilité")
+        connecte(p, "u4", "#/annonces")
+        p.evaluate("""()=>{const o=[...document.querySelectorAll('.offer')].find(x=>/temps de travail/.test(x.innerText));
+          o.querySelector('button').click()}""")
+        p.wait_for_timeout(300)
+        verifie("le consentement est demandé", p.is_visible(".modal #consent"))
+        p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Confirmer/.test(b.textContent)).click()")
+        p.wait_for_timeout(300)
+        verifie("sans consentement, l'engagement est refusé",
+                "accord explicite" in p.inner_text(".toast"))
+        p.check(".modal #consent")
+        p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Confirmer/.test(b.textContent)).click()")
+        p.wait_for_timeout(400)
+        verifie("avec consentement, l'engagement passe", "positionné" in p.inner_text(".toast"))
+
+        connecte(p, "u7", "#/mesannonces")
+        p.evaluate("()=>document.querySelector('#np').click()"); p.wait_for_timeout(300)
+        p.select_option(".modal #type", "benevolat_demi_journee"); p.wait_for_timeout(250)
+        verifie("une association éligible peut cocher le temps de travail",
+                not p.eval_on_selector(".modal #tt", "e=>e.disabled"))
+
         print("\nAssociation")
         connecte(p, "u7", "#/mesannonces")
         n0 = p.eval_on_selector_all("tbody tr", "r=>r.length")
@@ -180,8 +201,11 @@ def main():
         connecte(p, "u2", "#/parametres")
         p.fill("#cout", "400"); p.click("#save"); p.wait_for_timeout(400)
         p.evaluate("()=>location.hash='#/mecenat'"); p.wait_for_timeout(400)
-        verifie("le coût saisi alimente le mécénat", "840 €" in norm(p.inner_text(".content")),
-                "la réduction doit passer à 840 € avec 400 €/jour")
+        verifie("le coût saisi alimente le mécénat", "720 €" in norm(p.inner_text(".content")),
+                "la réduction doit passer à 720 € avec 400 €/jour")
+        verifie("une association non éligible ne se valorise pas",
+                "3 demi-journées" in norm(p.inner_text(".content")),
+                "la mission de Rivière Propre 42, non éligible, doit être exclue")
 
         print("\nEspace Riseva")
         connecte(p, "u1", "#/saison")

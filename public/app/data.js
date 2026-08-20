@@ -100,7 +100,9 @@ const seed = {
               qualite:"Présidente", prochain_numero:47, prefixe:"QV-2027-" } },
     { id:"a2", nom:"Racines Vives", ville:"Clermont-Ferrand", cause:"Reforestation",
       resume:"Replantation de haies bocagères et de forêts mixtes sur des parcelles agricoles.",
-      site:"", valide:true, rna:"W631004567", verifiee_le:J(-60), a_reverifier_le:J(300), suspendue:false },
+      site:"", valide:true, rna:"W631004567", verifiee_le:J(-60), a_reverifier_le:J(300), suspendue:false,
+      recus:{ actif:true, eligible_mecenat:true, signataire:"Marc Aubert",
+              qualite:"Trésorier", prochain_numero:12, prefixe:"RV-2027-" } },
     { id:"a3", nom:"Rivière Propre 42", ville:"Roanne", cause:"Dépollution",
       resume:"Nettoyage des berges de la Loire et sensibilisation dans les écoles.",
       site:"", valide:true, rna:"W422009876", verifiee_le:J(-200), a_reverifier_le:J(-20), suspendue:false },
@@ -293,6 +295,9 @@ function creerMock(){
 
     /* --- écritures --- */
     creerAnnonce(a){
+      if (a.temps_travail && !api.eligibleMecenat(a.asso))
+        throw new Error("Votre association n'a pas déclaré son éligibilité au mécénat : "
+          + "une mission sur le temps de travail ne serait pas valorisable.");
       const n = { id:id("an"), etat:"ouverte", restant:a.quantite, ...a };
       s.annonces.unshift(n); return n;
     },
@@ -321,14 +326,22 @@ function creerMock(){
       if (BAREME[type] && points > 0) BAREME[type].points = Number(points);
       return BAREME;
     },
-    engager({ annonce, entreprise, salarie, quantite }){
+    engager({ annonce, entreprise, salarie, quantite, consentement }){
       const a = s.annonces.find(x => x.id === annonce);
       if (!a || a.etat !== "ouverte") throw new Error("Annonce indisponible");
       if (quantite > a.restant) throw new Error("Quantité supérieure au besoin restant");
+      /* Une mise à disposition sur le temps de travail exige l'accord exprès, écrit et
+         spécifique du salarié (article R. 8241-2). Accepter les conditions générales
+         une fois pour toutes ne vaut pas consentement à cette mission-là, à ces dates-là. */
+      if (a.temps_travail && !consentement)
+        throw new Error("Votre accord explicite est nécessaire pour une mission sur le temps de travail");
       a.restant -= quantite;
       if (a.restant === 0) a.etat = "close";
       const m = { id:id("m"), annonce, entreprise, salarie, quantite,
-                  points: api.pointsPour(a.type, quantite), etat:"engagee", date:a.date };
+                  points: api.pointsPour(a.type, quantite), etat:"engagee", date:a.date,
+                  consentement: a.temps_travail
+                    ? { donne_le: new Date().toISOString().slice(0, 10), mission: a.titre, date_mission: a.date }
+                    : null };
       s.missions.unshift(m); return m;
     },
     declarerFaite(mid){
@@ -721,7 +734,9 @@ function creerMock(){
         const a = api.annonceDe(m); if (!a) return;
         if (a.type === "don_financier"){ dons += Number(m.quantite) || 0; return; }
         if (a.type !== "benevolat_demi_journee") return;
-        if (!a.temps_travail){ demiJourneesPerso += m.quantite; return; }
+        if (!a.temps_travail || !api.eligibleMecenat(a.asso)){
+          demiJourneesPerso += m.quantite; return;
+        }
         demiJourneesTT += m.quantite;
         parSalarie[m.salarie] = (parSalarie[m.salarie] || 0) + m.quantite * coutDemiJournee;
       });
@@ -756,6 +771,11 @@ function creerMock(){
     /* Riseva prépare et envoie. L'émetteur reste l'association : c'est elle qui porte
        le numéro d'ordre, la signature et la responsabilité (art. 1740 A du CGI).
        Sans réglages complets, la plateforme refuse d'émettre. */
+    /* Une association non éligible au mécénat ne peut pas proposer de mission
+       sur le temps de travail : il n'y aurait rien à valoriser, et laisser croire
+       le contraire serait la faute la plus coûteuse du produit. */
+    eligibleMecenat: (aid) => !!(api.reglagesRecus(aid) || {}).eligible_mecenat,
+
     reglagesRecus: (aid) => (api.association(aid) || {}).recus || {
       actif:false, eligible_mecenat:false, signataire:"", qualite:"",
       prochain_numero:1, prefixe:"" },
