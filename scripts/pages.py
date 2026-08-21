@@ -523,11 +523,15 @@ n'utilise que le stockage local du navigateur pour maintenir la session ouverte.
 de bandeau à cliquer, parce qu'il n'y a rien à accepter.</p>
 
 <p>Cela vaut aussi pour ce qui ne ressemble pas à un traceur. <strong>Les polices de caractères
-sont servies par Riseva</strong>, pas par une fonderie extérieure : afficher une page de riseva.fr
-ne fait aucune requête vers un domaine tiers, et n'envoie donc l'adresse IP du visiteur à personne
-avant qu'il ait fait quoi que ce soit. Une police chargée depuis un service tiers suffirait à
-rendre fausse la phrase ci-dessus, et un test de la recette échoue si un lien externe réapparaît
-sur une page.</p>
+sont servies par Riseva</strong>, pas par une fonderie extérieure. Consulter une page publique de
+riseva.fr — accueil, tarifs, règlement, page d'une association — ne déclenche donc aucune requête
+vers un domaine extérieur, et n'envoie l'adresse IP du visiteur à personne avant qu'il ait fait
+quoi que ce soit. Une seule police chargée depuis un service extérieur suffirait à rendre cette
+phrase fausse : un test de la recette échoue si un appel externe réapparaît sur une page.</p>
+
+<p>Une fois connecté à l'application, votre navigateur dialogue évidemment avec l'hébergement de
+la base — c'est ce qui affiche vos données. Ces prestataires sont ceux du tableau ci-dessus, ils
+sont dans l'Union européenne, et il n'y en a pas d'autre.</p>
 """)
 
 # ---------------------------------------------------------------- engagements de service
