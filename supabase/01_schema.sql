@@ -28,7 +28,8 @@ revoke all on schema private from public;
 revoke usage on schema private from anon, authenticated;
 
 -- ---------------------------------------------------------------- types
-create type role_utilisateur as enum ('admin','entreprise_admin','salarie','association');
+create type role_utilisateur as enum ('admin','entreprise_admin','salarie','association','site_referent');
+create type etat_collecte    as enum ('attendu','declare','approuve','clos_sans_reponse');
 create type type_annonce     as enum ('don_financier','benevolat_demi_journee','don_materiel');
 create type etat_annonce     as enum ('brouillon','ouverte','close');
 create type etat_mission     as enum ('engagee','a_valider','validee','validee_auto','refusee');
@@ -69,6 +70,21 @@ create table bareme (
 );
 
 -- ---------------------------------------------------------------- organisations
+-- ---------------------------------------------------------------- groupe
+-- Un groupe est un périmètre de consolidation *volontaire* et un payeur. Il n'a
+-- aucune existence fiscale : il ne signe rien, ne déclare rien, et surtout il ne
+-- mutualise aucun plafond. Ce qui signe et ce qui est imposé, c'est la société.
+--
+-- Le lien capitalistique ne crée aucun droit d'accès : appartenir au même groupe
+-- ne donne jamais le droit de lire les données nominatives d'une autre société.
+-- Deux sociétés d'un même groupe sont deux responsables de traitement distincts.
+create table groupe (
+  id           uuid primary key default gen_random_uuid(),
+  nom          text not null check (length(nom) between 1 and 160),
+  societe_mere uuid,                  -- FK posée après la création d'entreprise
+  cree_le      timestamptz not null default now()
+);
+
 create table entreprise (
   id        uuid primary key default gen_random_uuid(),
   nom       text not null check (length(nom) between 1 and 160),
@@ -85,8 +101,41 @@ create table entreprise (
   adresse   text check (length(adresse) <= 240),
   lat       double precision check (lat between -90 and 90),
   lon       double precision check (lon between -180 and 180),
+  groupe    uuid references groupe(id) on delete set null,
   cree_le   timestamptz not null default now()
 );
+create index entreprise_groupe on entreprise (groupe) where groupe is not null;
+
+alter table groupe
+  add constraint groupe_mere foreign key (societe_mere)
+  references entreprise(id) on delete set null;
+
+-- ---------------------------------------------------------------- établissement
+-- Un établissement est un lieu, pas une personne morale : il porte un effectif,
+-- un quota de comptes, un score et une accidentologie. Il ne porte ni contrat,
+-- ni facture, ni plafond de mécénat.
+--
+-- Son SIRET est facultatif : un « site opérationnel » au sens du client peut
+-- regrouper plusieurs SIRET, et un établissement distinct au sens du CSE ne
+-- correspond pas forcément à un lieu. On modélise donc le site tel que le client
+-- le pilote, et on garde le SIRET quand il y en a un seul.
+create table etablissement (
+  id        uuid primary key default gen_random_uuid(),
+  societe   uuid not null references entreprise(id) on delete cascade,
+  nom       text not null check (length(nom) between 1 and 120),
+  ville     text check (length(ville) <= 120),
+  siret     text check (siret ~ '^[0-9]{14}$'),
+  -- Le dénominateur du classement entre sites. Comme pour l'entreprise, il n'est
+  -- pas modifiable par le client : se déclarer trois salariés suffirait sinon à
+  -- rafler le classement normalisé.
+  effectif  integer not null default 0 check (effectif >= 0),
+  quota     integer not null default 0 check (quota >= 0),
+  referent_nom   text check (length(referent_nom) <= 160),
+  referent_mail  text check (length(referent_mail) <= 240),
+  ferme_le  date,
+  cree_le   timestamptz not null default now()
+);
+create index etablissement_societe on etablissement (societe);
 
 -- Les domaines de messagerie décident qui peut entrer : c'est un contrôle
 -- d'accès, pas une préférence. Ils ne vivent donc pas dans une colonne que
@@ -144,14 +193,23 @@ create table private.appartenance (
   role         role_utilisateur not null,
   entreprise   uuid references entreprise(id) on delete restrict,
   association  uuid references association(id) on delete restrict,
+  -- Le périmètre du site : un référent de site ne voit que le sien, et un salarié
+  -- porte le sien pour que ses missions soient attribuées au bon endroit.
+  etablissement uuid references etablissement(id) on delete restrict,
+  -- Le périmètre de consolidation : renseigné, il ouvre la vue de groupe — des
+  -- agrégats, jamais des identités d'une autre société.
+  groupe       uuid references groupe(id) on delete set null,
   actif        boolean not null default true,
   pseudonymise boolean not null default false,
   retire_le    timestamptz,
   maj_le       timestamptz not null default now(),
   constraint appartenance_rattachement check (
     (role = 'admin'            and entreprise is null and association is null) or
-    (role in ('entreprise_admin','salarie') and entreprise is not null and association is null) or
+    (role in ('entreprise_admin','salarie','site_referent') and entreprise is not null and association is null) or
     (role = 'association'      and association is not null and entreprise is null)),
+  -- Un référent de site sans site n'est référent de rien.
+  constraint appartenance_site check (
+    role <> 'site_referent' or etablissement is not null),
   -- Un compte pseudonymisé est un compte parti : il ne peut pas rester actif.
   constraint appartenance_depart check (
     not pseudonymise or (not actif and retire_le is not null))
@@ -192,9 +250,21 @@ create table affectation_siege (
 -- Le code d'invitation n'est jamais stocké en clair : seul son SHA-256 l'est.
 -- Quatre caractères aléatoires derrière un préfixe public, c'était nineteen bits
 -- devinables et un oracle de vérification en libre accès.
+-- Deux niveaux d'invitation, et jamais un seul. Le groupe nomme un référent de
+-- site par un lien *nominatif* et à usage unique ; le référent, lui, produit le
+-- lien d'inscription de ses salariés, borné par son quota.
+--
+-- Un lien de salarié ne confère jamais un rôle d'administration : c'est ce qui
+-- fait qu'un lien qui fuite reste sans conséquence grave.
 create table invitation (
   id          uuid primary key default gen_random_uuid(),
   entreprise  uuid not null references entreprise(id) on delete cascade,
+  etablissement uuid references etablissement(id) on delete cascade,
+  pour_referent boolean not null default false,
+  -- Un lien de référent est nominatif : il porte le nom et l'adresse de la
+  -- personne visée, et il n'ouvre qu'un seul compte.
+  destinataire_nom  text check (length(destinataire_nom) <= 160),
+  destinataire_mail text check (length(destinataire_mail) <= 240),
   empreinte   bytea not null,
   indice      text not null check (length(indice) between 4 and 12), -- pour retrouver le lien côté admin
   places      integer not null check (places > 0),
@@ -202,7 +272,10 @@ create table invitation (
   cree_par    uuid references profil(id) on delete set null,
   cree_le     timestamptz not null default now(),
   expire_le   timestamptz not null,
-  constraint invitation_expiration check (expire_le > cree_le)
+  constraint invitation_expiration check (expire_le > cree_le),
+  constraint invitation_referent check (
+    not pour_referent or (etablissement is not null and places = 1
+                          and destinataire_nom is not null and destinataire_mail is not null))
 );
 create unique index invitation_empreinte on invitation (empreinte);
 
@@ -244,6 +317,12 @@ create table mission (
   -- Nullable, et mis à NULL au départ définitif du salarié : sans cela, effacer
   -- un compte effacerait en cascade l'histoire de l'entreprise et des associations.
   salarie     uuid references profil(id) on delete set null,
+  -- L'établissement qui reçoit les points, figé au moment de l'engagement et
+  -- jamais recalculé. Sans ce gel, un salarié muté de Lyon à Marseille emporterait
+  -- son passé avec lui et le classement de la saison dernière changerait tout seul.
+  -- La société, elle, est déjà figée par `entreprise` : c'est elle qui porte la
+  -- convention, la valorisation et le reçu.
+  etablissement uuid references etablissement(id) on delete set null,
   etat        etat_mission not null default 'engagee',
   quantite    numeric(12,2) not null check (quantite > 0),
   points      integer not null default 0 check (points >= 0),
@@ -321,6 +400,61 @@ create table rapport (
 );
 
 -- ---------------------------------------------------------------- traces
+-- ------------------------------------------------------- indicateurs sociaux
+-- Ce qui coûte cher à un groupe, ce n'est pas le calcul : c'est d'obtenir les
+-- chiffres de chaque site. On réemploie donc le mécanisme des missions — on
+-- demande, on rappelle, et si personne ne répond la période se clôt *sans
+-- réponse*, plutôt que d'être comblée avec celle d'avant.
+create table campagne_indicateurs (
+  id        uuid primary key default gen_random_uuid(),
+  groupe    uuid references groupe(id) on delete cascade,
+  entreprise uuid references entreprise(id) on delete cascade,
+  periode   text not null check (length(periode) between 4 and 20),
+  libelle   text not null check (length(libelle) between 1 and 120),
+  debut     date not null,
+  fin       date not null,
+  echeance  date not null,
+  close_le  timestamptz,
+  cree_le   timestamptz not null default now(),
+  constraint campagne_periode check (fin >= debut and echeance >= fin),
+  -- Une campagne appartient à un groupe ou à une société, jamais aux deux.
+  constraint campagne_portee check (
+    (groupe is not null and entreprise is null) or
+    (groupe is null and entreprise is not null))
+);
+
+-- Une observation : une valeur, pour un site, une période, un indicateur.
+-- Les valeurs vivent dans un jsonb parce que la liste des indicateurs évolue ;
+-- la définition, elle, est versionnée et figée dans les rapports.
+--
+-- Deux gestes distincts : le contributeur saisit, l'approbateur verrouille. Sans
+-- cette séparation, un chiffre entre dans un document contractuel sans que
+-- personne ne l'ait regardé. Corriger une valeur approuvée produit une version,
+-- jamais un écrasement silencieux.
+create table observation_indicateur (
+  id            uuid primary key default gen_random_uuid(),
+  campagne      uuid not null references campagne_indicateurs(id) on delete cascade,
+  etablissement uuid not null references etablissement(id) on delete cascade,
+  etat          etat_collecte not null default 'attendu',
+  version       integer not null default 1 check (version > 0),
+  valeurs       jsonb not null default '{}'::jsonb,
+  saisi_par     uuid references profil(id) on delete set null,
+  saisi_le      timestamptz,
+  approuve_par  uuid references profil(id) on delete set null,
+  approuve_le   timestamptz,
+  maj_le        timestamptz not null default now(),
+  unique (campagne, etablissement),
+  -- Aucune donnée de santé : ni diagnostic, ni nature de lésion, ni identité de
+  -- la victime. On compte des accidents et des journées, pas des personnes.
+  constraint observation_agregats check (jsonb_typeof(valeurs) = 'object'),
+  constraint observation_declare check (
+    etat <> 'declare' or (saisi_par is not null and saisi_le is not null)),
+  constraint observation_approuve check (
+    etat <> 'approuve' or (approuve_par is not null and approuve_le is not null
+                           and approuve_par is distinct from saisi_par))
+);
+create index observation_campagne on observation_indicateur (campagne);
+
 create table acces (
   id          uuid primary key default gen_random_uuid(),
   entreprise  uuid references entreprise(id) on delete cascade,

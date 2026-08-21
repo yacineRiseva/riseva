@@ -44,6 +44,46 @@ language sql stable security definer set search_path = '' as $$
   select (private.moi()).association
 $$;
 
+-- Le périmètre du site. Un référent de site ne voit que le sien : ce n'est pas un
+-- filtre d'affichage, c'est la frontière.
+create or replace function private.mon_etablissement() returns uuid
+language sql stable security definer set search_path = '' as $$
+  select (private.moi()).etablissement
+$$;
+
+-- Le périmètre de consolidation. Renseigné, il ouvre la vue de groupe — des
+-- agrégats, jamais des identités d'une autre société. Appartenir au même groupe
+-- ne donne aucun droit sur les personnes d'une filiale : deux sociétés sont deux
+-- responsables de traitement distincts, et le lien capitalistique n'y change rien.
+create or replace function private.mon_groupe() returns uuid
+language sql stable security definer set search_path = '' as $$
+  select (private.moi()).groupe
+$$;
+
+-- Vrai si la société appartient au groupe que je consolide. Sert aux agrégats,
+-- jamais à ouvrir une ligne nominative.
+create or replace function private.dans_mon_groupe(p_entreprise uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select private.mon_groupe() is not null
+     and exists (select 1 from public.entreprise e
+                  where e.id = p_entreprise and e.groupe = private.mon_groupe())
+$$;
+
+-- Une policy s'exécute avec les droits de l'appelant. Écrire `exists (select 1
+-- from private.appartenance ...)` directement dans une policy la fait donc échouer
+-- pour `authenticated`, qui n'a aucun droit sur cette table — et une policy qui
+-- échoue ne filtre pas, elle refuse tout. Le test « une société ne lit pas les
+-- personnes d'une autre » l'a montré : plus personne ne pouvait lire un profil.
+-- Toute interrogation du schéma privé depuis une policy passe donc par une
+-- fonction SECURITY DEFINER, comme les autres.
+create or replace function private.meme_entreprise(p_profil uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select private.mon_entreprise() is not null
+     and exists (select 1 from private.appartenance a
+                  where a.profil = p_profil
+                    and a.entreprise = private.mon_entreprise())
+$$;
+
 create or replace function private.est_admin() returns boolean
 language sql stable security definer set search_path = '' as $$
   select coalesce(private.mon_role() = 'admin', false)
@@ -222,6 +262,242 @@ begin
   values (v_ent, auth.uid(), 'creation_lien', v_indice);
 
   return v_code;    -- montré une fois, jamais relisible
+end $$;
+
+-- ---------------------------------------------------------------- quotas de site
+-- Le quota est une ressource finie : la somme allouée aux établissements ne peut
+-- pas dépasser les places du contrat. Sans cette borne, le premier site servi
+-- mange les places des autres et le référent de Marseille découvre en septembre
+-- qu'il n'a plus de comptes.
+--
+-- Et l'allocation ne se fait pas depuis une table : `etablissement.quota` n'est
+-- accordé en écriture à personne. Une colonne modifiable depuis le navigateur,
+-- c'est un abonnement qu'on s'agrandit soi-même.
+create or replace function public.allouer_quota(p_etablissement uuid, p_places integer)
+returns integer
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_ent uuid := private.mon_entreprise();
+  v_societe uuid;
+  v_total integer;
+  v_alloue integer;
+  v_pris integer;
+begin
+  if v_ent is null or private.mon_role() <> 'entreprise_admin' then
+    raise exception 'Réservé à l''administrateur de la société' using errcode = '42501';
+  end if;
+  if p_places is null or p_places < 0 or p_places > 100000 then
+    raise exception 'Nombre de places invalide' using errcode = '22023';
+  end if;
+
+  select et.societe into v_societe
+    from public.etablissement et where et.id = p_etablissement;
+  if v_societe is null or v_societe <> v_ent then
+    raise exception 'Établissement hors de votre société' using errcode = '42501';
+  end if;
+
+  select ab.sieges into v_total
+    from public.abonnement ab
+   where ab.entreprise = v_ent and ab.saison = private.saison_ouverte();
+  if v_total is null then
+    raise exception 'Aucun abonnement ouvert pour cette société' using errcode = '22023';
+  end if;
+
+  select coalesce(sum(et.quota), 0) into v_alloue
+    from public.etablissement et
+   where et.societe = v_ent and et.id <> p_etablissement;
+
+  if v_alloue + p_places > v_total then
+    raise exception 'Le contrat ouvre % places, % sont déjà allouées ailleurs',
+      v_total, v_alloue using errcode = '22023';
+  end if;
+
+  select count(*) into v_pris
+    from private.appartenance a
+   where a.etablissement = p_etablissement and a.actif and not a.pseudonymise;
+  if p_places < v_pris then
+    raise exception '% comptes sont déjà ouverts sur ce site', v_pris using errcode = '22023';
+  end if;
+
+  update public.etablissement et set quota = p_places where et.id = p_etablissement;
+
+  insert into public.acces (entreprise, profil, quoi, indice)
+  values (v_ent, auth.uid(), 'quota_site', p_places::text);
+  return p_places;
+end $$;
+
+-- Le lien qui fait d'une personne le référent d'un site. Nominatif, à usage
+-- unique, trente jours. Il ne crée pas de compte tout seul : il autorise une
+-- adresse précise à en ouvrir un, sur un site précis, et sur rien d'autre.
+create or replace function public.creer_invitation_referent(
+  p_etablissement uuid, p_nom text, p_mail text)
+returns text
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_ent uuid := private.mon_entreprise();
+  v_societe uuid;
+  v_code text;
+begin
+  if v_ent is null or private.mon_role() <> 'entreprise_admin' then
+    raise exception 'Réservé à l''administrateur de la société' using errcode = '42501';
+  end if;
+  if coalesce(length(trim(p_nom)), 0) < 2 or p_mail !~ '^[^@[:space:]]+@[^@[:space:]]+\.[a-z]{2,}$' then
+    raise exception 'Un lien de référent est nominatif : nom et adresse' using errcode = '22023';
+  end if;
+  select et.societe into v_societe from public.etablissement et where et.id = p_etablissement;
+  if v_societe is null or v_societe <> v_ent then
+    raise exception 'Établissement hors de votre société' using errcode = '42501';
+  end if;
+
+  v_code := replace(replace(replace(
+              encode(extensions.gen_random_bytes(16), 'base64'), '+', '-'), '/', '_'), '=', '');
+
+  update public.invitation i set active = false
+   where i.etablissement = p_etablissement and i.pour_referent and i.active;
+
+  insert into public.invitation (entreprise, etablissement, pour_referent,
+    destinataire_nom, destinataire_mail, empreinte, indice, places, cree_par, expire_le)
+  values (v_ent, p_etablissement, true, trim(p_nom), lower(trim(p_mail)),
+          extensions.digest(v_code, 'sha256'), substr(v_code, 1, 6), 1,
+          auth.uid(), now() + interval '30 days');
+
+  insert into public.acces (entreprise, profil, quoi, indice)
+  values (v_ent, auth.uid(), 'lien_referent', substr(v_code, 1, 6));
+  return v_code;
+end $$;
+
+-- L'acceptation. L'adresse est vérifiée contre `auth.users` : un lien nominatif
+-- envoyé à quelqu'un ne doit pas pouvoir être utilisé par un autre, même s'il
+-- circule. Et il ne confère jamais autre chose que le pilotage de son site.
+create or replace function public.rejoindre_comme_referent(p_code text)
+returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_inv public.invitation;
+  v_mail text := lower(auth.email());
+begin
+  if auth.uid() is null then
+    raise exception 'Connexion requise' using errcode = '42501';
+  end if;
+  select * into v_inv from public.invitation i
+   where i.empreinte = extensions.digest(p_code, 'sha256')
+     and i.pour_referent and i.active and i.expire_le > now();
+  if v_inv.id is null then
+    raise exception 'Lien invalide ou expiré' using errcode = '22023';
+  end if;
+  if v_mail is null or v_mail <> v_inv.destinataire_mail then
+    raise exception 'Ce lien a été émis pour une autre adresse' using errcode = '42501';
+  end if;
+  if exists (select 1 from private.appartenance a where a.profil = auth.uid()) then
+    raise exception 'Ce compte est déjà rattaché' using errcode = '22023';
+  end if;
+
+  insert into public.profil (id, nom) values (auth.uid(), v_inv.destinataire_nom)
+    on conflict (id) do update set nom = excluded.nom;
+
+  insert into private.appartenance (profil, role, entreprise, etablissement)
+  values (auth.uid(), 'site_referent', v_inv.entreprise, v_inv.etablissement);
+
+  update public.invitation i set active = false where i.id = v_inv.id;
+  update public.etablissement et
+     set referent_nom = v_inv.destinataire_nom, referent_mail = v_inv.destinataire_mail
+   where et.id = v_inv.etablissement;
+
+  insert into public.acces (entreprise, profil, quoi, indice)
+  values (v_inv.entreprise, auth.uid(), 'referent_site', v_inv.indice);
+  return v_inv.etablissement;
+end $$;
+
+-- ---------------------------------------------------------------- indicateurs
+-- Le contributeur saisit. L'approbateur verrouille. Deux gestes, et deux
+-- personnes : sans cette séparation, un chiffre entre dans un document
+-- contractuel sans que personne ne l'ait regardé.
+create or replace function public.saisir_indicateurs(
+  p_campagne uuid, p_etablissement uuid, p_valeurs jsonb)
+returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_ent uuid := private.mon_entreprise();
+  v_role public.role_utilisateur := private.mon_role();
+  v_societe uuid;
+  v_id uuid;
+  v_etat public.etat_collecte;
+  v_version integer;
+begin
+  if v_ent is null or v_role not in ('entreprise_admin','site_referent') then
+    raise exception 'Réservé à la société ou au référent du site' using errcode = '42501';
+  end if;
+  select et.societe into v_societe from public.etablissement et where et.id = p_etablissement;
+  if v_societe is null or v_societe <> v_ent then
+    raise exception 'Établissement hors de votre société' using errcode = '42501';
+  end if;
+  if v_role = 'site_referent' and private.mon_etablissement() <> p_etablissement then
+    raise exception 'Vous ne saisissez que pour votre site' using errcode = '42501';
+  end if;
+  if not exists (select 1 from public.campagne_indicateurs c
+                  where c.id = p_campagne and c.close_le is null) then
+    raise exception 'Cette campagne est close' using errcode = '22023';
+  end if;
+  -- Des agrégats, jamais des personnes : le jsonb ne doit contenir que des nombres.
+  if exists (select 1 from jsonb_each(p_valeurs) e
+              where jsonb_typeof(e.value) not in ('number','null')) then
+    raise exception 'Seules des valeurs numériques sont acceptées' using errcode = '22023';
+  end if;
+
+  select o.id, o.etat, o.version into v_id, v_etat, v_version
+    from public.observation_indicateur o
+   where o.campagne = p_campagne and o.etablissement = p_etablissement;
+
+  if v_id is null then
+    insert into public.observation_indicateur
+      (campagne, etablissement, etat, valeurs, saisi_par, saisi_le)
+    values (p_campagne, p_etablissement, 'declare', p_valeurs, auth.uid(), now())
+    returning id into v_id;
+  else
+    -- Corriger une valeur approuvée produit une version, jamais un écrasement.
+    update public.observation_indicateur o
+       set valeurs = o.valeurs || p_valeurs,
+           etat = 'declare',
+           version = case when v_etat = 'approuve' then o.version + 1 else o.version end,
+           saisi_par = auth.uid(), saisi_le = now(),
+           approuve_par = null, approuve_le = null, maj_le = now()
+     where o.id = v_id;
+  end if;
+  return v_id;
+end $$;
+
+create or replace function public.approuver_indicateurs(
+  p_campagne uuid, p_etablissement uuid)
+returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_ent uuid := private.mon_entreprise();
+  v_o public.observation_indicateur;
+begin
+  if v_ent is null or private.mon_role() <> 'entreprise_admin' then
+    raise exception 'L''approbation appartient à la société, pas au site' using errcode = '42501';
+  end if;
+  select o.* into v_o from public.observation_indicateur o
+   where o.campagne = p_campagne and o.etablissement = p_etablissement;
+  if v_o.id is null then
+    raise exception 'Rien à approuver pour ce site' using errcode = '22023';
+  end if;
+  if v_o.etat <> 'declare' then
+    raise exception 'Seule une saisie déclarée s''approuve' using errcode = '22023';
+  end if;
+  if v_o.saisi_par = auth.uid() then
+    raise exception 'La personne qui a saisi ne peut pas approuver sa propre saisie'
+      using errcode = '42501';
+  end if;
+  if not exists (select 1 from public.etablissement et
+                  where et.id = p_etablissement and et.societe = v_ent) then
+    raise exception 'Établissement hors de votre société' using errcode = '42501';
+  end if;
+
+  update public.observation_indicateur o
+     set etat = 'approuve', approuve_par = auth.uid(), approuve_le = now(), maj_le = now()
+   where o.id = v_o.id;
+  return v_o.id;
 end $$;
 
 -- Une seule porte d'entrée. L'adresse vient de `auth.users`, jamais d'un

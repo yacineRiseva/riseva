@@ -35,21 +35,65 @@ insert into auth.users (id, email) values
   ('aaaaaaaa-0000-4000-8000-000000000001', 'claire@lafarge-ciments.fr'),
   ('aaaaaaaa-0000-4000-8000-000000000002', 'malik@lafarge-ciments.fr'),
   ('aaaaaaaa-0000-4000-8000-000000000003', 'elise@quatrevents.org'),
-  ('aaaaaaaa-0000-4000-8000-000000000004', 'pirate@ailleurs.fr');
+  ('aaaaaaaa-0000-4000-8000-000000000004', 'pirate@ailleurs.fr'),
+  ('aaaaaaaa-0000-4000-8000-000000000005', 'karim@lafarge-ciments.fr'),
+  ('aaaaaaaa-0000-4000-8000-000000000006', 'lea@lafarge-ciments.fr'),
+  ('aaaaaaaa-0000-4000-8000-000000000007', 'theo@lafarge-negoce.fr');
 
 insert into profil (id, nom) values
   ('aaaaaaaa-0000-4000-8000-000000000001', 'Claire Fontaine'),
   ('aaaaaaaa-0000-4000-8000-000000000002', 'Malik Ferhat'),
   ('aaaaaaaa-0000-4000-8000-000000000003', 'Élise Tournier'),
-  ('aaaaaaaa-0000-4000-8000-000000000004', 'Inconnu');
+  ('aaaaaaaa-0000-4000-8000-000000000004', 'Inconnu'),
+  ('aaaaaaaa-0000-4000-8000-000000000005', 'Karim Belhadj'),
+  ('aaaaaaaa-0000-4000-8000-000000000006', 'Léa Mercier'),
+  ('aaaaaaaa-0000-4000-8000-000000000007', 'Théo Rialland');
 
-insert into private.appartenance (profil, role, entreprise, association) values
+-- Un groupe de deux sociétés : c'est le seul montage qui prouve ce que le modèle
+-- doit tenir. Même actionnaire, deux SIREN, deux responsables de traitement.
+insert into groupe (id, nom, societe_mere) values
+  ('99999999-9999-4999-8999-999999999999', 'Groupe Lafarge',
+   '22222222-2222-4222-8222-222222222222');
+
+update entreprise set groupe = '99999999-9999-4999-8999-999999999999'
+ where id = '22222222-2222-4222-8222-222222222222';
+
+insert into entreprise (id, nom, secteur, ville, effectif, ca, siren, groupe) values
+  ('88888888-8888-4888-8888-888888888888', 'Lafarge Négoce', 'Négoce', 'Nantes',
+   45, 6200000, '842100447', '99999999-9999-4999-8999-999999999999');
+
+insert into etablissement (id, societe, nom, ville, effectif, quota) values
+  ('e7000000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
+   'Siège', 'Paris', 60, 60),
+  ('e7000000-0000-4000-8000-000000000002', '22222222-2222-4222-8222-222222222222',
+   'Usine', 'Lyon', 110, 110),
+  ('e7000000-0000-4000-8000-000000000003', '22222222-2222-4222-8222-222222222222',
+   'Agence', 'Marseille', 40, 40),
+  ('e7000000-0000-4000-8000-000000000004', '88888888-8888-4888-8888-888888888888',
+   'Plateforme', 'Nantes', 45, 45);
+
+insert into private.appartenance (profil, role, entreprise, association, etablissement, groupe) values
   ('aaaaaaaa-0000-4000-8000-000000000001', 'entreprise_admin',
-   '22222222-2222-4222-8222-222222222222', null),
+   '22222222-2222-4222-8222-222222222222', null,
+   'e7000000-0000-4000-8000-000000000001', '99999999-9999-4999-8999-999999999999'),
   ('aaaaaaaa-0000-4000-8000-000000000002', 'salarie',
-   '22222222-2222-4222-8222-222222222222', null),
+   '22222222-2222-4222-8222-222222222222', null,
+   'e7000000-0000-4000-8000-000000000002', null),
   ('aaaaaaaa-0000-4000-8000-000000000003', 'association', null,
-   '33333333-3333-4333-8333-333333333333');
+   '33333333-3333-4333-8333-333333333333', null, null),
+  ('aaaaaaaa-0000-4000-8000-000000000005', 'site_referent',
+   '22222222-2222-4222-8222-222222222222', null,
+   'e7000000-0000-4000-8000-000000000002', null),
+  ('aaaaaaaa-0000-4000-8000-000000000006', 'site_referent',
+   '22222222-2222-4222-8222-222222222222', null,
+   'e7000000-0000-4000-8000-000000000003', null),
+  ('aaaaaaaa-0000-4000-8000-000000000007', 'entreprise_admin',
+   '88888888-8888-4888-8888-888888888888', null,
+   'e7000000-0000-4000-8000-000000000004', null);
+
+insert into campagne_indicateurs (id, groupe, periode, libelle, debut, fin, echeance) values
+  ('c1000000-0000-4000-8000-000000000001', '99999999-9999-4999-8999-999999999999',
+   '2026-S2', 'Second semestre 2026', '2026-07-01', '2026-12-31', '2027-01-31');
 
 \echo ''
 \echo 'Calcul du score'
@@ -293,6 +337,112 @@ begin
   perform pg_temp.dit('le rapport n''est pas scellé avant la clôture des validations',
     (select scelle_le from public.rapport limit 1) is null);
 end $$;
+
+\echo ''
+\echo 'Groupe, sociétés, établissements'
+-- Un groupe consolide, il ne fusionne pas. Appartenir au même groupe ne donne
+-- aucun droit sur les personnes d'une autre société : deux responsables de
+-- traitement distincts, et le lien capitalistique n'y change rien.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@lafarge-ciments.fr', false);
+
+select pg_temp.dit('la mère voit les établissements des deux sociétés du groupe',
+  (select count(*) from public.etablissement) = 4);
+select pg_temp.dit('elle voit le groupe qu''elle consolide',
+  (select count(*) from public.groupe) = 1);
+select pg_temp.dit('elle ne lit pas les personnes de la filiale',
+  not exists (select 1 from public.profil p
+               where p.id = 'aaaaaaaa-0000-4000-8000-000000000007'));
+select pg_temp.refuse('elle ne s''alloue pas des places qu''elle n''a pas achetées',
+  'select public.allouer_quota(''e7000000-0000-4000-8000-000000000002'', 99999)');
+select pg_temp.refuse('elle ne modifie pas un quota directement dans la table',
+  'update public.etablissement set quota = 9999');
+select pg_temp.refuse('elle ne modifie pas l''effectif de référence d''un site',
+  'update public.etablissement set effectif = 3');
+select pg_temp.refuse('elle n''alloue rien à un établissement d''une autre société',
+  'select public.allouer_quota(''e7000000-0000-4000-8000-000000000004'', 10)');
+select pg_temp.refuse('un lien de référent sans destinataire est refusé',
+  'select public.creer_invitation_referent(''e7000000-0000-4000-8000-000000000003'', '''', '''')');
+reset role;
+
+\echo ''
+\echo 'Ce que voit un référent de site'
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000005', false);
+select set_config('request.jwt.claim.email', 'karim@lafarge-ciments.fr', false);
+
+select pg_temp.dit('il voit les établissements de sa société',
+  (select count(*) from public.etablissement
+    where societe = '22222222-2222-4222-8222-222222222222') = 3);
+select pg_temp.dit('il ne voit pas la vue de groupe',
+  (select count(*) from public.groupe) = 0);
+select pg_temp.dit('il ne lit pas l''abonnement de la société',
+  (select count(*) from public.abonnement) = 0);
+select pg_temp.refuse('il ne s''alloue pas de quota',
+  'select public.allouer_quota(''e7000000-0000-4000-8000-000000000002'', 200)');
+select pg_temp.refuse('il ne nomme pas un autre référent',
+  'select public.creer_invitation_referent(''e7000000-0000-4000-8000-000000000003'',
+                                           ''Quelqu''''un'', ''x@lafarge-ciments.fr'')');
+select pg_temp.refuse('il ne saisit pas les indicateurs d''un autre site',
+  'select public.saisir_indicateurs(''c1000000-0000-4000-8000-000000000001'',
+     ''e7000000-0000-4000-8000-000000000003'', ''{\"effectif_fin\": 40}''::jsonb)');
+select pg_temp.refuse('il ne se promeut pas administrateur de la société',
+  'update private.appartenance set role = ''entreprise_admin'' where profil = auth.uid()');
+
+do $$
+declare v_id uuid;
+begin
+  v_id := public.saisir_indicateurs('c1000000-0000-4000-8000-000000000001',
+            'e7000000-0000-4000-8000-000000000002',
+            '{"effectif_fin": 110, "heures_travaillees": 94200, "at_avec_arret": 2,
+              "at_sans_arret": 4, "jours_arret": 38}'::jsonb);
+  perform pg_temp.dit('il saisit les indicateurs de son site',
+    (select etat from public.observation_indicateur where id = v_id) = 'declare');
+end $$;
+select pg_temp.refuse('des valeurs non numériques sont refusées',
+  'select public.saisir_indicateurs(''c1000000-0000-4000-8000-000000000001'',
+     ''e7000000-0000-4000-8000-000000000002'', ''{\"effectif_fin\": \"beaucoup\"}''::jsonb)');
+select pg_temp.refuse('il n''approuve pas sa propre saisie',
+  'select public.approuver_indicateurs(''c1000000-0000-4000-8000-000000000001'',
+     ''e7000000-0000-4000-8000-000000000002'')');
+reset role;
+
+\echo ''
+\echo 'Ce que voit une autre société du même groupe'
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000007', false);
+select set_config('request.jwt.claim.email', 'theo@lafarge-negoce.fr', false);
+
+select pg_temp.dit('la filiale ne voit que son propre établissement',
+  (select count(*) from public.etablissement) = 1);
+select pg_temp.dit('elle ne lit pas les personnes de la maison mère',
+  not exists (select 1 from public.profil p
+               where p.id = 'aaaaaaaa-0000-4000-8000-000000000002'));
+select pg_temp.dit('elle ne lit pas l''abonnement de la maison mère',
+  not exists (select 1 from public.abonnement ab
+               where ab.entreprise = '22222222-2222-4222-8222-222222222222'));
+select pg_temp.refuse('elle n''approuve pas les indicateurs d''un site de la mère',
+  'select public.approuver_indicateurs(''c1000000-0000-4000-8000-000000000001'',
+     ''e7000000-0000-4000-8000-000000000002'')');
+reset role;
+
+\echo ''
+\echo 'L''approbation appartient à la société'
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@lafarge-ciments.fr', false);
+do $$
+declare v_id uuid;
+begin
+  v_id := public.approuver_indicateurs('c1000000-0000-4000-8000-000000000001',
+            'e7000000-0000-4000-8000-000000000002');
+  perform pg_temp.dit('une saisie déclarée par le site s''approuve par la société',
+    (select etat from public.observation_indicateur where id = v_id) = 'approuve');
+  perform pg_temp.dit('et l''approbateur n''est pas le contributeur',
+    (select approuve_par <> saisi_par from public.observation_indicateur where id = v_id));
+end $$;
+reset role;
 
 \echo ''
 \echo 'Rétention'

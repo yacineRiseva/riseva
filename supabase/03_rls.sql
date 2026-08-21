@@ -85,10 +85,7 @@ create policy profil_lecture on public.profil for select to authenticated
   using (
     id = auth.uid()
     or private.est_admin()
-    or exists (select 1 from private.appartenance a
-                where a.profil = profil.id
-                  and a.entreprise = private.mon_entreprise()
-                  and private.mon_entreprise() is not null));
+    or private.meme_entreprise(profil.id));
 -- Une seule écriture possible, et elle ne touche que le nom. Le rôle, l'entreprise
 -- et l'état du compte ne sont même pas dans cette table.
 grant update (nom) on public.profil to authenticated;
@@ -105,6 +102,11 @@ create policy mission_lecture on public.mission for select to authenticated
     or private.est_admin()
     or (entreprise = private.mon_entreprise()
         and private.mon_role() = 'entreprise_admin'
+        and origine = 'entreprise')
+    -- Le référent de site voit les missions de son site, et de son site seulement.
+    or (entreprise = private.mon_entreprise()
+        and private.mon_role() = 'site_referent'
+        and etablissement = private.mon_etablissement()
         and origine = 'entreprise')
     or exists (select 1 from public.annonce a
                 where a.id = mission.annonce and a.association = private.mon_association()));
@@ -129,11 +131,56 @@ create policy abonnement_lecture on public.abonnement for select to authenticate
 
 -- Invitation : l'administrateur voit l'indice et le quota, jamais de quoi
 -- reconstituer un code — l'empreinte n'est pas accordée.
-grant select (id, entreprise, indice, places, active, cree_le, expire_le)
+grant select (id, entreprise, etablissement, pour_referent, destinataire_nom,
+              destinataire_mail, indice, places, active, cree_le, expire_le)
   on public.invitation to authenticated;
 create policy invitation_lecture on public.invitation for select to authenticated
   using ((entreprise = private.mon_entreprise() and private.mon_role() = 'entreprise_admin')
+         -- Un référent de site voit les liens de son site : celui qui l'a nommé,
+         -- et celui qu'il produit pour ses salariés. Pas ceux des autres sites.
+         or (entreprise = private.mon_entreprise()
+             and private.mon_role() = 'site_referent'
+             and etablissement = private.mon_etablissement())
          or private.est_admin());
+
+-- ---------------------------------------------------------------- groupe et sites
+-- Le groupe se lit, il ne se modifie pas depuis le navigateur.
+grant select on public.groupe to authenticated;
+create policy groupe_lecture on public.groupe for select to authenticated
+  using (id = private.mon_groupe() or private.est_admin());
+
+-- Un établissement est visible de sa société, du groupe qui la consolide, et du
+-- référent qui le pilote. `quota` et `effectif` sont lisibles mais jamais
+-- modifiables ici : ils passent par une RPC, sinon un administrateur s'ouvre
+-- autant de places qu'il veut et se déclare trois salariés pour rafler le
+-- classement normalisé.
+grant select on public.etablissement to authenticated;
+create policy etablissement_lecture on public.etablissement for select to authenticated
+  using (societe = private.mon_entreprise()
+         or private.dans_mon_groupe(societe)
+         or private.est_admin());
+
+-- ---------------------------------------------------------------- indicateurs
+grant select on public.campagne_indicateurs to authenticated;
+create policy campagne_lecture on public.campagne_indicateurs for select to authenticated
+  using (entreprise = private.mon_entreprise()
+         or (groupe is not null and groupe = private.mon_groupe())
+         or (groupe is not null and exists (
+               select 1 from public.entreprise e
+                where e.id = private.mon_entreprise() and e.groupe = campagne_indicateurs.groupe))
+         or private.est_admin());
+
+-- Les observations sont des agrégats : nombre d'accidents, journées perdues,
+-- heures travaillées. Aucune donnée de santé, aucune identité de victime. Elles
+-- se lisent donc au niveau du site, de la société et du groupe — mais elles ne
+-- s'écrivent que par RPC, avec contributeur et approbateur distincts.
+grant select on public.observation_indicateur to authenticated;
+create policy observation_lecture on public.observation_indicateur for select to authenticated
+  using (private.est_admin() or exists (
+    select 1 from public.etablissement et
+     where et.id = observation_indicateur.etablissement
+       and (et.societe = private.mon_entreprise()
+            or private.dans_mon_groupe(et.societe))));
 
 grant select on public.affectation_siege to authenticated;
 create policy siege_lecture on public.affectation_siege for select to authenticated
@@ -195,7 +242,12 @@ grant execute on function
   public.classement_saison(uuid),
   public.decile_entreprise(uuid, uuid),
   public.realisations(uuid, uuid, uuid),
-  public.suis_je_admin()
+  public.suis_je_admin(),
+  public.allouer_quota(uuid, integer),
+  public.creer_invitation_referent(uuid, text, text),
+  public.rejoindre_comme_referent(text),
+  public.saisir_indicateurs(uuid, uuid, jsonb),
+  public.approuver_indicateurs(uuid, uuid)
 to authenticated;
 
 -- Le paiement n'est jamais confirmé par le navigateur. Seule la fonction Edge,
@@ -214,7 +266,8 @@ to anon;
 revoke all on function
   private.moi(), private.mon_role(), private.mon_entreprise(), private.mon_association(),
   private.est_admin(), private.saison_ouverte(), private.points_pour(uuid, public.type_annonce, numeric),
-  private.sieges_pris(uuid)
+  private.sieges_pris(uuid), private.mon_etablissement(), private.mon_groupe(),
+  private.dans_mon_groupe(uuid), private.meme_entreprise(uuid)
 from public, anon, authenticated;
 revoke all on all tables in schema private from anon, authenticated;
 
@@ -229,7 +282,9 @@ grant usage on schema private to anon, authenticated;
 
 grant execute on function
   private.moi(), private.mon_role(), private.mon_entreprise(),
-  private.mon_association(), private.est_admin()
+  private.mon_association(), private.est_admin(),
+  private.mon_etablissement(), private.mon_groupe(), private.dans_mon_groupe(uuid),
+  private.meme_entreprise(uuid)
 to anon, authenticated;
 
 -- ---------------------------------------------------------------- propriétaire
