@@ -197,7 +197,55 @@ const seed = {
       site:"", valide:true, rna:"W691002345", verifiee_le:J(-30), a_reverifier_le:J(330), suspendue:false },
     { id:"a5", nom:"Second Souffle", ville:"Grenoble", cause:"Réemploi",
       resume:"Reconditionnement de matériel informatique pour des familles et des écoles.",
-      site:"", valide:false }
+      site:"", valide:false },
+    { id:"a6", nom:"Les Jardins du Nord", ville:"Lille", cause:"Reforestation",
+      resume:"Plantation de micro-forêts sur des friches industrielles de la métropole.",
+      adresse:"45 rue de Wazemmes, 59000 Lille", lat:50.6292, lon:3.0573,
+      site:"", valide:true, rna:"W595003311", verifiee_le:J(-90), a_reverifier_le:J(270), suspendue:false,
+      recus:{ actif:true, eligible_mecenat:true, signataire:"Nadia Berger",
+              qualite:"Présidente", prochain_numero:8, prefixe:"JN-2027-" } },
+    { id:"a7", nom:"Océan Net", ville:"Saint-Nazaire", cause:"Dépollution",
+      resume:"Collectes sur le littoral atlantique et suivi des déchets ramassés.",
+      adresse:"2 quai Demange, 44600 Saint-Nazaire", lat:47.2806, lon:-2.2086,
+      site:"", valide:true, rna:"W442007788", verifiee_le:J(-45), a_reverifier_le:J(315), suspendue:false,
+      recus:{ actif:true, eligible_mecenat:true, signataire:"Yann Le Gall",
+              qualite:"Trésorier", prochain_numero:31, prefixe:"ON-2027-" } },
+    { id:"a8", nom:"Table Ouverte", ville:"Bordeaux", cause:"Aide alimentaire",
+      resume:"Repas chauds quatre soirs par semaine et épicerie solidaire étudiante.",
+      adresse:"18 cours de la Marne, 33800 Bordeaux", lat:44.8378, lon:-0.5792,
+      site:"", valide:true, rna:"W332001199", verifiee_le:J(-70), a_reverifier_le:J(290), suspendue:false,
+      recus:{ actif:true, eligible_mecenat:true, signataire:"Hélène Ducasse",
+              qualite:"Directrice", prochain_numero:64, prefixe:"TO-2027-" } },
+    { id:"a9", nom:"Coup de Pouce Occitanie", ville:"Toulouse", cause:"Éducation",
+      resume:"Accompagnement scolaire et ateliers d'orientation en quartier prioritaire.",
+      adresse:"7 allée de Bellefontaine, 31100 Toulouse", lat:43.6047, lon:1.4442,
+      site:"", valide:true, rna:"W312004422", verifiee_le:J(-110), a_reverifier_le:J(250), suspendue:false,
+      recus:{ actif:true, eligible_mecenat:true, signataire:"Samir Ould",
+              qualite:"Président", prochain_numero:19, prefixe:"CP-2027-" } },
+    { id:"a10", nom:"Rhin Vivant", ville:"Strasbourg", cause:"Biodiversité",
+      resume:"Restauration de haies et de zones humides le long du Rhin.",
+      adresse:"12 route de la Wantzenau, 67000 Strasbourg", lat:48.5734, lon:7.7521,
+      site:"", valide:true, rna:"W672006655", verifiee_le:J(-25), a_reverifier_le:J(335), suspendue:false,
+      recus:{ actif:true, eligible_mecenat:true, signataire:"Anne Schmitt",
+              qualite:"Présidente", prochain_numero:5, prefixe:"RH-2027-" } },
+    { id:"a11", nom:"Calanques Solidaires", ville:"Marseille", cause:"Dépollution",
+      resume:"Ramassage dans les calanques et sensibilisation des scolaires du littoral.",
+      adresse:"30 boulevard Michelet, 13008 Marseille", lat:43.2965, lon:5.3698,
+      site:"", valide:true, rna:"W132008844", verifiee_le:J(-140), a_reverifier_le:J(220), suspendue:false,
+      recus:{ actif:true, eligible_mecenat:true, signataire:"Léo Ferrand",
+              qualite:"Secrétaire", prochain_numero:27, prefixe:"CS-2027-" } },
+    { id:"a12", nom:"Bocage de Bretagne", ville:"Rennes", cause:"Reforestation",
+      resume:"Replantation de haies bocagères avec les agriculteurs d'Ille-et-Vilaine.",
+      adresse:"5 rue de Saint-Malo, 35000 Rennes", lat:48.1173, lon:-1.6778,
+      site:"", valide:true, rna:"W352003377", verifiee_le:J(-55), a_reverifier_le:J(305), suspendue:false,
+      recus:{ actif:true, eligible_mecenat:true, signataire:"Gwen Morvan",
+              qualite:"Présidente", prochain_numero:41, prefixe:"BB-2027-" } },
+    { id:"a13", nom:"Toits d'Abord", ville:"Paris", cause:"Lutte contre l'exclusion",
+      resume:"Maraudes nocturnes et accompagnement vers le logement en Île-de-France.",
+      adresse:"9 rue de Belleville, 75019 Paris", lat:48.8566, lon:2.3522,
+      site:"", valide:true, rna:"W752009900", verifiee_le:J(-15), a_reverifier_le:J(345), suspendue:false,
+      recus:{ actif:true, eligible_mecenat:true, signataire:"Paul Reynaud",
+              qualite:"Directeur", prochain_numero:112, prefixe:"TA-2027-" } }
   ],
   annonces: [
     { id:"an1", asso:"a1", type:"benevolat_demi_journee", temps_travail:false,
@@ -208,22 +256,90 @@ const seed = {
       impact:{ unite:"arbre", par_unite:40 }, titre:"Plantation de 400 arbres à Beaumont",
       description:"Chantier de plantation sur une parcelle de deux hectares. Aucune compétence particulière requise, on fournit le matériel.",
       quantite:12, restant:9, date:J(16), lieu:"Beaumont (63)", etat:"ouverte" },
-    { id:"an3", asso:"a3", type:"don_materiel", titre:"Waders et gants de protection",
+    { id:"an3", asso:"a3", type:"don_materiel", impact:{ unite:"kit", par_unite:1 },
+      titre:"Waders et gants de protection",
       description:"Nos équipements sont hors d'usage. Nous cherchons des waders taille 40 à 46 et des gants épais.",
       quantite:10, restant:10, date:J(24), lieu:"Roanne", etat:"ouverte" },
-    { id:"an4", asso:"a4", type:"don_financier", titre:"Financer 300 colis pour l'hiver",
+    { id:"an4", asso:"a4", type:"don_financier", impact:{ unite:"colis", par_unite:0.1176 },
+      titre:"Financer 300 colis pour l'hiver",
       description:"Chaque colis revient à 8,50 €. La collecte d'hiver démarre en novembre.",
       quantite:2550, restant:1820, date:J(40), lieu:"Villeurbanne", etat:"ouverte" },
-    { id:"an5", asso:"a1", type:"don_materiel", titre:"Croquettes et couvertures",
+    { id:"an5", asso:"a1", type:"don_materiel", impact:{ unite:"kit", par_unite:1 },
+      titre:"Croquettes et couvertures",
       description:"Nous acceptons les palettes de croquettes non entamées et les couvertures propres.",
       quantite:5, restant:2, date:J(30), lieu:"Saint-Étienne", etat:"ouverte" },
-    { id:"an6", asso:"a2", type:"don_financier", titre:"Achat de 1 200 plants de charme",
+    { id:"an6", asso:"a2", type:"don_financier", impact:{ unite:"arbre", par_unite:0.4762 },
+      titre:"Achat de 1 200 plants de charme",
       description:"Un plant coûte 2,10 € livré. Objectif : sécuriser la campagne de plantation d'automne.",
       quantite:2520, restant:2520, date:J(52), lieu:"Clermont-Ferrand", etat:"ouverte" },
     { id:"an7", asso:"a3", type:"benevolat_demi_journee", temps_travail:true,
       impact:{ unite:"metre_berge", par_unite:250 }, titre:"Nettoyage des berges, secteur amont",
       description:"Ramassage sur trois kilomètres de berges. Prévoir des bottes.",
-      quantite:15, restant:0, date:J(-4), lieu:"Roanne", etat:"close" }
+      quantite:15, restant:0, date:J(-4), lieu:"Roanne", etat:"close" },
+    { id:"an8", asso:"a6", type:"benevolat_demi_journee", temps_travail:true,
+      impact:{ unite:"arbre", par_unite:55 }, titre:"Micro-forêt sur la friche de Fives",
+      description:"Deux mille plants sur 600 m². On plante dense, la méthode Miyawaki. Bottes et gants fournis.",
+      quantite:16, restant:11, date:J(21), lieu:"Lille", etat:"ouverte" },
+    { id:"an9", asso:"a6", type:"don_financier", impact:{ unite:"arbre", par_unite:0.35 },
+      titre:"Financer la deuxième parcelle",
+      description:"Un plant revient à 2,85 € livré et paillé. La parcelle voisine se libère en octobre.",
+      quantite:5700, restant:4200, date:J(60), lieu:"Lille", etat:"ouverte" },
+    { id:"an10", asso:"a7", type:"benevolat_demi_journee", temps_travail:false,
+      impact:{ unite:"dechet_kg", par_unite:35 }, titre:"Collecte sur la plage de Saint-Marc",
+      description:"Ramassage et tri par catégories, les données partent au protocole national. Prévoir un coupe-vent.",
+      quantite:20, restant:14, date:J(12), lieu:"Saint-Nazaire", etat:"ouverte" },
+    { id:"an11", asso:"a7", type:"don_materiel", impact:{ unite:"kit", par_unite:1 },
+      titre:"Pinces de ramassage et seaux gradués",
+      description:"Nos pinces cassent au bout de deux saisons. Nous cherchons du matériel neuf ou peu servi.",
+      quantite:24, restant:24, date:J(35), lieu:"Saint-Nazaire", etat:"ouverte" },
+    { id:"an12", asso:"a8", type:"benevolat_demi_journee", temps_travail:false,
+      impact:{ unite:"repas", par_unite:60 }, titre:"Service du soir, cours de la Marne",
+      description:"Préparation à 17 h, service à 19 h, rangement à 21 h. Six personnes par soirée.",
+      quantite:24, restant:9, date:J(6), lieu:"Bordeaux", etat:"ouverte" },
+    { id:"an13", asso:"a8", type:"don_financier", impact:{ unite:"repas", par_unite:0.55 },
+      titre:"Approvisionner l'épicerie solidaire",
+      description:"Un repas complet revient à 1,80 € grâce aux invendus. L'hiver double la fréquentation.",
+      quantite:4000, restant:2650, date:J(48), lieu:"Bordeaux", etat:"ouverte" },
+    { id:"an14", asso:"a9", type:"benevolat_demi_journee", temps_travail:true,
+      impact:{ unite:"eleve", par_unite:8 }, titre:"Ateliers d'orientation en troisième",
+      description:"Vous racontez votre métier, vous répondez aux questions. Deux heures, deux classes.",
+      quantite:14, restant:6, date:J(18), lieu:"Toulouse", etat:"ouverte" },
+    { id:"an15", asso:"a9", type:"don_materiel", impact:{ unite:"kit", par_unite:1 },
+      titre:"Ordinateurs portables reconditionnés",
+      description:"Pour le prêt aux lycéens. Windows ou Linux, 8 Go de RAM minimum, chargeur compris.",
+      quantite:30, restant:22, date:J(44), lieu:"Toulouse", etat:"ouverte" },
+    { id:"an16", asso:"a10", type:"benevolat_demi_journee", temps_travail:true,
+      impact:{ unite:"haie", par_unite:120 }, titre:"Plantation de haies à la Wantzenau",
+      description:"Trois cents mètres de haie mixte le long d'un fossé. Terrain plat, matériel fourni.",
+      quantite:10, restant:7, date:J(27), lieu:"Strasbourg", etat:"ouverte" },
+    { id:"an17", asso:"a10", type:"benevolat_demi_journee", temps_travail:false,
+      impact:{ unite:"metre_berge", par_unite:180 }, titre:"Entretien des berges du Rhin",
+      description:"Arrachage des espèces invasives et ramassage. Une matinée, secteur nord.",
+      quantite:12, restant:12, date:J(38), lieu:"Strasbourg", etat:"ouverte" },
+    { id:"an18", asso:"a11", type:"benevolat_demi_journee", temps_travail:false,
+      impact:{ unite:"dechet_kg", par_unite:28 }, titre:"Ramassage dans la calanque de Sormiou",
+      description:"Accès à pied, trente minutes de marche. Départ 8 h pour éviter la chaleur.",
+      quantite:18, restant:10, date:J(15), lieu:"Marseille", etat:"ouverte" },
+    { id:"an19", asso:"a11", type:"benevolat_demi_journee", temps_travail:true,
+      impact:{ unite:"eleve", par_unite:25 }, titre:"Interventions dans les écoles du littoral",
+      description:"Une heure devant une classe de CM2, support fourni, formation d'une demi-journée en amont.",
+      quantite:8, restant:8, date:J(50), lieu:"Marseille", etat:"ouverte" },
+    { id:"an20", asso:"a12", type:"benevolat_demi_journee", temps_travail:true,
+      impact:{ unite:"haie", par_unite:95 }, titre:"Chantier bocage à Pacé",
+      description:"Plantation chez un agriculteur partenaire. Repas de midi offert par la ferme.",
+      quantite:14, restant:4, date:J(9), lieu:"Rennes", etat:"ouverte" },
+    { id:"an21", asso:"a12", type:"don_financier", impact:{ unite:"arbre", par_unite:0.42 },
+      titre:"Financer les plants d'hiver",
+      description:"Un plant de bocage coûte 2,40 € avec sa protection contre les chevreuils.",
+      quantite:3600, restant:3600, date:J(65), lieu:"Rennes", etat:"ouverte" },
+    { id:"an22", asso:"a13", type:"benevolat_demi_journee", temps_travail:false,
+      impact:{ unite:"maraude", par_unite:1 }, titre:"Maraude du jeudi soir, 19e",
+      description:"Trois heures, en binôme avec un bénévole formé. Thermos et duvets fournis.",
+      quantite:20, restant:13, date:J(4), lieu:"Paris", etat:"ouverte" },
+    { id:"an23", asso:"a13", type:"don_materiel", impact:{ unite:"kit", par_unite:1 },
+      titre:"Duvets grand froid et trousses d'hygiène",
+      description:"Duvets confort -5 °C, neufs de préférence. Les trousses partent en une semaine.",
+      quantite:80, restant:56, date:J(33), lieu:"Paris", etat:"ouverte" }
   ],
   missions: [
     { id:"m1", annonce:"an1", entreprise:"e1", salarie:"u3", etat:"validee",     quantite:2, points:300,  date:J(-12) },
@@ -273,6 +389,84 @@ const seed = {
 };
 
 /* ------------------------------------------------------------------ */
+/* Le passé du réseau                                                  */
+/* ------------------------------------------------------------------ */
+/* « Tous ensemble » additionne ce que toutes les entreprises ont fait. Pour que
+   ce total veuille dire quelque chose, il faut qu'il y ait quelque chose à
+   additionner : des missions réelles, rattachées à de vraies annonces, donc à de
+   vraies unités d'impact, avec de vraies dates. On les engendre une seule fois,
+   de façon déterministe — même graine, même histoire, à chaque chargement — puis
+   elles vivent dans l'état comme les autres. Rien n'est écrit en dur : les
+   chiffres du réseau sortent du même code que ceux d'une entreprise.
+   L'entreprise de démonstration (e1) est laissée intacte : son tableau de bord
+   doit rester lisible et reproductible. */
+function alea(graine){
+  let a = graine >>> 0;
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), 1 | t);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const PRENOMS = ["Camille","Malik","Sofia","Thomas","Awa","Julien","Nadia","Pierre",
+  "Léa","Hugo","Fatou","Antoine","Manon","Karim","Élodie","Marc","Inès","Bastien",
+  "Chloé","Youssef","Sarah","Nicolas","Aline","Rémi","Jeanne","Idris"];
+const NOMS = ["Perrin","Bouchard","Nguyen","Lefèvre","Diallo","Roussel","Barbier",
+  "Meunier","Chauvin","Sanchez","Bertrand","Faure","Colin","Traoré","Guerin",
+  "Marchal","Petit","Renaud","Leclerc","Vasseur"];
+
+function engendrerReseau(base){
+  const r = alea(20260821);
+  const jour = (n) => {
+    const d = new Date(2026, 7, 20);
+    d.setDate(d.getDate() - n);
+    return d.toISOString().slice(0, 10);
+  };
+  const slug = (nom) => nom.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const supports = base.annonces.slice();
+  if (!supports.length) return;
+
+  base.entreprises.filter(e => e.id !== "e1").forEach(e => {
+    const domaine = slug(e.nom) + ".fr";
+    const equipe = [];
+    const taille = Math.max(3, Math.min(14, Math.round(e.effectif / 28) + 2));
+    for (let i = 0; i < taille; i++){
+      const prenom = PRENOMS[Math.floor(r() * PRENOMS.length)];
+      const nom = NOMS[Math.floor(r() * NOMS.length)];
+      const id = `u-${e.id}-${i + 1}`;
+      base.utilisateurs.push({
+        id, nom: `${prenom} ${nom}`, role: "salarie", org: e.id, reseau: true,
+        email: `${slug(prenom)}.${slug(nom)}${i}@${domaine}`
+      });
+      equipe.push(id);
+    }
+    const combien = 10 + Math.floor(r() * 26);
+    for (let k = 0; k < combien; k++){
+      const a = supports[Math.floor(r() * supports.length)];
+      const bareme = (BAREME[a.type] || {}).points || 0;
+      const quantite = a.type === "don_financier"
+        ? (2 + Math.floor(r() * 24)) * 10
+        : 1 + Math.floor(r() * 3);
+      base.missions.push({
+        id: `m-${e.id}-${k + 1}`,
+        annonce: a.id, entreprise: e.id, salarie: equipe[Math.floor(r() * equipe.length)],
+        etat: r() > 0.06 ? "validee" : "validee_auto",
+        quantite,
+        points: a.type === "don_financier"
+          ? Math.floor((quantite / 10) * bareme)
+          : quantite * bareme,
+        date: jour(14 + Math.floor(r() * 500)), reseau: true
+      });
+    }
+  });
+}
+engendrerReseau(seed);
+
+/* ------------------------------------------------------------------ */
 /* Implémentation mock                                                 */
 /* ------------------------------------------------------------------ */
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -281,7 +475,7 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
    est enregistré, et retrouvé au retour. Une clé de version évite de restaurer un
    état écrit par une version antérieure du modèle. */
 const CLE_ETAT = "riseva.etat";
-const VERSION_ETAT = 3;
+const VERSION_ETAT = 4;
 
 function lireEtat(){
   try {
@@ -780,6 +974,99 @@ function creerMock(){
           .map(([unite, quantite]) => ({ unite, quantite, ...(UNITES[unite] || { un:unite, pl:unite }) }))
           .sort((x, y) => y.quantite - x.quantite)
       };
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* Tous ensemble                                                      */
+    /* ------------------------------------------------------------------ */
+    /* Le total du réseau, toutes entreprises confondues. Aucun nom, aucune
+       entreprise nommée, aucun salarié identifiable : ce sont des compteurs.
+       C'est le même moteur d'addition que pour une entreprise seule, sans
+       filtre — si le calcul d'une entreprise est juste, celui-ci l'est aussi. */
+    reseau({ depuis, jusqua } = {}){
+      const parUnite = api.realisations({ depuis, jusqua });
+      const entreprises = new Set(), assos = new Set(), gens = new Set(), villes = new Set();
+      let missions = 0, heures = 0, euros = 0;
+      s.missions.forEach(m => {
+        if (!["validee", "validee_auto"].includes(m.etat)) return;
+        if (depuis && m.date < depuis) return;
+        if (jusqua && m.date > jusqua) return;
+        const a = api.annonceDe(m);
+        missions++;
+        if (m.entreprise) entreprises.add(m.entreprise);
+        if (m.salarie) gens.add(m.salarie);
+        if (a){
+          assos.add(a.asso);
+          if (a.lieu) villes.add(a.lieu);
+          const q = Number(m.quantite) || 0;
+          if (a.type === "benevolat_demi_journee") heures += q * 4;
+          if (a.type === "don_financier") euros += q;
+        }
+      });
+      return {
+        missions, heures, euros,
+        entreprises: entreprises.size,
+        associations: assos.size,
+        salaries: gens.size,
+        villes: villes.size,
+        realisations: parUnite,
+        arbres: parUnite.parUnite.arbre || 0
+      };
+    },
+
+    /* La courbe cumulée d'une unité, mois par mois. Sert au dessin de la forêt :
+       le décompte est vrai, c'est le dessin qui le raconte. */
+    cumulParMois(unite, { entreprise } = {}){
+      const parMois = {};
+      s.missions.forEach(m => {
+        if (entreprise && m.entreprise !== entreprise) return;
+        const r = api.realiseDe(m);
+        if (!r || r.unite !== unite || !r.quantite) return;
+        const mois = String(m.date).slice(0, 7);
+        parMois[mois] = (parMois[mois] || 0) + r.quantite;
+      });
+      let cumul = 0;
+      return Object.keys(parMois).sort().map(mois => {
+        cumul += parMois[mois];
+        return { mois, ajout: parMois[mois], cumul };
+      });
+    },
+
+    /* Les associations avec lesquelles une entreprise a le plus travaillé.
+       Les dons personnels des salariés en sont exclus : la cause d'une
+       association peut trahir une conviction ou un état de santé, et
+       l'employeur n'a pas à la déduire d'un palmarès. */
+    associationsPreferees(eid, { limite = 3 } = {}){
+      const par = new Map();
+      s.missions.forEach(m => {
+        if (m.entreprise !== eid) return;
+        if (!["validee", "validee_auto"].includes(m.etat)) return;
+        if (api.estDonPersonnel(m)) return;
+        const a = api.annonceDe(m);
+        if (!a) return;
+        const asso = s.associations.find(x => x.id === a.asso);
+        if (!asso) return;
+        const e = par.get(asso.id) || {
+          asso, missions: 0, points: 0, salaries: new Set(), parUnite: {}, derniere: ""
+        };
+        e.missions++;
+        e.points += Number(m.points) || 0;
+        if (m.salarie) e.salaries.add(m.salarie);
+        if (m.date > e.derniere) e.derniere = m.date;
+        const r = api.realiseDe(m);
+        if (r && r.quantite) e.parUnite[r.unite] = (e.parUnite[r.unite] || 0) + r.quantite;
+        par.set(asso.id, e);
+      });
+      return [...par.values()]
+        .map(e => ({
+          ...e,
+          salaries: e.salaries.size,
+          impacts: Object.entries(e.parUnite)
+            .map(([unite, quantite]) => ({ unite, quantite, ...(UNITES[unite] || { un:unite, pl:unite }) }))
+            .sort((x, y) => y.quantite - x.quantite)
+        }))
+        .sort((a, b) => b.missions - a.missions || b.points - a.points)
+        .slice(0, limite);
     },
 
     /* L'association corrige le chiffre au moment de valider : c'est elle qui était là. */

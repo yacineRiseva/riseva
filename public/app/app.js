@@ -1,5 +1,5 @@
 import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, lienPublic, connecterSupabase } from "./data.js";
-import { h, esc, nb, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, versCSV, vide, bandeauRealisations } from "./ui.js";
+import { h, esc, nb, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
 /* Session                                                             */
@@ -31,7 +31,8 @@ const MENUS = {
       ["annonces",   "Annonces",        "megaphone"],
       ["missions",   "Nos missions",    "check"],
       ["classement", "Classement",      "trophy"],
-      ["annuaire",   "Associations",    "heart"]
+      ["annuaire",   "Associations",    "heart"],
+      ["ensemble",   "Tous ensemble",   "leaf"]
     ]},
     { groupe: "Entreprise", items: [
       ["equipe",     "Équipe",       "users"],
@@ -47,7 +48,8 @@ const MENUS = {
       ["annonces",   "Annonces",        "megaphone"],
       ["missions",   "Mes missions",    "check"],
       ["classement", "Classement",      "trophy"],
-      ["annuaire",   "Associations",    "heart"]
+      ["annuaire",   "Associations",    "heart"],
+      ["ensemble",   "Tous ensemble",   "leaf"]
     ]},
     { groupe: "Moi", items: [
       ["activite", "Mon activité", "users"]
@@ -344,6 +346,11 @@ function tableauEntreprise(u){
      Trois définitions concurrentes sur trois écrans, c'est trois fois moins crédible. */
   const partVerifiee = DB.indicateurs(eid).participation;
 
+  /* Le palmarès des associations, et le total du réseau : deux lectures que le
+     responsable RSE demande à voix haute dès la deuxième réunion. */
+  const prefs = DB.associationsPreferees(eid, { limite: 3 });
+  const res = DB.reseau();
+
   const coutParAction = validees.length && fact.contrat
     ? Math.round(fact.contrat.montant_ht / validees.length) : null;
   const heuresTT = validees.reduce((n, m) => {
@@ -449,6 +456,45 @@ function tableauEntreprise(u){
     </div>
 
     <div id="realis"></div>
+
+    ${prefs.length ? `<section class="card">
+      <div class="between" style="margin-bottom:var(--s5)">
+        <div><h3>Vos associations</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+          Celles avec qui vos équipes ont le plus travaillé. Les dons personnels
+          des salariés n'entrent pas dans ce compte.</p></div>
+        <a class="btn btn--quiet btn--sm" href="#/annuaire">L'annuaire</a>
+      </div>
+      <div class="pref">
+        ${prefs.map((p, i) => `<article class="pref__c pref__c--${i + 1}">
+          <span class="pref__rang">${["La plus sollicitée", "La deuxième", "La troisième"][i] || ""}</span>
+          <span class="pref__nom">${esc(p.asso.nom)}</span>
+          <span class="muted" style="font-size:var(--t-sm)">${esc(p.asso.cause || "")} · ${esc(p.asso.ville || "")}</span>
+          <div class="pref__l"><span>Missions</span><b class="tnum">${nb(p.missions)}</b></div>
+          <div class="pref__l"><span>Salariés impliqués</span><b class="tnum">${nb(p.salaries)}</b></div>
+          <div class="pref__l"><span>Points rapportés</span><b class="tnum">${nb(p.points)}</b></div>
+          ${p.impacts.length ? `<div class="pref__l" style="border-top:var(--line-soft);padding-top:var(--s3)">
+            <span>${esc(p.impacts[0].quantite > 1 ? p.impacts[0].pl : p.impacts[0].un)}</span>
+            <b class="tnum">${nb(p.impacts[0].quantite)}</b></div>` : ""}
+          <a class="btn btn--ghost btn--sm" style="margin-top:auto"
+             href="/asso.html?id=${p.asso.id}" target="_blank">Sa page</a>
+        </article>`).join("")}
+      </div>
+    </section>` : ""}
+
+    <section class="card card--dark grain">
+      <div class="between" style="margin-bottom:var(--s5)">
+        <div><h3 style="color:var(--paper)">Tous ensemble</h3>
+        <p style="color:var(--forest-100);opacity:.75;font-size:var(--t-sm);margin-top:4px">
+          Ce que toutes les entreprises du réseau ont fait, la vôtre comprise.</p></div>
+        <a class="btn btn--lime btn--sm" href="#/ensemble">Voir la forêt</a>
+      </div>
+      <div class="three">
+        ${kpi("Missions du réseau", nb(res.missions), "", "", "kpi--nu")}
+        ${kpi("Arbres plantés", nb(res.arbres), "", "", "kpi--nu")}
+        ${kpi("Associations soutenues", nb(res.associations), "", "", "kpi--nu")}
+      </div>
+    </section>
 
     <section class="card" id="demarrage" style="display:none">
       <div class="between" style="margin-bottom:var(--s5)">
@@ -682,7 +728,15 @@ function vueAnnonces(u){
           <option value="">Toutes les associations</option>
           ${assos.map(a => `<option value="${a.id}">${esc(a.nom)}</option>`).join("")}
         </select>
-        <select class="select" id="tri" style="width:180px">
+        <select class="select" id="rayon" style="width:180px">
+          <option value="">Toute la France</option>
+          <option value="25">Moins de 25 km</option>
+          <option value="50">Moins de 50 km</option>
+          <option value="100">Moins de 100 km</option>
+          <option value="200">Moins de 200 km</option>
+        </select>
+        <select class="select" id="tri" style="width:190px">
+          <option value="distance">La plus proche</option>
           <option value="date">Date la plus proche</option>
           <option value="points">Plus de points</option>
         </select>
@@ -696,31 +750,66 @@ function vueAnnonces(u){
     const type = el.querySelector("#type").value;
     const asso = el.querySelector("#asso").value;
     const tri = el.querySelector("#tri").value;
+    const rayon = Number(el.querySelector("#rayon").value) || null;
     let l = DB.annonces({ ouvertes: true, type: type || undefined });
     if (asso) l = l.filter(a => a.asso === asso);
+    if (rayon) l = l.filter(a => {
+      const d = DB.distanceAnnonce(u.org, a);
+      return d == null || d <= rayon;   // une adresse manquante ne fait pas disparaître l'annonce
+    });
     if (q) l = l.filter(a => {
       const nomAsso = (DB.association(a.asso) || {}).nom || "";
       return (a.titre + " " + a.description + " " + a.lieu + " " + nomAsso).toLowerCase().includes(q);
     });
-    l = [...l].sort((a, b) => tri === "points"
-      ? DB.pointsPour(b.type, b.restant) - DB.pointsPour(a.type, a.restant)
-      : String(a.date).localeCompare(String(b.date)));
+    l = [...l].sort((a, b) => {
+      if (tri === "points")
+        return DB.pointsPour(b.type, b.restant) - DB.pointsPour(a.type, a.restant);
+      if (tri === "distance"){
+        const da = DB.distanceAnnonce(u.org, a), db = DB.distanceAnnonce(u.org, b);
+        if (da == null && db == null) return String(a.date).localeCompare(String(b.date));
+        if (da == null) return 1;
+        if (db == null) return -1;
+        return da - db;
+      }
+      return String(a.date).localeCompare(String(b.date));
+    });
     const box = el.querySelector("#liste");
     box.innerHTML = "";
-    box.appendChild(h(`<p class="muted" style="font-size:var(--t-sm);margin-bottom:var(--s4)">
-      ${l.length} annonce${l.length > 1 ? "s" : ""} ouverte${l.length > 1 ? "s" : ""}</p>`));
+    const dep = DB.coordsDe(DB.entreprise(u.org));
+    box.appendChild(h(`<div class="between" style="margin-bottom:var(--s5)">
+      <p class="muted" style="font-size:var(--t-sm)">
+        ${l.length} annonce${l.length > 1 ? "s" : ""} ouverte${l.length > 1 ? "s" : ""}${
+          rayon ? ` à moins de ${rayon} km` : ""}</p>
+      ${!dep ? `<a class="muted" href="#/parametres" style="font-size:var(--t-sm);
+        color:var(--forest-800)">Renseignez votre adresse pour voir les distances</a>` : ""}
+    </div>`));
     box.appendChild(listeAnnonces(l, u));
   };
   el.querySelector("#q").addEventListener("input", dessine);
-  ["type","asso","tri"].forEach(id => el.querySelector("#" + id).addEventListener("change", dessine));
+  ["type","asso","tri","rayon"].forEach(id => el.querySelector("#" + id).addEventListener("change", dessine));
   dessine();
   return el;
 }
 
 function vueAnnuaire(u){
-  const assos = DB.associations().filter(a => a.valide);
+  /* Les distances viennent des adresses saisies, géocodées une fois chacune.
+     Une association sans coordonnées n'est jamais écartée : elle passe en fin
+     de liste, mais elle reste visible — sinon un oubli de saisie la ferait
+     disparaître de l'annuaire, ce qui la pénaliserait pour rien. */
+  const assos = u.org && DB.entreprise(u.org)
+    ? DB.associationsProches(u.org).filter(a => a.valide)
+    : DB.associations().filter(a => a.valide).map(a => ({ ...a, distance: null }));
+  const monEnt = u.org ? DB.entreprise(u.org) : null;
+  const situe = monEnt && monEnt.lat != null;
   const causes = [...new Set(assos.map(a => a.cause).filter(Boolean))].sort();
   const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <section class="card stack" style="--gap:var(--s4)">
+      <div class="between">
+        <h3>Les associations, et où elles sont</h3>
+        <span class="muted" style="font-size:var(--t-sm)">${nb(assos.length)} partenaires vérifiés</span>
+      </div>
+      <div id="carte"></div>
+    </section>
     <section class="card card--pad-sm">
       <div class="row" style="gap:var(--s3);flex-wrap:wrap">
         <input class="input" id="q" placeholder="Rechercher une association, une ville, une cause" style="flex:1;min-width:240px">
@@ -729,6 +818,7 @@ function vueAnnuaire(u){
           ${causes.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("")}
         </select>
         <select class="select" id="tri" style="width:200px">
+          ${situe ? `<option value="proche">La plus proche</option>` : ""}
           <option value="nom">Ordre alphabétique</option>
           <option value="annonces">Le plus de besoins</option>
         </select>
@@ -737,6 +827,13 @@ function vueAnnuaire(u){
     <div id="liste" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))"></div>
   </div>`);
 
+  el.querySelector("#carte").appendChild(carteFrance([
+    ...(situe ? [{ lat: monEnt.lat, lon: monEnt.lon, nom: monEnt.nom, principal: true }] : []),
+    ...assos.map(a => ({ lat: a.lat, lon: a.lon, nom: a.nom, distance: a.distance }))
+  ], { hauteur: 400, legende: situe
+      ? "Le point clair, c'est votre siège. Passez la souris sur un point pour lire la distance."
+      : "Renseignez l'adresse de l'entreprise dans Paramètres pour voir les distances." }));
+
   const dessine = () => {
     const q = el.querySelector("#q").value.trim().toLowerCase();
     const cause = el.querySelector("#cause").value;
@@ -744,7 +841,15 @@ function vueAnnuaire(u){
     let l = assos.filter(a => (!cause || a.cause === cause) &&
       (!q || (a.nom + " " + a.ville + " " + a.cause + " " + a.resume).toLowerCase().includes(q)));
     const nbAnn = (a) => DB.annonces({ asso: a.id, ouvertes: true }).length;
-    l = [...l].sort((a, b) => tri === "annonces" ? nbAnn(b) - nbAnn(a) : a.nom.localeCompare(b.nom));
+    l = [...l].sort((a, b) => {
+      if (tri === "annonces") return nbAnn(b) - nbAnn(a);
+      if (tri === "proche"){
+        if (a.distance == null) return 1;
+        if (b.distance == null) return -1;
+        return a.distance - b.distance;
+      }
+      return a.nom.localeCompare(b.nom);
+    });
 
     const box = el.querySelector("#liste");
     box.innerHTML = "";
@@ -758,6 +863,7 @@ function vueAnnuaire(u){
         <div class="row" style="gap:var(--s3);flex-wrap:wrap">
           <span class="badge badge--brand">${esc(a.cause || "Association")}</span>
           <span class="muted" style="font-size:var(--t-sm)">${esc(a.ville)}</span>
+          ${a.distance != null ? `<span class="annonce__loin">${ICONS.pin || ""} ${nb(a.distance)} km</span>` : ""}
         </div>
         <h3>${esc(a.nom)}</h3>
         <p class="muted" style="font-size:var(--t-sm)">${esc(a.resume)}</p>
@@ -3605,6 +3711,116 @@ function vuePreferences(u){
 }
 
 /* ------------------------------------------------------------------ */
+/* Tous ensemble                                                       */
+/* ------------------------------------------------------------------ */
+/* Ce que le réseau entier a produit. Aucune entreprise n'est nommée, aucun
+   salarié n'est identifiable : ce sont des compteurs, additionnés par le même
+   code que celui d'une entreprise seule. On montre aussi la part de la maison,
+   parce qu'un total auquel on ne se situe pas ne sert à rien. */
+function vueEnsemble(u){
+  const r = DB.reseau();
+  const mien = u.org ? DB.realisations({ entreprise: u.org }) : null;
+  const mesArbres = mien ? (mien.parUnite.arbre || 0) : 0;
+  const part = r.arbres ? Math.round((mesArbres / r.arbres) * 100) : 0;
+  const cumul = DB.cumulParMois("arbre");
+  const assos = DB.associations().filter(a => a.valide);
+  const monEnt = u.org ? DB.entreprise(u.org) : null;
+
+  const chiffre = (n, l) => `<div class="ensemble__c">
+    <span class="ensemble__cn tnum">${n}</span><span class="ensemble__cl">${esc(l)}</span></div>`;
+
+  const el = h(`<div class="stack" style="--gap:var(--s6)">
+    <section class="stack" style="--gap:var(--s3)">
+      <h2>Tous ensemble</h2>
+      <p class="muted" style="max-width:64ch">
+        Ce que toutes les entreprises abonnées à Riseva ont fait, mises bout à bout.
+        Personne n'est nommé ici : ni une entreprise, ni un salarié. Ce sont des
+        additions, et elles sont calculées à chaque ouverture de page, pas recopiées.
+      </p>
+    </section>
+
+    <section class="stack" style="--gap:var(--s4)">
+      <div class="between">
+        <h3>La forêt du réseau</h3>
+        <span class="muted" style="font-size:var(--t-sm)">Chiffres déclarés par les associations</span>
+      </div>
+      <div id="foret"></div>
+      <p class="hint">
+        Un arbre apparaît quand le compteur franchit un palier, et il reste à sa place.
+        Ce n'est pas une animation d'accueil : c'est l'état du décompte au moment où
+        vous ouvrez la page.
+      </p>
+    </section>
+
+    <section class="card stack" style="--gap:var(--s5)">
+      <h3>Le réseau en chiffres</h3>
+      <div class="ensemble__chiffres">
+        ${chiffre(nb(r.missions), "missions réalisées")}
+        ${chiffre(nb(r.entreprises), r.entreprises > 1 ? "entreprises engagées" : "entreprise engagée")}
+        ${chiffre(nb(r.associations), r.associations > 1 ? "associations soutenues" : "association soutenue")}
+        ${chiffre(nb(r.salaries), r.salaries > 1 ? "salariés mobilisés" : "salarié mobilisé")}
+        ${chiffre(nb(r.heures) + " h", "de temps offert")}
+        ${chiffre(eur(r.euros), "versés aux associations")}
+      </div>
+    </section>
+
+    <section class="card stack" style="--gap:var(--s5)">
+      <h3>Ce que ça a produit, en vrai</h3>
+      <div class="ensemble__unites">
+        ${r.realisations.liste.map(x => `<div class="ensemble__u">
+          <span class="ensemble__uq tnum">${nb(x.quantite)}</span>
+          <span class="ensemble__ul">${esc(x.quantite > 1 ? x.pl : x.un)}</span>
+        </div>`).join("") || `<p class="muted">Rien n'a encore été déclaré.</p>`}
+      </div>
+      <p class="hint">
+        Chaque unité vient d'une annonce qui l'avait annoncée, et d'une association
+        qui a confirmé le chiffre après la mission. Riseva additionne, elle n'audite pas.
+      </p>
+    </section>
+
+    ${monEnt ? `<section class="card card--dark grain stack" style="--gap:var(--s4)">
+      <h3 style="color:var(--paper)">Votre part</h3>
+      <p style="color:var(--forest-100);max-width:60ch">
+        ${esc(monEnt.nom)} a fait planter <strong class="tnum" style="color:var(--lime)">${nb(mesArbres)}</strong>
+        arbre${mesArbres > 1 ? "s" : ""} sur les ${nb(r.arbres)} du réseau${part >= 1 ? `, soit ${part} %` : ""}.
+        ${mien && mien.missions ? `Et ${nb(mien.missions)} mission${mien.missions > 1 ? "s" : ""} qui ont produit quelque chose de mesurable.` : ""}
+      </p>
+    </section>` : ""}
+
+    <section class="card stack" style="--gap:var(--s4)">
+      <div class="between">
+        <h3>Où le réseau agit</h3>
+        <span class="muted" style="font-size:var(--t-sm)">${nb(assos.length)} associations partenaires</span>
+      </div>
+      <div id="carte"></div>
+    </section>
+
+    ${cumul.length > 1 ? `<section class="card stack" style="--gap:var(--s4)">
+      <h3>La progression, mois après mois</h3>
+      <div id="courbe"></div>
+      <p class="hint">Cumul des arbres plantés, du premier mois documenté à aujourd'hui.</p>
+    </section>` : ""}
+  </div>`);
+
+  el.querySelector("#foret").appendChild(foret(r.arbres, { unite: "arbres plantés" }));
+
+  el.querySelector("#carte").appendChild(carteFrance([
+    ...(monEnt && monEnt.lat != null
+      ? [{ lat: monEnt.lat, lon: monEnt.lon, nom: monEnt.nom, principal: true }] : []),
+    ...assos.map(a => ({ lat: a.lat, lon: a.lon, nom: a.nom }))
+  ], { hauteur: 420, legende: monEnt && monEnt.lat != null
+        ? "Le point clair, c'est vous. Les autres sont les associations partenaires."
+        : "Les associations partenaires, là où elles sont." }));
+
+  const courbe = el.querySelector("#courbe");
+  if (courbe) courbe.innerHTML = riviere(cumul.map(c => c.cumul), {
+    hauteur: 170, legendes: cumul.map(c => c.mois)
+  });
+
+  return el;
+}
+
+/* ------------------------------------------------------------------ */
 /* Routeur                                                             */
 /* ------------------------------------------------------------------ */
 const ROUTES = {
@@ -3614,6 +3830,7 @@ const ROUTES = {
     missions:  [vueMissions,       "Nos missions"],
     classement:[vueClassement,     "Classement"],
     annuaire:  [vueAnnuaire,       "Associations"],
+    ensemble:  [vueEnsemble,       "Tous ensemble"],
     equipe:    [vueEquipe,         "Équipe"],
     rapports:  [vueRapports,       "Rapports"],
     mecenat:   [vueMecenat,        "Mécénat"],
@@ -3627,6 +3844,7 @@ const ROUTES = {
     missions:  [vueMissions,       "Mes missions"],
     classement:[vueClassement,     "Classement"],
     annuaire:  [vueAnnuaire,       "Associations"],
+    ensemble:  [vueEnsemble,       "Tous ensemble"],
     activite:  [vueActivite,       "Mon activité"],
     preferences:[vuePreferences,   "Préférences"]
   },

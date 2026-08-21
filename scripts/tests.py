@@ -240,6 +240,11 @@ def main():
         connecte(p, "u7", "#/avalider")
         p.evaluate("()=>{const b=[...document.querySelectorAll('tbody button')].find(x=>x.textContent==='Confirmer'); if(b)b.click()}")
         p.wait_for_timeout(400)
+        # Une annonce qui porte une unité d'impact demande le chiffre réalisé avant de valider.
+        if p.is_visible(".modal #re"):
+            verifie("l'association corrige le chiffre avant de confirmer", True)
+            p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>b.textContent==='Confirmer').click()")
+            p.wait_for_timeout(400)
         verifie("une mission peut être confirmée", "créditée" in p.inner_text(".toast") or "crédités" in p.inner_text(".toast"))
 
         print("\nHiérarchie du tableau de bord")

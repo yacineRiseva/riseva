@@ -327,3 +327,188 @@ export function vignette(annonce, { hauteur = 132 } = {}){
     ${dessins[motif](al)}
   </svg>`;
 }
+
+/* ------------------------------------------------------------------ */
+/* Carte de France                                                     */
+/* ------------------------------------------------------------------ */
+/* Le contour est une polyligne de vraies coordonnées géographiques, projetée
+   par la même fonction que les points posés dessus : impossible qu'un siège
+   tombe à côté de la côte, puisque le trait et le point passent par le même
+   calcul. La projection est équirectangulaire corrigée par le cosinus de la
+   latitude moyenne, sans quoi la France s'étale en largeur.
+   Pas de fond de carte tiers : aucune requête ne part vers un serveur de
+   tuiles, donc aucune adresse IP d'utilisateur ne se promène chez un
+   prestataire pour afficher trois points. */
+const HEXAGONE = [
+  [2.38,51.03],[1.85,50.95],[1.58,50.87],[1.61,50.72],[1.55,50.22],[1.08,49.93],
+  [0.11,49.49],[-0.37,49.34],[-1.25,49.30],[-1.62,49.65],[-1.79,49.37],[-1.60,48.83],
+  [-1.51,48.63],[-2.02,48.65],[-2.76,48.53],[-3.05,48.78],[-3.98,48.72],[-4.49,48.39],
+  [-4.74,48.04],[-4.35,47.80],[-3.37,47.72],[-3.12,47.48],[-2.76,47.53],[-2.20,47.28],
+  [-2.25,46.98],[-1.78,46.49],[-1.15,46.16],[-1.03,45.62],[-1.16,44.66],[-1.32,44.00],
+  [-1.56,43.48],[-1.78,43.36],[-0.75,42.80],[0.66,42.69],[1.44,42.50],[1.73,42.50],
+  [2.65,42.34],[3.03,42.55],[3.15,43.15],[3.70,43.40],[4.55,43.37],[5.37,43.29],
+  [5.93,43.12],[6.64,43.27],[7.27,43.70],[7.50,43.79],[6.90,44.36],[7.02,44.85],
+  [6.80,45.15],[6.98,45.65],[6.86,45.90],[6.15,46.20],[6.10,46.42],[5.97,46.75],
+  [6.45,47.00],[7.00,47.35],[7.59,47.58],[7.80,48.60],[8.23,48.97],[7.95,49.03],
+  [7.05,49.11],[6.36,49.47],[5.82,49.55],[4.85,49.79],[4.87,50.15],[4.20,49.95],
+  [4.23,50.28],[3.66,50.35],[3.20,50.53],[2.87,50.70],[2.55,51.00]
+];
+const CORSE = [
+  [9.35,43.02],[9.55,42.75],[9.53,42.35],[9.45,41.95],[9.40,41.60],[9.28,41.38],
+  [8.80,41.55],[8.75,41.90],[8.60,42.25],[8.70,42.55],[9.00,42.70],[9.10,42.95]
+];
+const CADRE = { ouest: -5.4, est: 9.9, sud: 41.2, nord: 51.3 };
+const COS = Math.cos((46.5 * Math.PI) / 180);
+
+function projeter(L, H, marge){
+  const dx = (CADRE.est - CADRE.ouest) * COS;
+  const dy = CADRE.nord - CADRE.sud;
+  const k = Math.min((L - marge * 2) / dx, (H - marge * 2) / dy);
+  const gx = (L - dx * k) / 2, gy = (H - dy * k) / 2;
+  return {
+    x: (lon) => gx + (lon - CADRE.ouest) * COS * k,
+    y: (lat) => gy + (CADRE.nord - lat) * k
+  };
+}
+
+const trace = (pts, p) => "M" + pts.map(([lo, la]) =>
+  `${p.x(lo).toFixed(1)} ${p.y(la).toFixed(1)}`).join(" L") + " Z";
+
+export function carteFrance(points, { hauteur = 340, legende = "" } = {}){
+  const L = 460, H = 440;
+  const p = projeter(L, H, 16);
+  const dessines = points.filter(x => x.lat != null && x.lon != null);
+  return h(`<div class="carte">
+    <svg viewBox="0 0 ${L} ${H}" style="height:${hauteur}px" role="img"
+      aria-label="Carte de France, ${dessines.length} lieu${dessines.length > 1 ? "x" : ""}">
+      <path d="${trace(HEXAGONE, p)}" fill="var(--forest-050)" stroke="var(--forest-100)"
+        stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="${trace(CORSE, p)}" fill="var(--forest-050)" stroke="var(--forest-100)"
+        stroke-width="1.6" stroke-linejoin="round"/>
+      ${dessines.map(pt => `
+        <g class="carte__pt ${pt.principal ? "carte__pt--moi" : ""}">
+          <circle cx="${p.x(pt.lon).toFixed(1)}" cy="${p.y(pt.lat).toFixed(1)}"
+            r="${pt.principal ? 10 : 7}" class="carte__halo"/>
+          <circle cx="${p.x(pt.lon).toFixed(1)}" cy="${p.y(pt.lat).toFixed(1)}"
+            r="${pt.principal ? 5 : 3.4}" class="carte__coeur"/>
+          <title>${esc(pt.nom || "")}${pt.distance != null ? ` — ${pt.distance} km` : ""}</title>
+        </g>`).join("")}
+    </svg>
+    ${legende ? `<p class="hint">${esc(legende)}</p>` : ""}
+  </div>`);
+}
+
+/* ------------------------------------------------------------------ */
+/* La forêt                                                            */
+/* ------------------------------------------------------------------ */
+/* Un compteur qu'on regarde au lieu de le lire. Chaque arbre dessiné vaut un
+   nombre fixe d'arbres réellement plantés ; quand le total monte, un arbre de
+   plus apparaît, toujours au même endroit — les positions viennent d'une suite
+   de Halton, déterministe : l'arbre numéro 41 est au même pixel aujourd'hui et
+   dans six mois. Rien ne s'anime au chargement : ce n'est pas une animation
+   d'accueil, c'est l'état du compteur à l'instant où on ouvre la page. Le vrai
+   chiffre est écrit dessous, en toutes lettres, parce qu'un dessin ne prouve
+   rien tout seul. */
+const MAX_ARBRES_DESSINES = 120;
+
+function halton(i, base){
+  let f = 1, r = 0, n = i;
+  while (n > 0){ f /= base; r += f * (n % base); n = Math.floor(n / base); }
+  return r;
+}
+
+/* Une échelle ronde, choisie pour que la forêt reste lisible : on ne dessine
+   jamais plus de 120 arbres, et le pas est un nombre qu'on peut annoncer. */
+function echelleForet(total){
+  const paliers = [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000];
+  return paliers.find(p => total / p <= MAX_ARBRES_DESSINES) || 50000;
+}
+
+/* Du vert profond au fond, du vert clair devant : c'est la perspective
+   atmosphérique, et c'est ce qui donne une profondeur sans dégradé tape-à-l'œil. */
+function teinteArbre(p){
+  const m = p * p;                       /* l'avant-plan s'éclaircit tard */
+  const r = Math.round(28 + 122 * m);
+  const v = Math.round(74 + 122 * m);
+  const b = Math.round(58 + 20 * m);
+  return `rgb(${r},${v},${b})`;
+}
+
+/* x et y arrivent en nombres, et le restent : un `${x + r}` sur une chaîne
+   colle deux nombres bout à bout et l'attribut d= devient illisible. */
+function arbre(i, xb, yb, t){
+  const x = Math.round(xb * 10) / 10, y = Math.round(yb * 10) / 10;
+  const c = teinteArbre((t - 24) / 52);
+  const troncH = t * 0.3;
+  const tronc = `<path d="M${x} ${y} v${-troncH}" stroke="rgb(58,48,36)"
+    stroke-width="${Math.max(1.1, t * 0.06)}" stroke-linecap="round" opacity=".55"/>`;
+  const forme = i % 6;
+  if (forme === 1 && t < 42){
+    /* jeune pousse : une tige, deux feuilles, rien de plus */
+    return tronc + `<path d="M${x} ${y - t * 0.28} q${-t * 0.2} ${-t * 0.06} ${-t * 0.03} ${-t * 0.24}
+      q${t * 0.19} ${t * 0.06} ${t * 0.03} ${t * 0.24} Z" fill="${c}"/>
+      <path d="M${x} ${y - t * 0.4} q${t * 0.2} ${-t * 0.06} ${t * 0.03} ${-t * 0.26}
+      q${-t * 0.19} ${t * 0.07} ${-t * 0.03} ${t * 0.26} Z" fill="${c}" opacity=".82"/>`;
+  }
+  if (forme === 0 || forme === 3 || forme === 5){
+    /* feuillu : une couronne large, une masse d'ombre décalée */
+    const r = t * 0.31, base = y - troncH;
+    return tronc + `<ellipse cx="${x}" cy="${base - r * 0.62}" rx="${r * 1.1}" ry="${r * 0.95}" fill="${c}"/>
+      <ellipse cx="${x - r * 0.4}" cy="${base - r * 1.12}" rx="${r * 0.64}" ry="${r * 0.58}"
+        fill="${c}" opacity=".88"/>
+      <ellipse cx="${x + r * 0.48}" cy="${base - r * 1.02}" rx="${r * 0.5}" ry="${r * 0.46}"
+        fill="${c}" opacity=".74"/>`;
+  }
+  /* conifère : trois étages, large en bas */
+  const l = t * 0.34, base = y - troncH;
+  return tronc + `<path d="M${x} ${base - t * 0.78} L${x - l * 0.62} ${base - t * 0.44}
+      L${x + l * 0.62} ${base - t * 0.44} Z" fill="${c}"/>
+    <path d="M${x} ${base - t * 0.58} L${x - l * 0.84} ${base - t * 0.2}
+      L${x + l * 0.84} ${base - t * 0.2} Z" fill="${c}" opacity=".92"/>
+    <path d="M${x} ${base - t * 0.34} L${x - l} ${base} L${x + l} ${base} Z" fill="${c}" opacity=".85"/>`;
+}
+
+export function foret(total, { unite = "arbres plantés", legende = true } = {}){
+  const n = Math.max(0, Math.round(Number(total) || 0));
+  const pas = echelleForet(n);
+  const dessines = Math.min(MAX_ARBRES_DESSINES, Math.floor(n / pas));
+  /* Le dessin garde son rapport : pas de hauteur en pixels imposée, donc pas de
+     recadrage qui couperait la cime des arbres selon la largeur de l'écran. */
+  const L = 1200, H = 336, sol = 314, ciel = 104;
+
+  const plants = [];
+  for (let i = 0; i < dessines; i++){
+    const profondeur = halton(i + 1, 3);            /* 0 = horizon, 1 = premier plan */
+    const x = 26 + halton(i + 1, 2) * (L - 52);
+    const y = ciel + profondeur * (sol - ciel);
+    plants.push({ i, x, y, taille: 24 + profondeur * 52, profondeur });
+  }
+  plants.sort((a, b) => a.profondeur - b.profondeur);   /* l'arrière se dessine d'abord */
+
+  const el = h(`<figure class="foret">
+    <svg class="foret__svg" viewBox="0 0 ${L} ${H}" preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label="${nb(n)} ${esc(unite)}, représentés par ${dessines} arbre${dessines > 1 ? "s" : ""} dessiné${dessines > 1 ? "s" : ""}">
+      <defs>
+        <linearGradient id="foretCiel" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#0B2620"/>
+          <stop offset=".55" stop-color="#10352B"/>
+          <stop offset="1" stop-color="#16412F"/>
+        </linearGradient>
+      </defs>
+      <rect width="${L}" height="${H}" fill="url(#foretCiel)"/>
+      <path d="M0 ${ciel + 4} C 150 ${ciel - 26}, 330 ${ciel + 14}, 500 ${ciel - 8}
+        S 800 ${ciel + 16}, ${L} ${ciel - 14} L${L} ${H} L0 ${H} Z"
+        fill="#123A2C" opacity=".55"/>
+      ${plants.map(p => arbre(p.i, p.x, p.y, p.taille)).join("")}
+      ${dessines === 0 ? `<text x="${L / 2}" y="${(ciel + sol) / 2}" text-anchor="middle"
+        fill="var(--forest-100)" opacity=".55" font-size="18">Le terrain est prêt. Les premiers arbres arrivent.</text>` : ""}
+    </svg>
+    <figcaption class="foret__pied">
+      <span class="foret__nb tnum">${nb(n)}</span>
+      <span class="foret__unite">${esc(unite)}</span>
+      ${legende && dessines > 0 ? `<span class="foret__echelle">1 arbre dessiné = ${nb(pas)} ${pas > 1 ? "arbres réels" : "arbre réel"}</span>` : ""}
+    </figcaption>
+  </figure>`);
+  return el;
+}

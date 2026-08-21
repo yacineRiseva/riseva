@@ -231,3 +231,61 @@
 .annonce__actions .btn:first-child{flex:1}
 .grilleAnnonces{display:grid;gap:var(--s5);
   grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+
+/* ============ Carte ============ */
+.carte svg{display:block;width:100%;margin-inline:auto}
+.carte__halo{fill:var(--forest-600);fill-opacity:.18}
+.carte__coeur{fill:var(--forest-700)}
+.carte__pt--moi .carte__halo{fill:var(--lime);fill-opacity:.35}
+.carte__pt--moi .carte__coeur{fill:var(--ink)}
+.carte__pt{transition:transform var(--dur) var(--ease)}
+.carte__pt:hover .carte__halo{fill-opacity:.4}
+
+/* --- La forêt du réseau ------------------------------------------- */
+.foret{ margin:0; border-radius:var(--r-lg); overflow:hidden; background:var(--forest-900);
+  border:var(--line-dark); }
+.foret__svg{ display:block; width:100%; height:auto; }
+.foret__pied{ display:flex; align-items:baseline; gap:var(--s3); flex-wrap:wrap;
+  padding:var(--s4) var(--s5) var(--s5); background:var(--forest-900); }
+.foret__nb{ font-family:var(--font-display); font-size:clamp(2rem,1.2rem + 2.4vw,3rem);
+  line-height:1; letter-spacing:var(--track-display); color:var(--lime); }
+.foret__unite{ color:var(--forest-100); font-size:var(--t-lg); }
+.foret__echelle{ margin-left:auto; color:var(--forest-100); opacity:.6;
+  font-size:var(--t-xs); letter-spacing:var(--track-wide); text-transform:uppercase; }
+
+/* --- Tous ensemble ------------------------------------------------- */
+.ensemble__chiffres{ display:grid; gap:var(--s4);
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); }
+.ensemble__c{ padding:var(--s4) var(--s5); border-radius:var(--r-md);
+  background:var(--paper-raised); border:var(--line-soft); }
+.ensemble__cn{ display:block; font-family:var(--font-display); font-size:1.75rem;
+  line-height:1.05; letter-spacing:var(--track-h); }
+.ensemble__cl{ display:block; margin-top:2px; color:var(--ink-500); font-size:var(--t-sm); }
+.ensemble__unites{ display:grid; gap:var(--s3);
+  grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); }
+.ensemble__u{ display:flex; align-items:baseline; gap:var(--s2);
+  padding:var(--s3) var(--s4); border-radius:var(--r-sm); background:var(--paper-sunk); }
+.ensemble__uq{ font-family:var(--font-display); font-size:var(--t-h3); letter-spacing:var(--track-h); }
+.ensemble__ul{ color:var(--ink-500); font-size:var(--t-sm); }
+
+/* --- Association préférée ------------------------------------------ */
+.pref{ display:grid; gap:var(--s4); grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+.pref__c{ display:flex; flex-direction:column; gap:var(--s3); padding:var(--s4) var(--s5);
+  border-radius:var(--r-md); border:var(--line-soft); background:var(--paper-raised); }
+.pref__c--1{ border-color:var(--brand); box-shadow:var(--sh-1); }
+.pref__rang{ font-size:var(--t-xs); letter-spacing:var(--track-wide);
+  text-transform:uppercase; color:var(--ink-400); }
+.pref__nom{ font-family:var(--font-display); font-size:var(--t-lg); letter-spacing:var(--track-h); }
+.pref__l{ display:flex; justify-content:space-between; gap:var(--s3);
+  font-size:var(--t-sm); color:var(--ink-600); }
+
+/* --- Distance affichée dans l'annuaire ----------------------------- */
+.annonce__loin{ display:inline-flex; align-items:center; gap:4px; padding:2px 8px;
+  border-radius:var(--r-pill); background:var(--forest-050); color:var(--forest-700);
+  font-size:var(--t-xs); font-weight:550; }
+.annonce__loin svg{ width:12px; height:12px; }
+
+/* --- KPI posé sur une carte sombre --------------------------------- */
+.kpi--nu{ background:transparent; border:none; box-shadow:none; padding:0; }
+.kpi--nu .kpi__label{ color:var(--forest-100); opacity:.7; }
+.kpi--nu .kpi__value{ color:var(--lime); }
