@@ -686,6 +686,24 @@ def main():
         feuilles = ext.eval_on_selector_all(
             "link[rel=stylesheet]", "l=>l.map(e=>e.href).filter(h=>!h.startsWith(location.origin))")
         verifie("aucune feuille de style distante", not feuilles, "; ".join(feuilles[:3]))
+
+        # Un lien mort dans un document contractuel coûte plus cher qu'un bug : c'est
+        # la clause qu'on ne peut pas lire. On les suit tous.
+        import urllib.request
+        cibles = set()
+        for f in list(RACINE.rglob("*.html")) + list((RACINE / "app").glob("*.js")):
+            src = f.read_text(encoding="utf-8")
+            for motif in (r'href="(/[^"#?${]*)"', r'src="(/[^"#?${]*)"'):
+                cibles.update(m.group(1) for m in re.finditer(motif, src))
+        morts = []
+        for lien in sorted(cibles):
+            if not lien or lien.endswith("/") or lien == "/app/config.js":
+                continue  # config.js n'existe qu'en production, le chargeur l'assume
+            try:
+                urllib.request.urlopen(BASE + lien, timeout=5).read(1)
+            except Exception:
+                morts.append(lien)
+        verifie("aucun lien interne ne pointe dans le vide", not morts, "; ".join(morts[:3]))
         ext.close()
 
         print("\nAccessibilité et robustesse")
