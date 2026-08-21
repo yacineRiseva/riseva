@@ -395,9 +395,20 @@ function tableauEntreprise(u){
         <div class="between" style="margin-bottom:var(--s5)">
           <div><h3 style="font-size:var(--t-lg)">Points par semaine</h3>
           <p class="muted" style="font-size:var(--t-sm);margin-top:4px">Douze dernières semaines, en brut</p></div>
-          <span class="badge badge--ok"><span class="dot"></span>En progression</span>
+          ${(() => {
+            /* Le badge se lit dans la courbe : six semaines contre six semaines.
+               Un « En progression » écrit en dur reste vert le jour où tout
+               s'arrête, et ce jour-là c'est exactement ce qu'il ne faut pas dire. */
+            const w = DB.semaines(eid);
+            const avant = w.slice(0, 6).reduce((a, b) => a + b, 0);
+            const apres = w.slice(6).reduce((a, b) => a + b, 0);
+            if (!avant && !apres) return `<span class="badge">Rien sur douze semaines</span>`;
+            if (apres > avant) return `<span class="badge badge--ok"><span class="dot"></span>En progression</span>`;
+            if (apres < avant) return `<span class="badge badge--warn">En repli</span>`;
+            return `<span class="badge">Stable</span>`;
+          })()}
         </div>
-        ${riviere(DB.semaines(), { hauteur: 120, legendes: ["il y a 12 semaines", "aujourd\u2019hui"] })}
+        ${riviere(DB.semaines(eid), { hauteur: 120, legendes: ["il y a 12 semaines", "aujourd\u2019hui"] })}
         <hr class="sep">
         <div class="three">
           ${Object.entries(BAREME).map(([k, b]) => {

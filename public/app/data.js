@@ -384,11 +384,6 @@ const seed = {
     { id:"p3", entreprise:"Novaterre",        contact:"rse@novaterre.fr",        effectif:120, etat:"preinscrite", date:J(-6) },
     { id:"p4", entreprise:"Sirius Assurances",contact:"contact@sirius-a.fr",     effectif:520, etat:"relancee",    date:J(-3) }
   ],
-  trimestres: [
-    { nom:"T1", points:6100 }, { nom:"T2", points:9800 },
-    { nom:"T3", points:14600 }, { nom:"T4", points:17620 }
-  ],
-  semaines: [820,1140,960,1480,1310,1720,1560,2040,1880,2260,2110,2480],
   rapports_generes: [],
   moteur_journal: [],
   classement_recalcule_le: null
@@ -538,8 +533,45 @@ function creerMock(){
     invitationActive: (eid) => s.invitations.find(i => i.entreprise === eid && i.active) || null,
     invitationParCode: (code) => s.invitations.find(i =>
       i.code.toUpperCase() === String(code || "").trim().toUpperCase()) || null,
-    trimestres: () => s.trimestres,
-    semaines: () => s.semaines,
+    /* Douze dernières semaines, en points bruts, comptées dans les missions.
+       C'étaient douze nombres écrits à la main : une courbe qui monte joliment
+       et ne dit rien. Une courbe qui ne vient pas des données n'est pas un
+       graphique, c'est une illustration. */
+    semaines(eid = null, { combien = 12, aujourdhui = new Date(2026, 7, 20) } = {}){
+      const seaux = new Array(combien).fill(0);
+      s.missions.forEach(m => {
+        if (eid && m.entreprise !== eid) return;
+        if (!["validee", "validee_auto"].includes(m.etat)) return;
+        const jours = Math.floor((aujourdhui - new Date(m.date)) / 864e5);
+        if (jours < 0) return;
+        const semaine = Math.floor(jours / 7);
+        if (semaine >= combien) return;
+        seaux[combien - 1 - semaine] += Number(m.points) || 0;
+      });
+      return seaux;
+    },
+
+    /* Les quatre trimestres de la saison, cumulés. Même règle : ça se compte. */
+    trimestres(eid = null){
+      const debut = new Date(s.saison.debut), fin = new Date(s.saison.fin);
+      const bornes = [0, 1, 2, 3].map(i => {
+        const d = new Date(debut);
+        d.setMonth(debut.getMonth() + i * 3);
+        return d;
+      });
+      const noms = ["T1", "T2", "T3", "T4"];
+      const total = [0, 0, 0, 0];
+      s.missions.forEach(m => {
+        if (eid && m.entreprise !== eid) return;
+        if (!["validee", "validee_auto"].includes(m.etat)) return;
+        const d = new Date(m.date);
+        if (d < debut || d > fin) return;
+        let i = 3;
+        while (i > 0 && d < bornes[i]) i--;
+        total[i] += Number(m.points) || 0;
+      });
+      return noms.map((nom, i) => ({ nom, points: total[i] }));
+    },
 
     annonces: (filtre = {}) => s.annonces.filter(a =>
       (!filtre.asso   || a.asso === filtre.asso) &&
@@ -1660,7 +1692,7 @@ function creerMock(){
         return { nom: "T" + (i + 1), debut: d.toISOString().slice(0, 10), fin: f.toISOString().slice(0, 10) };
       });
       const aujourdhui = "2026-08-20";
-      const trimestres = s.trimestres;
+      const trimestres = api.trimestres(eid);
       const l = bornes.map((b, i) => ({
         id: "t" + (i + 1), portee: "trimestriel", titre: "Rapport " + b.nom,
         periode: b, points: (trimestres[i] || {}).points || 0,
@@ -1694,7 +1726,7 @@ function creerMock(){
         missions: ms.length, parType, euros,
         salariesEngages: salaries.filter(u => api.pointsVisiblesEmployeur(u.id) > 0).length,
         salariesTotal: salaries.length,
-        trimestres: s.trimestres,
+        trimestres: api.trimestres(eid),
         demiJournees: ms.filter(m => (api.annonceDe(m)||{}).type === "benevolat_demi_journee")
                         .reduce((n,m) => n + m.quantite, 0),
         associations: new Set(ms.map(m => (api.annonceDe(m)||{}).asso)).size
