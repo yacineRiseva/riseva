@@ -703,9 +703,20 @@ function lireEtat(){
   } catch { return null; }
 }
 
-function creerMock(){
-  const sauvegarde = lireEtat();
-  const s = sauvegarde ? sauvegarde.etat : clone(seed);
+/* Le moteur de dérivation, sur un état en mémoire.
+
+   Il sert deux fois, exprès. En démonstration, l'état vient du jeu de départ et
+   se persiste dans le navigateur. En production, l'état vient de Postgres — filtré
+   par la RLS, donc réduit à ce que l'appelant a le droit de voir — et ne se
+   persiste nulle part : les écritures passent par des RPC.
+
+   Le point qui compte : **le calcul est le même code dans les deux cas**. Un score,
+   un plafond, un taux de fréquence ne peuvent pas diverger entre ce qu'on montre en
+   démonstration et ce qu'on facture. Dupliquer ces formules dans une couche
+   « vraie » aurait garanti qu'elles finissent par ne plus dire la même chose. */
+function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
+  const sauvegarde = persister ? lireEtat() : null;
+  const s = etat ? etat : (sauvegarde ? sauvegarde.etat : clone(seed));
   if (sauvegarde && sauvegarde.bareme)
     Object.entries(sauvegarde.bareme).forEach(([k, v]) => { if (BAREME[k]) BAREME[k].points = v; });
   let seq = sauvegarde ? sauvegarde.seq : 100;
@@ -713,6 +724,7 @@ function creerMock(){
 
   let minuteur = null;
   const ecrire = () => {
+    if (!persister) return;
     try {
       localStorage.setItem(CLE_ETAT, JSON.stringify({
         version: VERSION_ETAT, seq, etat: s,
@@ -724,7 +736,8 @@ function creerMock(){
   const planifier = () => { clearTimeout(minuteur); minuteur = setTimeout(ecrire, 120); };
 
   const api = {
-    mode: "demo",
+    mode,
+    etat: () => s,
     saison: () => s.saison,
     bareme: () => BAREME,
 
@@ -2454,6 +2467,7 @@ function creerMock(){
 /* ------------------------------------------------------------------ */
 /* Sélection de l'implémentation                                       */
 /* ------------------------------------------------------------------ */
+const creerMock = () => creerMoteur();
 let impl = creerMock();
 let branche = false;
 
@@ -2481,7 +2495,16 @@ export function estProduction(){
    d'être en production tout en servant des données inventées. Tant que la
    couche Supabase n'est pas écrite méthode par méthode, il vaut mieux que ce
    soit visible, bruyant, et bloquant. */
-export async function connecterSupabase(config){
+export async function connecterSupabase(config, { client: injecte = null } = {}){
+  /* `injecte` sert à la recette : elle branche un client factice alimenté par un
+     export de la vraie base, pour prouver que la traduction des lignes tient
+     sans avoir à monter un Supabase. Le chemin de production, lui, ne le passe
+     jamais. */
+  if (injecte){
+    const dos = creerSupabase(injecte);
+    await dos.recharger();
+    impl = dos; branche = true; return impl;
+  }
   if (!config || !config.url || !config.anonKey){
     if (estProduction())
       throw new Error("Riseva : aucune configuration Supabase. Le mode démonstration "
@@ -2491,11 +2514,15 @@ export async function connecterSupabase(config){
   const { createClient } = await chargerPilote();
   const client = createClient(config.url, config.anonKey);
   const dos = creerSupabase(client);
+  /* On charge avant de vérifier : tant que l'état n'est pas là, la couche n'a
+     que ses écritures et la vérification ci-dessous se plaindrait à tort. */
+  await dos.recharger();
   const manquantes = Object.keys(impl).filter(k => typeof impl[k] === "function"
     && typeof dos[k] !== "function");
   if (manquantes.length && estProduction())
     throw new Error("Riseva : la couche Supabase est incomplète (" + manquantes.length
-      + " méthodes manquantes). Démarrage refusé plutôt que de servir de la démonstration.");
+      + " méthodes manquantes : " + manquantes.slice(0, 8).join(", ")
+      + "). Démarrage refusé plutôt que de servir de la démonstration.");
   impl = dos;
   branche = true;
   return impl;
@@ -2525,56 +2552,221 @@ async function chargerPilote(){
 /* Le socle de la vraie implémentation. Chaque méthode qui existe ici parle à
    Postgres ; celles qui n'existent pas encore n'ont pas de repli silencieux —
    elles lèvent, et on sait exactement ce qu'il reste à écrire. */
+/* ------------------------------------------------------------------ */
+/* La couche Postgres                                                  */
+/* ------------------------------------------------------------------ */
+/* Elle ne réécrit aucun calcul. Elle charge ce que l'appelant a le droit de
+   voir — c'est la RLS qui décide, pas le navigateur —, traduit les lignes dans
+   la forme que le moteur attend, et laisse le moteur dériver. Les écritures,
+   elles, ne passent jamais par une table : chacune est une RPC qui fixe
+   elle-même ce qui ne se négocie pas.
+
+   Conséquence voulue : un score, un plafond ou un taux de fréquence sont
+   calculés par le même code en démonstration et en production. Deux
+   implémentations auraient fini par ne plus dire la même chose, et c'est le
+   genre d'écart qu'on ne découvre qu'en réunion. */
+
+/* Traductions ligne à ligne. Elles sont volontairement bêtes et explicites :
+   un mapping malin est un mapping qu'on n'ose plus relire. */
+const versEtat = {
+  entreprise: (r) => ({
+    id: r.id, nom: r.nom, secteur: r.secteur, ville: r.ville,
+    effectif: r.effectif, sieges: r.effectif, ca: r.ca ? Number(r.ca) : null,
+    cout_jour_moyen: r.cout_jour_moyen ? Number(r.cout_jour_moyen) : null,
+    cout_heure_charge: r.cout_heure_charge ? Number(r.cout_heure_charge) : null,
+    exercice_debut: r.exercice_debut || null, exercice_fin: r.exercice_fin || null,
+    dons_hors_riseva: r.dons_hors_riseva ?? null, report_anterieur: r.report_anterieur ?? null,
+    siren: r.siren, siret: r.siret, adresse: r.adresse,
+    lat: r.lat, lon: r.lon, groupe: r.groupe || null, domaines: []
+  }),
+  groupe: (r) => ({ id: r.id, nom: r.nom, societe_mere: r.societe_mere, cree_le: r.cree_le }),
+  etablissement: (r) => ({
+    id: r.id, societe: r.societe, nom: r.nom, ville: r.ville, siret: r.siret,
+    effectif: r.effectif, quota: r.quota,
+    referent: r.referent_nom, referent_mail: r.referent_mail
+  }),
+  association: (r) => ({
+    id: r.id, nom: r.nom, rna: r.rna, cause: r.cause, ville: r.ville,
+    resume: r.resume, adresse: r.adresse, lat: r.lat, lon: r.lon,
+    valide: r.valide, suspendue: r.suspendue, site: r.site,
+    verifiee_le: r.verifiee_le, verifiee_jusqua: r.verifiee_jusqua
+  }),
+  annonce: (r) => ({
+    id: r.id, asso: r.association, type: r.type, titre: r.titre,
+    description: r.description, lieu: r.lieu, date: r.date_prevue,
+    temps_travail: r.temps_travail, etat: r.etat,
+    quantite: r.quantite, restant: r.restant,
+    impact: r.impact_unite ? { unite: r.impact_unite, par_unite: Number(r.impact_par_unite) } : null
+  }),
+  mission: (r) => ({
+    id: r.id, annonce: r.annonce, entreprise: r.entreprise, salarie: r.salarie,
+    etablissement: r.etablissement || null, etat: r.etat,
+    quantite: Number(r.quantite), points: r.points, date: r.date_mission,
+    declaree_le: r.declaree_le ? String(r.declaree_le).slice(0, 10) : null,
+    tranchee_le: r.tranchee_le ? String(r.tranchee_le).slice(0, 10) : null,
+    realise: r.realise_confirme === null || r.realise_confirme === undefined
+      ? undefined : Number(r.realise_confirme),
+    realise_propose: r.realise_propose === null || r.realise_propose === undefined
+      ? undefined : Number(r.realise_propose),
+    pour_le_compte_de: r.origine === "salarie" ? "salarie" : "entreprise",
+    valeur_nette: r.valeur_nette ?? null, nature: r.nature || undefined
+  }),
+  invitation: (r) => ({
+    id: r.id, entreprise: r.entreprise, etablissement: r.etablissement || null,
+    pour_referent: !!r.pour_referent, nom: r.destinataire_nom, email: r.destinataire_mail,
+    code: r.indice, places: r.places, utilisees: 0, active: r.active,
+    cree_le: String(r.cree_le).slice(0, 10), expire_le: String(r.expire_le).slice(0, 10)
+  }),
+  campagne: (r) => ({
+    id: r.id, groupe: r.groupe, entreprise: r.entreprise, periode: r.periode,
+    libelle: r.libelle, debut: r.debut, fin: r.fin, echeance: r.echeance,
+    etat: r.close_le ? "close" : "ouverte"
+  }),
+  observation: (r) => ({
+    id: r.id, campagne: r.campagne, etablissement: r.etablissement, etat: r.etat,
+    version: r.version, valeurs: r.valeurs || {},
+    saisi_par: r.saisi_par, saisi_le: r.saisi_le ? String(r.saisi_le).slice(0, 10) : null,
+    approuve_par: r.approuve_par,
+    approuve_le: r.approuve_le ? String(r.approuve_le).slice(0, 10) : null
+  }),
+  acces: (r) => ({ id: r.id, entreprise: r.entreprise, utilisateur: r.profil,
+                   quoi: r.quoi, code: r.indice, date: String(r.cree_le).slice(0, 10) }),
+  signalement: (r) => ({ id: r.id, annonce: r.annonce, motif: r.motif,
+    precisions: r.precisions, etat: r.etat, decision: r.decision,
+    motivation: r.motivation, date: String(r.cree_le).slice(0, 10) })
+};
+
+/* Le chargement. Une requête par table, aucune jointure côté client : ce que la
+   RLS refuse ne revient pas, et l'absence d'une ligne n'est pas une erreur —
+   c'est le cloisonnement qui fonctionne. */
+async function chargerEtat(client){
+  const lire = async (nom, colonnes = "*") => {
+    const { data, error } = await client.from(nom).select(colonnes);
+    /* Une table entièrement refusée renvoie une erreur de permission : c'est
+       normal pour un salarié sur `abonnement`. On rend une liste vide, et le
+       moteur dérive ce qu'il peut. Toute autre erreur remonte. */
+    if (error && !/permission|denied|not exist/i.test(error.message || "")) throw error;
+    return data || [];
+  };
+
+  const [saisons, baremes, entreprises, groupes, etablissements, associations,
+         annonces, missions, profils, invitations, campagnes, observations,
+         acces, signalements] = await Promise.all([
+    lire("saison"), lire("bareme"), lire("entreprise"), lire("groupe"),
+    lire("etablissement"), lire("association"), lire("annonce"), lire("mission"),
+    lire("profil"), lire("invitation"), lire("campagne_indicateurs"),
+    lire("observation_indicateur"), lire("acces"), lire("signalement")
+  ]);
+
+  const saison = saisons.find(x => x.etat === "ouverte") || saisons[0] || null;
+  if (!saison) throw new Error("Riseva : aucune saison ouverte en base.");
+
+  /* Le barème vient de la base, pas du fichier : un barème recalibré en cours
+     de route doit s'appliquer partout, et surtout figurer dans les rapports. */
+  baremes.filter(b => b.saison === saison.id).forEach(b => {
+    if (BAREME[b.type]) BAREME[b.type].points = b.points;
+  });
+
+  const moi = (await client.auth.getUser()).data?.user || null;
+
+  return {
+    saison: { id: saison.id, nom: saison.nom, debut: saison.debut, fin: saison.fin,
+              etat: saison.etat, prix_min: saison.prix_min, prix_max: saison.prix_max,
+              acompte: saison.acompte },
+    entreprises: entreprises.map(versEtat.entreprise),
+    groupes: groupes.map(versEtat.groupe),
+    etablissements: etablissements.map(versEtat.etablissement),
+    associations: associations.map(versEtat.association),
+    annonces: annonces.map(versEtat.annonce),
+    missions: missions.map(versEtat.mission),
+    /* Un profil ne porte ni rôle ni entreprise : ce sont des colonnes du schéma
+       privé, invisibles depuis le navigateur, par construction. Le rôle de la
+       personne connectée vient de son jeton ; celui des autres ne la regarde pas. */
+    utilisateurs: profils.map(r => ({
+      id: r.id, nom: r.nom, email: r.id === (moi && moi.id) ? (moi.email || null) : null,
+      role: null, org: null, actif: true, anonyme: false
+    })),
+    invitations: invitations.map(versEtat.invitation),
+    campagnes: campagnes.map(versEtat.campagne),
+    observations: observations.map(versEtat.observation),
+    acces: acces.map(versEtat.acces),
+    signalements: signalements.map(versEtat.signalement),
+    contrats: [], preinscriptions: [], moteur_journal: [], rapports_generes: [],
+    classement_recalcule_le: null
+  };
+}
+
 function creerSupabase(client){
   const rpc = async (nom, args) => {
     const { data, error } = await client.rpc(nom, args);
     if (error) throw new Error(error.message);
     return data;
   };
-  const table = (nom) => client.from(nom);
-  return {
+  let moteur = null;
+
+  /* Après chaque écriture, on relit. C'est plus cher qu'une mise à jour locale,
+     et c'est le seul moyen de ne jamais afficher un état que le serveur n'a pas
+     accepté. Une écriture refusée par une policy doit se voir tout de suite,
+     pas à la prochaine visite. */
+  const ecrire = async (fn) => {
+    const r = await fn();
+    moteur = creerMoteur({ etat: await chargerEtat(client), persister: false, mode: "supabase" });
+    return r;
+  };
+
+  const dos = {
     mode: "supabase", client,
-    saison: async () => (await table("saison").select("*").eq("etat", "ouverte").maybeSingle()).data,
-    bareme: async () => Object.fromEntries(
-      ((await table("bareme").select("*")).data || []).map(b => [b.type, b])),
-    associations: async () => (await table("association").select("*")).data || [],
-    annonces: async ({ asso, ouvertes } = {}) => {
-      let q = table("annonce").select("*");
-      if (asso) q = q.eq("association", asso);
-      if (ouvertes) q = q.eq("etat", "ouverte");
-      return (await q).data || [];
+    /* Toutes les lectures sont celles du moteur, sur l'état chargé. */
+    recharger: async () => {
+      moteur = creerMoteur({ etat: await chargerEtat(client), persister: false, mode: "supabase" });
+      return moteur;
     },
-    classement: async (saison) => await rpc("classement_saison", { p_saison: saison }),
-    realisations: async ({ entreprise, asso, saison } = {}) =>
-      await rpc("realisations", { p_entreprise: entreprise || null,
-        p_association: asso || null, p_saison: saison || null }),
-    pointsDe: async (eid, saison) => await rpc("points_entreprise",
-      { p_entreprise: eid, p_saison: saison }),
-    rejoindre: async (code) => await rpc("rejoindre_entreprise", { p_code: code }),
-    creerInvitation: async (places, jours) =>
-      await rpc("creer_invitation", { p_places: places, p_jours: jours }),
-    engagerMission: async (annonce, quantite, cle) =>
-      await rpc("engager_mission", { p_annonce: annonce, p_quantite: quantite, p_cle: cle || null }),
-    declarerFaite: async (mid, propose) =>
-      await rpc("declarer_mission", { p_mission: mid, p_propose: propose ?? null }),
-    validerMission: async (mid, ok, realise) =>
-      await rpc("trancher_mission", { p_mission: mid, p_ok: ok, p_realise: realise ?? null }),
-    creerAnnonce: async (a) => await rpc("publier_annonce", {
+
+    rejoindre: (code) => ecrire(() => rpc("rejoindre_entreprise", { p_code: code })),
+    accepterInvitationReferent: (code) => ecrire(() => rpc("rejoindre_comme_referent", { p_code: code })),
+    creerInvitation: (eid, places, etablissement) => ecrire(() =>
+      rpc("creer_invitation", { p_places: places, p_jours: 60 })),
+    creerInvitationReferent: (etid, nom, email) => ecrire(() =>
+      rpc("creer_invitation_referent", { p_etablissement: etid, p_nom: nom, p_mail: email })),
+    allouerQuota: (etid, places) => ecrire(() =>
+      rpc("allouer_quota", { p_etablissement: etid, p_places: Number(places) })),
+    saisirIndicateurs: (cid, etid, valeurs) => ecrire(() =>
+      rpc("saisir_indicateurs", { p_campagne: cid, p_etablissement: etid, p_valeurs: valeurs })),
+    approuverIndicateurs: (cid, etid) => ecrire(() =>
+      rpc("approuver_indicateurs", { p_campagne: cid, p_etablissement: etid })),
+    engager: ({ annonce, quantite, cle }) => ecrire(() =>
+      rpc("engager_mission", { p_annonce: annonce, p_quantite: quantite, p_cle: cle || null })),
+    declarerFaite: (mid, propose) => ecrire(() =>
+      rpc("declarer_mission", { p_mission: mid, p_propose: propose ?? null })),
+    validerMission: (mid, ok, realise) => ecrire(() =>
+      rpc("trancher_mission", { p_mission: mid, p_ok: ok, p_realise: realise ?? null })),
+    creerAnnonce: (a) => ecrire(() => rpc("publier_annonce", {
       p_titre: a.titre, p_description: a.description, p_type: a.type,
       p_quantite: a.quantite, p_date: a.date, p_lieu: a.lieu,
       p_temps_travail: !!a.temps_travail,
       p_impact_unite: a.impact ? a.impact.unite : null,
-      p_impact_par_unite: a.impact ? a.impact.par_unite : null }),
-    fermerAnnonce: async (id) => await rpc("fermer_annonce", { p_annonce: id }),
-    retirerSalarie: async (uid) => await rpc("pseudonymiser_salarie", { p_profil: uid }),
-    signaler: async (annonce, motif, precisions) =>
-      await rpc("signaler_annonce", { p_annonce: annonce, p_motif: motif, p_precisions: precisions }),
-    deciderSignalement: async (sid, decision, motivation) =>
-      await rpc("decider_signalement", { p_signalement: sid, p_decision: decision, p_motivation: motivation }),
-    donsPersonnelsAgreges: async (saison) =>
-      await rpc("dons_personnels_agreges", { p_saison: saison }),
-    emettreRecu: async (don) => await rpc("emettre_recu", { p_don: don })
+      p_impact_par_unite: a.impact ? a.impact.par_unite : null })),
+    fermerAnnonce: (aid) => ecrire(() => rpc("fermer_annonce", { p_annonce: aid })),
+    retirerSalarie: (uid) => ecrire(() => rpc("pseudonymiser_salarie", { p_profil: uid })),
+    signaler: (annonce, motif, precisions) => ecrire(() =>
+      rpc("signaler_annonce", { p_annonce: annonce, p_motif: motif, p_precisions: precisions })),
+    deciderSignalement: (sid, decision, motivation) => ecrire(() =>
+      rpc("decider_signalement", { p_signalement: sid, p_decision: decision, p_motivation: motivation })),
+    donsPersonnelsAgreges: (saison) => rpc("dons_personnels_agreges", { p_saison: saison }),
+    emettreRecu: (don) => ecrire(() => rpc("emettre_recu", { p_don: don })),
+    classement: (saison) => rpc("classement_saison", { p_saison: saison })
   };
+
+  /* Le moteur d'abord, les écritures ensuite : une méthode d'écriture masque
+     toujours la dérivation du même nom. */
+  return new Proxy(dos, {
+    get: (cible, prop) => {
+      if (prop in cible) return cible[prop];
+      const v = moteur ? moteur[prop] : undefined;
+      return typeof v === "function" ? v.bind(moteur) : v;
+    },
+    has: (cible, prop) => prop in cible || (moteur ? prop in moteur : false)
+  });
 }
 
 export const DB = new Proxy({}, {

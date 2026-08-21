@@ -67,6 +67,19 @@ def main():
     print(sortie.rstrip())
     if code: echecs.append("SQL")
 
+    titre("Postgres vers le moteur")
+    # Le chemin de production : les vraies lignes de la base traversent la couche
+    # de traduction, et le moteur dérive dessus. Sans ce test, « la couche existe »
+    # ne voulait rien dire.
+    code, sortie = lancer("python3 scripts/export-db.py > /tmp/riseva-db.json")
+    if code:
+        print("  RATÉ export de la base"); print("      " + sortie.strip()[:300])
+        echecs.append("export")
+    else:
+        code, sortie = lancer("node scripts/postgres-vers-moteur.mjs")
+        print(sortie.rstrip())
+        if code: echecs.append("traduction")
+
     titre("Serveur de test")
     srv = subprocess.Popen(
         ["python3", "-m", "http.server", str(PORT), "--directory", str(RACINE / "public")],
