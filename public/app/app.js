@@ -441,9 +441,9 @@ function tableauEntreprise(u){
     <div class="two">
       <section class="card">
         <div class="between" style="margin-bottom:var(--s6)">
-          <div><h3>Ce qui compte au classement</h3>
+          <div><h3>Vos ${nb(pts.brut)} points, après application du plafond</h3>
           <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
-            Aucun format ne peut peser plus de la moitié de votre total</p></div>
+            Aucun format ne peut peser plus de la moitié du total retenu</p></div>
           <a class="btn btn--quiet btn--sm" href="/reglement.html" target="_blank">Le règlement</a>
         </div>
         <div id="jauge"></div>
@@ -565,9 +565,15 @@ function tableauEntreprise(u){
 
   el.querySelector("#reco").appendChild(listeAnnonces(DB.annonces({ ouvertes:true }).slice(0, 3), u));
 
+  /* Le format qui a fait sauter des points : celui dont l'écart entre réalisé et
+     retenu est le plus grand. C'est la seule information actionnable de la carte. */
+  const ecarts = Object.entries(pts.parType)
+    .map(([k, v]) => ({ k, perte: v - (pts.retenuParType[k] || 0), label: (BAREME[k] || {}).label || k }))
+    .sort((a, b) => b.perte - a.perte);
   el.querySelector("#jauge").appendChild(jauge({
     brut: pts.brut, ecrete: pts.ecrete, retenu: pts.retenu,
-    diviseur: e.effectif, cohorte: total }));
+    diviseur: e.effectif, cohorte: total,
+    cause: ecarts[0] && ecarts[0].perte > 0 ? ecarts[0] : null }));
 
   const rea = bandeauRealisations(DB.realisations({ entreprise: eid }),
     { titre: "Ce que vos équipes ont produit", sombre: true });
@@ -621,6 +627,15 @@ function tableauEntreprise(u){
   return el;
 }
 
+/* « Se positionner » ne convient à aucun des trois formats : on ne se positionne
+   pas pour verser de l'argent, et on ne se positionne pas non plus pour donner un
+   carton de matériel. Chaque format dit ce qu'il demande vraiment. */
+const ACTION_FORMAT = {
+  don_financier:          "Faire un don",
+  don_materiel:           "Proposer du matériel",
+  benevolat_demi_journee: "Participer"
+};
+
 function listeAnnonces(annonces, u){
   const box = h(`<div class="grilleAnnonces"></div>`);
   if (!annonces.length){
@@ -637,6 +652,10 @@ function listeAnnonces(annonces, u){
       ? `${eur(a.restant)} restants`
       : `${a.restant} place${a.restant > 1 ? "s" : ""} sur ${a.quantite}`;
     const imp = a.impact && UNITES[a.impact.unite] ? a.impact : null;
+    /* L'objectif complet de l'annonce, pas le multiplicateur unitaire : « 40 arbres
+       plantés » par demi-journée ne veut rien dire pour qui lit l'annonce, « objectif
+       480 arbres » si. */
+    const objectif = imp ? Math.round(a.quantite * imp.par_unite) : 0;
 
     const card = h(`<article class="annonce">
       <div class="annonce__haut">
@@ -645,9 +664,13 @@ function listeAnnonces(annonces, u){
           <span class="annonce__pastille">${initiales(asso.nom || "?")}</span>
           ${esc(asso.nom || "")}
         </span>
-        <span class="annonce__pts">
-          <span class="annonce__ptsN">${a.type === "don_financier" ? b.points : nb(b.points)}</span>
-          <span class="annonce__ptsL">${a.type === "don_financier" ? "pt / 10 €" : "points"}</span>
+        <span class="annonce__pts" title="Barème de la saison, identique pour toutes les entreprises">
+          <span class="annonce__ptsN">+${a.type === "don_financier" ? b.points : nb(b.points)}</span>
+          ${/* Le libellé sort du barème : « points par demi-journée » collé sur un don
+                de matériel annonçait une unité qui n'existe pas pour ce format. */""}
+          <span class="annonce__ptsL">${a.type === "don_financier"
+            ? "pt par tranche<br>de 10 €"
+            : `point${b.points > 1 ? "s" : ""} par<br>${esc(b.unite)}`}</span>
         </span>
       </div>
       <div class="annonce__corps">
@@ -655,7 +678,12 @@ function listeAnnonces(annonces, u){
           <span class="badge badge--brand">${esc(b.label)}</span>
           ${a.temps_travail ? `<span class="badge badge--info"
             title="Mécénat de compétences, valorisable fiscalement">Temps de travail</span>` : ""}
-          ${imp ? `<span class="badge">${nb(imp.par_unite)} ${esc(UNITES[imp.unite].pl)}</span>` : ""}
+          ${/* Ce chiffre est un objectif, pas un résultat. Écrit sans le dire, il se
+                lisait comme un bilan — et « 0 colis préparés » sur une annonce qui
+                cherche à en financer trois cents donnait l'impression d'une
+                association qui n'a rien fait. */
+            imp && objectif > 0 ? `<span class="badge" title="Objectif annoncé par l'association">
+              Objectif : ${nb(objectif)} ${esc(UNITES[imp.unite].pl)}</span>` : ""}
         </div>
         <h4>${esc(a.titre)}</h4>
         <p class="muted" style="font-size:var(--t-sm)">${esc(a.description)}</p>
@@ -667,7 +695,7 @@ function listeAnnonces(annonces, u){
         </div>
       </div>
       <div class="annonce__actions">
-        <button class="btn btn--forest btn--sm" data-go>Se positionner</button>
+        <button class="btn btn--forest btn--sm" data-go>${esc(ACTION_FORMAT[a.type] || "Participer")}</button>
         <button class="btn btn--quiet btn--sm" data-sig title="Signaler cette annonce">Signaler</button>
       </div>
     </article>`);
@@ -755,25 +783,32 @@ function ouvrirEngagement(a, u){
 function vueAnnonces(u){
   const assos = DB.associations().filter(a => a.valide);
   const el = h(`<div class="stack" style="--gap:var(--s5)">
+    ${/* Trois contrôles visibles, deux repliés. Cinq filtres alignés pour vingt-deux
+          annonces, c'est un formulaire de recherche avancée posé devant un catalogue
+          qu'on peut parcourir à l'œil. */""}
     <section class="card card--pad-sm">
       <div class="row" style="gap:var(--s3);flex-wrap:wrap">
-        <input class="input" id="q" placeholder="Rechercher un besoin, une ville, une association" style="flex:1;min-width:240px">
-        <select class="select" id="type" style="width:200px">
+        <input class="input" id="q" placeholder="Rechercher un besoin, une ville" style="flex:1;min-width:220px">
+        <select class="select" id="type" style="width:190px">
           <option value="">Tous les formats</option>
           ${Object.entries(BAREME).map(([k, b]) => `<option value="${k}">${esc(b.label)}</option>`).join("")}
         </select>
-        <select class="select" id="asso" style="width:220px">
-          <option value="">Toutes les associations</option>
-          ${assos.map(a => `<option value="${a.id}">${esc(a.nom)}</option>`).join("")}
-        </select>
-        <select class="select" id="rayon" style="width:180px">
+        <select class="select" id="rayon" style="width:170px">
           <option value="">Toute la France</option>
           <option value="25">Moins de 25 km</option>
           <option value="50">Moins de 50 km</option>
           <option value="100">Moins de 100 km</option>
           <option value="200">Moins de 200 km</option>
         </select>
-        <select class="select" id="tri" style="width:190px">
+        <button class="btn btn--quiet btn--sm" id="plus" aria-expanded="false">Plus de filtres</button>
+      </div>
+      <div class="row" id="filtresPlus" style="gap:var(--s3);flex-wrap:wrap;display:none;
+        margin-top:var(--s3);padding-top:var(--s3);border-top:var(--line-soft)">
+        <select class="select" id="asso" style="width:240px">
+          <option value="">Toutes les associations</option>
+          ${assos.map(a => `<option value="${a.id}">${esc(a.nom)}</option>`).join("")}
+        </select>
+        <select class="select" id="tri" style="width:200px">
           <option value="distance">La plus proche</option>
           <option value="date">Date la plus proche</option>
           <option value="points">Plus de points</option>
@@ -825,6 +860,13 @@ function vueAnnonces(u){
   };
   el.querySelector("#q").addEventListener("input", dessine);
   ["type","asso","tri","rayon"].forEach(id => el.querySelector("#" + id).addEventListener("change", dessine));
+  const plus = el.querySelector("#plus"), zone = el.querySelector("#filtresPlus");
+  plus.onclick = () => {
+    const ouvert = zone.style.display !== "none";
+    zone.style.display = ouvert ? "none" : "flex";
+    plus.setAttribute("aria-expanded", String(!ouvert));
+    plus.textContent = ouvert ? "Plus de filtres" : "Moins de filtres";
+  };
   dessine();
   return el;
 }

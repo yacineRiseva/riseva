@@ -308,3 +308,12 @@
   padding-top:9px; white-space:nowrap; }
 .aFaire__liste{ flex:1; min-width:260px; display:flex; flex-direction:column; }
 .rappel--dense{ padding:6px var(--s3); }
+
+/* --- L'équation de la jauge ----------------------------------------- */
+.jauge__equation{ display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  font-size:var(--t-sm); color:var(--ink-600); margin-bottom:var(--s3); }
+.jauge__equation strong{ color:var(--ink); font-family:var(--font-display); }
+.jauge__equation span[aria-hidden]{ color:var(--ink-400); padding:0 2px; }
+.jauge__cause{ margin-top:var(--s3); font-size:var(--t-sm); color:var(--ink-600);
+  padding:var(--s3) var(--s4); border-radius:var(--r-sm); background:var(--paper-sunk); }
+.jauge__cause strong{ color:var(--ink); }

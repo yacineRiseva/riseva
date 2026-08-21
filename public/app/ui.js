@@ -205,30 +205,41 @@ export function bandeauRealisations(r, { titre = "Ce que ça a produit", sombre 
    C'est la signature graphique de Riseva : elle montre le mécanisme au lieu de le
    décorer. Une barre, trois portions, le dénominateur en clair, et la taille de la
    cohorte. Tout y est vérifiable à l'œil, ce qu'une courbe sans échelle ne permet pas. */
-export function jauge({ brut, ecrete, retenu, diviseur, cohorte, unite = "points" }){
+export function jauge({ brut, ecrete, retenu, diviseur, cohorte, cause, unite = "points" }){
+  /* Une barre, deux segments : ce qui compte, ce qui a sauté. La version
+     précédente mettait « retenus », « écrêtés » et « réalisés » côte à côte dans
+     la même légende — deux parties et leur total présentés comme trois
+     catégories. On lisait alors une jauge remplie à 12 %, c'est-à-dire un échec,
+     là où le mécanisme fait exactement ce qu'il annonce. L'équation est écrite,
+     et le format responsable est nommé : sans lui, l'administrateur voit qu'il
+     perd des points mais pas comment cesser d'en perdre. */
   const total = Math.max(brut, 1);
-  const pRetenu = (retenu / total) * 100;
-  const pEcrete = (ecrete / total) * 100;
   const parTete = diviseur ? Math.round((retenu / diviseur) * 10) / 10 : null;
   return h(`<div class="jauge">
+    <p class="jauge__equation">
+      <strong class="tnum">${nb(brut)}</strong> ${unite} réalisés
+      <span aria-hidden="true">=</span>
+      <b class="jauge__pastille jauge__pastille--retenu"></b>
+      <strong class="tnum">${nb(retenu)}</strong> retenus
+      ${ecrete ? `<span aria-hidden="true">+</span>
+        <b class="jauge__pastille jauge__pastille--ecrete"></b>
+        <strong class="tnum">${nb(ecrete)}</strong> écrêtés` : ""}
+    </p>
     <div class="jauge__barre" role="img"
-      aria-label="${nb(retenu)} ${unite} retenus sur ${nb(brut)} réalisés, ${nb(ecrete)} écrêtés">
-      <i class="jauge__retenu" style="width:${pRetenu}%"></i>
-      <i class="jauge__ecrete" style="width:${pEcrete}%"></i>
+      aria-label="${nb(brut)} ${unite} réalisés, dont ${nb(retenu)} retenus et ${nb(ecrete)} écrêtés">
+      <i class="jauge__retenu" style="width:${(retenu / total) * 100}%"></i>
+      <i class="jauge__ecrete" style="width:${(ecrete / total) * 100}%"></i>
     </div>
-    <div class="jauge__legende">
-      <span><b class="jauge__pastille jauge__pastille--retenu"></b>
-        <strong>${nb(retenu)}</strong> retenus</span>
-      ${ecrete ? `<span><b class="jauge__pastille jauge__pastille--ecrete"></b>
-        <strong>${nb(ecrete)}</strong> écrêtés</span>` : ""}
-      <span class="muted">${nb(brut)} réalisés</span>
-    </div>
+    ${ecrete && cause ? `<p class="jauge__cause">
+      ${nb(ecrete)} points de <strong>${esc(cause.label)}</strong> écrêtés : aucun format ne peut
+      peser plus de la moitié du total retenu. Pour les récupérer, il faut des points
+      d'un autre format, pas davantage du même.</p>` : ""}
     ${parTete !== null ? `<div class="jauge__calcul">
       <span>${nb(retenu)} ÷ ${nb(diviseur)} salariés</span>
       <strong>${parTete} ${unite} par salarié</strong>
     </div>` : ""}
     ${cohorte ? `<p class="hint">Comparé à ${cohorte} entreprise${cohorte > 1 ? "s" : ""} de la
-      même taille.${cohorte < 10 ? " Cohorte trop petite pour un percentile." : ""}</p>` : ""}
+      même taille.${cohorte < 10 ? " Cohorte trop petite pour publier un rang." : ""}</p>` : ""}
   </div>`);
 }
 
@@ -325,7 +336,9 @@ function dessinSilhouettes(al){
   return d;
 }
 
-export function vignette(annonce, { hauteur = 132 } = {}){
+/* 132 px donnaient à un motif génératif le poids d'une photographie propre à la
+   mission. Une bande de 78 px dit la catégorie sans prétendre montrer l'annonce. */
+export function vignette(annonce, { hauteur = 78 } = {}){
   const cle = (annonce.impact && annonce.impact.unite) || "";
   const motif = MOTIFS[cle] || MOTIF_TYPE[annonce.type] || "riviere";
   const al = graine(annonce.id + annonce.titre);
