@@ -736,6 +736,71 @@ def main():
         connecte(p, "u1", "#/journal")
         verifie("le journal liste des envois", p.eval_on_selector_all("tbody tr", "r=>r.length") > 3)
 
+        print("\nGroupe, sites et quotas")
+        # Un groupe consolide, il ne fusionne pas : chaque société garde son SIREN, son
+        # plafond et ses salariés. Et un référent de site ne voit que son site.
+        connecte(p, "u2", "#/groupe")
+        g = norm(p.inner_text(".content"))
+        verifie("la vue de groupe agrège les sociétés et les sites",
+                "Lafarge Ciments" in g and "Lafarge Négoce" in g and "Marseille" in g)
+        verifie("le consolidé est un rapport de sommes, et le dit",
+                "somme des points ÷ somme des effectifs" in g)
+        verifie("une réduction d'impôt non calculable ne s'invente pas au groupe",
+                "non calculée" in g)
+        verifie("le classement entre sites est normalisé par l'effectif",
+                "pts / salarié" in g)
+
+        connecte(p, "u2", "#/sites")
+        s2 = norm(p.inner_text(".content"))
+        verifie("l'allocation des quotas est bornée par le contrat",
+                "libres" in s2 and "places" in s2)
+        verifie("le lien de référent est présenté comme nominatif",
+                "nominatif" in s2)
+
+        # Le cloisonnement : c'est le point qui décide, pour un groupe.
+        connecte(p, "u10", "#/equipe")
+        r1 = norm(p.inner_text(".content"))
+        verifie("un référent de site ne voit que les salariés de son site",
+                "Malik" in r1 and "Sonia" not in r1 and "Hugo" not in r1)
+        verifie("il n'a pas accès au contrat ni au mécénat",
+                not p.eval_on_selector_all(".side__link[href='#/mecenat']", "l=>l.length")
+                and not p.eval_on_selector_all(".side__link[href='#/abonnement']", "l=>l.length"))
+        verifie("il n'a pas la vue consolidée du groupe",
+                not p.eval_on_selector_all(".side__link[href='#/groupe']", "l=>l.length"))
+
+        # Une mutation ne doit pas déplacer le passé.
+        fige = p.evaluate("""async()=>{const m=await import('/app/data.js');
+            const av=m.DB.classementSites({groupe:'g1'}).find(x=>x.ville==='Lyon').points;
+            const u=m.DB.utilisateur('u3'); const avant=u.etablissement;
+            u.etablissement='et3';
+            const ap=m.DB.classementSites({groupe:'g1'}).find(x=>x.ville==='Lyon').points;
+            u.etablissement=avant;
+            return [av, ap]}""")
+        verifie("une mutation ne déplace pas les missions déjà faites",
+                fige[0] == fige[1], str(fige))
+
+        print("\nIndicateurs sociaux et sécurité")
+        connecte(p, "u2", "#/indicateurs")
+        i = norm(p.inner_text(".content"))
+        verifie("les quatre états de la collecte existent",
+                "Approuvé" in i and "En attente d'approbation" in i and "Clos sans réponse" in i)
+        verifie("les formules sont écrites à côté des taux",
+                "× 1 000 000 ÷ heures travaillées" in i)
+        verifie("le consolidé n'est pas une moyenne de taux",
+                "rapport de sommes" in i)
+        verifie("aucun classement entre sites sur la sécurité",
+                "incitation à sous-déclarer" in i)
+        verifie("Riseva ne se présente pas comme auditeur des indicateurs",
+                "ne les audite pas" in i and "ne produit pas le document unique" in i)
+        verifie("aucune donnée de santé nominative n'est collectée",
+                "ni diagnostic" in i)
+        # Le contrôle qui compte : celui qui saisit n'approuve pas.
+        seul = p.evaluate("""async()=>{const m=await import('/app/data.js');
+            try{ m.DB.approuverIndicateurs('c2','et1','u2'); return 'passé' }
+            catch(e){ return e.message }}""")
+        verifie("la personne qui saisit ne peut pas approuver sa propre saisie",
+                "ne peut pas approuver" in seul, seul)
+
         print("\nRien ne sort du domaine")
         # Une police chargée depuis fonts.googleapis.com transmet l'IP du visiteur à un
         # tiers avant qu'il ait cliqué. La page Confidentialité promet le contraire :

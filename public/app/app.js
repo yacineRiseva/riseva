@@ -1,4 +1,4 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, lienPublic, connecterSupabase } from "./data.js";
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, lienPublic, connecterSupabase } from "./data.js";
 import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
@@ -40,6 +40,21 @@ const MENUS = {
       ["mecenat",    "Mécénat",      "coins"],
       ["abonnement", "Abonnement",   "card"],
       ["parametres", "Paramètres",   "settings"]
+    ]}
+  ],
+  /* Le référent de site voit son site, et rien d'autre. Pas de contrat, pas de
+     facture, pas de mécénat : ce sont des affaires de société, pas de lieu. */
+  site_referent: [
+    { groupe: "Mon site", items: [
+      ["tableau",    "Tableau de bord", "dashboard"],
+      ["equipe",     "Mes salariés",    "users"],
+      ["indicateurs","Indicateurs RSE", "report"]
+    ]},
+    { groupe: "Saison", items: [
+      ["annonces",   "Annonces",        "megaphone"],
+      ["missions",   "Missions du site","check"],
+      ["annuaire",   "Associations",    "heart"],
+      ["ensemble",   "Tous ensemble",   "leaf"]
     ]}
   ],
   salarie: [
@@ -193,12 +208,34 @@ function vueConnexion(){
   return el;
 }
 
+/* Le menu dépend du périmètre, pas seulement du rôle. Une responsable RSE de groupe
+   et une administratrice d'une société mono-site ont le même rôle et pas les mêmes
+   écrans : l'une pilote quatre sites, l'autre n'en a qu'un et n'a que faire d'une
+   page d'allocation de quotas. */
+function menuDe(u){
+  const base = MENUS[u.role].map(g => ({ groupe: g.groupe, items: g.items.slice() }));
+  if (u.role !== "entreprise_admin") return base;
+  const multi = u.org ? DB.etablissements(u.org).length > 1 : false;
+  if (u.groupe){
+    base.unshift({ groupe: "Groupe", items: [
+      ["groupe",      "Vue consolidée", "building"],
+      ["sites",       "Sites et quotas", "users"],
+      ["indicateurs", "Indicateurs RSE", "report"]
+    ]});
+  } else if (multi){
+    base[base.length - 1].items.splice(1, 0,
+      ["sites",       "Sites et quotas", "users"],
+      ["indicateurs", "Indicateurs RSE", "report"]);
+  }
+  return base;
+}
+
 /* ------------------------------------------------------------------ */
 /* Coquille applicative                                                */
 /* ------------------------------------------------------------------ */
 function coquille(u, vue, titre, actions = "", periode = DB.saison().nom){
   const route = (location.hash.split("/")[1] || "tableau");
-  const menu = MENUS[u.role].map(g => `
+  const menu = menuDe(u).map(g => `
     <div class="side__group">
       <p class="side__title">${esc(g.groupe)}</p>
       ${g.items.map(([id, label, ico]) => `
@@ -1353,11 +1390,16 @@ function vueClassement(u){
 
 function vueEquipe(u){
   const eid = u.org;
-  const gens = DB.salaries(eid);
+  /* Un référent de site ne voit que son site. Ce n'est pas un filtre d'affichage,
+     c'est le périmètre : le reste de l'effectif de la société ne le regarde pas. */
+  const monSite = u.role === "site_referent" ? u.etablissement : null;
+  const gens = DB.salaries(eid).filter(g => !monSite || g.etablissement === monSite);
   const actifs = gens.filter(g => !g.anonyme);
   const partis = gens.filter(g => g.anonyme);
-  const si = DB.sieges(eid);
-  const inv = DB.invitationActive(eid);
+  const si = DB.sieges(eid, { etablissement: monSite });
+  const inv = monSite
+    ? DB.invitations(eid).find(i => i.etablissement === monSite && i.active && !i.pour_referent)
+    : DB.invitationActive(eid);
   const lien = inv ? lienPublic(`/rejoindre.html?code=${inv.code}`) : "";
 
   const el = h(`<div class="two">
@@ -4505,6 +4547,464 @@ function vueEnsemble(u){
 /* ------------------------------------------------------------------ */
 /* Routeur                                                             */
 /* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ */
+/* Groupe : consolidation, sites, indicateurs                          */
+/* ------------------------------------------------------------------ */
+
+/* Ce que voit un groupe : des agrégats. Jamais une identité d'une société dont la
+   personne n'est pas salariée. Le lien capitalistique donne le droit de recevoir la
+   facture, pas celui de lire les dossiers du personnel d'une filiale. */
+function vueGroupe(u){
+  const gid = u.groupe;
+  if (!gid) return h(`<section class="card"><p class="empty">Ce compte n'est rattaché à aucun groupe.</p></section>`);
+  const c = DB.consolideGroupe(gid);
+  const rang = DB.classementSites({ groupe: gid });
+  const camp = DB.campagnes(gid).filter(x => x.etat === "close")
+                 .sort((a, b) => b.debut.localeCompare(a.debut))[0];
+  const ind = camp ? DB.indicateursDe({ campagne: camp.id, groupe: gid }) : null;
+
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <div class="kpis">
+      ${kpi("Salariés mobilisés", nb(c.mobilises),
+            `${nb(c.effectif)} salariés dans le périmètre`, "", "kpi--tete grain")}
+      ${kpi("Missions validées", nb(c.missions),
+            `dont ${nb(c.confirmees)} confirmées par une association`)}
+      ${kpi("Points du groupe", nb(c.points),
+            `${pct(c.parSalarie, 2)} par salarié — somme des points ÷ somme des effectifs`)}
+      ${kpi("Réduction d'impôt", c.reduction === null ? "non calculée" : eur(c.reduction),
+            c.reduction === null
+              ? "il manque des données fiscales dans au moins une société"
+              : "somme de réductions calculées société par société")}
+    </div>
+
+    <section class="card">
+      <div class="between" style="margin-bottom:var(--s5);align-items:flex-start">
+        <div><h3>Sociétés et établissements</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+          Le groupe consolide, il ne fusionne pas. Chaque société garde son SIREN, son
+          contrat, son plafond de mécénat et ses salariés — deux sociétés d'un même
+          groupe sont deux responsables de traitement distincts.</p></div>
+        <button class="btn btn--ghost btn--sm" id="csvG">Exporter</button>
+      </div>
+      <table class="table"><thead><tr>
+        <th>Société / site</th><th>SIREN</th><th style="text-align:right">Effectif</th>
+        <th style="text-align:right">Comptes</th><th style="text-align:right">Missions</th>
+        <th style="text-align:right">Points</th><th style="text-align:right">Par salarié</th>
+      </tr></thead><tbody></tbody></table>
+    </section>
+
+    <div class="two">
+      <section class="card">
+        <h3>Entre vos sites</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+          Ce classement-là ne dépend de personne d'autre que vous : il fonctionne dès
+          le premier site raccordé. Il est normalisé par l'effectif, sinon le siège
+          écrase l'agence. Il compare des sites, <strong>jamais des personnes</strong>.</p>
+        <div class="stack" style="--gap:var(--s3);margin-top:var(--s5)" id="rang"></div>
+      </section>
+
+      <section class="card">
+        <div class="between" style="align-items:flex-start">
+          <div><h3>Sécurité et social</h3>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+            ${camp ? esc(camp.libelle) : "aucune période close"}</p></div>
+          <a class="btn btn--quiet btn--sm" href="#/indicateurs">Ouvrir</a>
+        </div>
+        ${ind && ind.sites ? `
+        <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
+          ${INDICATEURS.calcules.filter(d => ["tf1", "tg", "turnover", "part_femmes"].includes(d.cle))
+            .map(d => `<div class="between"><span class="muted">${esc(d.libelle)}</span>
+              <span class="tnum">${ind.calcules[d.cle] === null ? "—"
+                : nb2(ind.calcules[d.cle]) + (d.unite ? " " + d.unite : "")}</span></div>`).join("")}
+        </div>
+        <p class="hint" style="margin-top:var(--s5)">
+          ${ind.sites} site${ind.sites > 1 ? "s" : ""} sur ${ind.attendus} ont répondu.
+          ${ind.complet ? "Toutes les valeurs sont approuvées."
+            : "Les taux ci-dessus ne portent que sur les sites qui ont répondu, et c'est écrit tel quel dans le rapport."}
+        </p>
+        <p class="hint">Rapport de sommes, jamais moyenne de taux. Aucun classement entre sites sur la sécurité.</p>
+        ` : `<p class="hint" style="margin-top:var(--s5)">Aucune période close pour l'instant.</p>`}
+      </section>
+    </div>
+  </div>`);
+
+  const tb = el.querySelector("tbody");
+  c.societes.forEach(soc => {
+    tb.appendChild(h(`<tr>
+      <td><strong>${esc(soc.nom)}</strong></td>
+      <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(soc.siren || "—")}</td>
+      <td class="tnum" style="text-align:right">${nb(soc.effectif || 0)}</td>
+      <td class="tnum" style="text-align:right">${nb(soc.etablissements.reduce((n, x) => n + x.comptes, 0))}</td>
+      <td class="tnum" style="text-align:right">${nb(soc.missions)}</td>
+      <td class="tnum" style="text-align:right"><strong>${nb(soc.points)}</strong></td>
+      <td class="tnum" style="text-align:right">${soc.effectif ? pct(soc.points / soc.effectif, 2) : "—"}</td>
+    </tr>`));
+    soc.etablissements.forEach(et => {
+      tb.appendChild(h(`<tr>
+        <td style="padding-left:var(--s6)" class="muted">${esc(et.nom)} — ${esc(et.ville)}</td>
+        <td></td>
+        <td class="tnum muted" style="text-align:right">${nb(et.effectif || 0)}</td>
+        <td class="tnum muted" style="text-align:right">${nb(et.comptes)} / ${nb(et.quota || 0)}</td>
+        <td class="tnum muted" style="text-align:right">${nb(et.missions)}</td>
+        <td class="tnum muted" style="text-align:right">${nb(et.points)}</td>
+        <td class="tnum muted" style="text-align:right">${et.effectif ? pct(et.parSalarie, 2) : "—"}</td>
+      </tr>`));
+    });
+  });
+
+  const box = el.querySelector("#rang");
+  const max = Math.max(...rang.map(x => x.parSalarie), 0.01);
+  rang.forEach(x => box.appendChild(h(`<div>
+    <div class="between" style="font-size:var(--t-sm);margin-bottom:6px">
+      <span><b>${x.rang}.</b> ${esc(x.nom)} — ${esc(x.ville)}
+        <span class="muted">· ${nb(x.effectif)} salariés</span></span>
+      <span class="tnum">${pct(x.parSalarie, 2)} pts / salarié</span></div>
+    <div class="bar"><i style="width:${Math.max(2, (x.parSalarie / max) * 100)}%"></i></div>
+  </div>`)));
+
+  el.querySelector("#csvG").onclick = () => {
+    versCSV("riseva-groupe.csv",
+      ["Société", "SIREN", "Établissement", "Ville", "Effectif", "Comptes", "Quota",
+       "Missions", "Confirmées", "Points", "Points par salarié"],
+      c.societes.flatMap(soc => soc.etablissements.map(et =>
+        [soc.nom, soc.siren || "", et.nom, et.ville, et.effectif, et.comptes, et.quota,
+         et.missions, et.confirmees, et.points, Math.round(et.parSalarie * 100) / 100])));
+    toast("Export téléchargé.");
+  };
+  return el;
+}
+
+const nb2 = (v) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(v);
+
+/* Allocation des quotas et liens de référent. Deux liens et pas un : le groupe
+   nomme un référent par site, le référent invite ses salariés. */
+function vueSites(u){
+  const societes = u.groupe ? DB.societes(u.groupe) : [DB.entreprise(u.org)].filter(Boolean);
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <section class="card card--flat" style="background:var(--paper-sunk);border-color:transparent">
+      <h3 style="font-size:var(--t-lg)">Deux liens, jamais un seul</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);max-width:76ch">
+        Vous allouez un quota de comptes à un site, puis vous envoyez un lien
+        <strong>nominatif</strong> à la personne qui pilotera ce site. C'est elle, ensuite,
+        qui produit le lien d'inscription de ses salariés — dans la limite de son quota,
+        et sans jamais pouvoir dépasser. Un lien de salarié ne confère jamais de droit
+        d'administration : c'est ce qui fait qu'un lien qui fuite reste sans conséquence.
+      </p>
+    </section>
+    <div id="soc" class="stack" style="--gap:var(--s5)"></div>
+  </div>`);
+
+  const box = el.querySelector("#soc");
+  societes.forEach(soc => {
+    const q = DB.quotaDisponible(soc.id);
+    const bloc = h(`<section class="card">
+      <div class="between" style="margin-bottom:var(--s5);align-items:flex-start;flex-wrap:wrap;gap:var(--s4)">
+        <div><h3>${esc(soc.nom)}</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+          SIREN ${esc(soc.siren || "non renseigné")} · contrat de ${nb(q.total)} places,
+          ${nb(q.alloue)} allouées, <strong style="color:${q.libre < 0 ? "var(--danger)" : "var(--ink)"}">${nb(q.libre)} libres</strong></p></div>
+      </div>
+      <table class="table"><thead><tr>
+        <th>Établissement</th><th>SIRET</th><th style="text-align:right">Effectif</th>
+        <th style="text-align:right">Comptes</th><th style="text-align:right">Quota</th>
+        <th>Référent</th><th></th>
+      </tr></thead><tbody></tbody></table>
+    </section>`);
+    const tb = bloc.querySelector("tbody");
+    const etabs = DB.etablissements(soc.id);
+    if (!etabs.length){
+      tb.appendChild(h(`<tr><td colspan="7" class="muted">Aucun établissement déclaré.</td></tr>`));
+    }
+    etabs.forEach(et => {
+      const si = DB.sieges(soc.id, { etablissement: et.id });
+      const tr = h(`<tr>
+        <td><strong>${esc(et.nom)}</strong><br>
+          <span class="muted" style="font-size:var(--t-xs)">${esc(et.ville)}</span></td>
+        <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(et.siret || "—")}</td>
+        <td class="tnum" style="text-align:right">${nb(et.effectif || 0)}</td>
+        <td class="tnum" style="text-align:right">${nb(si.pris)}</td>
+        <td style="text-align:right;width:110px">
+          <input class="input" type="number" min="0" value="${et.quota || 0}"
+            aria-label="Quota de comptes pour ${esc(et.nom)} ${esc(et.ville)}"
+            style="height:34px;text-align:right"></td>
+        <td class="muted">${et.referent ? esc(et.referent) : `<span class="badge badge--warn">à nommer</span>`}</td>
+        <td style="text-align:right"></td>
+      </tr>`);
+      const q2 = h(`<button class="btn btn--quiet btn--sm">Enregistrer</button>`);
+      q2.onclick = () => {
+        try {
+          DB.allouerQuota(et.id, tr.querySelector("input").value);
+          toast(`Quota de ${et.nom} ${et.ville} mis à jour.`); rendre();
+        } catch (e){ toast(e.message); }
+      };
+      const lien = h(`<button class="btn btn--quiet btn--sm">${et.referent ? "Remplacer le référent" : "Nommer un référent"}</button>`);
+      lien.onclick = () => formReferent(et);
+      const cell = tr.querySelector("td:last-child");
+      cell.append(q2, lien);
+      cell.style.whiteSpace = "nowrap";
+      tb.appendChild(tr);
+    });
+    box.appendChild(bloc);
+  });
+  return el;
+}
+
+function formReferent(et){
+  const corps = h(`<div class="stack" style="--gap:var(--s4)">
+    <p class="muted" style="font-size:var(--t-sm)">
+      Le lien est <strong style="color:var(--ink)">nominatif</strong> : il porte le nom et
+      l'adresse de la personne visée, il expire dans trente jours, et il n'ouvre qu'un
+      seul compte. Il donne à cette personne les droits sur
+      <strong style="color:var(--ink)">${esc(et.nom)} — ${esc(et.ville)}</strong>, et sur rien d'autre.
+    </p>
+    <div class="field"><label for="rf-nom">Prénom et nom</label>
+      <input class="input" id="rf-nom" value="${esc(et.referent || "")}"></div>
+    <div class="field"><label for="rf-mail">Adresse professionnelle</label>
+      <input class="input" id="rf-mail" type="email" value="${esc(et.referent_mail || "")}"></div>
+    <div id="rf-out"></div>
+  </div>`);
+  modal(`Référent de ${et.nom} — ${et.ville}`, corps, [
+    { texte: "Annuler", classe: "btn--ghost" },
+    { texte: "Créer le lien", classe: "btn--primary", garder: true, action: () => {
+        try {
+          const inv = DB.creerInvitationReferent(et.id,
+            corps.querySelector("#rf-nom").value.trim(),
+            corps.querySelector("#rf-mail").value.trim());
+          const url = lienPublic(`/rejoindre.html?code=${inv.code}&role=referent`);
+          corps.querySelector("#rf-out").innerHTML =
+            `<p class="hint" style="margin-bottom:6px">À envoyer à cette personne, et à elle seule :</p>
+             <div class="copyline"><input class="input" readonly aria-label="Lien du référent" value="${esc(url)}"></div>
+             <p class="hint" style="margin-top:6px">Expire le ${dateFR(inv.expire_le)}.</p>`;
+          toast("Lien de référent créé.");
+        } catch (e){ toast(e.message); }
+      } }
+  ]);
+}
+
+/* La collecte des indicateurs. Le contributeur saisit, l'approbateur verrouille :
+   sans ces deux gestes, un chiffre entre dans un document contractuel sans que
+   personne ne l'ait regardé. */
+function vueIndicateurs(u){
+  const gid = u.groupe || null;
+  const cs = DB.campagnes(gid || undefined)
+    .slice().sort((a, b) => b.debut.localeCompare(a.debut));
+  if (!cs.length) return h(`<section class="card"><p class="empty">Aucune campagne de collecte.</p></section>`);
+  const choisie = sessionStorage.getItem("riseva.campagne") || cs[0].id;
+  const cid = cs.some(c => c.id === choisie) ? choisie : cs[0].id;
+  const e = DB.etatCampagne(cid);
+  const ind = DB.indicateursDe({ campagne: cid, groupe: gid || undefined,
+                                 societe: gid ? undefined : u.org });
+  const monSite = u.role === "site_referent" ? u.etablissement : null;
+  const ETIQ = { attendu:["Attendu", "badge--warn"], declare:["Déclaré", "badge--info"],
+                 approuve:["Approuvé", "badge--ok"], clos_sans_reponse:["Clos sans réponse", "badge--neutre"] };
+
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <section class="card">
+      <div class="between" style="flex-wrap:wrap;gap:var(--s4);align-items:flex-start">
+        <div>
+          <h3>Collecte des indicateurs</h3>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+            Ce qui coûte cher, ce n'est pas le calcul : c'est d'obtenir les chiffres de
+            chaque site. Même mécanisme que pour les missions — on demande, on rappelle,
+            et si personne ne répond la période se clôt <strong>sans réponse</strong>,
+            plutôt que d'être comblée avec celle d'avant.</p>
+        </div>
+        <div class="field" style="min-width:220px">
+          <label for="camp">Période</label>
+          <select class="select" id="camp">
+            ${cs.map(c => `<option value="${c.id}" ${c.id === cid ? "selected" : ""}>${esc(c.libelle)}${c.etat === "close" ? " — close" : ""}</option>`).join("")}
+          </select>
+        </div>
+      </div>
+      <hr class="sep">
+      <div class="kpis">
+        ${kpi("Sites qui ont répondu", `${e.declares + e.approuves} / ${e.sites.length}`,
+              e.campagne.etat === "ouverte"
+                ? `${e.joursRestants} jour${e.joursRestants > 1 ? "s" : ""} avant l'échéance du ${dateFR(e.campagne.echeance)}`
+                : `close le ${dateFR(e.campagne.echeance)}`)}
+        ${kpi("Approuvés", nb(e.approuves), "verrouillés, utilisables dans un rapport")}
+        ${kpi("En attente d'approbation", nb(e.declares), "saisis, pas encore relus")}
+        ${kpi("Clos sans réponse", nb(e.clos), e.clos ? "signalés comme tels dans le rapport" : "aucun")}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="between" style="margin-bottom:var(--s5)"><h3>Par établissement</h3>
+        <button class="btn btn--ghost btn--sm" id="csvI">Exporter</button></div>
+      <table class="table"><thead><tr>
+        <th>Établissement</th><th>État</th><th>Saisi par</th><th>Approuvé par</th><th></th>
+      </tr></thead><tbody></tbody></table>
+    </section>
+
+    <div class="two">
+      <section class="card">
+        <h3>Ce que ça donne, une fois consolidé</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+          Un taux de groupe est un <strong>rapport de sommes</strong> : total des accidents
+          divisé par total des heures. Pas la moyenne des taux de chaque site — l'écart
+          entre les deux est réel et ne se voit pas à l'œil.</p>
+        <table class="table" style="margin-top:var(--s5)"><tbody>
+          ${INDICATEURS.calcules.map(d => `<tr>
+            <td>${esc(d.libelle)}<br><span class="muted" style="font-size:var(--t-xs)">${esc(d.formule)}</span></td>
+            <td class="tnum" style="text-align:right">${ind && ind.calcules[d.cle] !== null
+              ? nb2(ind.calcules[d.cle]) + (d.unite ? " " + d.unite : "") : "—"}</td></tr>`).join("")}
+        </tbody></table>
+        <p class="hint" style="margin-top:var(--s4)">
+          ${ind ? `Calculé sur ${ind.sites} site${ind.sites > 1 ? "s" : ""} sur ${ind.attendus}.` : ""}
+          ${ind && !ind.complet ? " Périmètre incomplet : le rapport le mentionnera." : ""}
+        </p>
+      </section>
+      <section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
+        <h3 style="font-size:var(--t-lg)">Ce que Riseva ne fait pas</h3>
+        <ul class="stack" style="--gap:var(--s3);margin-top:var(--s4);font-size:var(--t-sm);
+          list-style:none;color:var(--ink-600)">
+          ${INDICATEURS_LIMITES.map(x => `<li>${esc(x)}</li>`).join("")}
+        </ul>
+      </section>
+    </div>
+  </div>`);
+
+  el.querySelector("#camp").onchange = (ev) => {
+    sessionStorage.setItem("riseva.campagne", ev.target.value); rendre();
+  };
+
+  const tb = el.querySelector("tbody");
+  e.sites.filter(x => !monSite || x.etablissement.id === monSite).forEach(x => {
+    const [lib, cls] = ETIQ[x.etat];
+    const tr = h(`<tr>
+      <td><strong>${esc(x.etablissement.nom)}</strong> — ${esc(x.etablissement.ville)}<br>
+        <span class="muted" style="font-size:var(--t-xs)">${esc(DB.entreprise(x.etablissement.societe)?.nom || "")}</span></td>
+      <td><span class="badge ${cls}">${lib}</span></td>
+      <td class="muted">${x.saisiPar ? esc(x.saisiPar.nom) : "—"}</td>
+      <td class="muted">${x.approuvePar ? esc(x.approuvePar.nom) : "—"}</td>
+      <td style="text-align:right;white-space:nowrap"></td>
+    </tr>`);
+    const cell = tr.querySelector("td:last-child");
+    if (e.campagne.etat === "ouverte"){
+      const b = h(`<button class="btn btn--quiet btn--sm">${x.observation ? "Modifier" : "Saisir"}</button>`);
+      b.onclick = () => formIndicateurs(u, cid, x.etablissement);
+      cell.appendChild(b);
+    }
+    if (x.etat === "declare"){
+      const a2 = h(`<button class="btn btn--primary btn--sm" style="margin-left:6px">Approuver</button>`);
+      a2.onclick = () => {
+        try { DB.approuverIndicateurs(cid, x.etablissement.id, u.id);
+              toast("Valeurs approuvées et verrouillées."); rendre(); }
+        catch (err){ toast(err.message); }
+      };
+      cell.appendChild(a2);
+    }
+    tb.appendChild(tr);
+  });
+
+  el.querySelector("#csvI").onclick = () => {
+    versCSV(`riseva-indicateurs-${e.campagne.periode}.csv`,
+      ["Société", "Établissement", "Ville", "État", "Saisi par", "Approuvé par",
+       ...INDICATEURS.saisis.map(d => d.libelle)],
+      e.sites.map(x => [
+        DB.entreprise(x.etablissement.societe)?.nom || "", x.etablissement.nom,
+        x.etablissement.ville, ETIQ[x.etat][0],
+        x.saisiPar ? x.saisiPar.nom : "", x.approuvePar ? x.approuvePar.nom : "",
+        ...INDICATEURS.saisis.map(d => (x.observation && x.observation.valeurs[d.cle]) ?? "")]));
+    toast("Export téléchargé.");
+  };
+  return el;
+}
+
+function formIndicateurs(u, cid, et){
+  const o = DB.observation(cid, et.id);
+  const v = (o && o.valeurs) || {};
+  const corps = h(`<div class="stack" style="--gap:var(--s4)">
+    <p class="muted" style="font-size:var(--t-sm)">
+      Laissez vide ce que vous n'avez pas : Riseva écrira « non disponible » plutôt que
+      de compléter. ${o && o.etat === "approuve"
+        ? `<strong style="color:var(--ink)">Ces valeurs sont approuvées</strong> : les modifier
+           produira une version ${o.version + 1}, et il faudra les approuver à nouveau.` : ""}
+    </p>
+    <div class="stack" style="--gap:var(--s4)" id="ch"></div>
+  </div>`);
+  const box = corps.querySelector("#ch");
+  INDICATEURS.saisis.forEach(d => {
+    box.appendChild(h(`<div class="field">
+      <label for="i-${d.cle}">${esc(d.libelle)}${d.unite ? ` <span class="muted">(${esc(d.unite)})</span>` : ""}</label>
+      <input class="input" id="i-${d.cle}" type="number" min="0" step="any"
+        value="${v[d.cle] ?? ""}">
+      <p class="hint">${esc(d.aide)}</p></div>`));
+  });
+  modal(`${et.nom} — ${et.ville}`, corps, [
+    { texte: "Annuler", classe: "btn--ghost" },
+    { texte: "Enregistrer", classe: "btn--primary", action: () => {
+        const vals = {};
+        INDICATEURS.saisis.forEach(d => { vals[d.cle] = corps.querySelector(`#i-${d.cle}`).value; });
+        try { DB.saisirIndicateurs(cid, et.id, vals, u.id);
+              toast("Saisie enregistrée. Elle attend une approbation."); rendre(); }
+        catch (err){ toast(err.message); }
+      } }
+  ]);
+}
+
+/* Le tableau de bord d'un référent de site : son site, et rien d'autre. */
+function tableauSite(u){
+  const et = DB.etablissement(u.etablissement);
+  if (!et) return h(`<section class="card"><p class="empty">Aucun site rattaché à ce compte.</p></section>`);
+  const si = DB.sieges(u.org, { etablissement: et.id });
+  const gens = DB.salaries(u.org).filter(x => x.etablissement === et.id && !x.anonyme);
+  const ms = DB.missions({ entreprise: u.org })
+    .filter(m => (m.etablissement || (DB.utilisateur(m.salarie) || {}).etablissement) === et.id);
+  const validees = ms.filter(m => ["validee", "validee_auto"].includes(m.etat));
+  const points = validees.reduce((n, m) => n + (m.points || 0), 0);
+  const camp = DB.campagnes(DB.entreprise(u.org)?.groupe)
+    .filter(c => c.etat === "ouverte")[0];
+  const obs = camp ? DB.observation(camp.id, et.id) : null;
+  const inv = DB.invitations(u.org).find(i => i.etablissement === et.id && i.active && !i.pour_referent);
+
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    ${camp && !obs ? `<section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
+      <div class="between" style="flex-wrap:wrap;gap:var(--s4)">
+        <div><h3 style="font-size:var(--t-lg)">Indicateurs à saisir</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px;color:var(--ink-600)">
+          ${esc(camp.libelle)} — il reste ${DB.joursAvant(camp.echeance)} jours. Sans réponse,
+          la période sera close sans vos chiffres, et le rapport le dira.</p></div>
+        <a class="btn btn--primary btn--sm" href="#/indicateurs">Saisir</a>
+      </div></section>` : ""}
+
+    <div class="kpis">
+      ${kpi("Comptes ouverts", `${nb(si.pris)} / ${nb(si.total)}`,
+            `${nb(si.restants)} places restantes sur votre quota`, "", "kpi--tete grain")}
+      ${kpi("Salariés mobilisés", nb(new Set(validees.map(m => m.salarie)).size),
+            `sur ${nb(gens.length)} comptes`)}
+      ${kpi("Missions validées", nb(validees.length),
+            `dont ${nb(validees.filter(m => m.etat === "validee").length)} confirmées`)}
+      ${kpi("Points du site", nb(points),
+            et.effectif ? `${pct(points / et.effectif, 2)} par salarié` : "")}
+    </div>
+
+    <section class="card">
+      <div class="between" style="margin-bottom:var(--s5)">
+        <h3>Inviter vos salariés</h3></div>
+      <p class="muted" style="font-size:var(--t-sm)">
+        Ce lien ouvre des comptes sur <strong style="color:var(--ink)">${esc(et.nom)} — ${esc(et.ville)}</strong>,
+        dans la limite de votre quota. Il ne donne aucun droit d'administration.</p>
+      ${inv ? `<div class="copyline" style="margin-top:var(--s5)">
+        <input class="input" id="lienSite" readonly aria-label="Lien d'inscription de votre site"
+          value="${esc(lienPublic("/rejoindre.html?code=" + inv.code))}">
+        <button class="btn btn--primary btn--sm" id="copySite" style="flex:none">Copier</button></div>
+        <p class="hint" style="margin-top:6px">${inv.utilisees} compte${inv.utilisees > 1 ? "s" : ""} créé${inv.utilisees > 1 ? "s" : ""} par ce lien · expire le ${dateFR(inv.expire_le)}</p>`
+      : `<button class="btn btn--primary" style="margin-top:var(--s5)" id="newLien">Créer le lien de mon site</button>`}
+    </section>
+  </div>`);
+
+  el.querySelector("#copySite")?.addEventListener("click", () => {
+    navigator.clipboard?.writeText(el.querySelector("#lienSite").value);
+    toast("Lien copié.");
+  });
+  el.querySelector("#newLien")?.addEventListener("click", () => {
+    try { DB.creerInvitation(u.org, et.quota, et.id); toast("Lien créé."); rendre(); }
+    catch (e){ toast(e.message); }
+  });
+  return el;
+}
+
 const ROUTES = {
   entreprise_admin: {
     tableau:   [tableauEntreprise, "Tableau de bord"],
@@ -4518,6 +5018,19 @@ const ROUTES = {
     mecenat:   [vueMecenat,        "Mécénat"],
     abonnement:[vueAbonnement,     "Abonnement"],
     parametres:[vueParametres,     "Paramètres"],
+    groupe:    [vueGroupe,         "Vue consolidée du groupe"],
+    sites:     [vueSites,          "Sites et quotas"],
+    indicateurs:[vueIndicateurs,   "Indicateurs sociaux et sécurité"],
+    preferences:[vuePreferences,   "Préférences"]
+  },
+  site_referent: {
+    tableau:   [tableauSite,       "Tableau de bord du site"],
+    equipe:    [vueEquipe,         "Mes salariés"],
+    indicateurs:[vueIndicateurs,   "Indicateurs sociaux et sécurité"],
+    annonces:  [vueAnnonces,       "Annonces"],
+    missions:  [vueMissions,       "Missions du site"],
+    annuaire:  [vueAnnuaire,       "Associations"],
+    ensemble:  [vueEnsemble,       "Tous ensemble"],
     preferences:[vuePreferences,   "Préférences"]
   },
   salarie: {

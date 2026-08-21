@@ -113,6 +113,71 @@ export const FACTURATION = {
   emission_pme_le: "2027-09-01"
 };
 
+/* Les indicateurs sociaux et de sécurité que Riseva collecte par établissement.
+   Chaque définition porte son unité, son mode d'agrégation et sa version : un
+   rapport arrêté doit pouvoir dire avec quelle formule il a été produit, même si
+   la formule change ensuite.
+
+   Riseva *calcule*, Riseva ne *certifie* pas. Les valeurs sont déclarées par
+   l'entreprise, site par site, et chaque ligne garde qui l'a saisie et qui l'a
+   approuvée. */
+export const INDICATEURS = {
+  version: "2026.1",
+  saisis: [
+    { cle:"effectif_fin",      libelle:"Effectif à la fin de la période",      unite:"personnes", aide:"En contrat au dernier jour de la période, tous contrats confondus." },
+    { cle:"entrees",           libelle:"Entrées",                              unite:"personnes", aide:"Embauches sur la période." },
+    { cle:"sorties",           libelle:"Sorties",                              unite:"personnes", aide:"Fins de contrat sur la période, quel qu'en soit le motif." },
+    { cle:"heures_travaillees",libelle:"Heures travaillées",                   unite:"heures",    aide:"Heures réellement travaillées, hors absences. C'est le dénominateur des taux de sécurité." },
+    { cle:"at_avec_arret",     libelle:"Accidents du travail avec arrêt",      unite:"accidents", aide:"Accidents survenus sur le lieu de travail ayant entraîné un arrêt d'au moins un jour." },
+    { cle:"at_sans_arret",     libelle:"Accidents du travail sans arrêt",      unite:"accidents", aide:"Accidents ayant nécessité des soins mais sans arrêt." },
+    { cle:"at_trajet",         libelle:"Accidents de trajet",                  unite:"accidents", aide:"Comptés à part : ils ne relèvent pas des mêmes actions de prévention." },
+    { cle:"jours_arret",       libelle:"Journées perdues pour accident",       unite:"jours",     aide:"Journées calendaires d'arrêt imputables aux accidents de la période." },
+    { cle:"formation_heures",  libelle:"Heures de formation",                  unite:"heures",    aide:"Toutes formations confondues." },
+    { cle:"formation_benef",   libelle:"Salariés formés",                      unite:"personnes", aide:"Personnes distinctes ayant suivi au moins une formation." },
+    { cle:"femmes",            libelle:"Femmes dans l'effectif",               unite:"personnes", aide:"Au dernier jour de la période." },
+    { cle:"boeth",             libelle:"Bénéficiaires de l'obligation d'emploi", unite:"personnes", aide:"Travailleurs handicapés au sens de l'obligation d'emploi." }
+  ],
+  /* Ce que Riseva calcule à partir des valeurs saisies. La formule est écrite ici,
+     en clair, et reprise telle quelle dans les rapports. */
+  calcules: [
+    { cle:"tf1", libelle:"Taux de fréquence des accidents avec arrêt",
+      unite:"", formule:"accidents avec arrêt × 1 000 000 ÷ heures travaillées",
+      calcul: (v) => v.heures_travaillees ? (v.at_avec_arret * 1e6) / v.heures_travaillees : null },
+    { cle:"tf2", libelle:"Taux de fréquence, avec et sans arrêt",
+      unite:"", formule:"(accidents avec arrêt + sans arrêt) × 1 000 000 ÷ heures travaillées",
+      calcul: (v) => v.heures_travaillees
+        ? ((v.at_avec_arret + v.at_sans_arret) * 1e6) / v.heures_travaillees : null },
+    { cle:"tg", libelle:"Taux de gravité",
+      unite:"", formule:"journées perdues × 1 000 ÷ heures travaillées",
+      calcul: (v) => v.heures_travaillees ? (v.jours_arret * 1e3) / v.heures_travaillees : null },
+    { cle:"if_", libelle:"Indice de fréquence",
+      unite:"", formule:"accidents avec arrêt × 1 000 ÷ effectif",
+      calcul: (v) => v.effectif_fin ? (v.at_avec_arret * 1e3) / v.effectif_fin : null },
+    { cle:"turnover", libelle:"Rotation du personnel",
+      unite:"%", formule:"(entrées + sorties) ÷ 2 ÷ effectif × 100",
+      calcul: (v) => v.effectif_fin ? ((v.entrees + v.sorties) / 2) / v.effectif_fin * 100 : null },
+    { cle:"part_femmes", libelle:"Part des femmes dans l'effectif",
+      unite:"%", formule:"femmes ÷ effectif × 100",
+      calcul: (v) => v.effectif_fin ? (v.femmes / v.effectif_fin) * 100 : null },
+    { cle:"taux_boeth", libelle:"Taux d'emploi direct de travailleurs handicapés",
+      unite:"%", formule:"bénéficiaires ÷ effectif × 100",
+      calcul: (v) => v.effectif_fin ? (v.boeth / v.effectif_fin) * 100 : null }
+  ],
+  /* Combien de jours un site a pour répondre avant que la campagne se referme sans
+     lui. Même mécanique que les quatorze jours d'une mission, et même honnêteté :
+     une période close sans réponse est marquée comme telle, jamais comblée. */
+  delai_jours: 21
+};
+
+/* Ce que Riseva ne fait pas avec ces chiffres, écrit une fois pour toutes. */
+export const INDICATEURS_LIMITES = [
+  "Riseva calcule les taux à partir de valeurs déclarées par l'entreprise ; elle ne les audite pas.",
+  "Aucun classement entre sites sur la sécurité : un classement crée une incitation à sous-déclarer.",
+  "Riseva n'identifie pas les dangers, n'évalue pas les risques et ne produit pas le document unique.",
+  "Aucune donnée de santé nominative n'est collectée : ni diagnostic, ni nature de la lésion, ni identité de la victime.",
+  "Riseva ne dépose rien à la place de l'entreprise : ni Egapro, ni DSN, ni déclaration Urssaf."
+];
+
 export const FISCAL = {
   annee: 2026,
   taux_reduction: 0.60,
@@ -182,11 +247,46 @@ const seed = {
     id: "s2026", nom: "Saison 2026", debut: "2026-01-01", fin: "2026-12-31",
     etat: "ouverte", prix_min: 3500, prix_max: 4000, acompte: 500
   },
+  /* Un groupe est le périmètre de consolidation *volontaire* du payeur. Il n'a pas
+     d'existence fiscale : il ne signe rien, ne déclare rien, et surtout il ne mutualise
+     aucun plafond. Ce qui signe et ce qui est imposé, c'est la société. */
+  groupes: [
+    { id:"g1", nom:"Groupe Lafarge", societe_mere:"e1",
+      cree_le:"2025-11-14" }
+  ],
+
+  /* Un établissement est un lieu, pas une personne morale : il porte un effectif, un
+     quota de comptes, un score et une accidentologie. Il ne porte ni contrat, ni
+     facture, ni plafond de mécénat — ceux-là restent à la société. */
+  etablissements: [
+    { id:"et1", societe:"e1", nom:"Siège",           ville:"Paris",     lat:48.8566, lon:2.3522,
+      siret:"39312091600025", effectif:60,  quota:60,
+      referent:"Claire Fontaine", referent_mail:"claire@lafarge-ciments.fr" },
+    { id:"et2", societe:"e1", nom:"Usine",           ville:"Lyon",      lat:45.7333, lon:4.8137,
+      siret:"39312091600041", effectif:110, quota:110,
+      referent:"Karim Belhadj", referent_mail:"karim@lafarge-ciments.fr" },
+    { id:"et3", societe:"e1", nom:"Agence",          ville:"Marseille", lat:43.2965, lon:5.3698,
+      siret:"39312091600058", effectif:40,  quota:40,
+      referent:"Léa Mercier", referent_mail:"lea@lafarge-ciments.fr" },
+    { id:"et4", societe:"e9", nom:"Plateforme",      ville:"Nantes",    lat:47.2184, lon:-1.5536,
+      siret:"84210044700018", effectif:45,  quota:45,
+      referent:null, referent_mail:null }
+  ],
+
   entreprises: [
     { id:"e1", lat:45.7333, lon:4.8137, nom:"Lafarge Ciments",     effectif:210, sieges:210, ca:48_000_000, cout_jour_moyen:340,
+      groupe:"g1", siren:"393120916",
       referent:"Claire Fontaine", referent_mail:"claire@lafarge-ciments.fr", siret:"39312091600025",
       domaines:["lafarge-ciments.fr"],
       adresse:"12 rue des Docks, 69009 Lyon", secteur:"Industrie",  ville:"Lyon" },
+    /* Deuxième société du même groupe : elle prouve ce que le modèle doit tenir.
+       Son plafond de mécénat est le sien, sa facture est la sienne, et personne chez
+       elle n'est visible depuis l'autre société — même actionnaire, autre responsable
+       de traitement. */
+    { id:"e9", lat:47.2184, lon:-1.5536, nom:"Lafarge Négoce",      effectif:45,  sieges:45,  ca:6_200_000,  cout_jour_moyen:295,
+      groupe:"g1", siren:"842100447", siret:"84210044700018",
+      domaines:["lafarge-negoce.fr"],
+      adresse:"4 quai de la Fosse, 44000 Nantes", secteur:"Négoce", ville:"Nantes" },
     { id:"e2", lat:50.6292, lon:3.0573, nom:"Groupe Vidal",        effectif:340, sieges:350, ca:62_000_000, cout_jour_moyen:290, secteur:"Logistique", ville:"Lille" },
     { id:"e3", lat:48.8566, lon:2.3522, nom:"Cabinet Marchand",    effectif:64,  sieges:75,  ca:9_800_000,  cout_jour_moyen:520,  secteur:"Conseil",    ville:"Paris" },
     { id:"e4", lat:47.2184, lon:-1.5536, nom:"Novaterre",           effectif:120, sieges:120, ca:21_000_000, cout_jour_moyen:310, secteur:"Agro",       ville:"Nantes" },
@@ -391,23 +491,74 @@ const seed = {
       description:"Un kit, c'est un duvet confort -5 °C et une trousse d'hygiène. Neufs de préférence : ils partent en une semaine.",
       quantite:80, restant:56, date:J(33), lieu:"Paris", etat:"ouverte" }
   ],
+  /* Une campagne de collecte : une période, une échéance, et un état par site.
+     C'est le même mécanisme que la validation d'une mission — on demande, on
+     rappelle, et si personne ne répond on clôt en le disant. */
+  campagnes: [
+    { id:"c1", groupe:"g1", periode:"2026-S1", libelle:"Premier semestre 2026",
+      debut:"2026-01-01", fin:"2026-06-30", ouverte_le:J(-40), echeance:J(-19), etat:"close" },
+    { id:"c2", groupe:"g1", periode:"2026-S2", libelle:"Second semestre 2026",
+      debut:"2026-07-01", fin:"2026-12-31", ouverte_le:J(-6), echeance:J(15), etat:"ouverte" }
+  ],
+  /* Une observation = une valeur, pour un site, une période, un indicateur.
+     Elle porte qui l'a saisie, qui l'a approuvée, et son état. Une valeur approuvée
+     ne se modifie pas en silence : elle se corrige avec une nouvelle version. */
+  observations: [
+    { id:"o1", campagne:"c1", etablissement:"et1", etat:"approuve", version:1,
+      saisi_par:"u2",  saisi_le:J(-34), approuve_par:"u2", approuve_le:J(-31),
+      valeurs:{ effectif_fin:60, entrees:4, sorties:3, heures_travaillees:52_400,
+                at_avec_arret:1, at_sans_arret:2, at_trajet:1, jours_arret:14,
+                formation_heures:640, formation_benef:38, femmes:31, boeth:3 } },
+    { id:"o2", campagne:"c1", etablissement:"et2", etat:"approuve", version:1,
+      saisi_par:"u10", saisi_le:J(-33), approuve_par:"u2", approuve_le:J(-30),
+      valeurs:{ effectif_fin:110, entrees:9, sorties:11, heures_travaillees:96_800,
+                at_avec_arret:4, at_sans_arret:6, at_trajet:2, jours_arret:96,
+                formation_heures:1_480, formation_benef:71, femmes:24, boeth:7 } },
+    { id:"o3", campagne:"c1", etablissement:"et3", etat:"approuve", version:1,
+      saisi_par:"u11", saisi_le:J(-30), approuve_par:"u2", approuve_le:J(-28),
+      valeurs:{ effectif_fin:40, entrees:2, sorties:2, heures_travaillees:34_900,
+                at_avec_arret:0, at_sans_arret:1, at_trajet:0, jours_arret:0,
+                formation_heures:220, formation_benef:14, femmes:19, boeth:1 } },
+    /* Nantes n'a jamais répondu à la première campagne. On ne comble pas le trou :
+       la période est close sans réponse, et le rapport le dira. */
+    { id:"o4", campagne:"c1", etablissement:"et4", etat:"clos_sans_reponse", version:1,
+      saisi_par:null, saisi_le:null, approuve_par:null, approuve_le:null, valeurs:{} },
+
+    { id:"o5", campagne:"c2", etablissement:"et1", etat:"declare", version:1,
+      saisi_par:"u2",  saisi_le:J(-3), approuve_par:null, approuve_le:null,
+      valeurs:{ effectif_fin:61, entrees:3, sorties:2, heures_travaillees:49_100,
+                at_avec_arret:0, at_sans_arret:1, at_trajet:0, jours_arret:0,
+                formation_heures:410, formation_benef:26, femmes:32, boeth:3 } },
+    { id:"o6", campagne:"c2", etablissement:"et2", etat:"declare", version:1,
+      saisi_par:"u10", saisi_le:J(-2), approuve_par:null, approuve_le:null,
+      valeurs:{ effectif_fin:112, entrees:7, sorties:5, heures_travaillees:94_200,
+                at_avec_arret:2, at_sans_arret:4, at_trajet:1, jours_arret:38,
+                formation_heures:960, formation_benef:52, femmes:26, boeth:8 } }
+  ],
   missions: [
-    { id:"m1", annonce:"an1", entreprise:"e1", salarie:"u3", etat:"validee",     quantite:2, points:300,  date:J(-12), declaree_le:J(-11), tranchee_le:J(-10), realise:22 },
-    { id:"m2", annonce:"an2", entreprise:"e1", salarie:"u4", etat:"validee",     quantite:3, points:450,  date:J(-9), declaree_le:J(-8), tranchee_le:J(-7), realise:118 },
-    { id:"m3", annonce:"an4", entreprise:"e1", salarie:"u3", etat:"validee",     quantite:600, points:60, date:J(-7), declaree_le:J(-7), tranchee_le:J(-6), realise:68 },
-    { id:"m4", annonce:"an5", entreprise:"e1", salarie:"u5", etat:"a_valider",   quantite:3, points:300,  date:J(-2), declaree_le:J(-2) },
-    { id:"m5", annonce:"an1", entreprise:"e1", salarie:"u4", etat:"engagee",     quantite:2, points:300,  date:J(9)  },
-    { id:"m6", annonce:"an7", entreprise:"e1", salarie:"u5", etat:"validee_auto",quantite:1, points:150,  date:J(-4), declaree_le:J(-20), tranchee_le:J(-6) },
-    { id:"m7", annonce:"an3", entreprise:"e1", salarie:"u3", etat:"refusee",     quantite:1, points:0,    date:J(-6) },
+    { id:"m1", annonce:"an1", entreprise:"e1", salarie:"u3", etablissement:"et2", etat:"validee",     quantite:2, points:300,  date:J(-12), declaree_le:J(-11), tranchee_le:J(-10), realise:22 },
+    { id:"m2", annonce:"an2", entreprise:"e1", salarie:"u4", etablissement:"et3", etat:"validee",     quantite:3, points:450,  date:J(-9), declaree_le:J(-8), tranchee_le:J(-7), realise:118 },
+    { id:"m3", annonce:"an4", entreprise:"e1", salarie:"u3", etablissement:"et2", etat:"validee",     quantite:600, points:60, date:J(-7), declaree_le:J(-7), tranchee_le:J(-6), realise:68 },
+    { id:"m4", annonce:"an5", entreprise:"e1", salarie:"u5", etablissement:"et1", etat:"a_valider",   quantite:3, points:300,  date:J(-2), declaree_le:J(-2) },
+    { id:"m5", annonce:"an1", entreprise:"e1", salarie:"u4", etablissement:"et3", etat:"engagee",     quantite:2, points:300,  date:J(9)  },
+    { id:"m6", annonce:"an7", entreprise:"e1", salarie:"u5", etablissement:"et1", etat:"validee_auto",quantite:1, points:150,  date:J(-4), declaree_le:J(-20), tranchee_le:J(-6) },
+    { id:"m7", annonce:"an3", entreprise:"e1", salarie:"u3", etablissement:"et2", etat:"refusee",     quantite:1, points:0,    date:J(-6) },
     { id:"m8", annonce:"an2", entreprise:"e2", salarie:"u9", etat:"validee",     quantite:4, points:600,  date:J(-5), declaree_le:J(-4), tranchee_le:J(-3), realise:155 }
   ],
   utilisateurs: [
     { id:"u1", nom:"Yacine Bounoua",  email:"contact@riseva.fr",        role:"admin",            org:null },
-    { id:"u2", nom:"Claire Fontaine", email:"claire@lafarge-ciments.fr",role:"entreprise_admin", org:"e1" },
-    { id:"u3", nom:"Malik Ferhat",    email:"malik@lafarge-ciments.fr", role:"salarie",          org:"e1", actif:true },
-    { id:"u4", nom:"Sonia Delaunay",  email:"sonia@lafarge-ciments.fr", role:"salarie",          org:"e1", actif:true },
-    { id:"u5", nom:"Hugo Vasseur",    email:"hugo@lafarge-ciments.fr",  role:"salarie",          org:"e1", actif:true },
-    { id:"u6", nom:"Nadia Berrada",   email:"nadia@lafarge-ciments.fr", role:"salarie",          org:"e1", actif:false },
+    /* Claire est salariée de la société mère et pilote le groupe : deux périmètres,
+       un seul compte. `groupe` ouvre la consolidation, `org` reste sa société — elle
+       ne devient pas administratrice des autres sociétés pour autant. */
+    { id:"u2", nom:"Claire Fontaine", email:"claire@lafarge-ciments.fr",role:"entreprise_admin", org:"e1", etablissement:"et1", groupe:"g1" },
+    { id:"u3", nom:"Malik Ferhat",    email:"malik@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et2", actif:true },
+    { id:"u4", nom:"Sonia Delaunay",  email:"sonia@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et3", actif:true },
+    { id:"u5", nom:"Hugo Vasseur",    email:"hugo@lafarge-ciments.fr",  role:"salarie",          org:"e1", etablissement:"et1", actif:true },
+    { id:"u6", nom:"Nadia Berrada",   email:"nadia@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et3", actif:false },
+    /* Les référents de site : ils invitent leurs propres salariés, dans la limite du
+       quota que le groupe leur a alloué, et ne voient rien des autres sites. */
+    { id:"u10", nom:"Karim Belhadj",  email:"karim@lafarge-ciments.fr", role:"site_referent",    org:"e1", etablissement:"et2", actif:true },
+    { id:"u11", nom:"Léa Mercier",    email:"lea@lafarge-ciments.fr",   role:"site_referent",    org:"e1", etablissement:"et3", actif:true },
     { id:"u7", nom:"Élise Tournier",  email:"elise@quatrevents.org",    role:"association",      org:"a1" },
     { id:"u9", nom:"Paul Girard",     email:"paul@groupe-vidal.fr",     role:"salarie",          org:"e2", actif:true }
   ],
@@ -475,7 +626,11 @@ function engendrerReseau(base){
   const supports = base.annonces.slice();
   if (!supports.length) return;
 
-  base.entreprises.filter(e => e.id !== "e1").forEach(e => {
+  /* Le groupe du client de démonstration reste piloté par le jeu de départ : on ne
+     lui invente pas d'activité, sinon la vue groupe montrerait une société qui
+     tourne alors qu'elle n'a rien fait. Une société sans mission, ça arrive, et
+     c'est justement ce qu'une vue de groupe doit rendre visible. */
+  base.entreprises.filter(e => !["e1", "e9"].includes(e.id)).forEach(e => {
     const domaine = slug(e.nom) + ".fr";
     const equipe = [];
     const taille = Math.max(3, Math.min(14, Math.round(e.effectif / 28) + 2));
@@ -483,8 +638,10 @@ function engendrerReseau(base){
       const prenom = PRENOMS[Math.floor(r() * PRENOMS.length)];
       const nom = NOMS[Math.floor(r() * NOMS.length)];
       const id = `u-${e.id}-${i + 1}`;
+      const lieu = base.etablissements.filter(x => x.societe === e.id);
       base.utilisateurs.push({
         id, nom: `${prenom} ${nom}`, role: "salarie", org: e.id, reseau: true,
+        etablissement: lieu.length ? lieu[i % lieu.length].id : null,
         email: `${slug(prenom)}.${slug(nom)}${i}@${domaine}`
       });
       equipe.push(id);
@@ -746,7 +903,13 @@ function creerMock(){
         throw new Error("Votre accord explicite est nécessaire pour une mission sur le temps de travail");
       a.restant -= quantite;
       if (a.restant === 0) a.etat = "close";
+      /* Deux attributions figées au moment de l'engagement, et plus jamais recalculées :
+         l'établissement qui recevra les points, et la société qui portera la convention,
+         la valorisation et le reçu. Un salarié muté garde son historique là où il l'a
+         fait ; ses missions suivantes iront à son nouveau site. */
+      const sal = api.utilisateur(salarie) || {};
       const m = { id:id("m"), annonce, entreprise, salarie, quantite,
+                  etablissement: sal.etablissement || null,
                   points: api.pointsPour(a.type, quantite), etat:"engagee", date:a.date,
                   consentement: a.temps_travail
                     ? { donne_le: new Date().toISOString().slice(0, 10), mission: a.titre, date_mission: a.date }
@@ -820,16 +983,277 @@ function creerMock(){
     /* Les administrateurs occupent aussi une place : ce sont des comptes de l'entreprise. */
     salaries: (eid, { avecAnonymes = true } = {}) =>
       s.utilisateurs.filter(u => u.org === eid
-        && (u.role === "salarie" || u.role === "entreprise_admin")
+        && ["salarie", "entreprise_admin", "site_referent"].includes(u.role)
         && (avecAnonymes || !u.anonyme)),
 
     /* Sièges : une place occupée par salarié encore identifié.
-       Un salarié retiré, donc anonymisé, rend sa place. */
-    sieges(eid){
+       Un salarié retiré, donc anonymisé, rend sa place.
+
+       Avec un établissement, la place se compte dans son quota et pas ailleurs :
+       sinon le premier site servi mange les places des autres, et le référent de
+       Marseille découvre en septembre qu'il n'a plus de comptes. */
+    sieges(eid, { etablissement = null } = {}){
+      if (etablissement){
+        const et = api.etablissement(etablissement);
+        const total = et ? (et.quota || et.effectif || 0) : 0;
+        const pris = api.salaries(eid).filter(u => !u.anonyme
+          && u.etablissement === etablissement).length;
+        return { total, pris, restants: Math.max(0, total - pris) };
+      }
       const e = api.entreprise(eid);
       const total = e ? (e.sieges || e.effectif || 0) : 0;
       const pris = api.salaries(eid).filter(u => !u.anonyme).length;
       return { total, pris, restants: Math.max(0, total - pris) };
+    },
+
+    /* ---- Groupe, sociétés, établissements ----
+       Trois niveaux, parce que le droit français en compte trois : le groupe ne
+       signe rien, la société signe et paie l'impôt, l'établissement emploie sur
+       un lieu. Écraser les trois en un seul casse le plafond de mécénat, la
+       facture, la convention de mise à disposition et le cloisonnement RGPD. */
+    groupe: (gid) => s.groupes.find(g => g.id === gid) || null,
+    groupeDe(eid){
+      const e = api.entreprise(eid);
+      return e && e.groupe ? api.groupe(e.groupe) : null;
+    },
+    societes: (gid) => s.entreprises.filter(e => e.groupe === gid),
+    etablissement: (etid) => s.etablissements.find(x => x.id === etid) || null,
+    etablissements: (eid) => s.etablissements.filter(x => x.societe === eid),
+    etablissementsDuGroupe: (gid) =>
+      api.societes(gid).flatMap(e => api.etablissements(e.id)),
+
+    /* Le quota est une ressource finie : la somme allouée aux établissements ne
+       peut pas dépasser les places du contrat de la société. */
+    quotaDisponible(eid){
+      const total = (api.entreprise(eid) || {}).sieges || 0;
+      const alloue = api.etablissements(eid).reduce((n, x) => n + (x.quota || 0), 0);
+      return { total, alloue, libre: total - alloue };
+    },
+    allouerQuota(etid, places){
+      const et = api.etablissement(etid);
+      if (!et) throw new Error("Établissement inconnu");
+      const n = Math.max(0, Math.round(Number(places) || 0));
+      const { total, alloue } = api.quotaDisponible(et.societe);
+      if (alloue - (et.quota || 0) + n > total)
+        throw new Error(`Le contrat ouvre ${total} places : ${alloue - (et.quota || 0)} sont `
+          + `déjà allouées ailleurs, il en reste ${total - alloue + (et.quota || 0)} pour ce site.`);
+      const pris = api.sieges(et.societe, { etablissement: etid }).pris;
+      if (n < pris)
+        throw new Error(`${pris} comptes sont déjà ouverts sur ce site : le quota ne peut `
+          + `pas descendre en dessous.`);
+      et.quota = n;
+      api.tracer(et.societe, null, "quota_site", `${et.nom} ${et.ville} : ${n}`);
+      return et;
+    },
+
+    /* Ce que voit le groupe : des agrégats, jamais des personnes. Deux sociétés
+       d'un même groupe sont deux responsables de traitement distincts ; faire
+       remonter du nominatif de l'une à l'autre serait la faute la plus coûteuse
+       que ce produit puisse commettre. */
+    consolideGroupe(gid){
+      const societes = api.societes(gid).map(e => {
+        const etabs = api.etablissements(e.id).map(et => {
+          const gens = api.salaries(e.id).filter(u => u.etablissement === et.id && !u.anonyme);
+          /* On lit l'attribution figée sur la mission, jamais l'affectation actuelle
+             du salarié : sinon une mutation de Lyon à Marseille déplacerait le passé
+             avec la personne, et le classement de la saison dernière changerait tout
+             seul. Repli sur l'affectation courante pour les missions antérieures au
+             modèle multi-sites, et pour elles seulement. */
+          const ms = api.missions({ entreprise: e.id })
+            .filter(m => ["validee", "validee_auto"].includes(m.etat))
+            .filter(m => (m.etablissement
+              || ((api.utilisateur(m.salarie) || {}).etablissement)) === et.id);
+          const points = ms.reduce((n, m) => n + (m.points || 0), 0);
+          const confirmees = ms.filter(m => m.etat === "validee").length;
+          const mobilises = new Set(ms.map(m => m.salarie)).size;
+          return {
+            id: et.id, nom: et.nom, ville: et.ville, effectif: et.effectif,
+            quota: et.quota, comptes: gens.length,
+            points, missions: ms.length, confirmees, mobilises,
+            parSalarie: et.effectif ? points / et.effectif : 0
+          };
+        });
+        const v = api.valorisationMecenat(e.id);
+        return {
+          id: e.id, nom: e.nom, siren: e.siren || null, effectif: e.effectif,
+          etablissements: etabs,
+          points: etabs.reduce((n, x) => n + x.points, 0),
+          missions: etabs.reduce((n, x) => n + x.missions, 0),
+          confirmees: etabs.reduce((n, x) => n + x.confirmees, 0),
+          mobilises: etabs.reduce((n, x) => n + x.mobilises, 0),
+          /* Le plafond se calcule société par société. On additionne des réductions
+             déjà plafonnées séparément, on ne plafonne jamais un total de groupe. */
+          assiette: v.assiette, reduction: v.reduction, plafondCalculable: v.plafondCalculable
+        };
+      });
+      const sites = societes.flatMap(x => x.etablissements);
+      const points = societes.reduce((n, x) => n + x.points, 0);
+      const effectif = societes.reduce((n, x) => n + (x.effectif || 0), 0);
+      return {
+        groupe: api.groupe(gid), societes, sites,
+        /* Un consolidé est un rapport de sommes, jamais une moyenne de ratios.
+           La moyenne des scores de Paris, Lyon et Marseille n'est pas le score du
+           groupe, et l'écart est invisible à l'œil. */
+        parSalarie: effectif ? points / effectif : 0,
+        points: societes.reduce((n, x) => n + x.points, 0),
+        missions: societes.reduce((n, x) => n + x.missions, 0),
+        confirmees: societes.reduce((n, x) => n + x.confirmees, 0),
+        mobilises: societes.reduce((n, x) => n + x.mobilises, 0),
+        effectif: societes.reduce((n, x) => n + (x.effectif || 0), 0),
+        /* Additionner des réductions d'impôt n'a de sens que si toutes sont
+           calculables. Sinon on renvoie null, comme partout ailleurs. */
+        reduction: societes.every(x => x.plafondCalculable)
+          ? societes.reduce((n, x) => n + (x.reduction || 0), 0) : null
+      };
+    },
+
+    /* Le classement entre sites d'un même périmètre. Contrairement au classement
+       entre entreprises, celui-ci fonctionne dès le premier client : trois sites
+       suffisent, et la comparaison parle à des gens qui se connaissent.
+       Normalisé par l'effectif, sinon le siège écrase l'agence. */
+    classementSites(portee){
+      const sites = portee.groupe
+        ? api.consolideGroupe(portee.groupe).sites
+        : api.consolideGroupe((api.entreprise(portee.entreprise) || {}).groupe || "")
+            .societes.filter(x => x.id === portee.entreprise).flatMap(x => x.etablissements);
+      return sites
+        .map(x => ({ ...x, score: Math.round(x.parSalarie * 100) / 100 }))
+        .sort((a, b) => b.parSalarie - a.parSalarie)
+        .map((x, i) => ({ ...x, rang: i + 1 }));
+    },
+
+    /* ---- Indicateurs sociaux et sécurité ----
+       Ce qui coûte cher à un groupe, ce n'est pas le calcul : c'est la collecte.
+       Relancer quatorze sites pour obtenir un tableur mal rempli. On réemploie donc
+       exactement le mécanisme des missions : on demande, on rappelle, et si personne
+       ne répond la période se clôt sans réponse — sans rien inventer pour combler. */
+    campagnes: (gid) => s.campagnes.filter(c => !gid || c.groupe === gid),
+    campagne: (cid) => s.campagnes.find(c => c.id === cid) || null,
+    observation: (cid, etid) =>
+      s.observations.find(o => o.campagne === cid && o.etablissement === etid) || null,
+
+    /* L'état d'une campagne, site par site. Quatre états et pas un de plus :
+       attendu, déclaré, approuvé, clos sans réponse. */
+    etatCampagne(cid){
+      const c = api.campagne(cid); if (!c) return null;
+      const sites = api.etablissementsDuGroupe(c.groupe).map(et => {
+        const o = api.observation(cid, et.id);
+        return {
+          etablissement: et, observation: o,
+          etat: o ? o.etat : "attendu",
+          saisiPar: o && o.saisi_par ? api.utilisateur(o.saisi_par) : null,
+          approuvePar: o && o.approuve_par ? api.utilisateur(o.approuve_par) : null
+        };
+      });
+      const compte = (e) => sites.filter(x => x.etat === e).length;
+      return { campagne: c, sites,
+        attendus: compte("attendu"), declares: compte("declare"),
+        approuves: compte("approuve"), clos: compte("clos_sans_reponse"),
+        joursRestants: api.joursAvant(c.echeance) };
+    },
+
+    joursAvant(date){
+      if (!date) return null;
+      return Math.ceil((new Date(date) - new Date(2026, 7, 20)) / 864e5);
+    },
+
+    /* Le contributeur saisit, l'approbateur verrouille. Deux gestes, deux personnes
+       si possible, parce qu'un chiffre entre sinon dans un document contractuel sans
+       que personne ne l'ait regardé. */
+    saisirIndicateurs(cid, etid, valeurs, uid){
+      const c = api.campagne(cid);
+      if (!c || c.etat !== "ouverte") throw new Error("Cette campagne est close.");
+      let o = api.observation(cid, etid);
+      const propres = {};
+      INDICATEURS.saisis.forEach(d => {
+        const v = valeurs[d.cle];
+        if (v === undefined || v === null || v === "") return;
+        propres[d.cle] = Math.max(0, Number(v) || 0);
+      });
+      if (!o){
+        o = { id:id("o"), campagne:cid, etablissement:etid, etat:"declare", version:1,
+              saisi_par:uid, saisi_le:new Date().toISOString().slice(0,10),
+              approuve_par:null, approuve_le:null, valeurs:propres };
+        s.observations.push(o);
+      } else {
+        /* Corriger une valeur approuvée, c'est produire une version, jamais écraser. */
+        if (o.etat === "approuve") o.version += 1;
+        o.valeurs = { ...o.valeurs, ...propres };
+        o.etat = "declare";
+        o.saisi_par = uid; o.saisi_le = new Date().toISOString().slice(0,10);
+        o.approuve_par = null; o.approuve_le = null;
+      }
+      return o;
+    },
+    approuverIndicateurs(cid, etid, uid){
+      const o = api.observation(cid, etid);
+      if (!o) throw new Error("Rien à approuver pour ce site.");
+      if (o.etat !== "declare") throw new Error("Seule une saisie déclarée s'approuve.");
+      if (o.saisi_par && o.saisi_par === uid)
+        throw new Error("La personne qui a saisi ne peut pas approuver sa propre saisie.");
+      o.etat = "approuve";
+      o.approuve_par = uid;
+      o.approuve_le = new Date().toISOString().slice(0,10);
+      return o;
+    },
+    /* Une campagne arrivée à échéance se referme. Les sites qui n'ont pas répondu sont
+       marqués comme tels : on ne recopie pas la période précédente à leur place. */
+    cloreCampagne(cid){
+      const e = api.etatCampagne(cid); if (!e) return null;
+      e.sites.filter(x => x.etat === "attendu").forEach(x => {
+        s.observations.push({ id:id("o"), campagne:cid, etablissement:x.etablissement.id,
+          etat:"clos_sans_reponse", version:1, saisi_par:null, saisi_le:null,
+          approuve_par:null, approuve_le:null, valeurs:{} });
+      });
+      e.campagne.etat = "close";
+      return api.etatCampagne(cid);
+    },
+
+    /* Les taux, calculés. Sur un périmètre de plusieurs sites, c'est un rapport de
+       sommes et jamais une moyenne de taux : la moyenne des taux de Paris, Lyon et
+       Marseille n'est pas le taux du groupe, et l'écart ne se voit pas à l'œil. */
+    indicateursDe({ campagne, etablissement = null, groupe = null, societe = null }){
+      const c = api.campagne(campagne); if (!c) return null;
+      let obs = s.observations.filter(o => o.campagne === campagne
+        && ["declare", "approuve"].includes(o.etat));
+      if (etablissement) obs = obs.filter(o => o.etablissement === etablissement);
+      if (societe) obs = obs.filter(o =>
+        (api.etablissement(o.etablissement) || {}).societe === societe);
+      if (groupe){
+        const ids = api.etablissementsDuGroupe(groupe).map(x => x.id);
+        obs = obs.filter(o => ids.includes(o.etablissement));
+      }
+      const somme = {};
+      INDICATEURS.saisis.forEach(d => {
+        somme[d.cle] = obs.reduce((n, o) => n + (Number(o.valeurs[d.cle]) || 0), 0);
+      });
+      const calcules = {};
+      INDICATEURS.calcules.forEach(d => {
+        const v = d.calcul(somme);
+        calcules[d.cle] = v === null || !isFinite(v) ? null : Math.round(v * 100) / 100;
+      });
+      const attendus = etablissement ? 1
+        : (groupe ? api.etablissementsDuGroupe(groupe).length
+                  : api.etablissements(societe || "").length);
+      return { campagne: c, somme, calcules,
+               sites: obs.length, attendus,
+               approuves: obs.filter(o => o.etat === "approuve").length,
+               complet: obs.length === attendus && obs.every(o => o.etat === "approuve") };
+    },
+
+    /* Comparaison dans le temps, jamais entre sites : un classement sur la sécurité
+       fabriquerait une incitation à sous-déclarer les accidents. */
+    serieIndicateur(cle, { etablissement = null, groupe = null }){
+      return api.campagnes(groupe || undefined)
+        .slice()
+        .sort((a, b) => a.debut.localeCompare(b.debut))
+        .map(c => {
+          const r = api.indicateursDe({ campagne: c.id, etablissement, groupe });
+          const d = INDICATEURS.calcules.find(x => x.cle === cle);
+          return { periode: c.libelle, campagne: c.id,
+                   valeur: d ? (r ? r.calcules[cle] : null)
+                             : (r ? r.somme[cle] ?? null : null) };
+        });
     },
 
     /* Suspendre l'accès : réversible, et sans rien effacer. C'est ce qu'on veut dans
@@ -874,21 +1298,78 @@ function creerMock(){
       s.utilisateurs.push(u); return u;
     },
 
-    /* ---- Invitations par lien ---- */
-    creerInvitation(eid, places){
-      s.invitations.filter(i => i.entreprise === eid).forEach(i => i.active = false);
-      const e = api.entreprise(eid);
-      const base = (e.nom || "RISEVA").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 7) || "RISEVA";
+    /* ---- Invitations par lien ----
+       Deux niveaux, et jamais un seul. Le groupe alloue un quota à un établissement et
+       envoie un lien *nominatif* au référent de ce site ; le référent, lui, produit le
+       lien d'inscription de ses salariés, dans la limite de son quota.
+
+       Sans cette séparation, un groupe se retrouve avec trois mille comptes ouverts par
+       une personne qui ne connaît personne, et plus rien ne dit qui a autorisé quoi.
+       Un lien de salarié ne confère jamais un rôle d'administration : c'est la règle qui
+       fait qu'un lien qui fuite reste sans conséquence grave. */
+    codeLien(prefixe){
+      const base = (prefixe || "RISEVA").toUpperCase().normalize("NFD")
+        .replace(/[^A-Z]/g, "").slice(0, 7) || "RISEVA";
       const suffixe = Array.from({ length: 4 }, (_, k) =>
         "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[(seq * 7 + k * 13 + s.invitations.length * 5) % 32]).join("");
-      const inv = { id:id("i"), entreprise:eid, code:`${base}-${suffixe}`,
-        places: places || api.sieges(eid).total, utilisees:0, active:true,
+      seq++;
+      return `${base}-${suffixe}`;
+    },
+    creerInvitation(eid, places, etablissement = null){
+      s.invitations
+        .filter(i => i.entreprise === eid && !i.pour_referent
+                  && (i.etablissement || null) === etablissement)
+        .forEach(i => i.active = false);
+      const e = api.entreprise(eid);
+      const et = etablissement ? api.etablissement(etablissement) : null;
+      const dispo = api.sieges(eid, { etablissement }).restants;
+      const n = places || (et ? et.quota : api.sieges(eid).total);
+      if (etablissement && n > (et ? et.quota : 0))
+        throw new Error(`Ce site dispose de ${et ? et.quota : 0} places allouées.`);
+      const inv = { id:id("i"), entreprise:eid, etablissement,
+        code: api.codeLien(et ? `${e.nom}${et.ville}` : e.nom),
+        places: n, utilisees:0, active:true, pour_referent:false,
         cree_le:new Date().toISOString().slice(0,10),
         expire_le:new Date(Date.now() + 120 * 864e5).toISOString().slice(0,10) };
-      seq++;
       s.invitations.unshift(inv);
-      api.tracer(eid, null, "creation_lien", inv.code);
+      api.tracer(eid, null, "creation_lien",
+        inv.code + (et ? ` · ${et.nom} ${et.ville}` : "") + ` · ${dispo} places libres`);
       return inv;
+    },
+
+    /* Le lien nominatif qui fait d'une personne le référent d'un site. Il ne crée pas
+       de compte tout seul et ne se partage pas : il porte le nom et l'adresse de la
+       personne visée, et il est journalisé au nom de celle qui l'a émis. */
+    creerInvitationReferent(etid, nom, email){
+      const et = api.etablissement(etid);
+      if (!et) throw new Error("Établissement inconnu");
+      if (!nom || !email) throw new Error("Un lien de référent est nominatif : nom et adresse.");
+      s.invitations.filter(i => i.etablissement === etid && i.pour_referent)
+        .forEach(i => i.active = false);
+      const e = api.entreprise(et.societe);
+      const inv = { id:id("i"), entreprise:et.societe, etablissement:etid,
+        code: api.codeLien(`REF${et.ville}`), pour_referent:true,
+        nom, email, places:1, utilisees:0, active:true,
+        cree_le:new Date().toISOString().slice(0,10),
+        expire_le:new Date(Date.now() + 30 * 864e5).toISOString().slice(0,10) };
+      s.invitations.unshift(inv);
+      api.tracer(et.societe, null, "lien_referent", `${nom} · ${et.nom} ${et.ville}`);
+      return inv;
+    },
+
+    /* L'acceptation : la personne devient référente de *son* site, et de rien d'autre. */
+    accepterInvitationReferent(code){
+      const inv = api.invitationParCode(code);
+      if (!inv || !inv.pour_referent) throw new Error("Lien de référent invalide");
+      if (!inv.active) throw new Error("Ce lien a été révoqué");
+      const et = api.etablissement(inv.etablissement);
+      const u = { id:id("u"), nom:inv.nom, email:inv.email, role:"site_referent",
+                  org:inv.entreprise, etablissement:inv.etablissement, actif:true, anonyme:false };
+      s.utilisateurs.push(u);
+      et.referent = inv.nom; et.referent_mail = inv.email;
+      inv.utilisees = 1; inv.active = false;
+      api.tracer(inv.entreprise, u.id, "referent_site", `${et.nom} ${et.ville}`);
+      return u;
     },
     revoquerInvitation(iid){
       const i = s.invitations.find(x => x.id === iid);
