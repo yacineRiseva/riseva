@@ -327,6 +327,19 @@ def main():
         verifie("et on lui dit pourquoi", "suspendu" in p.inner_text("body").lower())
         p.evaluate("()=>localStorage.removeItem('riseva.etat')")
 
+        print("\nLes formulaires publics")
+        # Un formulaire qui dit « envoyé » sans rien envoyer est un mensonge poli.
+        p.goto(f"{BASE}/associations.html#rejoindre", wait_until="networkidle")
+        p.fill("input[name=asso]", "Les Amis du Bocage"); p.fill("input[name=ville]", "Rennes")
+        p.fill("input[name=mail]", "contact@bocage.org")
+        p.fill("textarea[name=mot]", "Nous plantons des haies bocagères.")
+        p.click("#fa [type=submit]"); p.wait_for_timeout(500)
+        corps = p.inner_text("#rejoindre")
+        verifie("sans base configurée, le formulaire ne prétend pas avoir envoyé",
+                "envoyé" not in corps.lower() or "reste une étape" in corps.lower())
+        verifie("il propose un envoi réel par courriel",
+                p.get_attribute("#rejoindre a.btn", "href").startswith("mailto:"))
+
         print("\nChacun chez soi")
         connecte(p, "u4")
         t4 = p.inner_text(".content")

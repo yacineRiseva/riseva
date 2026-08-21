@@ -152,11 +152,17 @@
   <span style="font-size:var(--t-xs);color:var(--ink-400)">© 2026 Riseva · contact@riseva.fr</span>
 </div></footer>
 
-<script>
-document.getElementById('fa').addEventListener('submit', function(e){
-  e.preventDefault();
-  this.innerHTML = '<div style="padding:var(--s8) 0"><span class="badge badge--ok" style="height:28px">Message envoyé</span>' +
-    '<p style="margin-top:var(--s4);color:rgba(223,230,208,.72)">Merci. Nous revenons vers vous rapidement.</p></div>';
+<script type="module">
+import { brancher } from "/app/formulaires.js";
+brancher(document.getElementById("fa"), {
+  table: "preinscription",
+  sujet: "Riseva — une association souhaite rejoindre le réseau",
+  ligne: (d) => ({ entreprise: d.asso + " (association, " + d.ville + ")",
+                   contact: d.mail, effectif: null }),
+  resume: (d) => `Association : ${d.asso}\nVille : ${d.ville}\nContact : ${d.mail}\n\n${d.mot}`,
+  merci: (d) => ({ titre: "Message reçu",
+    texte: `Merci. Nous revenons vers vous sur ${d.mail}, sous quarante-huit heures ouvrées. `
+         + `Rien ne vous est demandé d'ici là, et vous ne recevrez aucune relance commerciale.` })
 });
 </script>
 </body>

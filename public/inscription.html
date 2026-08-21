@@ -91,17 +91,20 @@
   </div>
 </main>
 
-<script>
-document.getElementById('f').addEventListener('submit', function(e){
-  e.preventDefault();
-  const d = Object.fromEntries(new FormData(this).entries());
-  // En production : POST vers une fonction Edge Supabase qui écrit dans `preinscription`
-  // et envoie l'accusé de réception. Ici on se contente d'un état local.
-  this.innerHTML = '<div class="center" style="padding:var(--s10) 0">' +
-    '<span class="badge badge--ok" style="height:28px">Préinscription enregistrée</span>' +
-    '<h3 style="margin-top:var(--s5)">Merci ' + (d.nom||'').split(' ')[0] + '</h3>' +
-    '<p class="muted" style="margin-top:var(--s3)">Nous revenons vers vous sous quarante-huit heures ' +
-    'sur ' + (d.mail||'') + '. Rien ne vous est demandé d\'ici là.</p></div>';
+<script type="module">
+import { brancher } from "/app/formulaires.js";
+brancher(document.getElementById("f"), {
+  table: "preinscription",
+  sujet: "Riseva — préinscription entreprise",
+  ligne: (d) => ({ entreprise: d.ent, contact: d.mail, effectif: Number(d.eff) || null }),
+  resume: (d) => `Entreprise : ${d.ent || "—"}\nEffectif : ${d.eff || "—"}\n`
+               + `Contact : ${d.nom} (${d.fonction || "—"}) — ${d.mail}`
+               + (d.tel ? ` — ${d.tel}` : "")
+               + (d.mot ? `\n\n${d.mot}` : ""),
+  merci: (d) => ({ titre: "Préinscription enregistrée",
+    texte: `Merci ${(d.nom || "").split(" ")[0]}. Nous revenons vers vous sous quarante-huit heures `
+         + `ouvrées sur ${d.mail}. Rien ne vous est demandé d'ici là, et la préinscription `
+         + `n'engage à rien.` })
 });
 </script>
 </body>
