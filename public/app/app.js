@@ -1427,7 +1427,7 @@ function vueEquipe(u){
           vous n'avez aucune liste à saisir.</p>
         ${inv ? `
         <div class="copyline" style="margin-top:var(--s5)">
-          <input class="input" id="lien" value="${esc(lien)}" readonly>
+          <input class="input" id="lien" aria-label="Lien d'inscription à partager avec vos salariés" value="${esc(lien)}" readonly>
           <button class="btn btn--primary btn--sm" id="copy" style="flex:none">Copier</button>
         </div>
         <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
@@ -2750,7 +2750,7 @@ function vueAValider(u){
     const a = DB.annonceDe(m), e = DB.entreprise(m.entreprise), sal = DB.utilisateur(m.salarie);
     const jours = DB.joursAvantAuto(m);
     const tr = h(`<tr>
-      <td>${m.etat === "a_valider" ? `<input type="checkbox" style="accent-color:var(--forest-700);width:16px;height:16px">` : ""}</td>
+      <td>${m.etat === "a_valider" ? `<input type="checkbox" aria-label="Sélectionner la mission « ${esc(a.titre)} » de ${esc(sal ? sal.nom : 'un salarié')}" style="accent-color:var(--forest-700);width:16px;height:16px">` : ""}</td>
       <td><strong>${esc(a.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(BAREME[a.type].label)} · ${nb(m.points)} pts</span></td>
       <td class="muted">${esc(e ? e.nom : "—")}</td>
       <td class="muted">${esc(sal ? sal.nom : "—")}</td>

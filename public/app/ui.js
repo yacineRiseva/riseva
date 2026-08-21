@@ -1,8 +1,40 @@
 /* Petites briques d'interface partagées. Aucun framework. */
 
+let compteurChamp = 0;
+
+/* Un libellé qui n'est pas relié à son champ n'existe pas pour un lecteur d'écran :
+   la personne entend « zone de saisie », sans savoir laquelle. On répare une fois
+   ici, au moment où le fragment est construit, plutôt que d'espérer que chaque
+   gabarit y pense. Rien n'est inventé : on relie ce qui est déjà écrit à l'écran,
+   et à défaut de libellé visible on reprend le texte d'invite ou le premier choix
+   de la liste — c'est-à-dire ce que voit déjà la personne qui voit. */
+const CHAMPS = "input:not([type=hidden]):not([type=submit]):not([type=button]),select,textarea";
+
+export function associerChamps(racine){
+  racine.querySelectorAll("label:not([for])").forEach(lab => {
+    if (lab.querySelector(CHAMPS)) return;            // le libellé enveloppe déjà son champ
+    const bloc = lab.parentElement;
+    if (!bloc) return;
+    const champ = bloc.querySelector(CHAMPS);
+    if (!champ || champ.closest("label")) return;
+    if (!champ.id) champ.id = "ch" + (++compteurChamp);
+    lab.setAttribute("for", champ.id);
+  });
+  racine.querySelectorAll(CHAMPS).forEach(champ => {
+    if (champ.closest("label")) return;
+    if (champ.getAttribute("aria-label") || champ.getAttribute("aria-labelledby")) return;
+    if (champ.id && racine.querySelector(`label[for="${CSS.escape(champ.id)}"]`)) return;
+    const repli = champ.getAttribute("placeholder")
+      || (champ.tagName === "SELECT" && champ.options[0] ? champ.options[0].textContent.trim() : "");
+    if (repli) champ.setAttribute("aria-label", repli);
+  });
+  return racine;
+}
+
 export const h = (html) => {
   const t = document.createElement("template");
   t.innerHTML = html.trim();
+  associerChamps(t.content);
   return t.content.firstElementChild;
 };
 

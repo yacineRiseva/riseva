@@ -710,6 +710,25 @@ def main():
         p.goto(BASE + "/", wait_until="networkidle")
         sans_alt = p.eval_on_selector_all("img", "l=>l.filter(i=>!i.hasAttribute('alt')).length")
         verifie("toutes les images ont un alt", sans_alt == 0, f"{sans_alt} sans alt")
+
+        # Un champ sans libellé relié ne s'annonce pas : la personne qui n'y voit rien
+        # entend « zone de saisie » et doit deviner laquelle.
+        SANS_ETIQUETTE = """()=>{const out=[];
+          document.querySelectorAll('input,select,textarea').forEach(e=>{
+            if(['hidden','submit','button'].includes(e.type))return;
+            const lab=e.id?document.querySelector('label[for="'+CSS.escape(e.id)+'"]'):null;
+            if(!lab&&!e.closest('label')&&!e.getAttribute('aria-label')&&!e.getAttribute('aria-labelledby'))
+              out.push(e.name||e.id||e.type||e.tagName)});return out}"""
+        nus = []
+        for chemin in ["/", "/inscription.html", "/associations.html", "/asso.html?id=a1",
+                       "/rejoindre.html"]:
+            p.goto(BASE + chemin, wait_until="networkidle")
+            nus += [f"{chemin}:{c}" for c in p.evaluate(SANS_ETIQUETTE)]
+        for uid, route in [("u2", "#/annonces"), ("u2", "#/equipe"), ("u2", "#/parametres"),
+                           ("u2", "#/annuaire"), ("u7", "#/avalider"), ("u1", "#/moteur")]:
+            connecte(p, uid, route)
+            nus += [f"{route}:{c}" for c in p.evaluate(SANS_ETIQUETTE)]
+        verifie("tout champ de saisie porte un libellé", not nus, "; ".join(nus[:4]))
         p.set_viewport_size({"width": 390, "height": 844})
         connecte(p, "u2")
         verifie("le menu mobile existe", p.is_visible("#burger"))

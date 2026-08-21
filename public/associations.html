@@ -140,15 +140,15 @@
     </p>
     <form class="stack" style="--gap:var(--s5);margin-top:var(--s8)" id="fa">
       <div class="row" style="gap:var(--s4);align-items:stretch">
-        <div class="field" style="flex:1"><label style="color:rgba(223,230,208,.72)">Association</label>
-          <input class="input" name="asso" required></div>
-        <div class="field" style="flex:1"><label style="color:rgba(223,230,208,.72)">Ville</label>
-          <input class="input" name="ville" required></div>
+        <div class="field" style="flex:1"><label for="fa-asso" style="color:rgba(223,230,208,.72)">Association</label>
+          <input class="input" id="fa-asso" name="asso" required></div>
+        <div class="field" style="flex:1"><label for="fa-ville" style="color:rgba(223,230,208,.72)">Ville</label>
+          <input class="input" id="fa-ville" name="ville" required></div>
       </div>
-      <div class="field"><label style="color:rgba(223,230,208,.72)">Email</label>
-        <input class="input" name="mail" type="email" required></div>
-      <div class="field"><label style="color:rgba(223,230,208,.72)">Ce que vous faites</label>
-        <textarea class="textarea" name="mot" required></textarea></div>
+      <div class="field"><label for="fa-mail" style="color:rgba(223,230,208,.72)">Email</label>
+        <input class="input" id="fa-mail" name="mail" type="email" required></div>
+      <div class="field"><label for="fa-mot" style="color:rgba(223,230,208,.72)">Ce que vous faites</label>
+        <textarea class="textarea" id="fa-mot" name="mot" required></textarea></div>
       <button class="btn btn--onDark btn--lg" type="submit">Envoyer</button>
     </form>
   </div>
