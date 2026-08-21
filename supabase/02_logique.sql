@@ -627,6 +627,14 @@ begin
   values ('profil', 1, 'demande d''effacement');
 end $$;
 
+-- La fonction Edge d'effacement a besoin de savoir si l'appelant est Riseva,
+-- sans lui donner accès au schéma privé pour autant. Elle ne renvoie qu'un
+-- booléen sur l'appelant lui-même : rien qu'il ne sache déjà.
+create or replace function public.suis_je_admin() returns boolean
+language sql stable security definer set search_path = '' as $$
+  select private.est_admin()
+$$;
+
 -- ---------------------------------------------------------------- modération
 create or replace function public.signaler_annonce(
   p_annonce uuid, p_motif text, p_precisions text default null)

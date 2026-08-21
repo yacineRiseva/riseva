@@ -139,10 +139,11 @@ Ce qui reste ouvert, et pourquoi :
   temps constant, idempotence sur `(fournisseur, référence)`, points calculés par
   le barème en SQL, reçu émis dans la foulée. Ne manque que le nom du prestataire
   et le format exact de sa signature.
-- **Suppression réellement irréversible.** `supprimer_salarie()` existe et
-  `mission.salarie` passe à NULL, mais l'appel à l'API Auth Admin et le rejeu des
-  demandes d'effacement sur les sauvegardes sont une procédure d'exploitation,
-  pas une migration.
+- **Suppression réellement irréversible.** La fonction Edge `effacement` supprime
+  les données applicatives puis le compte d'authentification, et refuse à un
+  administrateur d'entreprise d'effacer quelqu'un d'autre que lui-même. Ce qui ne
+  peut pas s'écrire en code — le registre des demandes et leur rejeu après une
+  restauration de sauvegarde — est décrit dans `docs/PROCEDURE-EFFACEMENT.md`.
 - **Dépendance navigateur.** `scripts/figer-dependance.sh` télécharge une version
   exacte dans `public/app/vendor/`, en consigne l'empreinte SHA-256, et
   `connecterSupabase()` charge cette copie en priorité ; le repli CDN est épinglé

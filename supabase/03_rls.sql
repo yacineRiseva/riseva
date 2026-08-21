@@ -194,7 +194,8 @@ grant execute on function
   public.points_entreprise(uuid, uuid),
   public.classement_saison(uuid),
   public.decile_entreprise(uuid, uuid),
-  public.realisations(uuid, uuid, uuid)
+  public.realisations(uuid, uuid, uuid),
+  public.suis_je_admin()
 to authenticated;
 
 -- Le paiement n'est jamais confirmé par le navigateur. Seule la fonction Edge,
