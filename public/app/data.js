@@ -122,56 +122,88 @@ export const FACTURATION = {
    l'entreprise, site par site, et chaque ligne garde qui l'a saisie et qui l'a
    approuvée. */
 export const INDICATEURS = {
-  version: "2026.1",
+  version: "2026.2",
+  /* Chaque indicateur porte le niveau auquel il a un sens, sa source attendue, et
+     s'il correspond ou non à une définition réglementaire. Sans ce dictionnaire,
+     on affiche un taux au mauvais niveau avec le bon nom — et c'est là qu'un
+     préventeur ou un contrôleur s'arrête. */
   saisis: [
-    { cle:"effectif_fin",      libelle:"Effectif à la fin de la période",      unite:"personnes", aide:"En contrat au dernier jour de la période, tous contrats confondus." },
-    { cle:"entrees",           libelle:"Entrées",                              unite:"personnes", aide:"Embauches sur la période." },
-    { cle:"sorties",           libelle:"Sorties",                              unite:"personnes", aide:"Fins de contrat sur la période, quel qu'en soit le motif." },
-    { cle:"heures_travaillees",libelle:"Heures travaillées",                   unite:"heures",    aide:"Heures réellement travaillées, hors absences. C'est le dénominateur des taux de sécurité." },
-    { cle:"at_avec_arret",     libelle:"Accidents du travail avec arrêt",      unite:"accidents", aide:"Accidents survenus sur le lieu de travail ayant entraîné un arrêt d'au moins un jour." },
-    { cle:"at_sans_arret",     libelle:"Accidents du travail sans arrêt",      unite:"accidents", aide:"Accidents ayant nécessité des soins mais sans arrêt." },
-    { cle:"at_trajet",         libelle:"Accidents de trajet",                  unite:"accidents", aide:"Comptés à part : ils ne relèvent pas des mêmes actions de prévention." },
-    { cle:"jours_arret",       libelle:"Journées perdues pour accident",       unite:"jours",     aide:"Journées calendaires d'arrêt imputables aux accidents de la période." },
-    { cle:"formation_heures",  libelle:"Heures de formation",                  unite:"heures",    aide:"Toutes formations confondues." },
-    { cle:"formation_benef",   libelle:"Salariés formés",                      unite:"personnes", aide:"Personnes distinctes ayant suivi au moins une formation." },
-    { cle:"femmes",            libelle:"Femmes dans l'effectif",               unite:"personnes", aide:"Au dernier jour de la période." },
-    { cle:"boeth",             libelle:"Bénéficiaires de l'obligation d'emploi", unite:"personnes", aide:"Travailleurs handicapés au sens de l'obligation d'emploi." }
+    { cle:"effectif_fin",      libelle:"Effectif à la fin de la période",      unite:"personnes", niveau:"établissement", source:"paie ou DSN",
+      aide:"En contrat au dernier jour de la période, tous contrats confondus." },
+    { cle:"entrees",           libelle:"Entrées",                              unite:"personnes", niveau:"établissement", source:"paie ou DSN",
+      aide:"Embauches sur la période." },
+    { cle:"sorties",           libelle:"Sorties",                              unite:"personnes", niveau:"établissement", source:"paie ou DSN",
+      aide:"Fins de contrat sur la période, quel qu'en soit le motif." },
+    { cle:"heures_travaillees",libelle:"Heures travaillées",                   unite:"heures",    niveau:"établissement", source:"paie",
+      aide:"Heures réellement travaillées, hors absences. C'est le dénominateur des taux de sécurité." },
+    { cle:"at_avec_arret",     libelle:"Accidents du travail avec arrêt",      unite:"accidents", niveau:"établissement", source:"registre HSE",
+      aide:"Accidents survenus sur le lieu de travail ayant entraîné un arrêt d'au moins un jour. Ce n'est pas la notion d'« accident en premier règlement » utilisée par l'assurance maladie : les taux calculés ici sont donc des indicateurs internes." },
+    { cle:"at_sans_arret",     libelle:"Accidents du travail sans arrêt",      unite:"accidents", niveau:"établissement", source:"registre HSE",
+      aide:"Accidents ayant nécessité des soins mais sans arrêt." },
+    { cle:"at_trajet",         libelle:"Accidents de trajet",                  unite:"accidents", niveau:"établissement", source:"registre HSE",
+      aide:"Comptés à part : ils ne relèvent pas des mêmes actions de prévention." },
+    { cle:"jours_arret",       libelle:"Journées perdues pour accident",       unite:"jours",     niveau:"établissement", source:"registre HSE",
+      aide:"Journées calendaires d'arrêt imputables aux accidents de la période." },
+    { cle:"formation_heures",  libelle:"Heures de formation",                  unite:"heures",    niveau:"établissement", source:"plan de formation",
+      aide:"Toutes formations confondues." },
+    { cle:"formation_benef",   libelle:"Salariés formés",                      unite:"personnes", niveau:"établissement", source:"plan de formation",
+      aide:"Personnes distinctes ayant suivi au moins une formation." },
+    { cle:"femmes",            libelle:"Femmes dans l'effectif",               unite:"personnes", niveau:"établissement", source:"paie ou DSN",
+      aide:"Au dernier jour de la période." },
+    { cle:"boeth",             libelle:"Bénéficiaires de l'obligation d'emploi présents sur le site", unite:"personnes", niveau:"établissement", source:"RH du site",
+      aide:"Comptage interne, à ne pas confondre avec le taux d'emploi OETH : celui-ci se calcule une fois par an, au niveau de la société (SIREN), sur des effectifs moyens annuels Urssaf. Riseva ne le calcule pas." }
   ],
-  /* Ce que Riseva calcule à partir des valeurs saisies. La formule est écrite ici,
-     en clair, et reprise telle quelle dans les rapports. */
+  /* Ce que Riseva calcule. Aucun de ces taux ne reprend une définition
+     réglementaire : ce sont des indicateurs internes, comparables à eux-mêmes
+     dans le temps, et à rien d'autre. Le dire est la seule façon honnête de les
+     afficher — un « taux de fréquence » qui ressemble à celui de l'assurance
+     maladie sans en reprendre le numérateur est un piège pour celui qui le lit. */
   calcules: [
-    { cle:"tf1", libelle:"Taux de fréquence des accidents avec arrêt",
-      unite:"", formule:"accidents avec arrêt × 1 000 000 ÷ heures travaillées",
+    { cle:"tf1", libelle:"Fréquence interne des accidents avec arrêt",
+      unite:"", niveau:"tout périmètre", reglementaire:false,
+      formule:"accidents avec arrêt × 1 000 000 ÷ heures travaillées",
+      note:"Indicateur interne. Le taux de fréquence de l'assurance maladie repose sur les accidents en premier règlement : ces deux chiffres ne se comparent pas.",
       calcul: (v) => v.heures_travaillees ? (v.at_avec_arret * 1e6) / v.heures_travaillees : null },
-    { cle:"tf2", libelle:"Taux de fréquence, avec et sans arrêt",
-      unite:"", formule:"(accidents avec arrêt + sans arrêt) × 1 000 000 ÷ heures travaillées",
+    { cle:"tf2", libelle:"Fréquence interne, avec et sans arrêt",
+      unite:"", niveau:"tout périmètre", reglementaire:false,
+      formule:"(accidents avec arrêt + sans arrêt) × 1 000 000 ÷ heures travaillées",
+      note:"Indicateur interne, utile pour suivre les presqu'accidents soignés sans arrêt.",
       calcul: (v) => v.heures_travaillees
         ? ((v.at_avec_arret + v.at_sans_arret) * 1e6) / v.heures_travaillees : null },
-    { cle:"tg", libelle:"Taux de gravité",
-      unite:"", formule:"journées perdues × 1 000 ÷ heures travaillées",
+    { cle:"tg", libelle:"Gravité interne",
+      unite:"", niveau:"tout périmètre", reglementaire:false,
+      formule:"journées perdues × 1 000 ÷ heures travaillées",
+      note:"Indicateur interne. Les journées perdues déclarées ici ne suivent pas forcément les règles d'imputation de l'assurance maladie.",
       calcul: (v) => v.heures_travaillees ? (v.jours_arret * 1e3) / v.heures_travaillees : null },
-    { cle:"if_", libelle:"Indice de fréquence",
-      unite:"", formule:"accidents avec arrêt × 1 000 ÷ effectif",
+    { cle:"if_", libelle:"Indice interne de fréquence",
+      unite:"", niveau:"tout périmètre", reglementaire:false,
+      formule:"accidents avec arrêt × 1 000 ÷ effectif",
+      note:"Indicateur interne.",
       calcul: (v) => v.effectif_fin ? (v.at_avec_arret * 1e3) / v.effectif_fin : null },
     { cle:"turnover", libelle:"Rotation du personnel",
-      unite:"%", formule:"(entrées + sorties) ÷ 2 ÷ effectif × 100",
+      unite:"%", niveau:"tout périmètre", reglementaire:false,
+      formule:"(entrées + sorties) ÷ 2 ÷ effectif × 100",
+      note:"Définition interne : il en existe plusieurs, celle-ci est écrite pour être refaite à la main.",
       calcul: (v) => v.effectif_fin ? ((v.entrees + v.sorties) / 2) / v.effectif_fin * 100 : null },
     { cle:"part_femmes", libelle:"Part des femmes dans l'effectif",
-      unite:"%", formule:"femmes ÷ effectif × 100",
-      calcul: (v) => v.effectif_fin ? (v.femmes / v.effectif_fin) * 100 : null },
-    { cle:"taux_boeth", libelle:"Taux d'emploi direct de travailleurs handicapés",
-      unite:"%", formule:"bénéficiaires ÷ effectif × 100",
-      calcul: (v) => v.effectif_fin ? (v.boeth / v.effectif_fin) * 100 : null }
+      unite:"%", niveau:"tout périmètre", reglementaire:false,
+      formule:"femmes ÷ effectif × 100",
+      note:"Ne préjuge en rien de l'index d'égalité professionnelle, qui obéit à d'autres règles et se calcule au niveau de l'entreprise.",
+      calcul: (v) => v.effectif_fin ? (v.femmes / v.effectif_fin) * 100 : null }
+    /* Retiré : le « taux d'emploi de travailleurs handicapés ». Il ne se calcule
+       pas en divisant les bénéficiaires d'un site par l'effectif de ce site :
+       l'obligation d'emploi est annuelle, s'apprécie au niveau de la société,
+       sur des effectifs moyens annuels, avec ses propres règles de décompte.
+       Afficher un ratio local sous ce nom aurait été faux et se serait retrouvé
+       dans un questionnaire client. */
   ],
-  /* Combien de jours un site a pour répondre avant que la campagne se referme sans
-     lui. Même mécanique que les quatorze jours d'une mission, et même honnêteté :
-     une période close sans réponse est marquée comme telle, jamais comblée. */
   delai_jours: 21
 };
 
-/* Ce que Riseva ne fait pas avec ces chiffres, écrit une fois pour toutes. */
 export const INDICATEURS_LIMITES = [
-  "Riseva calcule les taux à partir de valeurs déclarées par l'entreprise ; elle ne les audite pas.",
+  "Riseva calcule à partir de valeurs déclarées par l'entreprise ; elle ne les audite pas.",
+  "Aucun de ces taux ne reprend une définition réglementaire : ce sont des indicateurs internes, comparables à eux-mêmes dans le temps, et à rien d'autre.",
+  "Riseva ne calcule pas le taux d'emploi de travailleurs handicapés ni l'index d'égalité professionnelle : ils obéissent à d'autres règles et à d'autres périmètres.",
   "Aucun classement entre sites sur la sécurité : un classement crée une incitation à sous-déclarer.",
   "Riseva n'identifie pas les dangers, n'évalue pas les risques et ne produit pas le document unique.",
   "Aucune donnée de santé nominative n'est collectée : ni diagnostic, ni nature de la lésion, ni identité de la victime.",
@@ -251,8 +283,12 @@ const seed = {
      d'existence fiscale : il ne signe rien, ne déclare rien, et surtout il ne mutualise
      aucun plafond. Ce qui signe et ce qui est imposé, c'est la société. */
   groupes: [
+    /* Le classement ordinal entre sites est *désactivé par défaut*. Un rang
+       fabrique un dernier, et un dernier qui n'a pas encore de référent nommé est
+       puni avant d'avoir commencé. Le groupe l'active s'il le veut, en connaissance
+       de cause. Par défaut, chaque site porte un statut, pas une place. */
     { id:"g1", nom:"Groupe Lafarge", societe_mere:"e1",
-      cree_le:"2025-11-14" }
+      classement_sites:false, cree_le:"2025-11-14" }
   ],
 
   /* Un établissement est un lieu, pas une personne morale : il porte un effectif, un
@@ -497,8 +533,10 @@ const seed = {
   campagnes: [
     { id:"c1", groupe:"g1", periode:"2026-S1", libelle:"Premier semestre 2026",
       debut:"2026-01-01", fin:"2026-06-30", ouverte_le:J(-40), echeance:J(-19), etat:"close" },
-    { id:"c2", groupe:"g1", periode:"2026-S2", libelle:"Second semestre 2026",
-      debut:"2026-07-01", fin:"2026-12-31", ouverte_le:J(-6), echeance:J(15), etat:"ouverte" }
+    /* Une campagne de point d'étape, dont la période est réellement terminée : on
+       ne demande pas le second semestre au mois d'août. */
+    { id:"c2", groupe:"g1", periode:"2026-T3", libelle:"Point au 31 juillet 2026",
+      debut:"2026-07-01", fin:"2026-07-31", ouverte_le:J(-6), echeance:J(15), etat:"ouverte" }
   ],
   /* Une observation = une valeur, pour un site, une période, un indicateur.
      Elle porte qui l'a saisie, qui l'a approuvée, et son état. Une valeur approuvée
@@ -539,7 +577,10 @@ const seed = {
     { id:"m1", annonce:"an1", entreprise:"e1", salarie:"u3", etablissement:"et2", etat:"validee",     quantite:2, points:300,  date:J(-12), declaree_le:J(-11), tranchee_le:J(-10), realise:22 },
     { id:"m2", annonce:"an2", entreprise:"e1", salarie:"u4", etablissement:"et3", etat:"validee",     quantite:3, points:450,  date:J(-9), declaree_le:J(-8), tranchee_le:J(-7), realise:118 },
     { id:"m3", annonce:"an4", entreprise:"e1", salarie:"u3", etablissement:"et2", etat:"validee",     quantite:600, points:60, date:J(-7), declaree_le:J(-7), tranchee_le:J(-6), realise:68 },
-    { id:"m4", annonce:"an5", entreprise:"e1", salarie:"u5", etablissement:"et1", etat:"a_valider",   quantite:3, points:300,  date:J(-2), declaree_le:J(-2), valeur_nette:840, nature:"Trois ordinateurs portables renouvelés" },
+    { id:"m4", annonce:"an5", entreprise:"e1", salarie:"u5", etablissement:"et1", etat:"a_valider",   quantite:3, points:300,  date:J(-2), declaree_le:J(-2), valeur_nette:840, nature:"Trois ordinateurs portables renouvelés",
+      categorie_comptable:"immobilisation", reference_actif:"IMMO-2023-0412 à 0414",
+      sortie_le:J(-2), effacement_donnees:true,
+      justificatif:"Fiche de sortie d'immobilisation signée" },
     { id:"m5", annonce:"an1", entreprise:"e1", salarie:"u4", etablissement:"et3", etat:"engagee",     quantite:2, points:300,  date:J(9)  },
     { id:"m6", annonce:"an7", entreprise:"e1", salarie:"u5", etablissement:"et1", etat:"validee_auto",quantite:1, points:150,  date:J(-4), declaree_le:J(-20), tranchee_le:J(-6) },
     { id:"m7", annonce:"an3", entreprise:"e1", salarie:"u3", etablissement:"et2", etat:"refusee",     quantite:1, points:0,    date:J(-6) },
@@ -919,6 +960,10 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
          une fois pour toutes ne vaut pas consentement à cette mission-là, à ces dates-là. */
       if (a.temps_travail && !consentement)
         throw new Error("Votre accord explicite est nécessaire pour une mission sur le temps de travail");
+      const moi = api.utilisateur(salarie) || {};
+      if (moi.etablissement && moi.affectation_confirmee === false)
+        throw new Error("Votre rattachement à un site doit être confirmé par votre référent "
+          + "avant de vous engager : sans lui, vos points iraient au mauvais endroit.");
       a.restant -= quantite;
       if (a.restant === 0) a.etat = "close";
       /* Deux attributions figées au moment de l'engagement, et plus jamais recalculées :
@@ -1125,19 +1170,66 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       };
     },
 
-    /* Le classement entre sites d'un même périmètre. Contrairement au classement
-       entre entreprises, celui-ci fonctionne dès le premier client : trois sites
-       suffisent, et la comparaison parle à des gens qui se connaissent.
-       Normalisé par l'effectif, sinon le siège écrase l'agence. */
+    /* La comparaison entre sites d'un même périmètre. Elle fonctionne dès le
+       premier client — trois sites suffisent — et elle parle à des gens qui se
+       connaissent. C'est sa force, et c'est aussi son danger.
+
+       Trois garde-fous, parce qu'un rang mal posé fait plus de mal que pas de
+       rang du tout :
+       — l'ordinal est désactivé par défaut, le groupe l'active s'il le veut ;
+       — aucun rang tant qu'un site n'a pas cinq salariés mobilisés et cinq
+         missions validées : en dessous, on mesure la volatilité des petits
+         nombres et la date de démarrage, pas l'engagement ;
+       — un site sans référent nommé n'est pas classé dernier, il est en
+         « lancement » : il n'a pas encore commencé.
+
+       Et jamais « performance RSE d'un site » : c'est un challenge d'engagement
+       associatif, sans incidence sur l'évaluation de qui que ce soit. */
+    SEUIL_CLASSEMENT: { mobilises: 5, missions: 5 },
+
+    statutSite(x){
+      const seuil = api.SEUIL_CLASSEMENT;
+      if (!x.comptes) return { cle:"lancement", label:"En lancement",
+        aide:"Aucun compte ouvert : le site n'a pas encore commencé." };
+      if (!x.missions) return { cle:"lancement", label:"En lancement",
+        aide:"Des comptes ouverts, aucune mission encore réalisée." };
+      if (x.mobilises < seuil.mobilises || x.missions < seuil.missions)
+        return { cle:"demarrage", label:"En démarrage",
+          aide:`Sous ${seuil.mobilises} salariés mobilisés et ${seuil.missions} missions, `
+             + `un rang mesurerait surtout le hasard des petits nombres.` };
+      if (x.effectif && x.mobilises / x.effectif >= 0.1)
+        return { cle:"fort", label:"Fortement mobilisé",
+          aide:"Plus d'un salarié sur dix a participé." };
+      return { cle:"actif", label:"Actif", aide:"Le site tourne." };
+    },
+
     classementSites(portee){
       const sites = portee.groupe
         ? api.consolideGroupe(portee.groupe).sites
         : api.consolideGroupe((api.entreprise(portee.entreprise) || {}).groupe || "")
             .societes.filter(x => x.id === portee.entreprise).flatMap(x => x.etablissements);
-      return sites
-        .map(x => ({ ...x, score: Math.round(x.parSalarie * 100) / 100 }))
-        .sort((a, b) => b.parSalarie - a.parSalarie)
-        .map((x, i) => ({ ...x, rang: i + 1 }));
+      const gid = portee.groupe || (api.entreprise(portee.entreprise) || {}).groupe;
+      const ordinal = !!(api.groupe(gid) || {}).classement_sites;
+      const classes = sites
+        .map(x => ({ ...x, score: Math.round(x.parSalarie * 100) / 100,
+                     statut: api.statutSite(x) }))
+        .sort((a, b) => b.parSalarie - a.parSalarie);
+      let n = 0;
+      return classes.map(x => {
+        const classable = ordinal && x.statut.cle !== "lancement" && x.statut.cle !== "demarrage";
+        return { ...x, ordinal, classable, rang: classable ? ++n : null };
+      });
+    },
+
+    /* L'activation appartient au groupe, et elle se journalise : personne ne doit
+       découvrir un classement de ses sites un lundi matin sans savoir qui l'a
+       allumé. */
+    activerClassementSites(gid, oui){
+      const g = api.groupe(gid); if (!g) throw new Error("Groupe inconnu");
+      g.classement_sites = !!oui;
+      const mere = api.entreprise(g.societe_mere);
+      if (mere) api.tracer(mere.id, null, "classement_sites", oui ? "activé" : "désactivé");
+      return g;
     },
 
     /* ---- Registre des dons de matériel, au titre de la loi AGEC ----
@@ -1147,11 +1239,24 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
        don — quoi, combien, à qui, quand — sans demander une ligne de plus à
        l'association : elle déclare « reçu », comme pour n'importe quelle mission.
 
-       Un piège à ne pas rater : un don en nature se valorise à sa *valeur nette
-       comptable*, pas au prix catalogue. Afficher la valeur neuve fabriquerait une
-       réduction d'impôt indue, exactement comme valoriser une demi-journée
-       conventionnelle en heures. La valeur est donc déclarée par l'entreprise, et
-       une valeur absente reste absente. */
+       Sur la valorisation, j'avais écrit une règle trop simple : « la valeur nette
+       comptable ». C'est faux comme règle unique. La doctrine distingue au moins
+       deux cas — un bien inscrit en stock se valorise à son coût de revient, une
+       immobilisation à la valeur de cession retenue pour déterminer la plus ou
+       moins-value de sortie — et la valorisation relève de toute façon de la
+       responsabilité du donateur, pas de la nôtre.
+
+       Riseva demande donc la catégorie comptable, rappelle la méthode qui s'y
+       applique, et enregistre une *valeur déclarée par l'entreprise*. Elle ne
+       détermine rien à la place du comptable, et une valeur absente reste absente. */
+    CATEGORIES_MATERIEL: [
+      { cle:"stock", label:"Bien inscrit en stock",
+        methode:"Se valorise au coût de revient du bien." },
+      { cle:"immobilisation", label:"Immobilisation",
+        methode:"Se valorise à la valeur de cession retenue pour déterminer la plus ou moins-value de sortie." },
+      { cle:"autre", label:"Autre cas",
+        methode:"À déterminer avec votre expert-comptable : Riseva n'applique pas de méthode à votre place." }
+    ],
     registreMateriel(eid){
       const lignes = api.missions({ entreprise: eid })
         .filter(m => (api.annonceDe(m) || {}).type === "don_materiel")
@@ -1168,6 +1273,14 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
             etablissement: et ? `${et.nom} — ${et.ville}` : "—",
             salarie: sal.nom || "—",
             valeurNette: m.valeur_nette ?? null,
+            categorie: m.categorie_comptable || null,
+            reference: m.reference_actif || null,
+            sortieLe: m.sortie_le || null,
+            justificatif: m.justificatif || null,
+            effacementDonnees: m.effacement_donnees ?? null,
+            societe: (api.entreprise(m.entreprise) || {}).nom || "",
+            siren: (api.entreprise(m.entreprise) || {}).siren || "",
+            eligible: api.eligibleMecenat(a.asso),
             confirme: m.etat === "validee",
             etat: m.etat,
             recu: m.recu_le || null
@@ -1185,16 +1298,23 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         sansValeur: lignes.length - valorisees.length
       };
     },
-    declarerValeurMateriel(mid, valeurNette, nature){
+    declarerValeurMateriel(mid, champs = {}){
       const m = s.missions.find(x => x.id === mid);
       if (!m) throw new Error("Mission inconnue");
       const a = api.annonceDe(m);
       if (!a || a.type !== "don_materiel")
         throw new Error("Cette mission n'est pas un don de matériel");
-      const v = valeurNette === "" || valeurNette === null || valeurNette === undefined
-        ? null : Math.max(0, Number(valeurNette) || 0);
-      m.valeur_nette = v;
+      const { valeur, categorie, nature, reference, sortieLe, justificatif, effacement } = champs;
+      if (categorie && !api.CATEGORIES_MATERIEL.some(c => c.cle === categorie))
+        throw new Error("Catégorie comptable inconnue");
+      m.valeur_nette = valeur === "" || valeur === null || valeur === undefined
+        ? null : Math.max(0, Number(valeur) || 0);
+      if (categorie !== undefined) m.categorie_comptable = categorie || null;
       if (nature !== undefined) m.nature = String(nature || "").slice(0, 200) || undefined;
+      if (reference !== undefined) m.reference_actif = String(reference || "").slice(0, 80) || null;
+      if (sortieLe !== undefined) m.sortie_le = sortieLe || null;
+      if (justificatif !== undefined) m.justificatif = String(justificatif || "").slice(0, 200) || null;
+      if (effacement !== undefined) m.effacement_donnees = effacement === null ? null : !!effacement;
       return m;
     },
 
@@ -1276,6 +1396,13 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
        marqués comme tels : on ne recopie pas la période précédente à leur place. */
     cloreCampagne(cid){
       const e = api.etatCampagne(cid); if (!e) return null;
+      /* Une période ne se clôt pas avant d'être finie. Sinon on demande le
+         second semestre au mois d'août et on appelle « clos » un trimestre qui
+         n'a pas eu lieu. */
+      const aujourdhui = new Date(2026, 7, 20).toISOString().slice(0, 10);
+      if (e.campagne.fin > aujourdhui)
+        throw new Error(`La période court jusqu'au ${e.campagne.fin} : elle ne peut pas `
+          + `être clôturée avant. Pour un point d'étape, ouvrez une campagne dédiée.`);
       e.sites.filter(x => x.etat === "attendu").forEach(x => {
         s.observations.push({ id:id("o"), campagne:cid, etablissement:x.etablissement.id,
           etat:"clos_sans_reponse", version:1, saisi_par:null, saisi_le:null,
@@ -1288,10 +1415,15 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
     /* Les taux, calculés. Sur un périmètre de plusieurs sites, c'est un rapport de
        sommes et jamais une moyenne de taux : la moyenne des taux de Paris, Lyon et
        Marseille n'est pas le taux du groupe, et l'écart ne se voit pas à l'œil. */
-    indicateursDe({ campagne, etablissement = null, groupe = null, societe = null }){
+    /* `approuvesSeulement` décide si l'on regarde un aperçu de travail ou un
+       chiffre publiable. Un rapport ne prend que de l'approuvé ; un écran de
+       pilotage peut montrer le reste, à condition d'écrire que c'est provisoire. */
+    indicateursDe({ campagne, etablissement = null, groupe = null, societe = null,
+                    approuvesSeulement = false }){
       const c = api.campagne(campagne); if (!c) return null;
       let obs = s.observations.filter(o => o.campagne === campagne
-        && ["declare", "approuve"].includes(o.etat));
+        && (approuvesSeulement ? o.etat === "approuve"
+                               : ["declare", "approuve"].includes(o.etat)));
       if (etablissement) obs = obs.filter(o => o.etablissement === etablissement);
       if (societe) obs = obs.filter(o =>
         (api.etablissement(o.etablissement) || {}).societe === societe);
@@ -1308,12 +1440,22 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         const v = d.calcul(somme);
         calcules[d.cle] = v === null || !isFinite(v) ? null : Math.round(v * 100) / 100;
       });
-      const attendus = etablissement ? 1
-        : (groupe ? api.etablissementsDuGroupe(groupe).length
-                  : api.etablissements(societe || "").length);
+      const tous = etablissement ? [api.etablissement(etablissement)].filter(Boolean)
+        : (groupe ? api.etablissementsDuGroupe(groupe) : api.etablissements(societe || ""));
+      const attendus = tous.length;
+      /* Deux sites sur quatre, ce n'est pas la moitié du groupe : ça peut être
+         vingt pour cent comme quatre-vingt-quinze. La couverture se dit donc
+         aussi en effectifs, sinon le taux affiché ne veut rien dire. */
+      const effectifTotal = tous.reduce((n, x) => n + (x.effectif || 0), 0);
+      const idsRepondus = new Set(obs.map(o => o.etablissement));
+      const effectifCouvert = tous.filter(x => idsRepondus.has(x.id))
+        .reduce((n, x) => n + (x.effectif || 0), 0);
       return { campagne: c, somme, calcules,
                sites: obs.length, attendus,
+               effectifCouvert, effectifTotal,
+               partEffectif: effectifTotal ? effectifCouvert / effectifTotal : 0,
                approuves: obs.filter(o => o.etat === "approuve").length,
+               provisoire: obs.some(o => o.etat === "declare"),
                complet: obs.length === attendus && obs.every(o => o.etat === "approuve") };
     },
 
@@ -1364,6 +1506,28 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       const inv = api.invitationActive(u.org);
       if (inv && inv.utilisees > 0) inv.utilisees -= 1;
       api.tracer(u.org, uid, "retrait", null);
+      return u;
+    },
+
+    /* Les comptes créés par un lien de site et pas encore rattachés pour de bon. */
+    affectationsAConfirmer(eid, etid = null){
+      return s.utilisateurs.filter(u => u.org === eid && !u.anonyme
+        && u.affectation_confirmee === false
+        && (!etid || u.etablissement === etid));
+    },
+    confirmerAffectation(uid, etid = null){
+      const u = s.utilisateurs.find(x => x.id === uid);
+      if (!u) throw new Error("Compte inconnu");
+      if (etid){
+        const et = api.etablissement(etid);
+        if (!et || et.societe !== u.org) throw new Error("Établissement hors de la société");
+        const si = api.sieges(u.org, { etablissement: etid });
+        if (etid !== u.etablissement && si.restants <= 0)
+          throw new Error("Le quota de ce site est complet.");
+        u.etablissement = etid;
+      }
+      u.affectation_confirmee = true;
+      api.tracer(u.org, uid, "affectation", (api.etablissement(u.etablissement) || {}).ville || "");
       return u;
     },
 
@@ -1498,8 +1662,16 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       if (restants <= 0) throw new Error(inv.etablissement
         ? "Le quota de ce site est complet. Votre référent peut en demander davantage."
         : "L'abonnement de cette entreprise n'a plus de place");
+      /* Un domaine de messagerie partagé par tout le groupe ne dit rien du site :
+         n'importe qui peut utiliser le lien de Lyon. Le quota empêche de dépasser
+         cent dix comptes, il n'empêche pas une mauvaise affectation — et une
+         mauvaise affectation fausse ensuite le score, les rapports et les droits.
+         Le compte est donc créé, mais son rattachement attend un clic du référent
+         du site. Tant qu'il n'est pas confirmé, la personne peut tout consulter et
+         ne peut pas s'engager : ses points iraient au mauvais endroit. */
       const u = { id:id("u"), nom, email, role:"salarie", org:inv.entreprise,
                   etablissement: inv.etablissement || null,
+                  affectation_confirmee: !inv.etablissement,
                   points:0, actif:true, anonyme:false };
       s.utilisateurs.push(u);
       inv.utilisees += 1;

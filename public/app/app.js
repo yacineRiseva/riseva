@@ -50,7 +50,7 @@ const MENUS = {
     { groupe: "Mon site", items: [
       ["tableau",    "Tableau de bord", "dashboard"],
       ["equipe",     "Mes salariés",    "users"],
-      ["indicateurs","Indicateurs RSE", "report"]
+      ["indicateurs","Données sociales", "report"]
     ]},
     { groupe: "Saison", items: [
       ["annonces",   "Annonces",        "megaphone"],
@@ -222,12 +222,12 @@ function menuDe(u){
     base.unshift({ groupe: "Groupe", items: [
       ["groupe",      "Vue consolidée", "building"],
       ["sites",       "Sites et quotas", "users"],
-      ["indicateurs", "Indicateurs RSE", "report"]
+      ["indicateurs", "Données sociales", "report"]
     ]});
   } else if (multi){
     base[base.length - 1].items.splice(1, 0,
       ["sites",       "Sites et quotas", "users"],
-      ["indicateurs", "Indicateurs RSE", "report"]);
+      ["indicateurs", "Données sociales", "report"]);
   }
   return base;
 }
@@ -490,10 +490,14 @@ function tableauEntreprise(u){
       </div>
       <div class="stack" style="--gap:var(--s3)">
         ${sites.map(x => `<div>
-          <div class="between" style="font-size:var(--t-sm);margin-bottom:6px">
-            <span><b>${x.rang}.</b> ${esc(x.nom)} — ${esc(x.ville)}
-              <span class="muted">· ${nb(x.comptes)} compte${x.comptes > 1 ? "s" : ""} sur ${nb(x.quota || 0)}</span></span>
-            <span class="tnum">${nb(x.points)} pts · ${pct(x.parSalarie, 2)} / salarié</span></div>
+          <div class="between" style="font-size:var(--t-sm);margin-bottom:6px;gap:var(--s3);flex-wrap:wrap">
+            <span>${x.rang ? `<b>${x.rang}.</b> ` : ""}${esc(x.nom)} — ${esc(x.ville)}
+              <span class="badge ${x.statut.cle === "fort" ? "badge--ok"
+                : x.statut.cle === "actif" ? "badge--info"
+                : x.statut.cle === "lancement" ? "badge--warn" : "badge--neutre"}"
+                style="margin-left:6px">${esc(x.statut.label)}</span></span>
+            <span class="tnum muted">${nb(x.mobilises)} mobilisé${x.mobilises > 1 ? "s" : ""} ·
+              ${nb(x.points)} pts · ${pct(x.parSalarie, 2)} / salarié</span></div>
           <div class="bar"><i style="width:${Math.max(2, (x.parSalarie / maxSite) * 100)}%"></i></div>
         </div>`).join("")}
       </div>
@@ -4617,9 +4621,11 @@ function vueGroupe(u){
   if (!gid) return h(`<section class="card"><p class="empty">Ce compte n'est rattaché à aucun groupe.</p></section>`);
   const c = DB.consolideGroupe(gid);
   const rang = DB.classementSites({ groupe: gid });
+  const ordinal = !!(DB.groupe(gid) || {}).classement_sites;
   const camp = DB.campagnes(gid).filter(x => x.etat === "close")
                  .sort((a, b) => b.debut.localeCompare(a.debut))[0];
-  const ind = camp ? DB.indicateursDe({ campagne: camp.id, groupe: gid }) : null;
+  const ind = camp ? DB.indicateursDe({ campagne: camp.id, groupe: gid,
+                                        approuvesSeulement: true }) : null;
 
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <div class="kpis">
@@ -4629,10 +4635,12 @@ function vueGroupe(u){
             `dont ${nb(c.confirmees)} confirmées par une association`)}
       ${kpi("Points du groupe", nb(c.points),
             `${pct(c.parSalarie, 2)} par salarié — somme des points ÷ somme des effectifs`)}
-      ${kpi("Réduction d'impôt", c.reduction === null ? "non calculée" : eur(c.reduction),
-            c.reduction === null
-              ? "il manque des données fiscales dans au moins une société"
-              : "somme de réductions calculées société par société")}
+      ${/* La réduction d'impôt n'existe fiscalement que par société donatrice. En
+            faire un chiffre de groupe, même exact, invite à le reprendre tel quel
+            dans une liasse. On renvoie donc au détail, société par société. */
+        kpi("Sociétés au calcul fiscal complet",
+            `${nb(c.societes.filter(x => x.plafondCalculable).length)} / ${nb(c.societes.length)}`,
+            "la réduction d'impôt s'apprécie société par société — voir le détail plus bas")}
     </div>
 
     <section class="card">
@@ -4656,11 +4664,23 @@ function vueGroupe(u){
 
     <div class="two">
       <section class="card">
-        <h3>Entre vos sites</h3>
-        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
-          Ce classement-là ne dépend de personne d'autre que vous : il fonctionne dès
-          le premier site raccordé. Il est normalisé par l'effectif, sinon le siège
-          écrase l'agence. Il compare des sites, <strong>jamais des personnes</strong>.</p>
+        <div class="between" style="align-items:flex-start">
+          <div><h3>Entre vos sites</h3>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:4px;max-width:52ch">
+            Un <strong>challenge d'engagement associatif</strong>, pas une mesure de
+            performance RSE d'un site — et sans aucune incidence sur l'évaluation de qui
+            que ce soit. Normalisé par l'effectif, sinon le siège écrase l'agence. Compare
+            des sites, <strong>jamais des personnes</strong>.</p></div>
+        </div>
+        <label class="checkline" style="margin-top:var(--s5)">
+          <input type="checkbox" id="ordi" ${ordinal ? "checked" : ""}>
+          <span>Afficher un classement ordinal entre les sites.
+            <span class="muted">Désactivé par défaut : un rang fabrique un dernier. Même
+            activé, un site reste hors classement tant qu'il n'a pas
+            ${DB.SEUIL_CLASSEMENT.mobilises} salariés mobilisés et
+            ${DB.SEUIL_CLASSEMENT.missions} missions validées — en dessous, on mesure le
+            hasard des petits nombres et la date de démarrage.</span></span>
+        </label>
         <div class="stack" style="--gap:var(--s3);margin-top:var(--s5)" id="rang"></div>
       </section>
 
@@ -4673,17 +4693,19 @@ function vueGroupe(u){
         </div>
         ${ind && ind.sites ? `
         <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
-          ${INDICATEURS.calcules.filter(d => ["tf1", "tg", "turnover", "part_femmes"].includes(d.cle))
+          ${INDICATEURS.calcules.filter(d => ["tf1", "tg", "turnover"].includes(d.cle))
             .map(d => `<div class="between"><span class="muted">${esc(d.libelle)}</span>
               <span class="tnum">${ind.calcules[d.cle] === null ? "—"
                 : nb2(ind.calcules[d.cle]) + (d.unite ? " " + d.unite : "")}</span></div>`).join("")}
         </div>
         <p class="hint" style="margin-top:var(--s5)">
-          ${ind.sites} site${ind.sites > 1 ? "s" : ""} sur ${ind.attendus} ont répondu.
-          ${ind.complet ? "Toutes les valeurs sont approuvées."
-            : "Les taux ci-dessus ne portent que sur les sites qui ont répondu, et c'est écrit tel quel dans le rapport."}
+          Valeurs <strong>approuvées</strong> de ${ind.sites} site${ind.sites > 1 ? "s" : ""} sur
+          ${ind.attendus}, soit ${nb(ind.effectifCouvert)} salariés sur ${nb(ind.effectifTotal)}.
+          ${ind.complet ? "" : "Le périmètre est incomplet, et c'est écrit tel quel dans le rapport."}
         </p>
-        <p class="hint">Rapport de sommes, jamais moyenne de taux. Aucun classement entre sites sur la sécurité.</p>
+        <p class="hint">Indicateurs internes, comparables à eux-mêmes dans le temps et à rien
+          d'autre. Rapport de sommes, jamais moyenne de taux. Aucun classement entre sites sur
+          la sécurité.</p>
         ` : `<p class="hint" style="margin-top:var(--s5)">Aucune période close pour l'instant.</p>`}
       </section>
     </div>
@@ -4715,13 +4737,28 @@ function vueGroupe(u){
 
   const box = el.querySelector("#rang");
   const max = Math.max(...rang.map(x => x.parSalarie), 0.01);
+  const TON = { lancement:"badge--warn", demarrage:"badge--neutre",
+                actif:"badge--info", fort:"badge--ok" };
   rang.forEach(x => box.appendChild(h(`<div>
-    <div class="between" style="font-size:var(--t-sm);margin-bottom:6px">
-      <span><b>${x.rang}.</b> ${esc(x.nom)} — ${esc(x.ville)}
-        <span class="muted">· ${nb(x.effectif)} salariés</span></span>
-      <span class="tnum">${pct(x.parSalarie, 2)} pts / salarié</span></div>
+    <div class="between" style="font-size:var(--t-sm);margin-bottom:6px;gap:var(--s3);flex-wrap:wrap">
+      <span>${x.rang ? `<b>${x.rang}.</b> ` : ""}${esc(x.nom)} — ${esc(x.ville)}
+        <span class="badge ${TON[x.statut.cle]}" style="margin-left:6px">${esc(x.statut.label)}</span></span>
+      <span class="tnum muted">${nb(x.mobilises)} mobilisé${x.mobilises > 1 ? "s" : ""} ·
+        ${nb(x.missions)} mission${x.missions > 1 ? "s" : ""} ·
+        ${pct(x.parSalarie, 2)} pts / salarié</span></div>
     <div class="bar"><i style="width:${Math.max(2, (x.parSalarie / max) * 100)}%"></i></div>
+    ${x.statut.cle === "lancement" || x.statut.cle === "demarrage"
+      ? `<p class="hint" style="margin-top:4px">${esc(x.statut.aide)}</p>` : ""}
   </div>`)));
+
+  el.querySelector("#ordi").onchange = (ev) => {
+    try { DB.activerClassementSites(gid, ev.target.checked);
+          toast(ev.target.checked
+            ? "Classement ordinal activé pour vos sites."
+            : "Classement ordinal désactivé : chaque site garde son statut.");
+          rendre(); }
+    catch (e){ toast(e.message); }
+  };
 
   el.querySelector("#rapG").onclick = () => ouvrirRapportGroupe(u);
   el.querySelector("#csvG").onclick = () => {
@@ -4785,7 +4822,8 @@ function ouvrirRapportGroupe(u){
   const camps = DB.campagnes(gid).slice().sort((a, b) => b.debut.localeCompare(a.debut));
   const camp = camps.find(x => x.etat === "close") || camps[0];
   const e = camp ? DB.etatCampagne(camp.id) : null;
-  const ind = camp ? DB.indicateursDe({ campagne: camp.id, groupe: gid }) : null;
+  const ind = camp ? DB.indicateursDe({ campagne: camp.id, groupe: gid,
+                                        approuvesSeulement: true }) : null;
   const sa = DB.saison();
   const missions = c.societes.flatMap(soc =>
     DB.missions({ entreprise: soc.id }).filter(m => ["validee", "validee_auto"].includes(m.etat)));
@@ -4864,21 +4902,26 @@ function ouvrirRapportGroupe(u){
     </tbody>
   </table>
   <div class="note ${c.reduction === null ? "alerte" : ""}">
+    <strong>Une réduction d'impôt n'existe que par société donatrice.</strong> Le groupe n'est
+    pas un redevable : il ne dispose d'aucun plafond propre et ne déclare rien.
     ${c.reduction === null
-      ? `Le total n'est pas donné : au moins une société n'a pas renseigné son chiffre
+      ? `Aucun total n'est donné ici : au moins une société n'a pas renseigné son chiffre
          d'affaires, ses dons faits hors Riseva ou ses reports antérieurs. Le plafond de
          20 000 € ou 5 ‰ porte sur <strong>tous</strong> les versements de l'exercice, pas
          seulement sur ceux que Riseva connaît. Additionner des estimations non plafonnées
          produirait un chiffre faux, et c'est celui qui finirait dans une liasse.`
-      : `Total : <strong>${eur(c.reduction)}</strong>, somme de réductions plafonnées
-         séparément. Estimation, non déclaration : votre expert-comptable arrête le chiffre.`}
+      : `Le total de ${eur(c.reduction)} n'est donné qu'à titre <strong>informatif</strong> :
+         c'est la somme de réductions plafonnées séparément, sur le périmètre connu de Riseva.
+         Estimation, non déclaration : chaque société l'arrête avec son expert-comptable.`}
   </div>
 
   <h2>4. Indicateurs sociaux et sécurité</h2>
   ${!ind ? `<p class="m">Aucune campagne de collecte.</p>` : `
-  <p class="st">${esc(camp.libelle)} — ${ind.sites} site${ind.sites > 1 ? "s" : ""} sur
-     ${ind.attendus} ${ind.sites > 1 ? "ont" : "a"} répondu,
-     ${ind.approuves} approuvé${ind.approuves > 1 ? "s" : ""}.</p>
+  <p class="st">${esc(camp.libelle)} — valeurs <strong>approuvées</strong> de
+     ${ind.sites} site${ind.sites > 1 ? "s" : ""} sur ${ind.attendus}, soit
+     ${nb(ind.effectifCouvert)} salariés sur ${nb(ind.effectifTotal)}
+     (${nb2(Math.round(ind.partEffectif * 1000) / 10)} % de l'effectif du périmètre).
+     Les saisies non approuvées ne figurent pas dans ce document.</p>
   <table>
     <thead><tr><th>Indicateur</th><th>Valeur</th><th>Méthode</th></tr></thead>
     <tbody>
@@ -4887,7 +4930,8 @@ function ouvrirRapportGroupe(u){
       ${INDICATEURS.calcules.map(d => l(d.libelle,
           ind.calcules[d.cle] === null ? `<span class="manque">non calculé</span>`
             : nb2(ind.calcules[d.cle]) + (d.unite ? " " + d.unite : ""),
-          d.formule + " — rapport de sommes sur le périmètre, jamais moyenne des taux.")).join("")}
+          d.formule + " — rapport de sommes sur le périmètre, jamais moyenne des taux."
+            + (d.note ? " " + d.note : ""))).join("")}
     </tbody>
   </table>
   <h2>5. Qui a déclaré quoi</h2>
@@ -4902,10 +4946,13 @@ function ouvrirRapportGroupe(u){
       </tr>`).join("")}
     </tbody>
   </table>
-  ${e.clos + e.attendus ? `<div class="note alerte">
-    ${nb(e.clos + e.attendus)} site${e.clos + e.attendus > 1 ? "s n'ont" : " n'a"} pas répondu.
-    Les taux ci-dessus ne portent donc <strong>pas</strong> sur l'ensemble du périmètre. Nous ne
-    comblons pas les trous avec la période précédente : un chiffre absent reste absent.
+  ${ind.sites < ind.attendus ? `<div class="note alerte">
+    ${nb(ind.attendus - ind.sites)} site${ind.attendus - ind.sites > 1 ? "s n'ont" : " n'a"} pas de
+    valeur approuvée pour cette période, soit
+    ${nb(ind.effectifTotal - ind.effectifCouvert)} salariés sur ${nb(ind.effectifTotal)}. Les taux
+    ci-dessus ne portent donc <strong>pas</strong> sur l'ensemble du périmètre — et deux sites sur
+    quatre ne veut pas dire la moitié du groupe. Nous ne comblons pas les trous avec la période
+    précédente : un chiffre absent reste absent.
   </div>` : ""}
   <div class="note">
     ${INDICATEURS_LIMITES.map(x => `${esc(x)}<br>`).join("")}
@@ -4943,12 +4990,23 @@ function vueSites(u){
   const box = el.querySelector("#soc");
   societes.forEach(soc => {
     const q = DB.quotaDisponible(soc.id);
+    const ouverts = DB.sieges(soc.id).pris;
+    /* « 0 libres » alors que deux cent quarante-huit comptes peuvent encore être
+       créés dans les quotas déjà alloués : c'est le genre de chiffre qui fait
+       rappeler un client pour rien. Cinq compteurs, et chacun dit ce qu'il est. */
     const bloc = h(`<section class="card">
       <div class="between" style="margin-bottom:var(--s5);align-items:flex-start;flex-wrap:wrap;gap:var(--s4)">
         <div><h3>${esc(soc.nom)}</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
-          SIREN ${esc(soc.siren || "non renseigné")} · contrat de ${nb(q.total)} places,
-          ${nb(q.alloue)} allouées, <strong style="color:${q.libre < 0 ? "var(--danger)" : "var(--ink)"}">${nb(q.libre)} libres</strong></p></div>
+          SIREN ${esc(soc.siren || "non renseigné")}</p></div>
+      </div>
+      <div class="kpis" style="margin-bottom:var(--s6)">
+        ${kpi("Capacité achetée", nb(q.total), "places du contrat de cette société", "", "kpi--tete grain")}
+        ${kpi("Réparties en quotas", nb(q.alloue),
+              q.libre > 0 ? `${nb(q.libre)} encore à répartir` : "tout est réparti")}
+        ${kpi("Comptes ouverts", nb(ouverts), "personnes réellement inscrites")}
+        ${kpi("Encore activables", nb(Math.max(0, q.alloue - ouverts)),
+              "dans les quotas déjà répartis, sans rien réallouer")}
       </div>
       <table class="table"><thead><tr>
         <th>Établissement</th><th>SIRET</th><th style="text-align:right">Effectif</th>
@@ -5038,10 +5096,14 @@ function vueIndicateurs(u){
   const choisie = sessionStorage.getItem("riseva.campagne") || cs[0].id;
   const cid = cs.some(c => c.id === choisie) ? choisie : cs[0].id;
   const e = DB.etatCampagne(cid);
-  const ind = DB.indicateursDe({ campagne: cid, groupe: gid || undefined,
-                                 societe: gid ? undefined : u.org });
+  /* Deux lectures du même jeu : ce qui est publiable, et ce qui est en cours.
+     Les mélanger revient à faire entrer dans un rapport un chiffre que personne
+     n'a relu. */
+  const portee = { campagne: cid, groupe: gid || undefined, societe: gid ? undefined : u.org };
+  const ind = DB.indicateursDe({ ...portee, approuvesSeulement: true });
+  const brouillon = DB.indicateursDe(portee);
   const monSite = u.role === "site_referent" ? u.etablissement : null;
-  const ETIQ = { attendu:["Attendu", "badge--warn"], declare:["Déclaré", "badge--info"],
+  const ETIQ = { attendu:["À saisir", "badge--warn"], declare:["Soumis", "badge--info"],
                  approuve:["Approuvé", "badge--ok"], clos_sans_reponse:["Clos sans réponse", "badge--neutre"] };
 
   const el = h(`<div class="stack" style="--gap:var(--s5)">
@@ -5065,12 +5127,16 @@ function vueIndicateurs(u){
       <hr class="sep">
       <div class="kpis">
         ${kpi("Sites qui ont répondu", `${e.declares + e.approuves} / ${e.sites.length}`,
+              `soit ${nb(brouillon.effectifCouvert)} salariés sur ${nb(brouillon.effectifTotal)} — `
+              + `deux sites sur quatre, ce n'est pas la moitié du groupe`, "", "kpi--tete grain")}
+        ${kpi("Approuvés", `${nb(e.approuves)} / ${nb(e.sites.length)}`,
+              ind.effectifTotal ? `${pct(ind.partEffectif * 100)} % de l'effectif du périmètre` : "")}
+        ${kpi("En attente d'approbation", nb(e.declares), "soumis, pas encore relus")}
+        ${kpi(e.campagne.etat === "ouverte" ? "Échéance" : "Close le",
+              dateCourte(e.campagne.echeance),
               e.campagne.etat === "ouverte"
-                ? `${e.joursRestants} jour${e.joursRestants > 1 ? "s" : ""} avant l'échéance du ${dateFR(e.campagne.echeance)}`
-                : `close le ${dateFR(e.campagne.echeance)}`)}
-        ${kpi("Approuvés", nb(e.approuves), "verrouillés, utilisables dans un rapport")}
-        ${kpi("En attente d'approbation", nb(e.declares), "saisis, pas encore relus")}
-        ${kpi("Clos sans réponse", nb(e.clos), e.clos ? "signalés comme tels dans le rapport" : "aucun")}
+                ? `${e.joursRestants} jour${e.joursRestants > 1 ? "s" : ""} — période du ${dateCourte(e.campagne.debut)} au ${dateCourte(e.campagne.fin)}`
+                : `${nb(e.clos)} site${e.clos > 1 ? "s" : ""} clos sans réponse`)}
       </div>
     </section>
 
@@ -5086,18 +5152,37 @@ function vueIndicateurs(u){
       <section class="card">
         <h3>Ce que ça donne, une fois consolidé</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
-          Un taux de groupe est un <strong>rapport de sommes</strong> : total des accidents
-          divisé par total des heures. Pas la moyenne des taux de chaque site — l'écart
-          entre les deux est réel et ne se voit pas à l'œil.</p>
-        <table class="table" style="margin-top:var(--s5)"><tbody>
+          Un taux de périmètre est un <strong>rapport de sommes</strong> : total des accidents
+          divisé par total des heures. Pas la moyenne des taux de chaque site — l'écart entre
+          les deux est réel et ne se voit pas à l'œil.</p>
+        ${brouillon.provisoire ? `<div class="card card--flat"
+          style="background:var(--warn-bg);border-color:transparent;margin-top:var(--s5)">
+          <p style="font-size:var(--t-sm);color:var(--ink-600)">
+            <strong style="color:var(--ink)">Aperçu provisoire.</strong>
+            ${nb(e.declares)} saisie${e.declares > 1 ? "s" : ""} attend${e.declares > 1 ? "ent" : ""}
+            encore une approbation. La colonne « approuvé » est la seule qui entre dans un
+            rapport ou dans une réponse à un client.</p>
+        </div>` : ""}
+        <table class="table" style="margin-top:var(--s5)"><thead><tr>
+          <th>Indicateur</th>
+          <th style="text-align:right">Approuvé</th>
+          ${brouillon.provisoire ? `<th style="text-align:right">Provisoire</th>` : ""}
+        </tr></thead><tbody>
           ${INDICATEURS.calcules.map(d => `<tr>
-            <td>${esc(d.libelle)}<br><span class="muted" style="font-size:var(--t-xs)">${esc(d.formule)}</span></td>
+            <td>${esc(d.libelle)}<br><span class="muted" style="font-size:var(--t-xs)">${esc(d.formule)}</span>
+              ${d.note ? `<br><span class="muted" style="font-size:var(--t-xs)">${esc(d.note)}</span>` : ""}</td>
             <td class="tnum" style="text-align:right">${ind && ind.calcules[d.cle] !== null
-              ? nb2(ind.calcules[d.cle]) + (d.unite ? " " + d.unite : "") : "—"}</td></tr>`).join("")}
+              ? nb2(ind.calcules[d.cle]) + (d.unite ? " " + d.unite : "")
+              : `<span class="muted">—</span>`}</td>
+            ${brouillon.provisoire ? `<td class="tnum muted" style="text-align:right">${
+              brouillon.calcules[d.cle] !== null
+                ? nb2(brouillon.calcules[d.cle]) + (d.unite ? " " + d.unite : "") : "—"}</td>` : ""}
+          </tr>`).join("")}
         </tbody></table>
         <p class="hint" style="margin-top:var(--s4)">
-          ${ind ? `Calculé sur ${ind.sites} site${ind.sites > 1 ? "s" : ""} sur ${ind.attendus}.` : ""}
-          ${ind && !ind.complet ? " Périmètre incomplet : le rapport le mentionnera." : ""}
+          Approuvé : ${ind.sites} site${ind.sites > 1 ? "s" : ""} sur ${ind.attendus},
+          soit ${nb(ind.effectifCouvert)} salariés sur ${nb(ind.effectifTotal)}.
+          ${!ind.complet ? "Périmètre incomplet : le rapport le mentionnera, et la réponse à un client aussi." : ""}
         </p>
       </section>
       <section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
@@ -5131,7 +5216,11 @@ function vueIndicateurs(u){
       b.onclick = () => formIndicateurs(u, cid, x.etablissement);
       cell.appendChild(b);
     }
-    if (x.etat === "declare"){
+    /* La règle est refusée côté serveur de toute façon, mais montrer le bouton à
+       celui qui a saisi affirme visuellement le contraire de ce qui se passera.
+       Un écran qui promet une action impossible est un écran qui ment. */
+    if (x.etat === "declare" && x.observation && x.observation.saisi_par !== u.id
+        && u.role === "entreprise_admin"){
       const a2 = h(`<button class="btn btn--primary btn--sm" style="margin-left:6px">Approuver</button>`);
       a2.onclick = () => {
         try { DB.approuverIndicateurs(cid, x.etablissement.id, u.id);
@@ -5189,6 +5278,30 @@ function formIndicateurs(u, cid, et){
   ]);
 }
 
+/* Rattacher quelqu'un ailleurs : c'est une correction, pas une sanction, et elle
+   doit rester possible sans passer par la société. */
+function reaffecter(u, g){
+  const etabs = DB.etablissements(u.org);
+  const corps = h(`<div class="stack" style="--gap:var(--s4)">
+    <p class="muted" style="font-size:var(--t-sm)">
+      ${esc(g.nom)} s'est inscrit avec le lien d'un site qui n'est peut-être pas le sien.
+      Choisissez le bon : ses futures missions y seront comptées. Les missions déjà faites,
+      elles, restent où elles ont été faites.</p>
+    <div class="field"><label for="ra-et">Établissement</label>
+      <select class="select" id="ra-et">
+        ${etabs.map(x => `<option value="${x.id}" ${x.id === g.etablissement ? "selected" : ""}>${esc(x.nom)} — ${esc(x.ville)} (${nb(DB.sieges(u.org, { etablissement: x.id }).restants)} places libres)</option>`).join("")}
+      </select></div>
+  </div>`);
+  modal("Rattacher à un autre site", corps, [
+    { texte: "Annuler", classe: "btn--ghost" },
+    { texte: "Rattacher", classe: "btn--primary", action: () => {
+        try { DB.confirmerAffectation(g.id, corps.querySelector("#ra-et").value);
+              toast("Rattachement enregistré."); rendre(); }
+        catch (e){ toast(e.message); }
+      } }
+  ]);
+}
+
 /* Le tableau de bord d'un référent de site : son site, et rien d'autre. */
 function tableauSite(u){
   const et = DB.etablissement(u.etablissement);
@@ -5204,7 +5317,22 @@ function tableauSite(u){
   const obs = camp ? DB.observation(camp.id, et.id) : null;
   const inv = DB.invitations(u.org).find(i => i.etablissement === et.id && i.active && !i.pour_referent);
 
+  const aConfirmer = DB.affectationsAConfirmer(u.org, et.id);
+  const prochains = DB.missions({ entreprise: u.org })
+    .filter(m => (m.etablissement || (DB.utilisateur(m.salarie) || {}).etablissement) === et.id)
+    .filter(m => ["engagee", "a_valider"].includes(m.etat))
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+
   const el = h(`<div class="stack" style="--gap:var(--s5)">
+    ${aConfirmer.length ? `<section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
+      <h3 style="font-size:var(--t-lg)">${nb(aConfirmer.length)} compte${aConfirmer.length > 1 ? "s" : ""} à rattacher</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:4px;color:var(--ink-600);max-width:76ch">
+        Ces personnes se sont inscrites avec votre lien. Une adresse professionnelle ne dit pas
+        sur quel site quelqu'un travaille : tant que vous n'avez pas confirmé, elles peuvent tout
+        consulter mais pas s'engager — leurs points iraient au mauvais endroit.</p>
+      <table class="table" style="margin-top:var(--s5)"><tbody id="conf"></tbody></table>
+    </section>` : ""}
+
     ${camp && !obs ? `<section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
       <div class="between" style="flex-wrap:wrap;gap:var(--s4)">
         <div><h3 style="font-size:var(--t-lg)">Indicateurs à saisir</h3>
@@ -5215,15 +5343,41 @@ function tableauSite(u){
       </div></section>` : ""}
 
     <div class="kpis">
+      ${/* « 1 mobilisé sur 2 comptes » mesure les inscrits, pas la participation.
+            La participation se rapporte à l'effectif du site — c'est le seul
+            dénominateur qui ne bouge pas avec le rythme des inscriptions. */
+        kpi("Salariés mobilisés", nb(new Set(validees.map(m => m.salarie)).size),
+            et.effectif
+              ? `${pct((new Set(validees.map(m => m.salarie)).size / et.effectif) * 100)} % de l'effectif du site (${nb(et.effectif)})`
+              : "effectif du site non renseigné", "", "kpi--tete grain")}
       ${kpi("Comptes ouverts", `${nb(si.pris)} / ${nb(si.total)}`,
-            `${nb(si.restants)} places restantes sur votre quota`, "", "kpi--tete grain")}
-      ${kpi("Salariés mobilisés", nb(new Set(validees.map(m => m.salarie)).size),
-            `sur ${nb(gens.length)} comptes`)}
+            `${nb(si.restants)} places restantes sur votre quota`)}
       ${kpi("Missions validées", nb(validees.length),
             `dont ${nb(validees.filter(m => m.etat === "validee").length)} confirmées`)}
       ${kpi("Points du site", nb(points),
             et.effectif ? `${pct(points / et.effectif, 2)} par salarié` : "")}
     </div>
+
+    ${prochains.length ? `<section class="card">
+      <div class="between" style="margin-bottom:var(--s5)">
+        <h3>Ce qui arrive</h3>
+        <a class="btn btn--quiet btn--sm" href="#/missions">Toutes les missions</a>
+      </div>
+      <table class="table"><thead><tr>
+        <th>Quand</th><th>Qui</th><th>Où</th><th>État</th>
+      </tr></thead><tbody>
+        ${prochains.slice(0, 6).map(m => {
+          const a2 = DB.annonceDe(m) || {}, sal2 = DB.utilisateur(m.salarie) || {};
+          const as = DB.association(a2.asso) || {};
+          return `<tr>
+            <td class="muted tnum">${dateCourte(m.date)}</td>
+            <td><strong>${esc(sal2.nom || "—")}</strong></td>
+            <td class="muted">${esc(as.nom || "—")}<br>
+              <span style="font-size:var(--t-xs)">${esc(a2.titre || "")}</span></td>
+            <td><span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].label}</span></td>
+          </tr>`; }).join("")}
+      </tbody></table>
+    </section>` : ""}
 
     <section class="card">
       <div class="between" style="margin-bottom:var(--s5)">
@@ -5239,6 +5393,23 @@ function tableauSite(u){
       : `<button class="btn btn--primary" style="margin-top:var(--s5)" id="newLien">Créer le lien de mon site</button>`}
     </section>
   </div>`);
+
+  const boxC = el.querySelector("#conf");
+  aConfirmer.forEach(g => {
+    const tr = h(`<tr>
+      <td><strong>${esc(g.nom)}</strong><br>
+        <span class="muted" style="font-size:var(--t-xs)">${esc(g.email || "")}</span></td>
+      <td style="text-align:right;white-space:nowrap"></td></tr>`);
+    const ok = h(`<button class="btn btn--primary btn--sm">Il travaille ici</button>`);
+    ok.onclick = () => {
+      try { DB.confirmerAffectation(g.id, et.id); toast("Rattachement confirmé."); rendre(); }
+      catch (e){ toast(e.message); }
+    };
+    const autre = h(`<button class="btn btn--quiet btn--sm" style="margin-left:6px">Autre site</button>`);
+    autre.onclick = () => reaffecter(u, g);
+    tr.querySelector("td:last-child").append(ok, autre);
+    boxC.appendChild(tr);
+  });
 
   el.querySelector("#copySite")?.addEventListener("click", () => {
     navigator.clipboard?.writeText(el.querySelector("#lienSite").value);
@@ -5269,8 +5440,11 @@ function vueMateriel(u){
             r.sansValeur ? `${nb(r.sansValeur)} sans valeur déclarée` : "tous valorisés")}
       ${kpi("Valeur nette comptable", eur(r.valeur),
             "somme des valeurs que vous avez déclarées")}
-      ${kpi("Réduction correspondante", eur(Math.round(r.valeur * FISCAL.taux_reduction)),
-            `${Math.round(FISCAL.taux_reduction * 100)} % — avant plafond, à confirmer par votre expert-comptable`)}
+      ${/* « Réduction correspondante » se lisait comme un montant acquis. Ce n'en
+            est pas un tant que le don n'est pas reçu, valorisé, approuvé, rattaché
+            au bon SIREN et plafonné avec les dons faits ailleurs. */
+        kpi("Estimation fiscale maximale", eur(Math.round(r.valeur * FISCAL.taux_reduction)),
+            "non déclarable à ce stade : plafond non appliqué, réception et valorisation à confirmer")}
     </div>
 
     <section class="card">
@@ -5284,46 +5458,63 @@ function vueMateriel(u){
           qui l'a confirmé.</p></div>
         <button class="btn btn--ghost btn--sm" id="csvM">Exporter</button>
       </div>
-      <table class="table"><thead><tr>
+      <div style="overflow-x:auto"><table class="table"><thead><tr>
         <th>Date</th><th>Nature</th><th style="text-align:right">Quantité</th>
-        <th>Association</th><th>Site</th><th style="text-align:right">Valeur nette</th>
-        <th>Confirmation</th><th></th>
-      </tr></thead><tbody></tbody></table>
+        <th>Association</th><th>Site</th><th>Catégorie</th>
+        <th style="text-align:right">Valeur déclarée</th>
+        <th>Réception</th><th>Reçu</th><th></th>
+      </tr></thead><tbody></tbody></table></div>
     </section>
 
     <section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
-      <h3 style="font-size:var(--t-lg)">La valeur à déclarer n'est pas le prix neuf</h3>
+      <h3 style="font-size:var(--t-lg)">Ce n'est jamais le prix neuf, et ce n'est pas une seule méthode</h3>
       <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);max-width:78ch;color:var(--ink-600)">
-        Un don en nature se valorise à sa <strong style="color:var(--ink)">valeur nette
-        comptable</strong> — ce qu'il vaut encore dans vos comptes après amortissement —
-        et non au prix catalogue. Retenir la valeur neuve fabriquerait une réduction
-        d'impôt indue, et c'est exactement ce qu'un contrôle vérifie en premier.
-        Riseva n'invente aucune valeur : ce que vous ne déclarez pas reste vide, et le
-        registre l'écrit.
+        La méthode dépend de la nature comptable du bien, et
+        <strong style="color:var(--ink)">la valorisation relève de votre responsabilité</strong>,
+        pas de la nôtre. Riseva enregistre une valeur que vous déclarez, rappelle la méthode qui
+        s'applique, et n'en choisit aucune à votre place.
+      </p>
+      <ul class="stack" style="--gap:var(--s3);margin-top:var(--s4);font-size:var(--t-sm);
+        list-style:none;color:var(--ink-600)">
+        ${DB.CATEGORIES_MATERIEL.map(c => `<li><strong style="color:var(--ink)">${esc(c.label)}</strong> — ${esc(c.methode)}</li>`).join("")}
+      </ul>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s4);max-width:78ch;color:var(--ink-600)">
+        Retenir la valeur catalogue fabriquerait une réduction d'impôt indue, et c'est ce qu'un
+        contrôle vérifie en premier. Le plafond, lui, dépend aussi des dons que vous avez faits
+        hors Riseva : sans eux, aucun reliquat fiable ne peut être calculé.
       </p>
     </section>
   </div>`);
 
   const tb = el.querySelector("tbody");
   if (!r.lignes.length){
-    tb.appendChild(h(`<tr><td colspan="8"></td></tr>`));
+    tb.appendChild(h(`<tr><td colspan="10"></td></tr>`));
     tb.querySelector("td").appendChild(vide({
       titre: "Aucun don de matériel",
       texte: "Les dons de matériel de vos équipes apparaîtront ici, avec la structure qui les a reçus."
     }));
   }
   r.lignes.forEach(x => {
+    const cat = (DB.CATEGORIES_MATERIEL.find(c => c.cle === x.categorie) || {}).label;
     const tr = h(`<tr>
       <td class="muted tnum">${dateCourte(x.date)}</td>
-      <td><strong>${esc(x.nature)}</strong></td>
+      <td><strong>${esc(x.nature)}</strong>
+        ${x.reference ? `<br><span class="muted" style="font-size:var(--t-xs)">${esc(x.reference)}</span>` : ""}
+        ${x.effacementDonnees === true ? `<br><span class="badge badge--ok" style="margin-top:4px">données effacées</span>` : ""}</td>
       <td class="tnum" style="text-align:right">${nb(x.quantite)} ${esc(x.unite)}</td>
-      <td class="muted">${esc(x.association)}${x.ville ? `<br><span style="font-size:var(--t-xs)">${esc(x.ville)}</span>` : ""}</td>
-      <td class="muted">${esc(x.etablissement)}</td>
+      <td class="muted">${esc(x.association)}${x.ville ? `<br><span style="font-size:var(--t-xs)">${esc(x.ville)}</span>` : ""}
+        ${x.eligible ? "" : `<br><span class="badge badge--warn" style="margin-top:4px">éligibilité non déclarée</span>`}</td>
+      <td class="muted">${esc(x.etablissement)}<br>
+        <span style="font-size:var(--t-xs)">${esc(x.societe)}${x.siren ? ` · ${esc(x.siren)}` : ""}</span></td>
+      <td class="muted" style="font-size:var(--t-xs)">${cat
+        ? esc(cat) : `<span class="badge badge--warn">à préciser</span>`}</td>
       <td class="tnum" style="text-align:right">${x.valeurNette === null
         ? `<span class="badge badge--warn">à valoriser</span>` : eur(x.valeurNette)}</td>
       <td>${x.confirme ? `<span class="badge badge--ok">association</span>`
         : x.etat === "validee_auto" ? `<span class="badge badge--neutre">clôture d'office</span>`
         : `<span class="badge ${ETATS_MISSION[x.etat].badge}">${ETATS_MISSION[x.etat].label}</span>`}</td>
+      <td>${x.recu ? `<span class="badge badge--ok">émis</span>`
+        : `<span class="badge badge--warn">attendu</span>`}</td>
       <td style="text-align:right"></td>
     </tr>`);
     const b2 = h(`<button class="btn btn--quiet btn--sm">${x.valeurNette === null ? "Valoriser" : "Corriger"}</button>`);
@@ -5334,10 +5525,18 @@ function vueMateriel(u){
 
   el.querySelector("#csvM").onclick = () => {
     versCSV("riseva-dons-materiel.csv",
-      ["Date", "Nature", "Quantité", "Unité", "Association", "Ville", "Site", "Salarié",
-       "Valeur nette comptable", "Confirmé par l'association"],
-      r.lignes.map(x => [x.date, x.nature, x.quantite, x.unite, x.association, x.ville,
-        x.etablissement, x.salarie, x.valeurNette ?? "", x.confirme ? "oui" : "non"]));
+      ["Date de sortie", "Nature", "Référence d'actif", "Quantité", "Unité",
+       "Société donatrice", "SIREN", "Site", "Association", "Ville",
+       "Éligibilité déclarée par l'association", "Catégorie comptable",
+       "Valeur déclarée par l'entreprise", "Justificatif de valorisation",
+       "Données effacées", "Réception confirmée", "Reçu fiscal"],
+      r.lignes.map(x => [x.sortieLe || x.date, x.nature, x.reference || "", x.quantite, x.unite,
+        x.societe, x.siren, x.etablissement, x.association, x.ville,
+        x.eligible ? "oui" : "non",
+        (DB.CATEGORIES_MATERIEL.find(c => c.cle === x.categorie) || {}).label || "",
+        x.valeurNette ?? "", x.justificatif || "",
+        x.effacementDonnees === null ? "" : (x.effacementDonnees ? "oui" : "non"),
+        x.confirme ? "oui" : "non", x.recu ? "émis" : "attendu"]));
     toast("Export téléchargé.");
   };
   return el;
@@ -5346,24 +5545,61 @@ function vueMateriel(u){
 function formValeurMateriel(x){
   const corps = h(`<div class="stack" style="--gap:var(--s4)">
     <p class="muted" style="font-size:var(--t-sm)">
-      La valeur retenue est la <strong style="color:var(--ink)">valeur nette comptable</strong> :
-      ce que le bien vaut encore dans vos comptes, après amortissement. Pas le prix d'achat,
-      pas le prix neuf. Si vous ne la connaissez pas, laissez vide : le registre écrira
+      La méthode de valorisation dépend de la nature comptable du bien, et
+      <strong style="color:var(--ink)">elle relève de votre responsabilité</strong>. Riseva
+      enregistre ce que vous déclarez et rappelle la méthode qui s'applique — elle n'en choisit
+      aucune à votre place. Si vous ne savez pas, laissez vide : le registre écrira
       « à valoriser » plutôt qu'un chiffre inventé.
     </p>
     <div class="field"><label for="vm-nat">Nature du bien</label>
       <input class="input" id="vm-nat" value="${esc(x.nature)}"></div>
-    <div class="field"><label for="vm-val">Valeur nette comptable, en euros</label>
-      <input class="input" id="vm-val" type="number" min="0" step="0.01"
-        value="${x.valeurNette ?? ""}"></div>
+    <div class="field"><label for="vm-cat">Catégorie comptable</label>
+      <select class="select" id="vm-cat">
+        <option value="">Non précisée</option>
+        ${DB.CATEGORIES_MATERIEL.map(c => `<option value="${c.cle}" ${c.cle === x.categorie ? "selected" : ""}>${esc(c.label)}</option>`).join("")}
+      </select>
+      <p class="hint" id="vm-meth">${esc((DB.CATEGORIES_MATERIEL.find(c => c.cle === x.categorie) || {}).methode
+        || "Choisissez la catégorie pour voir la méthode applicable.")}</p></div>
+    <div class="row" style="gap:var(--s4)">
+      <div class="field" style="flex:1"><label for="vm-val">Valeur déclarée, en euros</label>
+        <input class="input" id="vm-val" type="number" min="0" step="0.01" value="${x.valeurNette ?? ""}"></div>
+      <div class="field" style="flex:1"><label for="vm-date">Date de sortie du bien</label>
+        <input class="input" id="vm-date" type="date" value="${esc(x.sortieLe || "")}"></div>
+    </div>
+    <div class="row" style="gap:var(--s4)">
+      <div class="field" style="flex:1"><label for="vm-ref">Référence d'actif ou de lot</label>
+        <input class="input" id="vm-ref" value="${esc(x.reference || "")}"
+          placeholder="IMMO-2023-0412"></div>
+      <div class="field" style="flex:1"><label for="vm-just">Justificatif de valorisation</label>
+        <input class="input" id="vm-just" value="${esc(x.justificatif || "")}"
+          placeholder="Fiche de sortie signée"></div>
+    </div>
+    <label class="checkline">
+      <input type="checkbox" id="vm-eff" ${x.effacementDonnees ? "checked" : ""}>
+      <span>Les données ont été effacées avant remise.
+        <span class="muted">Pour du matériel informatique, c'est la pièce que réclame votre
+        DPO autant que votre comptable.</span></span>
+    </label>
   </div>`);
+  const maj = () => {
+    const c = DB.CATEGORIES_MATERIEL.find(y => y.cle === corps.querySelector("#vm-cat").value);
+    corps.querySelector("#vm-meth").textContent = c ? c.methode
+      : "Choisissez la catégorie pour voir la méthode applicable.";
+  };
+  corps.querySelector("#vm-cat").addEventListener("change", maj);
   modal("Valoriser un don de matériel", corps, [
     { texte: "Annuler", classe: "btn--ghost" },
     { texte: "Enregistrer", classe: "btn--primary", action: () => {
         try {
-          DB.declarerValeurMateriel(x.mission,
-            corps.querySelector("#vm-val").value,
-            corps.querySelector("#vm-nat").value);
+          DB.declarerValeurMateriel(x.mission, {
+            valeur: corps.querySelector("#vm-val").value,
+            categorie: corps.querySelector("#vm-cat").value || null,
+            nature: corps.querySelector("#vm-nat").value,
+            reference: corps.querySelector("#vm-ref").value,
+            sortieLe: corps.querySelector("#vm-date").value || null,
+            justificatif: corps.querySelector("#vm-just").value,
+            effacement: corps.querySelector("#vm-eff").checked
+          });
           toast("Registre mis à jour."); rendre();
         } catch (e){ toast(e.message); }
       } }
@@ -5395,8 +5631,11 @@ function vueDossier(u){
   const camps = DB.campagnes(gid || undefined)
     .filter(c => c.etat === "close").sort((a, b) => b.debut.localeCompare(a.debut));
   const camp = camps[0] || null;
+  /* Une réponse à un client ne prend que de l'approuvé. Un chiffre soumis mais
+     non relu n'a rien à faire dans un document qui sort de l'entreprise. */
   const ind = camp ? DB.indicateursDe({ campagne: camp.id,
-    groupe: gid || undefined, societe: gid ? undefined : u.org }) : null;
+    groupe: gid || undefined, societe: gid ? undefined : u.org,
+    approuvesSeulement: true }) : null;
   const vi = (cle) => ind && ind.somme[cle] !== undefined ? ind.somme[cle] : null;
   const vc = (cle) => ind && ind.calcules[cle] !== null && ind.calcules[cle] !== undefined
     ? ind.calcules[cle] : null;
@@ -5424,7 +5663,8 @@ function vueDossier(u){
     ]],
     ["Égalité et inclusion", [
       ["Part des femmes dans l'effectif", vc("part_femmes") !== null ? nb2(vc("part_femmes")) + " %" : null, SITE],
-      ["Taux d'emploi direct de travailleurs handicapés", vc("taux_boeth") !== null ? nb2(vc("taux_boeth")) + " %" : null, SITE],
+      ["Bénéficiaires de l'obligation d'emploi présents sur les sites", vi("boeth") !== null ? nb(vi("boeth")) : null, SITE + " — comptage interne"],
+      ["Taux d'emploi OETH (annuel, par SIREN)", null, null],
       ["Index d'égalité professionnelle", null, null],
       ["Écart de rémunération femmes-hommes", null, null]
     ]],
@@ -5439,7 +5679,7 @@ function vueDossier(u){
       ["dont confirmées par l'association", ms.length ? nb(confirmees) : null, RISEVA],
       ["Heures de bénévolat", heures ? nb(heures) : null, RISEVA],
       ["Dons de matériel", mat.total ? nb(mat.total) : null, RISEVA],
-      ["Valeur nette comptable des dons de matériel", mat.valeur ? eur(mat.valeur) : null, VOUS],
+      ["Valeur des dons de matériel déclarée par l'entreprise", mat.valeur ? eur(mat.valeur) : null, VOUS],
       ["Mécénat de compétences valorisé", v.competencesRetenu ? eur(v.competencesRetenu) : null, "Riseva — au coût déclaré"]
     ]],
     ["Environnement", [
@@ -5468,8 +5708,9 @@ function vueDossier(u){
               "le reste vit ailleurs que dans Riseva", "", "kpi--tete grain")}
         ${kpi("Période des indicateurs", camp ? esc(camp.libelle) : "aucune",
               camp ? "dernière période close" : "aucune campagne close")}
-        ${kpi("Périmètre", ind ? `${ind.sites} / ${ind.attendus} sites` : "—",
-              ind && !ind.complet ? "incomplet, et le document le dit" : "complet")}
+        ${kpi("Périmètre approuvé", ind ? `${ind.sites} / ${ind.attendus} sites` : "—",
+              ind ? `${nb(ind.effectifCouvert)} salariés sur ${nb(ind.effectifTotal)}`
+                  : "aucune période close")}
         ${kpi("Arrêté au", dateCourte(new Date().toISOString()), "à régénérer avant chaque envoi")}
       </div>
     </section>
@@ -5536,13 +5777,13 @@ const ROUTES = {
     parametres:[vueParametres,     "Paramètres"],
     groupe:    [vueGroupe,         "Vue consolidée du groupe"],
     sites:     [vueSites,          "Sites et quotas"],
-    indicateurs:[vueIndicateurs,   "Indicateurs sociaux et sécurité"],
+    indicateurs:[vueIndicateurs,   "Données sociales et sécurité"],
     preferences:[vuePreferences,   "Préférences"]
   },
   site_referent: {
     tableau:   [tableauSite,       "Tableau de bord du site"],
     equipe:    [vueEquipe,         "Mes salariés"],
-    indicateurs:[vueIndicateurs,   "Indicateurs sociaux et sécurité"],
+    indicateurs:[vueIndicateurs,   "Données sociales et sécurité"],
     annonces:  [vueAnnonces,       "Annonces"],
     missions:  [vueMissions,       "Missions du site"],
     annuaire:  [vueAnnuaire,       "Associations"],

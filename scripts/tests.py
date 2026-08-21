@@ -760,15 +760,25 @@ def main():
                 "Lafarge Ciments" in g and "Lafarge Négoce" in g and "Marseille" in g)
         verifie("le consolidé est un rapport de sommes, et le dit",
                 "somme des points ÷ somme des effectifs" in g)
-        verifie("une réduction d'impôt non calculable ne s'invente pas au groupe",
-                "non calculée" in g)
+        verifie("la réduction d'impôt n'est pas un chiffre de groupe",
+                "société par société" in g and "calcul fiscal complet" in g)
+        verifie("le classement entre sites est désactivé par défaut",
+                "Désactivé par défaut" in g and "fabrique un dernier" in g)
+        verifie("un site qui n'a pas commencé n'est pas classé dernier",
+                "En lancement" in g)
+        verifie("le nombre de mobilisés et de missions accompagne le score",
+                "mobilisé" in g and "mission" in g)
+        verifie("ce n'est pas présenté comme une performance RSE des sites",
+                "challenge d'engagement associatif" in g
+                and "aucune incidence sur l'évaluation" in g)
         verifie("le classement entre sites est normalisé par l'effectif",
                 "pts / salarié" in g)
 
         connecte(p, "u2", "#/sites")
         s2 = norm(p.inner_text(".content"))
-        verifie("l'allocation des quotas est bornée par le contrat",
-                "libres" in s2 and "places" in s2)
+        verifie("les compteurs de quota ne sont pas trompeurs",
+                "Capacité achetée" in s2 and "Réparties en quotas" in s2
+                and "Comptes ouverts" in s2 and "Encore activables" in s2)
         verifie("le lien de référent est présenté comme nominatif",
                 "nominatif" in s2)
 
@@ -782,6 +792,25 @@ def main():
                 and not p.eval_on_selector_all(".side__link[href='#/abonnement']", "l=>l.length"))
         verifie("il n'a pas la vue consolidée du groupe",
                 not p.eval_on_selector_all(".side__link[href='#/groupe']", "l=>l.length"))
+
+        # Un lien de site n'établit pas l'appartenance à ce site : une adresse
+        # professionnelle est souvent commune à tout le groupe. Tant que le
+        # rattachement n'est pas confirmé, les points iraient au mauvais endroit.
+        bloque = p.evaluate("""async()=>{const m=await import('/app/data.js');
+            const i=m.DB.creerInvitation('e1', 5, 'et2');
+            const r=m.DB.rejoindre(i.code, 'Test Rattachement', 'test.rattach@lafarge-ciments.fr');
+            let err='';
+            try{ m.DB.engager({annonce:'an1', entreprise:'e1', salarie:r.utilisateur.id, quantite:1}) }
+            catch(e){ err=e.message }
+            const avant=m.DB.affectationsAConfirmer('e1','et2').length;
+            m.DB.confirmerAffectation(r.utilisateur.id,'et2');
+            let ok=true; try{ m.DB.engager({annonce:'an1', entreprise:'e1', salarie:r.utilisateur.id, quantite:1}) }
+            catch(e){ ok=false }
+            return [err, avant, ok]}""")
+        verifie("un compte non rattaché ne peut pas s'engager",
+                "confirmé par votre référent" in bloque[0], bloque[0])
+        verifie("il apparaît dans la liste à confirmer du site", bloque[1] >= 1, str(bloque[1]))
+        verifie("une fois rattaché, il peut s'engager", bloque[2] is True)
 
         # Une mutation ne doit pas déplacer le passé.
         fige = p.evaluate("""async()=>{const m=await import('/app/data.js');
@@ -807,8 +836,16 @@ def main():
         print("\nIndicateurs sociaux et sécurité")
         connecte(p, "u2", "#/indicateurs")
         i = norm(p.inner_text(".content"))
-        verifie("les quatre états de la collecte existent",
-                "Approuvé" in i and "En attente d'approbation" in i and "Clos sans réponse" in i)
+        verifie("les états de la collecte sont nommés sans ambiguïté",
+                "Approuvé" in i and "En attente d'approbation" in i and "Soumis" in i)
+        verifie("la couverture est dite en sites et en effectifs",
+                "salariés sur" in i)
+        verifie("un aperçu non approuvé est annoncé comme provisoire",
+                "Aperçu provisoire" in i and "seule qui entre dans un rapport" in i)
+        verifie("les taux sont annoncés comme internes, pas réglementaires",
+                "Fréquence interne" in i and "accidents en premier règlement" in i)
+        verifie("le taux d'emploi OETH n'est pas calculé au niveau du site",
+                "ne calcule pas le taux d'emploi" in i)
         verifie("les formules sont écrites à côté des taux",
                 "× 1 000 000 ÷ heures travaillées" in i)
         verifie("le consolidé n'est pas une moyenne de taux",
@@ -859,13 +896,17 @@ def main():
         m = norm(p.inner_text(".content"))
         verifie("le registre existe et cite la loi anti-gaspillage",
                 "gaspillage" in m and "ne peuvent plus être éliminés" in m)
-        verifie("la valeur retenue est la valeur nette comptable, pas le prix neuf",
-                "valeur nette comptable" in m and "prix catalogue" in m
-                and "réduction d'impôt indue" in m)
+        verifie("la méthode de valorisation dépend de la catégorie comptable",
+                "Bien inscrit en stock" in m and "Immobilisation" in m
+                and "coût de revient" in m and "plus ou moins-value" in m)
+        verifie("Riseva ne choisit pas la méthode à la place du comptable",
+                "relève de votre responsabilité" in m and "n'en choisit aucune" in m)
+        verifie("l'estimation fiscale n'est pas présentée comme acquise",
+                "Estimation fiscale maximale" in m and "non déclarable à ce stade" in m)
         verifie("un don non valorisé est signalé, pas estimé",
                 "à valoriser" in m)
-        verifie("chaque don porte l'état de sa confirmation",
-                "Confirmation" in m and "En attente de l'association" in m)
+        verifie("chaque don porte l'état de sa réception et de son reçu",
+                "Réception" in m and "Reçu" in m and "En attente de l'association" in m)
 
         print("\nRéponses aux questionnaires clients")
         connecte(p, "u2", "#/dossier")
@@ -891,8 +932,10 @@ def main():
                 "empreinte" in d and "arrêté au" in d)
         verifie("il refuse d'additionner des réductions non plafonnées",
                 "non calculée" in d and "produirait un chiffre faux" in d)
-        verifie("il dit combien de sites n'ont pas répondu",
-                "n'a pas répondu" in d or "n'ont pas répondu" in d)
+        verifie("il dit ce que le périmètre manquant représente en effectifs",
+                "pas de valeur approuvée" in d and "salariés sur" in d)
+        verifie("il ne donne un total fiscal qu'à titre informatif",
+                "n'existe que par société donatrice" in d)
         verifie("il ne se présente pas comme un audit",
                 "n'est pas un rapport d'audit" in d and "non auditées par Riseva" in d)
         verifie("le consolidé est présenté comme un rapport de sommes",
