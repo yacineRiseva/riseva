@@ -43,7 +43,8 @@ export const ICONS = {
   box:       P(`<path d="M21 8.5 12 4 3 8.5v7L12 20l9-4.5v-7Z"/><path d="M3 8.5 12 13l9-4.5M12 13v7"/>`),
   clock:     P(`<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>`),
   cloche:    P(`<path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M13.7 20a2 2 0 0 1-3.4 0"/>`),
-  leaf:      P(`<path d="M20 4C10 4 4 10 4 20c8 0 16-6 16-16Z"/><path d="M4 20C8 16 12 13 17 11"/>`)
+  leaf:      P(`<path d="M20 4C10 4 4 10 4 20c8 0 16-6 16-16Z"/><path d="M4 20C8 16 12 13 17 11"/>`),
+  arrow:     P(`<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>`)
 };
 
 export function toast(message){

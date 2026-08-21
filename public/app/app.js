@@ -317,16 +317,57 @@ function tableauEntreprise(u){
   const seuilTop = dansCat[Math.max(0, Math.ceil(total * 0.1) - 1)]?.parSalarie ?? 0;
   const monParSalarie = moiCl.parSalarie || 0;
 
+  /* Ce qui attend une action passe avant ce qui flatte. Un responsable RSE ouvre cet
+     écran pour savoir quoi faire, pas pour contempler son rang. */
+  const aFaire = [];
+  const aValider = ms.filter(m => m.etat === "a_valider");
+  if (aValider.length) aFaire.push({ texte:
+    `${aValider.length} mission${aValider.length > 1 ? "s" : ""} en attente de confirmation par l'association`,
+    vers:"#/missions", ton:"info" });
+  const aDeclarer = ms.filter(m => m.etat === "engagee" && m.date < "2026-08-20");
+  if (aDeclarer.length) aFaire.push({ texte:
+    `${aDeclarer.length} mission${aDeclarer.length > 1 ? "s" : ""} passée${aDeclarer.length > 1 ? "s" : ""} que personne n'a déclarée${aDeclarer.length > 1 ? "s" : ""}`,
+    vers:"#/missions", ton:"alerte" });
+  if (!e.cout_jour_moyen || !e.siret) aFaire.push({ texte:
+    "Des paramètres manquent pour valoriser votre mécénat", vers:"#/parametres", ton:"alerte" });
+  const fact = DB.etatFacturation(eid);
+  if (fact.enRetard.length) aFaire.push({ texte:
+    `${fact.enRetard.length} facture${fact.enRetard.length > 1 ? "s" : ""} en retard`,
+    vers:"#/abonnement", ton:"alerte" });
+  if (DB.administrateurs(eid).length < 2) aFaire.push({ texte:
+    "Un seul administrateur : nommez-en un second", vers:"#/equipe", ton:"info" });
+  if (!DB.domaines(eid).length) aFaire.push({ texte:
+    "Aucun domaine de messagerie déclaré : le lien accepte n'importe qui", vers:"#/equipe", ton:"alerte" });
+
+  const coutParAction = validees.length && fact.contrat
+    ? Math.round(fact.contrat.montant_ht / validees.length) : null;
+  const heuresTT = validees.reduce((n, m) => {
+    const a = DB.annonceDe(m);
+    return n + (a && a.temps_travail && a.type === "benevolat_demi_journee" ? m.quantite * 4 : 0);
+  }, 0);
+
   const el = h(`<div class="stack" style="--gap:var(--s5)">
+    ${aFaire.length ? `<section class="card">
+      <div class="between" style="margin-bottom:var(--s5)">
+        <h3>Ce qui vous attend</h3>
+        <span class="badge ${aFaire.some(x => x.ton === "alerte") ? "badge--warn" : ""}">${aFaire.length}</span>
+      </div>
+      <div class="stack" style="--gap:var(--s2)">
+        ${aFaire.map(x => `<a class="rappel" href="${x.vers}">
+          <span class="notif__point notif__point--${x.ton}"></span>
+          <span>${esc(x.texte)}</span>
+          <span class="rappel__go">${ICONS.arrow || "→"}</span></a>`).join("")}
+      </div>
+    </section>` : ""}
+
     <div class="kpis">
-      ${kpi("Points retenus au classement", nb(pts.retenu), pts.ecrete
-            ? `sur ${nb(pts.brut)} réalisés, ${nb(pts.ecrete)} écrêtés`
-            : "+2 480 cette semaine", pts.ecrete ? "" : "up", "kpi--tete grain")}
-      ${kpi("Rang", rangFR(rang),
-            "sur " + total + " · " + (moiCl.categorie ? moiCl.categorie.label.toLowerCase() : ""))}
+      ${kpi("Salariés qui ont agi", engages + " / " + salaries.length,
+            Math.round((engages / Math.max(salaries.length, 1)) * 100) + " % des comptes actifs",
+            "", "kpi--tete grain")}
       ${kpi("Missions validées", nb(validees.length), enCours.length + " en cours")}
-      ${kpi("Salariés engagés", engages + " / " + salaries.length,
-            Math.round((engages / Math.max(salaries.length,1)) * 100) + " % de l'effectif actif")}
+      ${kpi("Heures sur le temps de travail", nb(heuresTT), "valorisables en mécénat")}
+      ${kpi("Coût par mission validée", coutParAction ? eur(coutParAction) : "—",
+            coutParAction ? "abonnement rapporté aux missions" : "aucune mission validée")}
     </div>
 
     <div class="two">
@@ -337,6 +378,9 @@ function tableauEntreprise(u){
           <span class="badge badge--ok"><span class="dot"></span>En progression</span>
         </div>
         ${riviere(DB.semaines(), { hauteur: 150, legendes: ["il y a 12 semaines", "aujourd\u2019hui"] })}
+        <p class="hint">Points bruts cumulés semaine après semaine. Le plafond par format
+          s'applique au total de la saison, pas semaine par semaine : c'est le tableau
+          ci-dessous qui montre ce qui est retenu.</p>
         <hr class="sep">
         <div class="three">
           ${Object.entries(BAREME).map(([k, b]) => {

@@ -172,3 +172,11 @@
     display:block;margin-top:22px;padding-top:10px;border-top:1px solid #E5E2D9;
     font-size:8.5pt;color:#8A8F82}
 }
+
+/* Rappels d'action, en tête du tableau de bord. */
+.rappel{display:flex;align-items:center;gap:var(--s3);padding:var(--s3) var(--s4);
+  border-radius:var(--r-sm);font-size:var(--t-sm);color:var(--ink-600);
+  transition:background var(--dur) var(--ease)}
+.rappel:hover{background:var(--paper-sunk);color:var(--ink)}
+.rappel>span:nth-child(2){flex:1}
+.rappel__go{color:var(--ink-300);font-size:var(--t-lg);line-height:1}
