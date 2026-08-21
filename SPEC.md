@@ -233,6 +233,26 @@ Chaque passage est consigné avec sa date, son nombre de lignes touchées et sa 
 l'administration Riseva le consulte. Une automatisation qu'on ne peut pas auditer inquiète plus
 qu'elle ne rassure.
 
+## 5 septies. Ce que l'employeur ne doit pas pouvoir déduire
+
+La cause d'une association peut révéler une conviction religieuse, une opinion politique, un état
+de santé ou une appartenance syndicale : des catégories particulières au sens du RGPD. Rattacher
+un don personnel à un nom dans les écrans de l'employeur revient à lui livrer cette déduction.
+
+- Un don personnel n'est **jamais nominatif** côté employeur : ni le nom, ni le montant, ni
+  l'association.
+- Les points affichés dans l'espace Équipe sont ceux **des missions uniquement**.
+- Un agrégat de dons ne s'affiche qu'à partir de **cinq donateurs**. En dessous, rien : un total
+  et un effectif suffisent à remonter aux personnes.
+- Le classement interne à l'entreprise ne sort jamais de l'entreprise. Vers l'extérieur, seul le
+  total collectif est publié.
+- Le salarié, lui, voit tout ce qui le concerne dans son espace.
+
+**Base légale : l'intérêt légitime, pas le consentement.** La relation employeur-salarié est
+structurellement déséquilibrée, et un consentement qu'on ne peut pas refuser librement n'en est
+pas un. L'accord demandé mission par mission pour les missions sur le temps de travail répond à
+une exigence du code du travail, pas à l'article 6 du RGPD.
+
 ## 6 bis. Le mécénat, et ce qu'il rapporte au client
 
 C'est l'argument économique du produit, et il doit être exact.

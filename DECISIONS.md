@@ -44,6 +44,19 @@ pas les conversations. Toute nouvelle décision s'ajoute en haut de la section c
 | 30/07/2026 | Demande d'accès partenaire à l'API HelloAsso déposée. **Statut : sans réponse.** Aucun SIREN à cette date. | — |
 | 30/07/2026 | L'argent des dons ne transite jamais par Riseva. | — |
 
+## Confiance, preuve et ergonomie
+
+| Date | Décision | Remplace |
+|---|---|---|
+| 21/08/2026 | Signalement de contenu sur chaque annonce, écran de modération, décision motivée obligatoire. | Rien. Riseva héberge des contenus de tiers : l'article 16 du règlement sur les services numériques s'applique quelle que soit sa taille. |
+| 21/08/2026 | Un don personnel n'est jamais nominatif côté employeur, les points affichés sont ceux des missions, les agrégats de dons demandent cinq donateurs. | Un affichage qui laissait déduire la cause soutenue par un salarié, donc parfois sa conviction ou son état de santé. |
+| 21/08/2026 | Base légale : intérêt légitime, pas consentement. L'accord mission par mission répond au code du travail. | Un consentement invoqué dans une relation employeur-salarié structurellement déséquilibrée. |
+| 21/08/2026 | Suspendre l'accès et retirer définitivement deviennent deux actions distinctes. | Une seule action irréversible pour deux besoins différents. |
+| 21/08/2026 | La jauge brut / écrêté / retenu remplace la courbe décorative comme signature graphique. | Deux courbes sans échelle ni légende, qui ne permettaient ni audit ni décision. |
+| 21/08/2026 | Un seul taux de participation dans tout le produit, celui du protocole de mesure. | Trois définitions concurrentes sur trois écrans. |
+| 21/08/2026 | Dossier de preuve exportable, chaque chiffre avec sa méthode. | Un rapport qui affirmait sans montrer d'où venaient les chiffres. |
+| 21/08/2026 | Prix, acompte et durée d'engagement à taille normale sous le bouton d'accueil. | Une note en petit sous la ligne de flottaison. |
+
 ## Automatisation et décompte
 
 | Date | Décision | Remplace |
