@@ -309,14 +309,15 @@ def faq(items):
 
 NAV_ENT = nav(
     [("saison", "La saison"), ("formats", "Se rendre utile"), ("kit", "Clé en main"),
-     ("retombees", "Les retombées"), ("contexte", "Le contexte"), ("faq", "La FAQ")],
+     ("groupe", "Pour un groupe"), ("services", "Services RSE"), ("faq", "La FAQ")],
     "Réserver une place", "/inscription.html", "Une personne vous répond, pas un robot")
 
 PIED_ENT = pied(
     "Riseva met des entreprises françaises au service des associations qui protègent "
     "le vivant, partout en France. Une saison, un barème public, un rapport qui tient debout.",
     [("La saison", [("#saison", "Les quatre moments"), ("#formats", "Se rendre utile"),
-                    ("#kit", "Clé en main"), ("#retombees", "Les retombées")]),
+                    ("#kit", "Clé en main"), ("#groupe", "Pour un groupe"),
+                    ("#services", "Services RSE"), ("#retombees", "Les retombées")]),
      ("Les règles", [("/reglement.html", "Le règlement du barème"),
                      ("/engagements.html", "Engagements de service"),
                      ("/securite.html", "Sécurité"),
@@ -506,6 +507,100 @@ KIT_ENT = f"""<section id="kit">
         "Construire un calendrier d'animation",
         "Produire des affiches et des messages",
         "Tenir un fichier de suivi"])}
+  </div>
+</section>"""
+
+
+GROUPE_ENT = f"""<section id="groupe" class="band-moss">
+  <div class="layer">
+{entete("Pour un groupe", "Un abonnement,<br><span class='it'>plusieurs sites.</span>",
+        "La maison mère paie, chaque site joue sa propre partie. Et surtout : "
+        "<strong>le classement entre vos sites fonctionne dès le premier jour</strong>, sans "
+        "attendre que d'autres entreprises nous rejoignent.")}
+{formats([
+  ("Le périmètre", "Trois niveaux, parce que le droit en compte <span class='n'>trois</span>.",
+   "Un groupe contient des <b>sociétés</b> — chacune son SIREN, son contrat, son plafond de "
+   "mécénat, ses salariés — et chaque société contient des <b>établissements</b> : un lieu, un "
+   "effectif, un quota de comptes, un score. Écraser les trois en une simple étiquette « site » "
+   "produirait un calcul fiscal faux et ferait circuler des données nominatives entre deux "
+   "responsables de traitement distincts. Nous ne le faisons pas."),
+  ("La distribution", "Deux liens, jamais <span class='n'>un seul</span>.",
+   "Le groupe alloue un quota de comptes à un site et envoie un lien <b>nominatif</b> à la "
+   "personne qui pilotera ce site. C'est elle, ensuite, qui invite ses salariés — dans la limite "
+   "de son quota, et sans jamais pouvoir dépasser. Deux niveaux, deux journaux : on sait toujours "
+   "qui a autorisé quoi."),
+  ("Le cloisonnement", "Payer la facture ne donne pas accès aux <span class='n'>personnes</span>.",
+   "Le référent de Marseille voit Marseille. La direction du groupe voit des agrégats par société "
+   "et par site — jamais l'identité d'un salarié d'une filiale dont elle n'est pas l'employeur. "
+   "Ce n'est pas un filtre d'affichage : c'est une frontière écrite dans la base, et vérifiée à "
+   "chaque mise en production."),
+  ("La comparaison", "Marseille contre Lyon, <span class='n'>normalisé</span> par l'effectif.",
+   "Un classement entre entreprises n'ouvre qu'à dix participantes dans une catégorie, et nous ne "
+   "garantissons aucune date. Entre vos sites, il fonctionne tout de suite — et il parle à des "
+   "gens qui se connaissent. Rapporté à l'effectif de chaque site, sinon le siège de quatre cents "
+   "personnes écrase l'agence de douze."),
+])}
+    <p class="s-note rv" style="margin-top:clamp(28px,3.4vw,44px)">
+      <strong>L'offre groupe est sur devis</strong>, parce qu'elle dépend du nombre de sociétés,
+      de sites et de comptes. Une facture au payeur, ou une facture par société : les deux
+      existent, et une clé de répartition analytique s'exporte pour l'imputation interne.
+    </p>
+  </div>
+</section>"""
+
+
+SERVICES_ENT = f"""<section id="services">
+  <div class="layer">
+{entete("Les services RSE", "La collecte,<br><span class='it'>pas le calcul.</span>",
+        "Ce qui coûte cher à une entreprise multi-sites, ce n'est jamais le calcul : c'est de "
+        "relancer quatorze sites par courriel pour obtenir un tableur mal rempli. Riseva sait "
+        "déjà demander une réponse courte, rappeler, et clore honnêtement quand personne ne "
+        "répond. <strong>C'est le même mécanisme que pour les missions.</strong>")}
+{retombees([
+  ("Indicateurs sociaux et <span class='it'>sécurité.</span>",
+   "Douze valeurs saisies par établissement — effectif, entrées, sorties, heures travaillées, "
+   "accidents avec et sans arrêt, journées perdues, formation, répartition femmes-hommes, "
+   "bénéficiaires de l'obligation d'emploi — et sept indicateurs calculés, avec leur formule "
+   "écrite à côté du chiffre. Le contributeur saisit, l'approbateur verrouille : celui qui "
+   "saisit ne peut pas approuver sa propre saisie.",
+   "0 tableur",
+   "Les sites répondent par un lien, sans se connecter. Une période sans réponse est close comme telle, jamais comblée avec la précédente."),
+  ("Registre des dons de matériel, au titre de la loi <span class='it'>anti-gaspillage.</span>",
+   "Les invendus et équipements non alimentaires ne peuvent plus être éliminés : ils doivent être "
+   "réemployés, réutilisés ou recyclés, et le don à une association est la voie prévue par le "
+   "texte. Riseva en garde la trace : quoi, combien, à qui, quand, avec la déclaration de "
+   "réception de l'association.",
+   "VNC",
+   "Un don en nature se valorise à sa valeur nette comptable, jamais au prix neuf. Ce que vous ne déclarez pas reste vide : nous n'inventons pas de valeur."),
+  ("Un rapport consolidé qui dit ce qu'il ne <span class='it'>sait pas.</span>",
+   "Missions par site, mécénat société par société, indicateurs sociaux, qui a déclaré quoi et "
+   "qui l'a approuvé. Le périmètre est écrit en haut : combien de sites ont répondu, et lesquels "
+   "n'ont rien dit. Une empreinte permet de rapprocher deux éditions successives.",
+   None, None),
+])}
+
+    <div class="roles" style="margin-top:clamp(34px,4.4vw,56px)">
+      <div class="role role-do rv">
+        <h3>Ce que Riseva <span class="it">fait</span></h3>
+        <ul>
+          <li><i></i>Collecter, relancer, et clore honnêtement</li>
+          <li><i></i>Calculer selon des formules publiées et vérifiables</li>
+          <li><i></i>Garder qui a saisi, qui a approuvé, et quand</li>
+          <li><i></i>Produire le fichier, l'export, le rapport daté</li>
+        </ul>
+      </div>
+      <div class="role role-dont rv d2">
+        <h3>Ce que Riseva ne fait <span class="it">pas</span></h3>
+        <ul>
+          <li><i></i>Auditer ou certifier quoi que ce soit</li>
+          <li><i></i>Produire un bilan carbone : c'est un métier normé</li>
+          <li><i></i>Donner une note RSE : on serait juge et partie</li>
+          <li><i></i>Déclarer à votre place : vous déposez, pas nous</li>
+          <li><i></i>Classer vos sites sur les accidents : ça pousse à sous-déclarer</li>
+          <li><i></i>Collecter la moindre donnée de santé nominative</li>
+        </ul>
+      </div>
+    </div>
   </div>
 </section>"""
 
@@ -755,7 +850,7 @@ CORPS_ENT = "\n\n".join([
     HERO_ENT,
     ticker(["Refuges animaliers", "Reboisement", "Rivières et zones humides",
             "Océans et littoral", "Protection des espèces", "Collectes solidaires"]),
-    SAISON_ENT, FORMATS_ENT, KIT_ENT, RETOMBEES_ENT, CONTEXTE_ENT,
+    SAISON_ENT, FORMATS_ENT, KIT_ENT, GROUPE_ENT, SERVICES_ENT, RETOMBEES_ENT, CONTEXTE_ENT,
     PREUVE_ENT, CONFLUENT_ENT, REJOINDRE_ENT, FAQ_ENT,
 ])
 

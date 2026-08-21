@@ -106,6 +106,16 @@ def main():
                 "illustration" in corps.lower())
         verifie("le seuil du classement est dit sur la vitrine",
                 "dix entreprises" in corps)
+        verifie("l'offre groupe est présentée avec ses trois niveaux",
+                "Trois niveaux" in corps and "SIREN" in corps and "établissements" in corps)
+        verifie("le cloisonnement du groupe est annoncé, pas suggéré",
+                "ne donne pas accès aux" in corps.lower()
+                or "Payer la facture" in corps)
+        verifie("les services RSE disent ce qu'ils ne font pas",
+                "bilan carbone" in corps and "juge et partie" in corps
+                and "sous-déclarer" in corps)
+        verifie("le prix de l'offre groupe n'est pas inventé",
+                "sur devis" in corps)
         verifie("aucune promesse de tarif figé",
                 "tarif restera" not in p.inner_text("body").lower())
         for page in ["inscription.html", "associations.html", "asso.html?id=a1",
