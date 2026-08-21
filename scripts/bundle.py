@@ -34,7 +34,7 @@ site = (R/"index.html").read_text(encoding="utf-8")
 site = site.replace('  import { DB } from "/app/data.js";\n  import { nb } from "/app/ui.js";',
                     "\n".join(strip_modules((R/"app"/f).read_text(encoding="utf-8"))
                               for f in ["data.js","ui.js"]))
-site = inline(site, ["tokens.css","base.css","components.css","marketing.css"])
+site = inline(site, ["polices.css","tokens.css","base.css","components.css","marketing.css"])
 (OUT/"riseva-site.html").write_text(site, encoding="utf-8")
 
 # ---- application ------------------------------------------------------
@@ -44,7 +44,7 @@ app = (R/"app"/"index.html").read_text(encoding="utf-8")
 app = re.sub(r'\s*<script src="/app/config.js"[^>]*></script>', "", app)
 app = app.replace('<script type="module" src="/app/app.js"></script>',
                   f"<script type=\"module\">\n{bundle}\n</script>")
-app = inline(app, ["tokens.css","base.css","components.css","app.css"])
+app = inline(app, ["polices.css","tokens.css","base.css","components.css","app.css"])
 (OUT/"riseva-app.html").write_text(app, encoding="utf-8")
 
 # ---- page publique de rejointe ----------------------------------------
@@ -57,7 +57,7 @@ rej = rej.replace('<script type="module">',
                   '<script type="module">\n' + "\n".join(
                       strip_modules((R/"app"/f).read_text(encoding="utf-8"))
                       for f in ["data.js","ui.js"]))
-rej = inline(rej, ["tokens.css","base.css","components.css","app.css"])
+rej = inline(rej, ["polices.css","tokens.css","base.css","components.css","app.css"])
 (OUT/"riseva-rejoindre.html").write_text(rej, encoding="utf-8")
 
 for f in OUT.iterdir():
