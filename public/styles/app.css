@@ -188,8 +188,10 @@
 .jauge__barre{display:flex;height:18px;border-radius:var(--r-pill);overflow:hidden;
   background:var(--paper-sunk)}
 .jauge__retenu{background:var(--forest-700)}
+/* Les hachures attiraient plus l'œil que le segment retenu : la part perdue
+   n'a pas à être la plus visible du dessin. */
 .jauge__ecrete{background:repeating-linear-gradient(135deg,
-  var(--ink-200) 0 5px, var(--paper-sunk) 5px 10px)}
+  var(--ink-100) 0 5px, var(--paper-sunk) 5px 10px)}
 .jauge__legende{display:flex;flex-wrap:wrap;gap:var(--s5);margin-top:var(--s4);
   font-size:var(--t-sm);color:var(--ink-500);font-variant-numeric:tabular-nums}
 .jauge__legende strong{color:var(--ink)}
@@ -213,13 +215,15 @@
              border-color var(--dur) var(--ease)}
 .annonce:hover{box-shadow:var(--sh-2);transform:translateY(-1px);border-color:rgba(19,21,16,.12)}
 .annonce__haut{position:relative}
-.annonce__pts{position:absolute;right:var(--s4);bottom:var(--s4);
-  display:flex;flex-direction:column;align-items:flex-end;gap:1px;
+/* Le cartouche annonce un barème, pas un gain exceptionnel : il se lit sans
+   dominer la vignette. Une ligne, un quart de surface en moins. */
+.annonce__pts{position:absolute;right:var(--s3);bottom:var(--s3);
+  display:flex;align-items:baseline;gap:5px;
   background:var(--lime);color:var(--ink);border-radius:var(--r-sm);
-  padding:6px 12px 7px;box-shadow:var(--sh-2)}
-.annonce__ptsN{font-family:var(--font-display);font-size:1.45rem;font-weight:600;
+  padding:4px 9px 5px;box-shadow:var(--sh-1)}
+.annonce__ptsN{font-family:var(--font-display);font-size:1.05rem;font-weight:600;
   line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
-.annonce__ptsL{font-size:var(--t-xs);font-weight:600;line-height:1;opacity:.72}
+.annonce__ptsL{font-size:var(--t-xs);font-weight:600;line-height:1;opacity:.78}
 .annonce__asso{position:absolute;left:var(--s4);top:var(--s4);display:flex;align-items:center;
   gap:8px;background:rgba(11,38,32,.72);backdrop-filter:blur(6px);border-radius:var(--r-pill);
   padding:5px 12px 5px 6px;color:var(--paper);font-size:var(--t-sm);font-weight:550}

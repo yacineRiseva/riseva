@@ -449,7 +449,7 @@ function tableauEntreprise(u){
             <span>${esc(p.impacts[0].quantite > 1 ? p.impacts[0].pl : p.impacts[0].un)}</span>
             <b class="tnum">${nb(p.impacts[0].quantite)}</b></div>` : ""}
           <a class="btn btn--ghost btn--sm" style="margin-top:auto"
-             href="/asso.html?id=${p.asso.id}" target="_blank">Sa page</a>
+             href="/asso.html?id=${p.asso.id}" target="_blank">Voir la fiche</a>
         </article>`).join("")}
       </div>
     </section>` : ""}
@@ -473,7 +473,7 @@ function tableauEntreprise(u){
         <div class="between" style="margin-bottom:var(--s6)">
           <div><h3>Vos ${nb(pts.brut)} points, après application du plafond</h3>
           <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
-            Aucun format ne peut peser plus de la moitié du total retenu</p></div>
+            Chaque format peut représenter au maximum ${Math.round(PLAFOND_PAR_FORMAT * 100)} % du score retenu</p></div>
           <a class="btn btn--quiet btn--sm" href="/reglement.html" target="_blank">Le règlement</a>
         </div>
         <div id="jauge"></div>
@@ -723,8 +723,8 @@ function listeAnnonces(annonces, u){
           ${/* Le libellé sort du barème : « points par demi-journée » collé sur un don
                 de matériel annonçait une unité qui n'existe pas pour ce format. */""}
           <span class="annonce__ptsL">${a.type === "don_financier"
-            ? "pt par tranche<br>de 10 €"
-            : `point${b.points > 1 ? "s" : ""} par<br>${esc(b.unite)}`}</span>
+            ? "pts / 10 €"
+            : `pts / ${esc(b.unite)}`}</span>
         </span>
       </div>
       <div class="annonce__corps">
@@ -1003,7 +1003,11 @@ function vueAnnuaire(u){
       box.appendChild(vide({ titre:"Aucune association", texte:"Aucune ne correspond à cette recherche." }));
       return;
     }
-    l.forEach(a => {
+    /* Les trois plus proches sont déjà en haut de page, dans leur panneau. Les
+       réafficher immédiatement dessous, mêmes noms et mêmes distances, donnait
+       une page qui bégaie. La grille commence donc après elles. */
+    const dejaVues = new Set(situe && !q && !cause ? assos.slice(0, 3).map(x => x.id) : []);
+    l.filter(a => !dejaVues.has(a.id)).forEach(a => {
       const n = nbAnn(a);
       const c = h(`<article class="card card--hover stack" style="--gap:var(--s3)">
         <div class="row" style="gap:var(--s3);flex-wrap:wrap">
@@ -1016,17 +1020,27 @@ function vueAnnuaire(u){
         <div class="between" style="margin-top:auto;padding-top:var(--s4);border-top:var(--line-soft)">
           <span class="muted" style="font-size:var(--t-sm)">${n} besoin${n > 1 ? "s" : ""} ouvert${n > 1 ? "s" : ""}</span>
           <span class="row" style="gap:var(--s2)">
-            <a class="btn btn--quiet btn--sm" href="/asso.html?id=${a.id}" target="_blank">Sa page</a>
-            <button class="btn btn--ghost btn--sm">Ses annonces</button>
+            <button class="btn btn--ghost btn--sm">Voir les annonces</button>
           </span>
         </div>
       </article>`);
-      c.querySelector("button").onclick = () => {
+      /* La carte entière mène à la fiche, le bouton mène aux annonces. Deux
+         appels concurrents répétés douze fois obligeaient à choisir avant même
+         d'avoir lu le résumé. */
+      c.style.cursor = "pointer";
+      c.onclick = (ev) => {
+        if (ev.target.closest("button")) return;
+        window.open(`/asso.html?id=${a.id}`, "_blank");
+      };
+      c.querySelector("button").onclick = (ev) => {
+        ev.stopPropagation();
         location.hash = "#/annonces";
         setTimeout(() => {
+          const zone = document.querySelector("#filtresPlus");
+          if (zone && zone.style.display === "none") document.querySelector("#plus")?.click();
           const sel = document.querySelector("#asso");
           if (sel){ sel.value = a.id; sel.dispatchEvent(new Event("change")); }
-        }, 120);
+        }, 140);
       };
       box.appendChild(c);
     });
@@ -1136,7 +1150,7 @@ function vueClassement(u){
     <div class="two">
       <section class="card">
         <div class="between" style="margin-bottom:var(--s5)">
-          <div><h3>Classement de la saison</h3>
+          <div><h3 id="titreClassement">Classement de la saison</h3>
           <p class="muted" style="font-size:var(--t-sm);margin-top:4px" id="sousTitre"></p></div>
           <span class="badge" id="etatCohorte">Semaine 34</span>
         </div>
@@ -1191,7 +1205,10 @@ function vueClassement(u){
        seule chose : qu'il est dernier. On montre son score, et l'avancement de
        la cohorte — le seul objectif qui existe vraiment à ce stade. */
     if (!decile){
-      el.querySelector("#etatCohorte").textContent = "Cohorte en constitution";
+      /* Un titre « Classement de la saison » qui ouvre une page sans classement
+         est une promesse non tenue, et c'est la première chose qu'on lit. */
+      el.querySelector("#titreClassement").textContent = "Votre score de saison";
+      el.querySelector("#etatCohorte").textContent = "Classement à venir";
       el.querySelector("#etatCohorte").className = "badge badge--warn";
       tete.style.display = "none";
       const mien = cl.find(e => e.id === u.org);
@@ -1212,14 +1229,14 @@ function vueClassement(u){
             <b class="tnum">${cl.length} / 10</b>
           </div>
           <div class="bar"><i style="width:${Math.min(100, (cl.length / 10) * 100)}%"></i></div>
-          <p class="hint">${cl.length} entreprise${cl.length > 1 ? "s" : ""} dans cette catégorie.
-            Le classement ouvrira quand la comparaison sera significative : à dix, un rang
-            veut dire quelque chose, à deux il ne dit que l'ordre d'arrivée.</p>
+          <p class="hint">${cl.length} entreprise${cl.length > 1 ? "s" : ""} sur les dix
+            nécessaires. Le classement sera publié lorsque la cohorte atteindra ce seuil.</p>
         </div>
       </div>`));
       return;
     }
     tete.style.display = "";
+    el.querySelector("#titreClassement").textContent = "Classement de la saison";
     el.querySelector("#etatCohorte").textContent = "Cohorte constituée";
     el.querySelector("#etatCohorte").className = "badge badge--ok";
     if (!cl.length){ tb.appendChild(h(`<tr><td colspan="4" class="empty">Aucune entreprise dans cette catégorie.</td></tr>`)); return; }
@@ -3966,11 +3983,10 @@ function vueEnsemble(u){
     </section>
 
     <section class="card stack" style="--gap:var(--s5)">
-      <div class="between">
-        <h3>Ce que les associations ont confirmé</h3>
-        ${r.realisations.sansReponse ? `<span class="badge badge--warn">${nb(r.realisations.sansReponse)}
-          mission${r.realisations.sansReponse > 1 ? "s" : ""} sans réponse</span>` : ""}
-      </div>
+      ${/* Un badge « 25 missions sans réponse » posé sur le titre « ce que les
+            associations ont confirmé » se contredit au premier regard. Il
+            appartient au bloc des estimations, pas à celui des confirmations. */""}
+      <h3>Ce que les associations ont confirmé</h3>
       <div class="ensemble__unites">
         ${tete.map(x => `<div class="ensemble__u">
           <span class="ensemble__uq tnum">${nb(x.quantite)}</span>
@@ -3995,8 +4011,11 @@ function vueEnsemble(u){
         <span class="ensemble__estimeL">${Object.entries(r.realisations.estimeParUnite)
           .sort((a, b) => b[1] - a[1]).slice(0, 4)
           .map(([k, v]) => `${nb(v)} ${esc((UNITES[k] || {}).pl || k)}`).join(" · ")}</span>
-        <span class="ensemble__estimeN">Missions validées faute de réponse de l'association
-          sous quatorze jours : la production est déduite de l'annonce, pas constatée.</span>
+        <span class="ensemble__estimeN">${nb(r.realisations.sansReponse)} mission${
+          r.realisations.sansReponse > 1 ? "s" : ""} auto-validée${
+          r.realisations.sansReponse > 1 ? "s" : ""} après quatorze jours sans réponse.
+          Le résultat est estimé à partir de l'objectif annoncé : il n'a pas été constaté
+          par l'association.</span>
       </div>` : ""}
 
       <details class="volet">

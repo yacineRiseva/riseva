@@ -355,10 +355,10 @@ def main():
         verifie("la page Tous ensemble additionne tout le réseau",
                 "réseau Riseva" in te and "missions réalisées" in te)
         verifie("la forêt affiche le vrai décompte sous le dessin", "arbres plantés" in te)
-        verifie("l'échelle du dessin est annoncée", "un pour" in te.lower() and "dessin" in te.lower())
+        verifie("l'échelle du dessin est annoncée", "palier" in te.lower())
         verifie("le confirmé et l'estimé ne sont pas mélangés",
                 "confirmé" in te.lower() and "estimés" in te.lower()
-                and "faute de réponse" in te.lower())
+                and "sans réponse" in te.lower())
         connecte(p, "u1", "#/moteur")
         t = p.inner_text(".content")
         verifie("les automatismes sont listés", "Validation sans retour" in t

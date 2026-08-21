@@ -429,8 +429,8 @@ export function carteFrance(points, { hauteur = 300, legende = "", compacte = fa
           <title>${esc(pt.nom || "")}${pt.distance != null ? ` — ${nb(pt.distance)} km` : ""}</title>
         </g>`).join("")}
       ${moi ? `<g class="carte__pt carte__pt--moi">
-        <path d="${losange(p.x(moi.lon), p.y(moi.lat), 9)}" class="carte__halo"/>
-        <path d="${losange(p.x(moi.lon), p.y(moi.lat), 5)}" class="carte__coeur"/>
+        <path d="${losange(p.x(moi.lon), p.y(moi.lat), 12)}" class="carte__halo"/>
+        <path d="${losange(p.x(moi.lon), p.y(moi.lat), 7)}" class="carte__coeur"/>
         <title>${esc(moi.nom || "")}</title>
       </g>` : ""}
     </svg>
@@ -542,8 +542,11 @@ export function foret(total, { unite = "arbres plantés", legende = true } = {})
     <figcaption class="foret__pied">
       <span class="foret__nb tnum">${nb(n)}</span>
       <span class="foret__unite">${esc(unite)}</span>
-      ${legende && dessines > 0 ? `<span class="foret__echelle">${dessines} arbre${
-        dessines > 1 ? "s" : ""} dessiné${dessines > 1 ? "s" : ""}, un pour ${nb(pas)}</span>` : ""}
+      ${/* « 89 arbres dessinés » laissait croire que le dessin comptait les arbres.
+            Il compte des paliers franchis : le dire évite de promettre une
+            précision que ce dessin n'a pas. */""}
+      ${legende && dessines > 0 ? `<span class="foret__echelle">${nb(dessines)} palier${
+        dessines > 1 ? "s" : ""} de ${nb(pas)} franchi${dessines > 1 ? "s" : ""}</span>` : ""}
     </figcaption>
   </figure>`);
   return el;
