@@ -50,7 +50,10 @@ const boite = el.querySelector("#boite");
 const inv = DB.invitationParCode(code);
 const ent = inv ? DB.entreprise(inv.entreprise) : null;
 const restantesLien = inv ? inv.places - inv.utilisees : 0;
-const si = inv ? DB.sieges(inv.entreprise) : null;
+/* Un lien de site consomme le quota de son site, pas celui du pot commun : sinon
+   le premier établissement servi mange les places des autres. */
+const etab = inv && inv.etablissement ? DB.etablissement(inv.etablissement) : null;
+const si = inv ? DB.sieges(inv.entreprise, { etablissement: inv.etablissement || null }) : null;
 
 function erreur(titre, texte){
   boite.innerHTML = "";
@@ -67,12 +70,64 @@ else if (!inv)    erreur("Ce code n'existe pas", "Vérifiez le lien, ou demandez
 else if (!inv.active) erreur("Ce lien a été désactivé", "Votre entreprise l'a révoqué. Elle peut vous en fournir un nouveau.");
 else if (restantesLien <= 0 || si.restants <= 0)
                   erreur("Toutes les places sont prises", "L'abonnement de votre entreprise est complet. Parlez-en à la personne qui gère Riseva chez vous.");
+/* Un lien de référent est nominatif : il porte le nom et l'adresse de la personne
+   visée. On les affiche, on ne les fait pas saisir — et surtout on n'accepte pas
+   une autre adresse, sinon « nominatif » ne veut plus rien dire. */
+else if (inv.pour_referent){
+  boite.appendChild(h(`<div>
+    <p class="eyebrow">Référent de site</p>
+    <h1 style="margin-top:var(--s4);font-size:var(--t-h2)">Piloter ${esc(etab.nom)} — ${esc(etab.ville)}</h1>
+    <p class="muted" style="margin-top:var(--s3);font-size:var(--t-sm)">
+      ${esc(ent.nom)} vous confie ce site. Ce lien a été émis pour
+      <strong style="color:var(--ink)">${esc(inv.email)}</strong> et n'ouvre qu'un seul compte.</p>
+    <div class="card card--flat" style="background:var(--paper-sunk);border-color:transparent;margin-top:var(--s6)">
+      <p style="font-size:var(--t-sm);color:var(--ink-700)">
+        <strong>Ce que vous pourrez faire.</strong> Inviter les salariés de votre site, dans la
+        limite des ${nb(etab.quota || 0)} places qui lui sont allouées ; voir ses missions et son
+        score ; saisir ses indicateurs sociaux et de sécurité.</p>
+      <p style="font-size:var(--t-sm);color:var(--ink-600);margin-top:var(--s3)">
+        Ce que vous ne verrez pas : les autres sites, le contrat, les factures, le mécénat, ni
+        les dons personnels de qui que ce soit.</p>
+    </div>
+    <form class="stack" style="--gap:var(--s4);margin-top:var(--s8)" id="fr">
+      <div class="field"><label for="rnom">Nom et prénom</label>
+        <input class="input" id="rnom" value="${esc(inv.nom || "")}" required autocomplete="name"></div>
+      <div class="field"><label for="rmail">Email professionnel</label>
+        <input class="input" id="rmail" type="email" value="${esc(inv.email || "")}" required autocomplete="email">
+        <p class="hint">Ce lien n'accepte que l'adresse à laquelle il a été envoyé.</p></div>
+      <button class="btn btn--primary btn--lg btn--block" type="submit">Accepter et créer mon compte</button>
+      <p class="hint center">Aucun mot de passe ici : vous recevrez un lien de connexion par mail.</p>
+    </form>
+  </div>`));
+
+  boite.querySelector("#fr").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const mail = boite.querySelector("#rmail").value.trim().toLowerCase();
+    if (mail !== String(inv.email || "").toLowerCase()){
+      toast("Ce lien a été émis pour une autre adresse."); return;
+    }
+    let u;
+    try { u = DB.accepterInvitationReferent(code); }
+    catch (err){ toast(err.message); return; }
+    try { localStorage.setItem("riseva.session", JSON.stringify({ uid: u.id })); } catch {}
+    boite.innerHTML = "";
+    boite.appendChild(h(`<div>
+      <span class="badge badge--ok" style="height:28px"><span class="dot"></span>Compte créé</span>
+      <h1 style="margin-top:var(--s5);font-size:var(--t-h2)">Bienvenue ${esc(u.nom.split(" ")[0])}</h1>
+      <p class="muted" style="margin-top:var(--s4)">
+        Vous pilotez ${esc(etab.nom)} — ${esc(etab.ville)}. Première chose à faire : créer le lien
+        d'inscription de vos salariés.</p>
+      <a class="btn btn--primary btn--lg" style="margin-top:var(--s8)" href="/app/#/tableau">
+        Ouvrir mon tableau de bord</a>
+    </div>`));
+  });
+}
 else {
   boite.appendChild(h(`<div>
     <p class="eyebrow">Inscription</p>
-    <h1 style="margin-top:var(--s4);font-size:var(--t-h2)">Rejoindre ${esc(ent.nom)}</h1>
+    <h1 style="margin-top:var(--s4);font-size:var(--t-h2)">Rejoindre ${esc(ent.nom)}${etab ? ` — ${esc(etab.ville)}` : ""}</h1>
     <p class="muted" style="margin-top:var(--s3);font-size:var(--t-sm)">
-      ${restantesLien} place${restantesLien > 1 ? "s" : ""} encore disponible${restantesLien > 1 ? "s" : ""} sur ce lien.</p>
+      ${restantesLien} place${restantesLien > 1 ? "s" : ""} encore disponible${restantesLien > 1 ? "s" : ""} sur ce lien${etab ? `, sur le quota de ${esc(etab.nom)} — ${esc(etab.ville)}` : ""}.</p>
     <form class="stack" style="--gap:var(--s4);margin-top:var(--s8)" id="f">
       <div class="field"><label for="nom">Nom et prénom</label>
         <input class="input" id="nom" required autocomplete="name"></div>

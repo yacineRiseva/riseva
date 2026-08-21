@@ -1477,9 +1477,16 @@ function creerMock(){
       const dejaLa = s.utilisateurs.find(u => u.email && email &&
         u.email.toLowerCase() === email.toLowerCase());
       if (dejaLa) throw new Error("Un compte existe déjà avec cette adresse");
-      const { restants } = api.sieges(inv.entreprise);
-      if (restants <= 0) throw new Error("L'abonnement de cette entreprise n'a plus de place");
+      if (inv.pour_referent)
+        throw new Error("Ce lien nomme un référent de site : il s'accepte depuis la page dédiée");
+      /* Une place se prend dans le quota du site quand le lien en porte un. Sinon le
+         premier établissement servi consommerait les places de tous les autres. */
+      const { restants } = api.sieges(inv.entreprise, { etablissement: inv.etablissement || null });
+      if (restants <= 0) throw new Error(inv.etablissement
+        ? "Le quota de ce site est complet. Votre référent peut en demander davantage."
+        : "L'abonnement de cette entreprise n'a plus de place");
       const u = { id:id("u"), nom, email, role:"salarie", org:inv.entreprise,
+                  etablissement: inv.etablissement || null,
                   points:0, actif:true, anonyme:false };
       s.utilisateurs.push(u);
       inv.utilisees += 1;

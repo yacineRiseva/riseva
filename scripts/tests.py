@@ -801,6 +801,34 @@ def main():
         verifie("la personne qui saisit ne peut pas approuver sa propre saisie",
                 "ne peut pas approuver" in seul, seul)
 
+        print("\nLe lien de référent, de bout en bout")
+        # Le parcours entier : la société nomme, la personne accepte, elle ne pilote
+        # que son site, et elle ne peut pas accepter avec une autre adresse.
+        code = p.evaluate("""async()=>{const m=await import('/app/data.js');
+            const i=m.DB.creerInvitationReferent('et1','Inès Rocher','ines@lafarge-ciments.fr');
+            await new Promise(r=>setTimeout(r,250));   // l'écriture locale est débouncée
+            return i.code}""")
+        p.goto(f"{BASE}/rejoindre.html?code={code}&role=referent", wait_until="networkidle")
+        p.wait_for_timeout(300)
+        r = norm(p.inner_text(".login__box"))
+        verifie("le lien de référent annonce le site qu'il confie",
+                "Piloter" in r and "Paris" in r)
+        verifie("il dit à qui il a été émis et ce qu'il n'ouvre pas",
+                "ines@lafarge-ciments.fr" in r and "les autres sites" in r)
+        p.fill("#rmail", "quelquun.dautre@lafarge-ciments.fr")
+        p.click("#fr [type=submit]"); p.wait_for_timeout(300)
+        verifie("il refuse une autre adresse que celle visée",
+                "autre adresse" in norm(p.inner_text(".toast")))
+        p.fill("#rmail", "ines@lafarge-ciments.fr")
+        p.click("#fr [type=submit]"); p.wait_for_timeout(400)
+        verifie("l'acceptation crée le compte du référent",
+                "Compte créé" in norm(p.inner_text(".login__box")))
+        p.goto(f"{BASE}/app/?r=1#/tableau", wait_until="networkidle"); p.wait_for_timeout(400)
+        verifie("il arrive sur le tableau de bord de son site",
+                "Comptes ouverts" in norm(p.inner_text(".content")))
+        verifie("et il n'a ni contrat ni mécénat dans son menu",
+                not p.eval_on_selector_all(".side__link[href='#/abonnement']", "l=>l.length"))
+
         print("\nRegistre des dons de matériel")
         connecte(p, "u2", "#/materiel")
         m = norm(p.inner_text(".content"))
