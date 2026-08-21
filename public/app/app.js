@@ -2334,6 +2334,28 @@ function tableauAsso(u){
   const aValider = ms.filter(m => m.etat === "a_valider");
 
   /* Ce qui attend vraiment une action de l'association, et rien d'autre. */
+  /* Qui vient, quand, et pour quelle mission : la première question d'une
+     association, et celle à laquelle le tableau de bord ne répondait pas. */
+  const aVenir = ms.filter(m => m.etat === "engagee")
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const placesRestantes = annonces.filter(a => a.etat === "ouverte" && a.type !== "don_financier")
+    .reduce((n, a) => n + a.restant, 0);
+  const reaAsso = DB.realisations({ asso: aid });
+
+  /* Complétude de la fiche publique : ce qui manque pour qu'une association ait
+     envie de la partager, dit noir sur blanc plutôt que laissé à deviner. */
+  const attendu = [
+    [asso.resume && asso.resume.length > 40, "une description d'au moins deux lignes"],
+    [!!asso.adresse, "l'adresse"],
+    [!!asso.site, "le site ou la page publique"],
+    [!!asso.cause, "la cause"],
+    [!!(asso.recus && asso.recus.actif), "les reçus fiscaux"]
+  ];
+  const complet = {
+    pct: Math.round((attendu.filter(x => x[0]).length / attendu.length) * 100),
+    manque: attendu.filter(x => !x[0]).map(x => x[1])
+  };
+
   const rappels = [];
   if (aValider.length) rappels.push({ ton:"alerte", vers:"#/avalider", texte:
     `${aValider.length} mission${aValider.length > 1 ? "s" : ""} à confirmer — sans réponse sous quatorze jours, elle${aValider.length > 1 ? "s seront clôturées automatiquement sans confirmation" : " sera clôturée automatiquement sans confirmation"}` });
@@ -2347,11 +2369,19 @@ function tableauAsso(u){
 
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <div class="kpis">
-      ${kpi("Annonces ouvertes", nb(annonces.filter(a => a.etat === "ouverte").length), "publiées par vous", "", "kpi--tete grain")}
-      ${kpi("Missions engagées", nb(ms.filter(m => m.etat === "engagee").length))}
-      ${kpi("À valider", nb(aValider.length), aValider.length ? "action attendue" : "rien en attente",
-            aValider.length ? "down" : "")}
-      ${kpi("Entreprises mobilisées", nb(new Set(ms.map(m => m.entreprise)).size))}
+      ${/* Quatre questions, dans l'ordre où une association se les pose : que dois-je
+            confirmer, qui vient et quand, où en sont mes annonces, et qu'avons-nous
+            reçu. « Entreprises mobilisées » était un chiffre pour nous, pas pour elle. */
+        kpi("À confirmer", nb(aValider.length),
+            aValider.length ? "action attendue de votre part" : "rien en attente",
+            aValider.length ? "down" : "", "kpi--tete grain")}
+      ${kpi("Participants attendus", nb(aVenir.length),
+            aVenir.length ? "prochain le " + dateCourte(aVenir[0].date) : "personne d'inscrit")}
+      ${kpi("Annonces ouvertes", nb(annonces.filter(a => a.etat === "ouverte").length),
+            nb(placesRestantes) + " place" + (placesRestantes > 1 ? "s" : "") + " encore libre"
+            + (placesRestantes > 1 ? "s" : ""))}
+      ${kpi("Missions confirmées", nb(reaAsso.missions),
+            "depuis le début, toutes entreprises confondues")}
     </div>
     ${rappels.length ? `<section class="aFaire">
       <div class="aFaire__col">
@@ -2375,24 +2405,78 @@ function tableauAsso(u){
           <button class="btn btn--primary btn--sm" id="new">${ICONS.plus} Publier</button></div>
         <div id="l"></div>
       </section>
-      <section class="card">
-        <h3>Votre fiche</h3>
-        <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
-          <div class="between"><span class="muted">Association</span><strong>${esc(asso.nom)}</strong></div>
-          <div class="between"><span class="muted">Cause</span><span>${esc(asso.cause)}</span></div>
-          <div class="between"><span class="muted">Ville</span><span>${esc(asso.ville)}</span></div>
-          <div class="between"><span class="muted">Statut</span>
-            <span class="badge ${asso.valide ? "badge--ok" : "badge--warn"}">${asso.valide ? "Validée" : "En attente"}</span></div>
-        </div>
-        <hr class="sep">
-        <p class="muted" style="font-size:var(--t-sm)">
-          Riseva ne prélève rien sur vos dons et ne vous demande aucune intégration technique.</p>
-        <a class="btn btn--ghost btn--block" style="margin-top:var(--s5)" href="/asso.html?id=${aid}">Voir ma page publique</a>
-      </section>
+      <div class="stack" style="--gap:var(--s5)">
+        <section class="card">
+          <div class="between" style="margin-bottom:var(--s5)">
+            <h3>Qui vient</h3>
+            <a class="btn btn--quiet btn--sm" href="#/avalider">Tout voir</a></div>
+          <div class="stack" style="--gap:var(--s4)" id="qui"></div>
+        </section>
+
+        <section class="card">
+          <div class="between" style="margin-bottom:var(--s4)">
+            <h3>Votre page publique</h3>
+            <span class="badge ${complet.manque.length ? "badge--warn" : "badge--ok"}">${
+              complet.pct} % complète</span></div>
+          <div class="bar"><i style="width:${complet.pct}%"></i></div>
+          ${complet.manque.length ? `<p class="hint">Il manque : ${esc(complet.manque.join(", "))}.
+            Une fiche complète se partage ; une fiche à moitié vide, non.</p>`
+            : `<p class="hint">Tout y est. C'est la page à mettre dans votre lettre d'information
+               et sur vos réseaux.</p>`}
+          <div class="row" style="gap:var(--s2);margin-top:var(--s5)">
+            <a class="btn btn--ghost btn--sm" style="flex:1" href="/asso.html?id=${aid}" target="_blank">Voir la page</a>
+            <button class="btn btn--ghost btn--sm" style="flex:1" id="copier">Copier le lien</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <h3 style="font-size:var(--t-lg)">Pour votre conseil d'administration</h3>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:6px">
+            Les résultats que vous avez confirmés, mission par mission, en tableur.</p>
+          <button class="btn btn--ghost btn--block btn--sm" style="margin-top:var(--s4)" id="expA">Exporter</button>
+        </section>
+      </div>
     </div>
   </div>`);
   el.querySelector("#l").appendChild(tableAnnoncesAsso(annonces, u));
   el.querySelector("#new").onclick = () => formAnnonce(u);
+
+  const qui = el.querySelector("#qui");
+  if (!aVenir.length)
+    qui.appendChild(h(`<p class="muted" style="font-size:var(--t-sm)">
+      Personne d'inscrit pour l'instant. Une annonce ouverte et datée trouve preneur plus vite
+      qu'une annonce sans date.</p>`));
+  aVenir.slice(0, 6).forEach(m => {
+    const a = DB.annonceDe(m), e = DB.entreprise(m.entreprise), sal = DB.utilisateur(m.salarie);
+    qui.appendChild(h(`<div class="between" style="font-size:var(--t-sm);gap:var(--s4)">
+      <span style="min-width:0">
+        <strong>${esc(sal ? sal.nom : "Un salarié")}</strong>
+        <span class="muted"> · ${esc(e ? e.nom : "")}</span><br>
+        <span class="muted" style="font-size:var(--t-xs);overflow:hidden;text-overflow:ellipsis;
+          white-space:nowrap;display:block">${esc(a ? a.titre : "")}</span>
+      </span>
+      <span class="badge">${dateCourte(m.date)}</span>
+    </div>`));
+  });
+
+  el.querySelector("#copier").onclick = async (ev) => {
+    const lien = lienPublic(`/asso.html?id=${aid}`);
+    try { await navigator.clipboard.writeText(lien); toast("Lien copié."); }
+    catch { ev.target.textContent = lien; toast("Copiez le lien affiché."); }
+  };
+
+  el.querySelector("#expA").onclick = () => {
+    const lignes = DB.missions({ asso: aid })
+      .filter(m => m.etat === "validee" && m.realise != null)
+      .map(m => {
+        const a = DB.annonceDe(m), e = DB.entreprise(m.entreprise), r = DB.realiseDe(m);
+        return [m.date, a ? a.titre : "", e ? e.nom : "", a ? BAREME[a.type].label : "",
+                r ? r.quantite : "", r ? ((UNITES[r.unite] || {}).pl || r.unite) : ""];
+      });
+    if (!lignes.length){ toast("Aucun résultat confirmé à exporter pour l'instant."); return; }
+    versCSV(`riseva-resultats-${aid}.csv`,
+      ["Date", "Mission", "Entreprise", "Format", "Quantité", "Unité"], lignes);
+  };
 
   /* Ce que l'association vient chercher ici : ce que les entreprises ont
      réellement produit chez elle, et ce qui l'attend côté reçus. Le tableau de
@@ -2409,7 +2493,7 @@ function tableauAsso(u){
 
 function tableAnnoncesAsso(annonces, u){
   const t = h(`<table class="table"><thead><tr>
-    <th>Annonce</th><th>Format</th><th>Reste</th><th>État</th><th></th></tr></thead><tbody></tbody></table>`);
+    <th>Annonce</th><th>Format</th><th>Il reste</th><th>État</th><th></th></tr></thead><tbody></tbody></table>`);
   const tb = t.querySelector("tbody");
   if (!annonces.length)
     tb.appendChild(h(`<tr><td colspan="5" class="empty">Aucune annonce publiée.</td></tr>`));
@@ -2418,9 +2502,15 @@ function tableAnnoncesAsso(annonces, u){
       m.annonce === a.id && m.etat !== "refusee" && DB.deLaSaison(m)).length;
     const tr = h(`<tr>
       <td><strong>${esc(a.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${dateFR(a.date)} · ${esc(a.lieu || "")}${
-        engagees ? ` · ${engagees} engagement${engagees > 1 ? "s" : ""}` : ""}</span></td>
+        engagees ? ` · ${engagees} participant${engagees > 1 ? "s" : ""} inscrit${engagees > 1 ? "s" : ""}` : ""}</span></td>
       <td class="muted">${esc(BAREME[a.type].label)}</td>
-      <td class="tnum">${a.type === "don_financier" ? eur(a.restant) : a.restant + " / " + a.quantite}</td>
+      ${/* « 4 / 6 » se lit comme une note. Ce qui compte pour une association, c'est
+            combien il reste, et dans quelle unité. */""}
+      <td class="tnum">${a.type === "don_financier"
+        ? eur(a.restant) + " à réunir"
+        : a.type === "don_materiel"
+          ? nb(a.restant) + " sur " + nb(a.quantite) + " encore attendus"
+          : nb(a.restant) + " place" + (a.restant > 1 ? "s" : "") + " restante" + (a.restant > 1 ? "s" : "")}</td>
       <td><span class="badge ${a.etat === "ouverte" ? "badge--ok" : ""}">${a.etat === "ouverte" ? "Ouverte" : "Close"}</span></td>
       <td style="text-align:right"></td></tr>`);
     if (u){

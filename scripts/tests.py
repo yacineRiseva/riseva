@@ -399,8 +399,18 @@ def main():
         verifie("il voit le réseau, comme tout le monde", "Tous ensemble" in t4)
         connecte(p, "u7")
         t7 = p.inner_text(".content")
-        verifie("l'association voit ce que les entreprises ont produit chez elle",
-                "produit chez vous" in t7 or "Vos annonces" in t7)
+        # Le tableau de bord d'une association doit répondre à ses quatre questions,
+        # pas afficher les chiffres qui nous intéressent, nous.
+        verifie("elle voit d'abord ce qu'elle doit confirmer", "À confirmer" in t7)
+        verifie("elle voit qui vient et quand", "Qui vient" in t7)
+        verifie("elle voit ce qu'elle a réalisé, pas ce que les entreprises ont produit",
+                "réalisé avec le soutien" in t7 and "produit chez vous" not in t7)
+        verifie("elle peut sortir un tableau pour son conseil d'administration",
+                "conseil d'administration" in t7)
+        verifie("sa page publique est présentée comme la sienne",
+                "Votre page publique" in t7 and "% complète" in t7)
+        verifie("les places restantes se lisent en places, pas en fraction",
+                "place" in t7 and "4 / 6" not in t7)
 
         print("\nCe qu'on promet")
         connecte(p, "u2", "#/annuaire")
