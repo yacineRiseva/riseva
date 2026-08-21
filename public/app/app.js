@@ -2336,7 +2336,7 @@ function tableauAsso(u){
   /* Ce qui attend vraiment une action de l'association, et rien d'autre. */
   const rappels = [];
   if (aValider.length) rappels.push({ ton:"alerte", vers:"#/avalider", texte:
-    `${aValider.length} mission${aValider.length > 1 ? "s" : ""} à confirmer — sans réponse sous quatorze jours, elle${aValider.length > 1 ? "s seront comptées" : " sera comptée"} comme réalisée${aValider.length > 1 ? "s" : ""}` });
+    `${aValider.length} mission${aValider.length > 1 ? "s" : ""} à confirmer — sans réponse sous quatorze jours, elle${aValider.length > 1 ? "s seront clôturées automatiquement sans confirmation" : " sera clôturée automatiquement sans confirmation"}` });
   if (asso.a_reverifier_le && asso.a_reverifier_le <= new Date(2026, 7, 20).toISOString().slice(0, 10))
     rappels.push({ ton:"alerte", vers:"#/page", texte:
       "Votre vérification annuelle est échue : Riseva va vous recontacter" });
@@ -2623,7 +2623,9 @@ function vueAValider(u){
       <div class="between" style="margin-bottom:var(--s5)">
         <div><h3>Missions à confirmer</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
-          Sans réponse de votre part sous quatorze jours, la mission est comptée comme réalisée.</p></div>
+          Sans réponse de votre part sous quatorze jours, la mission est clôturée automatiquement
+          sans confirmation : l'entreprise marque ses points, le résultat reste estimé et il est
+          écrit comme tel. Ce n'est pas une faute.</p></div>
       </div>
       <table class="table"><thead><tr>
         <th style="width:36px"></th><th>Mission</th><th>Entreprise</th><th>Salarié</th>

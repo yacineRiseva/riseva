@@ -334,6 +334,28 @@ def main():
         verifie("et on lui dit pourquoi", "suspendu" in p.inner_text("body").lower())
         p.evaluate("()=>localStorage.removeItem('riseva.etat')")
 
+        print("\nLe silence d'une association")
+        # Les quatorze jours racontaient trois histoires différentes selon la page.
+        # Une seule formulation, et surtout : un silence n'est pas une faute.
+        pages = {}
+        for nom, url in [("acquisition", "/associations.html"), ("charte", "/charte-associations.html"),
+                         ("règlement", "/reglement.html")]:
+            p.goto(BASE + url, wait_until="networkidle"); p.wait_for_timeout(200)
+            pages[nom] = p.inner_text("body")
+        for nom, corps in pages.items():
+            verifie(f"la clôture automatique est nommée telle quelle ({nom})",
+                    "clôturée automatiquement sans confirmation" in corps
+                    or "clôture automatique" in corps)
+        verifie("aucune page ne dit qu'un silence vaut réalisation",
+                all("comptée comme réalisée" not in c for c in pages.values()))
+        verifie("la charte dit qu'un silence n'entraîne pas de suspension",
+                "n'entraîne aucune suspension" in pages["charte"])
+        verifie("la charte distingue le silence de la fausse confirmation",
+                "volontairement fausse" in pages["charte"])
+        connecte(p, "u7", "#/avalider")
+        verifie("l'association lit la même phrase dans son espace",
+                "clôturée automatiquement" in p.inner_text(".content"))
+
         print("\nLes formulaires publics")
         # Un formulaire qui dit « envoyé » sans rien envoyer est un mensonge poli.
         p.goto(f"{BASE}/associations.html#rejoindre", wait_until="networkidle")

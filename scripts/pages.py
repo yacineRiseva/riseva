@@ -113,8 +113,12 @@ de la saison suivante.</p>
   <li>Après réalisation, il la déclare faite : elle passe <strong>à valider</strong>.</li>
   <li>L'association confirme : la mission est <strong>validée</strong> et les points sont crédités
       à l'entreprise.</li>
-  <li>Sans réponse de l'association sous <strong>quatorze jours</strong>, la mission est comptée
-      comme réalisée. Le client n'est pas pris en otage par l'inaction d'un partenaire non payant.</li>
+  <li>Sans réponse de l'association sous <strong>quatorze jours</strong>, la mission est
+      <strong>clôturée automatiquement sans confirmation</strong>. Les points sont crédités à
+      l'entreprise — le client n'est pas pris en otage par l'inaction d'un partenaire non payant —
+      mais le résultat reste <strong>estimé</strong> et il est identifié comme tel partout où il
+      apparaît. Riseva n'écrit jamais qu'une mission a été confirmée quand personne ne l'a
+      confirmée.</li>
   <li>Si l'association refuse, aucun point n'est crédité, elle doit motiver son refus, et le besoin
       redevient disponible sur l'annonce.</li>
 </ul>
@@ -205,11 +209,39 @@ comme telle, ni dans l'interface, ni dans les rapports, ni en rendez-vous commer
 # ---------------------------------------------------------------- charte associations
 ecrire("charte-associations.html",
   surtitre="Le réseau",
-  titre="Charte et éligibilité des associations",
-  description="Comment une association entre dans le réseau Riseva, ce que nous vérifions, et ce qui entraîne une suspension.",
-  chapo="Une entreprise qui donne engage sa réputation et sa fiscalité. Nous ne pouvons donc pas "
-        "accepter n'importe quelle association, ni garantir ce que nous n'avons pas vérifié.",
+  titre="Ce que nous nous promettons",
+  description="Les cinq engagements d'une association qui rejoint Riseva, et les cinq que Riseva prend envers elle.",
+  chapo="Une charte écrite uniquement pour protéger la plateforme et ses clients se lit comme une "
+        "mise en garde. Celle-ci va dans les deux sens, et elle commence par ce que nous vous devons.",
   corps="""
+<div class="encadre">
+  <p><strong>Vos cinq engagements.</strong></p>
+  <ol>
+    <li>Publier des besoins réels, dans l'objet de votre association.</li>
+    <li>Accueillir les salariés dans des conditions sûres, et dire à l'avance ce que la mission
+        demande physiquement et matériellement.</li>
+    <li>Répondre aux missions déclarées, ou laisser le délai courir — un silence n'est pas une
+        faute, une fausse confirmation en est une.</li>
+    <li>N'utiliser les coordonnées reçues par Riseva que pour la mission concernée.</li>
+    <li>Rester responsable des reçus fiscaux que vous émettez, sous votre numéro d'ordre.</li>
+  </ol>
+</div>
+
+<div class="encadre">
+  <p><strong>Nos cinq engagements.</strong></p>
+  <ol>
+    <li>Ne rien prélever sur vos dons, ne rien vous facturer, et ne jamais vous demander
+        l'exclusivité.</li>
+    <li>Ne pas modifier votre fiche, vos annonces ou vos chiffres sans votre accord.</li>
+    <li>Vous prévenir et vous laisser le temps de corriger avant toute suspension, sauf fraude
+        avérée ou risque pour la sécurité de quelqu'un.</li>
+    <li>Vous rendre vos données, à tout moment, dans un format lisible, et les supprimer si vous
+        le demandez.</li>
+    <li>N'utiliser votre nom et votre logo qu'avec votre autorisation, et jamais pour dire que
+        vous recommandez Riseva.</li>
+  </ol>
+</div>
+
 <h2>Ce que nous vérifions à l'entrée</h2>
 <ul>
   <li>Existence juridique : numéro RNA ou SIREN, statuts, date de déclaration.</li>
@@ -221,9 +253,9 @@ ecrire("charte-associations.html",
 
 <div class="encadre encadre--alerte">
   <p><strong>Ce que nous ne garantissons pas.</strong> Riseva ne certifie pas l'éligibilité fiscale
-  d'une association. Seule l'association peut l'affirmer, et seule l'administration peut la
-  contester. Une entreprise qui a besoin d'une certitude peut demander à l'association son
-  <strong>rescrit fiscal</strong>. Toute promesse contraire de notre part serait une faute.</p>
+  d'une association, et ne vérifie pas l'impact de ses missions. Seule l'association peut affirmer
+  son éligibilité, et seule l'administration peut la contester. Une entreprise qui a besoin d'une
+  certitude peut demander à l'association son <strong>rescrit fiscal</strong>.</p>
 </div>
 
 <h2>Revérification</h2>
@@ -231,24 +263,83 @@ ecrire("charte-associations.html",
 change de référent ou de signataire. La date de dernière vérification figure sur sa fiche, visible
 par les entreprises.</p>
 
-<h2>Ce qui entraîne une suspension</h2>
+<h2>Le délai de quatorze jours, et ce qu'il ne veut pas dire</h2>
+<ul>
+  <li>Vous avez <strong>quatorze jours</strong> pour confirmer une mission, à compter du jour où le
+      salarié la déclare faite. Vous recevez le message, puis des rappels à trois, sept et douze
+      jours. Chacun contient trois boutons — réalisée comme prévu, réalisée partiellement, non
+      réalisée — qui fonctionnent <strong>sans vous connecter</strong>.</li>
+  <li>Sans réponse au bout de quatorze jours, la mission est <strong>clôturée automatiquement sans
+      confirmation</strong>. Les points sont crédités à l'entreprise, parce qu'un client ne peut
+      pas être bloqué par l'inaction d'un partenaire non payant. Mais le résultat reste
+      <strong>estimé</strong>, et il est écrit comme tel sur tous les écrans et dans tous les
+      rapports. Nous n'écrirons jamais que vous avez confirmé ce que vous n'avez pas confirmé.</li>
+  <li><strong>Une clôture automatique n'est pas une faute et n'entraîne aucune suspension.</strong>
+      Vous avez une association à faire tourner, pas une boîte de réception à surveiller. Si les
+      clôtures se répètent, nous vous appelons pour comprendre — un référent absent, une adresse
+      qui ne marche plus — et pour trouver une solution.</li>
+  <li>Vous pouvez déclarer une <strong>période d'absence</strong> et un référent suppléant. Pendant
+      cette période, les demandes partent au suppléant et les rappels vous laissent tranquille.</li>
+  <li>Ce qui peut être sanctionné, c'est une <strong>confirmation volontairement fausse</strong> :
+      attester qu'une mission a eu lieu alors qu'elle n'a pas eu lieu. C'est autre chose qu'un
+      silence, et nous ne les confondons pas.</li>
+</ul>
+
+<h2>Accueil, sécurité et assurance</h2>
+<ul>
+  <li>Vous annoncez dans l'annonce ce que la mission demande : port de charges, station debout
+      prolongée, travail extérieur par tous les temps, équipement à prévoir, âge minimum.</li>
+  <li>Vous accueillez les salariés dans des conditions sûres, et vous êtes assurée pour l'accueil
+      de bénévoles — c'est la responsabilité civile qu'exige déjà toute activité associative.</li>
+  <li>Le salarié reste couvert par son employeur quand la mission est sur son temps de travail.
+      Sur son temps personnel, il est bénévole, et c'est votre assurance qui joue.</li>
+  <li>En cas d'incident, vous nous prévenez sous 48 heures et nous prévenons l'entreprise. Nous ne
+      publions jamais le détail d'un incident.</li>
+</ul>
+
+<h2>Annulation, absence, incident</h2>
+<ul>
+  <li>Un salarié qui ne vient pas : vous répondez « non réalisée », aucun point n'est crédité, la
+      place redevient disponible. Aucune justification ne vous est demandée.</li>
+  <li>Une mission que vous devez annuler : fermez l'annonce, les salariés inscrits sont prévenus
+      automatiquement. Prévenez si possible plus de 48 heures avant.</li>
+  <li>Un comportement inapproprié, une discrimination, un manque de respect : signalez-le, la
+      personne perd l'accès aux missions de votre association, et l'entreprise est informée.</li>
+</ul>
+
+<h2>Les données du salarié</h2>
+<p>Vous recevez le nom du salarié et la date de sa mission, rien d'autre. Ces données servent à
+organiser la mission, et à rien d'autre : pas de liste de diffusion, pas d'appel aux dons, pas de
+transmission à un tiers. Elles s'effacent quand la mission est close et le délai de réclamation
+écoulé.</p>
+
+<h2>Situations pouvant conduire à une suspension</h2>
+<p>Dans tous les cas ci-dessous, nous vous écrivons d'abord, nous expliquons ce qui pose problème,
+et nous vous laissons <strong>quinze jours</strong> pour corriger. La suspension n'arrive qu'après,
+et elle est motivée par écrit.</p>
 <ul>
   <li>Annonces sans rapport avec l'objet déclaré.</li>
-  <li>Missions validées qui n'ont pas eu lieu.</li>
-  <li>Coordonnées devenues fausses, ou référent injoignable plus de trente jours.</li>
-  <li>Reçus fiscaux émis alors que l'association n'est plus éligible.</li>
-  <li>Pression sur les salariés d'une entreprise cliente, ou démarchage détourné.</li>
+  <li>Coordonnées devenues fausses, ou référent injoignable malgré plusieurs tentatives sur
+      plusieurs canaux — et à condition qu'aucune période d'absence n'ait été déclarée.</li>
+  <li><strong>Démarchage détourné</strong> : utiliser les coordonnées d'un salarié ou d'une
+      entreprise obtenues par Riseva pour une autre finalité que la mission — appel aux dons,
+      lettre d'information, invitation, revente — sans que la personne l'ait demandé.</li>
 </ul>
-<p>Une suspension retire immédiatement les annonces de l'association, gèle les points en cours de
-validation liés à ses missions, et informe les entreprises concernées. Elle est motivée par écrit
-et peut être contestée.</p>
+<p>Trois situations, et trois seulement, permettent une suspension immédiate sans délai de
+correction : une <strong>fraude avérée</strong> — confirmation volontairement fausse, détournement
+de fonds —, un <strong>risque pour la sécurité</strong> des personnes accueillies, et l'émission de
+<strong>reçus fiscaux gravement irréguliers</strong>, par exemple après la perte de l'éligibilité.</p>
+<p>Une suspension retire les annonces, gèle les points en cours de validation liés à vos missions,
+et informe les entreprises concernées. Elle est motivée par écrit et peut être contestée : nous
+répondons sous quinze jours, par une décision motivée.</p>
 
 <h2>Ce que l'association garde</h2>
 <ul>
   <li>Le droit de refuser une entreprise, sans avoir à se justifier.</li>
   <li>La propriété de ses dons : l'argent va directement chez elle, Riseva n'en voit pas la couleur.</li>
   <li>La liberté de faire la même chose ailleurs. Aucune exclusivité n'est demandée.</li>
-  <li>La possibilité de partir à tout moment, avec ses données.</li>
+  <li>La possibilité de partir à tout moment, avec ses données, exportées dans un format lisible.</li>
+  <li>Le dernier mot sur sa page publique : texte, visuel, coordonnées, et ce qui y est affiché.</li>
 </ul>
 
 <h2>Signalement</h2>
@@ -486,11 +577,23 @@ le réseau, pas seulement sur le logiciel.</p>
 
 <h2>Délais de validation</h2>
 <ul>
-  <li>Une association a <strong>quatorze jours</strong> pour confirmer une mission. Passé ce délai,
-      la mission est comptée comme réalisée.</li>
-  <li>Relance automatique à sept jours, puis à douze jours.</li>
-  <li>Au-delà de trois défauts de réponse sur une saison, Riseva contacte l'association et peut
-      suspendre ses annonces.</li>
+  <li>Vous avez <strong>quatorze jours</strong> pour confirmer une mission, à compter du jour où
+      le salarié la déclare faite. Vous recevez le message, puis deux rappels : à trois jours, à
+      sept jours, et un dernier à douze jours. Chacun contient trois boutons — réalisée comme
+      prévu, réalisée partiellement, non réalisée — qui fonctionnent <strong>sans vous
+      connecter</strong>.</li>
+  <li>Sans réponse au bout de quatorze jours, la mission est <strong>clôturée automatiquement
+      sans confirmation</strong>. Les points sont crédités à l'entreprise, mais le résultat reste
+      <strong>estimé</strong>, et il est écrit comme tel sur tous les écrans et dans tous les
+      rapports. Nous n'écrirons jamais que vous avez confirmé quelque chose que vous n'avez pas
+      confirmé.</li>
+  <li><strong>Une clôture automatique n'est pas une faute et n'entraîne aucune suspension.</strong>
+      Vous avez une association à faire tourner, pas une boîte de réception à surveiller. Si les
+      clôtures automatiques se répètent, nous vous appelons pour comprendre — un référent
+      indisponible, une adresse qui ne marche plus — et pour trouver une solution avec vous.</li>
+  <li>Ce qui peut être sanctionné, c'est une <strong>confirmation volontairement fausse</strong> :
+      attester qu'une mission a eu lieu alors qu'elle n'a pas eu lieu. C'est autre chose qu'un
+      silence.</li>
   <li>Contestation d'un refus : réponse motivée sous quinze jours.</li>
 </ul>
 
