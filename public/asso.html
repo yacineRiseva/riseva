@@ -52,7 +52,7 @@ if (rea.liste.length){
           <span class="realis__n">${nb(Math.round(x.quantite))}</span>
           <span class="realis__l">${esc(x.pl)}</span></div>`).join("")}
       </div>
-      <p class="hint" style="margin-top:var(--s8);color:rgba(223,230,208,.5)">
+      <p class="hint" style="margin-top:var(--s8)">
         Chiffres déclarés par ${esc(a.nom)}, sur ${rea.missions} mission${rea.missions > 1 ? "s" : ""}
         réalisée${rea.missions > 1 ? "s" : ""} et validée${rea.missions > 1 ? "s" : ""}.</p>
     </div>
@@ -87,11 +87,15 @@ if (!annonces.length) liste.appendChild(h(`<p class="empty">Aucun besoin publié
 annonces.forEach(an => {
   const b = BAREME[an.type];
   const imp = an.impact && UNITES[an.impact.unite] ? an.impact : null;
+  /* L'objectif complet, pas le multiplicateur par unité : « 40 arbres plantés »
+     sous un titre qui en annonce 400, ou pire « 0 arbres plantés » sur un don
+     financier, se lisait comme un bilan raté au lieu d'un objectif. */
+  const objectif = imp ? Math.round(an.quantite * imp.par_unite) : 0;
   liste.appendChild(h(`<article class="offer">
     <div>
       <div class="row" style="gap:var(--s3);flex-wrap:wrap">
         <span class="badge badge--brand">${esc(b.label)}</span>
-        ${imp ? `<span class="badge">${nb(imp.par_unite)} ${esc(UNITES[imp.unite].pl)}</span>` : ""}
+        ${imp && objectif > 0 ? `<span class="badge" title="Objectif annoncé par l'association">Objectif : ${nb(objectif)} ${esc(UNITES[imp.unite].pl)}</span>` : ""}
         <span class="muted" style="font-size:var(--t-sm)">${dateFR(an.date)}</span>
       </div>
       <h4 style="margin-top:var(--s3)">${esc(an.titre)}</h4>

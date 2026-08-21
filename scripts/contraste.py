@@ -14,6 +14,7 @@ import sys, collections
 
 BASE = "http://127.0.0.1:8080"
 PAGES = [("accueil", "/", None), ("associations", "/associations.html", None),
+         ("fiche association", "/asso.html?id=a2", None), ("rejoindre", "/rejoindre.html", None),
          ("inscription", "/inscription.html", None), ("règlement", "/reglement.html", None),
          ("tableau de bord", "/app/#/tableau", "u2"), ("annonces", "/app/#/annonces", "u2"),
          ("tous ensemble", "/app/#/ensemble", "u2"), ("annuaire", "/app/#/annuaire", "u2"),

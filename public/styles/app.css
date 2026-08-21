@@ -133,9 +133,11 @@
 .realis__n{font-family:var(--font-display);font-size:2.1rem;font-weight:600;
   letter-spacing:-.03em;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
 .realis__l{font-size:var(--t-sm);color:var(--ink-500);line-height:1.35}
-.card--dark .realis__c{border-left-color:var(--lime)}
-.card--dark .realis__n{color:var(--lime)}
-.card--dark .realis__l{color:rgba(223,230,208,.7)}
+/* Le même bloc existe sur une section sombre du site public : sans ces règles,
+   le chiffre gardait sa couleur d'encre et disparaissait sur le fond forêt. */
+.card--dark .realis__c,.section--dark .realis__c{border-left-color:var(--lime)}
+.card--dark .realis__n,.section--dark .realis__n{color:var(--lime)}
+.card--dark .realis__l,.section--dark .realis__l{color:rgba(223,230,208,.82)}
 /* .5 sur fond forêt : 3,6:1, sous le seuil. .68 remet la note de bas de carte
    à 6,4:1 — elle reste secondaire à l'œil, elle devient lisible à la lecture. */
 .card--dark .hint{color:rgba(223,230,208,.68)}
