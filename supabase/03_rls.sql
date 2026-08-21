@@ -197,6 +197,13 @@ grant execute on function
   public.realisations(uuid, uuid, uuid)
 to authenticated;
 
+-- Le paiement n'est jamais confirmé par le navigateur. Seule la fonction Edge,
+-- qui détient la clé de service et vérifie la signature du prestataire, peut
+-- appeler celle-ci.
+grant execute on function
+  public.confirmer_don(text, text, uuid, numeric, public.origine_don, uuid)
+to service_role;
+
 -- Le classement et les réalisations du réseau sont montrés sur le site public :
 -- ce sont des agrégats, sans nom de salarié.
 grant execute on function public.classement_saison(uuid), public.realisations(uuid, uuid, uuid)

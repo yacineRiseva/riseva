@@ -471,6 +471,85 @@ begin
   end if;
 end $$;
 
+-- ---------------------------------------------------------------- paiements
+-- Un don financier n'existe que si de l'argent a bougé. Cette fonction est le
+-- seul chemin : elle est appelée par la fonction Edge qui reçoit le webhook du
+-- prestataire de paiement, après vérification de la signature, et elle n'est
+-- exécutable que par `service_role`. Sans elle, rien n'empêchait de valider une
+-- mission financière sans la moindre ligne de paiement en face.
+--
+-- Elle est idempotente : un webhook rejoué retombe sur `(fournisseur, reference)`
+-- et renvoie le don déjà enregistré, sans créer une seconde mission ni recompter
+-- les points. Les prestataires rejouent, c'est leur métier ; c'est au receveur
+-- de ne pas compter deux fois.
+create or replace function public.confirmer_don(
+  p_fournisseur text, p_reference text, p_annonce uuid,
+  p_montant numeric, p_origine public.origine_don,
+  p_salarie uuid default null)
+returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_a public.annonce;
+  v_ent uuid;
+  v_don uuid;
+  v_mission uuid;
+begin
+  -- Rejeu : on ressort le don existant, et on s'arrête là.
+  select d.id into v_don from public.don d
+   where d.fournisseur = p_fournisseur and d.reference = p_reference;
+  if found then return v_don; end if;
+
+  if p_montant is null or p_montant <= 0 then
+    raise exception 'Montant invalide' using errcode = '22023';
+  end if;
+
+  select * into v_a from public.annonce a where a.id = p_annonce for update;
+  if not found or v_a.type <> 'don_financier' then
+    raise exception 'Annonce introuvable ou non financière' using errcode = '42501';
+  end if;
+  if v_a.etat <> 'ouverte' then
+    raise exception 'Annonce fermée' using errcode = '42501';
+  end if;
+
+  if p_origine = 'entreprise' then
+    if p_salarie is null then
+      raise exception 'Un don d''entreprise est saisi par un salarié identifié' using errcode = '22023';
+    end if;
+    select a.entreprise into v_ent from private.appartenance a where a.profil = p_salarie;
+    if v_ent is null then
+      raise exception 'Salarié sans entreprise' using errcode = '42501';
+    end if;
+  end if;
+
+  -- Un don personnel ne porte pas le nom de l'entreprise dans la donnée brute :
+  -- la cause d'une association peut trahir une conviction ou un état de santé.
+  insert into public.don (association, entreprise, origine, montant, etat,
+                          fournisseur, reference, confirme_le)
+  values (v_a.association, v_ent, p_origine, p_montant, 'confirme',
+          p_fournisseur, p_reference, now())
+  returning id into v_don;
+
+  -- La mission qui porte les points. Un paiement confirmé vaut preuve : elle est
+  -- validée d'emblée, mais elle ne produit aucune réalisation confirmée tant que
+  -- l'association n'a pas déclaré ce que l'argent a permis de faire.
+  insert into public.mission (annonce, entreprise, salarie, etat, quantite, points,
+                              date_mission, declaree_le, tranchee_le, origine,
+                              cle_idempotence)
+  values (p_annonce,
+          coalesce(v_ent, (select a.entreprise from private.appartenance a where a.profil = p_salarie)),
+          p_salarie, 'validee', p_montant,
+          private.points_pour(v_a.saison, 'don_financier', p_montant),
+          current_date, now(), now(), p_origine,
+          p_fournisseur || ':' || p_reference)
+  returning id into v_mission;
+
+  update public.don d set mission = v_mission where d.id = v_don;
+  update public.annonce a set restant = greatest(0, a.restant - p_montant)
+   where a.id = p_annonce;
+
+  return v_don;
+end $$;
+
 -- ---------------------------------------------------------------- reçus
 create or replace function public.emettre_recu(p_don uuid)
 returns text

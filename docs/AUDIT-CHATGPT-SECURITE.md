@@ -87,7 +87,7 @@ Ce document sert de plan de correction. Une ligne cochée est une ligne corrigé
   l'association, le produit reprenait `quantité × impact`. *Séparé : `realiseDe()`
   distingue confirmé et estimé, l'interface les affiche séparément et dit combien
   de missions se sont validées sans réponse.*
-- [ ] Dons financiers non liés à un paiement confirmé, webhook non idempotent.
+- [x] Dons financiers non liés à un paiement confirmé, webhook non idempotent.
 - [x] Reçus fiscaux : `recu_numero` libre, sans unicité ; commentaire encore en
   16216*01 alors que le JS est en 16216*03.
 - [x] **L'« anonymisation » n'en est pas une** : même UUID conservé partout,
@@ -134,10 +134,11 @@ une régression de sécurité nommée, pas un doute.
 
 Ce qui reste ouvert, et pourquoi :
 
-- **Dons financiers liés à un paiement confirmé.** Le schéma est prêt (`don.etat`,
-  unicité `(fournisseur, reference)`, `origine` sans entreprise pour un don
-  personnel), mais la fonction Edge du webhook reste à écrire : elle dépend du
-  prestataire de paiement, qui n'est pas encore choisi.
+- **Prestataire de paiement.** `public.confirmer_don()` et la fonction Edge
+  `supabase/functions/paiement` sont écrites et testées — signature comparée en
+  temps constant, idempotence sur `(fournisseur, référence)`, points calculés par
+  le barème en SQL, reçu émis dans la foulée. Ne manque que le nom du prestataire
+  et le format exact de sa signature.
 - **Suppression réellement irréversible.** `supprimer_salarie()` existe et
   `mission.salarie` passe à NULL, mais l'appel à l'API Auth Admin et le rejeu des
   demandes d'effacement sur les sauvegardes sont une procédure d'exploitation,

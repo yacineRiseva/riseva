@@ -3,7 +3,7 @@
 
    Deux modèles officiels, et ils ne sont pas interchangeables :
    - Cerfa 11580*05, dons des PARTICULIERS, article 200 du CGI ;
-   - Cerfa 16216*01, dons des ENTREPRISES, article 238 bis du CGI, obligatoire
+   - Cerfa 16216*03, dons des ENTREPRISES, article 238 bis du CGI, obligatoire
      depuis le 1er janvier 2022.
 
    Riseva ne détient jamais les fonds et n'est pas l'émetteur : le reçu émane de
@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
   // même si son geste rapporte des points à son entreprise.
   const auNomDeLEntreprise = pour_le_compte_de === "entreprise";
   const modele = auNomDeLEntreprise
-    ? { cerfa: "16216*01", article: "238 bis du CGI", public: "entreprise" }
+    ? { cerfa: "16216*03", article: "238 bis du CGI", public: "entreprise" }
     : { cerfa: "11580*05", article: "200 du CGI",     public: "particulier" };
 
   const { data: don, error } = await sb.from("don")

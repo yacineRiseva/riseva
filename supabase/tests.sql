@@ -231,6 +231,57 @@ begin
 end $$;
 
 \echo ''
+\echo 'Paiements'
+do $$
+declare v_don uuid; v_bis uuid; v_n integer; v_an uuid;
+begin
+  -- Une annonce financière, pour avoir de quoi payer.
+  insert into public.annonce (association, saison, type, titre, description, lieu,
+    quantite, restant, date_prevue, etat, impact_unite, impact_par_unite)
+  values ('44444444-4444-4444-8444-444444444444', '11111111-1111-4111-8111-111111111111',
+    'don_financier', 'Financer les plants d''automne',
+    'Un plant coûte 2,10 € livré. Objectif : sécuriser la campagne de plantation.',
+    'Clermont-Ferrand', 2520, 2520, current_date + 40, 'ouverte', 'arbre', 0.4762)
+  returning id into v_an;
+
+  v_don := public.confirmer_don('demo', 'PAY-0001', v_an, 300, 'entreprise',
+                                'aaaaaaaa-0000-4000-8000-000000000002');
+  perform pg_temp.dit('un webhook confirmé crée le don et sa mission', v_don is not null);
+  perform pg_temp.dit('les points du don viennent du barème',
+    (select points from public.mission where cle_idempotence = 'demo:PAY-0001') = 30);
+  perform pg_temp.dit('le reste à financer a baissé',
+    (select restant from public.annonce where id = v_an) = 2220);
+
+  -- Le même webhook, rejoué.
+  v_bis := public.confirmer_don('demo', 'PAY-0001', v_an, 300, 'entreprise',
+                                'aaaaaaaa-0000-4000-8000-000000000002');
+  perform pg_temp.dit('un webhook rejoué ne crée pas un second don', v_bis = v_don);
+  select count(*) into v_n from public.mission where cle_idempotence = 'demo:PAY-0001';
+  perform pg_temp.dit('ni une seconde mission', v_n = 1);
+  perform pg_temp.dit('le reste à financer n''a pas rebaissé',
+    (select restant from public.annonce where id = v_an) = 2220);
+
+  -- Un don personnel ne porte pas le nom de l'entreprise dans la donnée brute.
+  perform public.confirmer_don('demo', 'PAY-0002', v_an, 50, 'salarie',
+                               'aaaaaaaa-0000-4000-8000-000000000002');
+  perform pg_temp.dit('un don personnel n''a pas d''entreprise dans la table des dons',
+    (select entreprise from public.don where reference = 'PAY-0002') is null);
+  perform pg_temp.dit('un paiement ne produit pas de réalisation confirmée',
+    (select realise_confirme from public.mission where cle_idempotence = 'demo:PAY-0002') is null);
+end $$;
+
+do $$
+begin
+  perform pg_temp.dit('aucune mission financière ne peut exister sans don en face',
+    not exists (
+      select 1 from public.mission m
+        join public.annonce a on a.id = m.annonce
+       where a.type = 'don_financier'
+         and m.etat in ('validee','validee_auto')
+         and not exists (select 1 from public.don d where d.mission = m.id)));
+end $$;
+
+\echo ''
 \echo 'Rapports'
 do $$
 begin
