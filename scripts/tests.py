@@ -262,11 +262,15 @@ def main():
         tr = norm(p.inner_text(".content")).lower()
         verifie("le coût par mission est donné dans le rapport, avec sa formule",
                 "coût par mission validée" in tr and "missions" in tr)
-        i_attend = t.lower().find("à traiter"); i_rang = t.find("Votre rang")
+        i_attend = t.lower().find("à traiter")
+        i_pos = max(t.find("Votre rang"), t.find("Votre position"))
         i_assos = t.find("Vos associations")
-        verifie("le rang est toujours là, mais après", i_rang > i_attend >= 0)
+        verifie("le classement est toujours là, mais après", i_pos > i_attend >= 0)
         # « Vos associations » justifie l'abonnement mieux qu'un rang : il passe devant.
-        verifie("les associations soutenues passent avant le classement", 0 <= i_assos < i_rang)
+        verifie("les associations soutenues passent avant le classement", 0 <= i_assos < i_pos)
+        # Ce que dit le classement, le tableau de bord ne le contredit pas.
+        verifie("aucun rang n'est annoncé sur le tableau de bord non plus",
+                "Classement non publié" in t)
 
         print("\nCloisonnement des dons personnels")
         connecte(p, "u2", "#/missions")

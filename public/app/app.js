@@ -488,14 +488,19 @@ function tableauEntreprise(u){
 
       <div class="stack" style="--gap:var(--s5)">
         <section class="card">
+          ${/* Pas de rang sous dix entreprises, ici non plus. Le classement le disait
+                déjà ; l'afficher quand même sur le tableau de bord annulait la
+                précaution et laissait « 2e sur 2 » comme seule impression. */""}
           <div class="between" style="margin-bottom:var(--s5)">
-            <div><h3>Votre rang</h3>
+            <div><h3>${total >= 10 ? "Votre rang" : "Votre position"}</h3>
               <p class="muted" style="font-size:var(--t-sm);margin-top:4px">${
                 esc(moiCl.categorie ? moiCl.categorie.label : "")}</p></div>
             <span class="row" style="gap:var(--s3)">
-              <strong style="font-family:var(--font-display);font-size:1.6rem;
-                letter-spacing:-.02em;color:var(--ink)">${rangFR(rang)}</strong>
-              <span class="muted" style="font-size:var(--t-sm)">sur ${total}</span>
+              ${total >= 10
+                ? `<strong style="font-family:var(--font-display);font-size:1.6rem;
+                     letter-spacing:-.02em;color:var(--ink)">${rangFR(rang)}</strong>
+                   <span class="muted" style="font-size:var(--t-sm)">sur ${total}</span>`
+                : `<span class="badge badge--warn">Classement non publié</span>`}
             </span>
           </div>
           <hr class="sep" style="margin:0 0 var(--s5)">

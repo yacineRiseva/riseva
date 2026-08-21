@@ -10,33 +10,33 @@ annonces, classement.
 
 ## P0 — ce qui détruit la confiance
 
-- [ ] **Trois contradictions visibles.** Le tableau de bord dit 3 salariés sur 210,
+- [x] **Trois contradictions visibles.** Le tableau de bord dit 3 salariés sur 210,
   soit 1,4 % ; le classement dit 60 % de participation pour la même entreprise.
   Deux dénominateurs sous un seul mot. → « Participation dans l'effectif : 3/210 »
   d'un côté, « Activation des inscrits : 3/5 » de l'autre, et jamais « participation »
   pour les deux. Badge « Saison 2027 » alors que les annonces sont datées d'août 2026.
   « Tous ensemble » sous le badge de saison alors que la courbe part d'avril 2025 :
   choisir, et le dire — saison, ou historique depuis le lancement.
-- [ ] **Le classement dit « non significatif » puis classe quand même.** Trois
+- [x] **Le classement dit « non significatif » puis classe quand même.** Trois
   réserves affichées, puis un rang, des barres comparatives et « vous êtes 2e ».
   Le lecteur ne retient que « dernier ». → Sous dix entreprises : score, progression
   de cohorte, et rien d'autre. Aucun rang, aucune barre, aucun trophée.
-- [ ] **« Objectif du trimestre » n'a aucun objectif.** Une barre à moitié pleine,
+- [x] **« Objectif du trimestre » n'a aucun objectif.** Une barre à moitié pleine,
   un tiret à droite, ni cible ni maximum. → Score, médiane de catégorie si la
   cohorte le permet, sinon progression de cohorte — le seul objectif réel ici.
 
 ## P1 — hiérarchie et compréhension
 
-- [ ] Tableau de bord : « Ce qui vous attend » deux fois trop haut pour deux lignes.
-- [ ] Mettre « 3 salariés mobilisés » en valeur principale, le 1,4 % en secondaire.
-- [ ] Sortir « 950 € par mission validée » des quatre KPI : à quatre missions, le
+- [x] Tableau de bord : « Ce qui vous attend » deux fois trop haut pour deux lignes.
+- [x] Mettre « 3 salariés mobilisés » en valeur principale, le 1,4 % en secondaire.
+- [x] Sortir « 950 € par mission validée » des quatre KPI : à quatre missions, le
   ratio est instable. Le garder dans le rapport, avec la formule.
-- [ ] Remonter « Vos associations » : justification plus forte que le classement,
+- [x] Remonter « Vos associations » : justification plus forte que le classement,
   et invisible dans les 875 premiers pixels.
-- [ ] **Jauge** : la légende présente trois valeurs comme trois catégories alors
+- [x] **Jauge** : la légende présente trois valeurs comme trois catégories alors
   que 960 = 120 + 840. Deux segments, l'équation écrite, et le format responsable
   de l'écrêtement nommé. Titre : « Vos 960 points, après application du plafond ».
-- [ ] **Annonces** : « Se positionner » ne convient à aucun des trois formats.
+- [x] **Annonces** : « Se positionner » ne convient à aucun des trois formats.
   → « Faire un don », « Proposer du matériel », « Participer ». Le badge lime
   affiche parfois un barème, pas un gain : écrire « Barème : +1 pt par tranche de
   10 € ». Masquer les indicateurs à zéro. Distinguer objectif et réalisation.
@@ -57,19 +57,19 @@ annonces, classement.
 
 ## P2 — ce qui est de trop
 
-- [ ] « Tous ensemble » est 40 % trop longue. Supprimer : « calculées à chaque
+- [x] « Tous ensemble » est 40 % trop longue. Supprimer : « calculées à chaque
   ouverture de page, pas recopiées », la phrase sur l'animation, la deuxième carte
   de France (déjà dans l'annuaire), le graphique historique dans sa forme actuelle,
   et les dix tuiles simultanées. Six cartes en 5 + 1 avec une deuxième ligne vide :
   marqueur visuel typique d'une démo.
-- [ ] « Ce que ça a produit, en vrai » est trop affirmatif face à « Riseva additionne,
+- [x] « Ce que ça a produit, en vrai » est trop affirmatif face à « Riseva additionne,
   elle n'audite pas ». → « Résultats déclarés par les associations », confirmés et
   estimés séparés visuellement, pas l'estimé en petit gris dans la même phrase.
-- [ ] Annuaire : la carte occupe 60 % de la hauteur utile avant le premier résultat.
+- [x] Annuaire : la carte occupe 60 % de la hauteur utile avant le premier résultat.
   → Carte en colonne de gauche (35–40 %), trois associations les plus proches à
   droite, filtres et annuaire dessous. Titre : « 12 associations partenaires en
   France ». Préciser « à vol d'oiseau ».
-- [ ] Classement : le panneau de droite est un manuel embarqué sur un tiers de
+- [x] Classement : le panneau de droite est un manuel embarqué sur un tiers de
   l'écran, plus volumineux que le classement lui-même. → Trois lignes et un lien.
 
 ## Contrastes
@@ -92,3 +92,39 @@ capitales de la forêt, trop petites.
 6. Ce que signifie « 0 colis préparés » sur une annonce qui vise à en financer 300.
 7. Si les distances sont routières ou à vol d'oiseau.
 8. Si « Tous ensemble » décrit la saison 2027 ou l'historique depuis 2025.
+
+
+## Où en est la correction
+
+Tout est appliqué. Ce qui a changé, écran par écran :
+
+- **Dénominateurs.** « Participation » ne désigne plus qu'une chose : la part de
+  l'effectif ayant une action validée. La part des seuls inscrits s'appelle
+  « activation » et n'apparaît que dans l'export. Le tableau de bord affiche
+  « 3 salariés mobilisés » en grand, « 1,4 % de l'effectif (3/210) » en dessous.
+- **Périodes.** La saison de démonstration est devenue la Saison 2026, celle qui
+  tourne — le site public continue de vendre 2027. Le bandeau de « Tous ensemble »
+  dit « Depuis le lancement », parce que la page additionne un historique.
+- **Classement.** Sous dix entreprises : aucun rang, aucune barre comparative,
+  aucun trophée. Le score, et l'avancement de la cohorte, 2/10. Le panneau de
+  droite est passé d'un manuel de trois cents pixels à trois lignes et un lien.
+- **Objectif du trimestre.** Supprimé. À la place : le score, et la médiane de la
+  catégorie quand la cohorte le permet — sinon l'avancement de la cohorte.
+- **Jauge.** Deux segments, et l'équation écrite : 960 réalisés = 120 retenus +
+  840 écrêtés. Le format responsable est nommé, avec ce qu'il faut faire pour
+  récupérer les points.
+- **Annonces.** Un intitulé d'action par format. Le badge dit « +150 points par
+  demi-journée » ou « +1 pt par tranche de 10 € ». Le chiffre d'impact est annoncé
+  comme un objectif, et disparaît quand il vaut zéro. Trois filtres visibles, deux
+  repliés. Vignettes ramenées de 132 à 78 px.
+- **Forêt.** Cinq rangs de vingt, séparés tous les dix, un seul langage graphique,
+  aucun chevauchement : on peut recompter. Hauteur réduite de 40 %. La phrase qui
+  expliquait que ce n'était pas une animation a disparu.
+- **Carte.** Cadre serré, contour en vert forêt, siège en losange avec son nom en
+  légende, distances lisibles dans la liste et pas seulement au survol, mention
+  « à vol d'oiseau ».
+- **Tous ensemble.** De 4 686 à 2 604 pixels, soit 44 % de moins. Carte dupliquée
+  et graphique historique retirés, quatre KPI, quatre résultats plus un volet,
+  méthode dans un volet, estimations dans leur propre bloc ambre.
+- **Contraste.** `scripts/contraste.py` mesure désormais aussi les placeholders et
+  signale tout corps sous douze pixels hors décor. 1 320 textes, zéro sous le seuil.
