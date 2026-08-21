@@ -122,6 +122,11 @@ export const FISCAL = {
   plafond_taux_ca: 0.005,
   report_annees: 5,
   pmss: 4005,
+  /* Durées conventionnelles, utilisées seulement tant que les heures réelles ne sont
+     pas saisies. Elles servent à afficher un ordre de grandeur, jamais à justifier
+     une valorisation devant un contrôle : c'est écrit à côté du chiffre. */
+  heures_demi_journee: 4,
+  heures_jour: 7,
   get plafond_mecenat_par_salarie(){ return this.pmss * 3; },
 
   /* Les millésimes des formulaires changent, et un ancien modèle peut être écarté
@@ -1466,14 +1471,29 @@ function creerMock(){
     /* Une mission n'est valorisable en mécénat de compétences que si elle a eu lieu
        sur le temps de travail, à l'initiative de l'entreprise. Une demi-journée un
        samedi matin, c'est du bénévolat : estimable, mais pas déductible. */
+    /* La valorisation fiscale, et ce qu'elle ne peut pas savoir.
+       Trois choses ont été corrigées ici, parce qu'un contrôle les aurait trouvées :
+       — le mécénat de compétences se valorise au temps réellement effectué et au coût
+         de revient réel, salarié par salarié ; les demi-journées sont un barème de
+         points, pas une pièce comptable. Tant que les heures émargées ne sont pas
+         saisies, on applique la durée conventionnelle ET on le dit ;
+       — le plafond de 20 000 € ou 5 ‰ du chiffre d'affaires porte sur TOUS les
+         versements de l'exercice, pas seulement sur ceux que Riseva connaît. Sans
+         chiffre d'affaires, dons hors Riseva et reports antérieurs déclarés, le
+         plafond et le report ne se calculent pas : ils valent null, pas zéro ;
+       — l'entreprise est responsable de sa valorisation. On lui rend donc la piste
+         d'audit ligne à ligne, pas un total. */
     valorisationMecenat(eid){
       const ms = api.missions({ entreprise: eid })
                    .filter(m => m.etat === "validee" || m.etat === "validee_auto");
       const e = api.entreprise(eid) || {};
-      const coutDemiJournee = (e.cout_jour_moyen || 300) / 2;
+      const coutJour = e.cout_jour_moyen || 300;
+      const coutHeure = e.cout_heure_charge || (coutJour / FISCAL.heures_jour);
+      const coutDemiJournee = coutJour / 2;
 
       const parSalarie = {};
       let donsSalaries = 0, donsEntreprise = 0, demiJourneesTT = 0, demiJourneesPerso = 0;
+      let heuresEstimees = false;
 
       ms.forEach(m => {
         const a = api.annonceDe(m); if (!a) return;
@@ -1491,31 +1511,82 @@ function creerMock(){
           demiJourneesPerso += m.quantite; return;
         }
         demiJourneesTT += m.quantite;
-        parSalarie[m.salarie] = (parSalarie[m.salarie] || 0) + m.quantite * coutDemiJournee;
+        /* Deux régimes, et surtout pas de conversion entre les deux : des heures
+           émargées se valorisent au coût horaire chargé ; à défaut, la demi-journée
+           se valorise sur la base journalière déclarée par l'entreprise. Convertir
+           une demi-journée conventionnelle en heures puis en euros fabriquerait une
+           précision que personne n'a mesurée — et, ici, 14 % de valorisation en trop. */
+        const reelles = Number(m.heures) > 0;
+        if (!reelles) heuresEstimees = true;
+        const heures = reelles ? Number(m.heures)
+                               : m.quantite * FISCAL.heures_demi_journee;
+        const cout = reelles ? heures * coutHeure
+                             : m.quantite * coutDemiJournee;
+        const asso = api.association(a.asso) || {};
+        const sal = api.utilisateur(m.salarie) || {};
+        const ligne = parSalarie[m.salarie] || (parSalarie[m.salarie] = {
+          salarie: m.salarie, nom: sal.nom || "—", heures: 0, cout: 0, lignes: []
+        });
+        ligne.heures += heures;
+        ligne.cout   += cout;
+        ligne.lignes.push({
+          mission: m.id, date: m.date, association: asso.nom || "—",
+          heures, heuresReelles: reelles, cout: Math.round(cout),
+          convention: m.convention_signee_le || null,
+          confirmee: m.etat === "validee",
+          recu: m.recu_le || null
+        });
       });
 
       const plafondSal = FISCAL.plafond_mecenat_par_salarie;
-      let competencesBrut = 0, competencesRetenu = 0;
-      Object.values(parSalarie).forEach(v => {
-        competencesBrut += v;
-        competencesRetenu += Math.min(v, plafondSal);
-      });
+      let competencesBrut = 0, competencesRetenu = 0, heuresTT = 0;
+      const detailSalaries = Object.values(parSalarie).map(s => {
+        competencesBrut += s.cout;
+        const retenu = Math.min(s.cout, plafondSal);
+        competencesRetenu += retenu;
+        heuresTT += s.heures;
+        return { ...s, cout: Math.round(s.cout), retenu: Math.round(retenu),
+                 ecrete: Math.round(s.cout - retenu) };
+      }).sort((x, y) => y.cout - x.cout);
+      competencesBrut = Math.round(competencesBrut);
+      competencesRetenu = Math.round(competencesRetenu);
 
-      /* L'assiette de l'entreprise, et rien d'autre. */
+      /* L'assiette connue de Riseva, et rien d'autre. */
       const assiette = donsEntreprise + competencesRetenu;
-      const plafondEntreprise = Math.max(FISCAL.plafond_plancher,
-        Math.round((e.ca || 0) * FISCAL.plafond_taux_ca));
-      const assietteRetenue = Math.min(assiette, plafondEntreprise);
-      const reportable = Math.max(0, assiette - plafondEntreprise);
-      const reduction = Math.round(assietteRetenue * FISCAL.taux_reduction);
+
+      /* Le plafond ne se calcule qu'avec ce que l'entreprise a déclaré. Sans ça,
+         « reportable : 0 € » serait une affirmation, et elle serait fausse. */
+      const plafondCalculable = Number(e.ca) > 0
+        && e.exercice_debut && e.exercice_fin
+        && e.dons_hors_riseva !== undefined && e.dons_hors_riseva !== null
+        && e.report_anterieur !== undefined && e.report_anterieur !== null;
+
+      const versementsExercice = plafondCalculable
+        ? assiette + Number(e.dons_hors_riseva) + Number(e.report_anterieur) : null;
+      const plafondEntreprise = plafondCalculable
+        ? Math.max(FISCAL.plafond_plancher, Math.round(Number(e.ca) * FISCAL.plafond_taux_ca))
+        : null;
+      const assietteRetenue = plafondCalculable
+        ? Math.max(0, Math.min(assiette, plafondEntreprise - Number(e.dons_hors_riseva)
+                                          - Number(e.report_anterieur)))
+        : null;
+      const reportable = plafondCalculable
+        ? Math.max(0, versementsExercice - plafondEntreprise) : null;
+      const reduction = plafondCalculable
+        ? Math.round(assietteRetenue * FISCAL.taux_reduction) : null;
 
       return {
         donsSalaries, donsEntreprise, demiJourneesTT, demiJourneesPerso,
-        coutDemiJournee, competencesBrut, competencesRetenu,
+        coutDemiJournee, coutHeure, heuresTT, heuresEstimees,
+        competencesBrut, competencesRetenu, detailSalaries,
         ecreteParSalarie: competencesBrut - competencesRetenu,
         plafondSalarie: plafondSal,
-        assiette, plafondEntreprise, assietteRetenue, reportable, reduction,
-        salariesConcernes: Object.keys(parSalarie).length,
+        assiette, plafondCalculable, versementsExercice,
+        plafondEntreprise, assietteRetenue, reportable, reduction,
+        /* Ce que la réduction vaudrait si rien d'autre n'avait été versé cette année.
+           C'est un maximum théorique, jamais un montant déclarable. */
+        estimationMax: Math.round(assiette * FISCAL.taux_reduction),
+        salariesConcernes: detailSalaries.length,
         /* Ce que les salariés peuvent déduire eux-mêmes, à titre personnel : 66 % du don
            dans la limite de 20 % du revenu imposable (article 200 du CGI). */
         reductionSalaries: Math.round(donsSalaries * 0.66)

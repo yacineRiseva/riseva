@@ -1671,7 +1671,7 @@ function vueRapports(u){
             contiendra le document final.</p>
         </div>
         <div class="row" style="gap:var(--s2);flex-wrap:wrap">
-          <button class="btn btn--primary btn--sm" id="preuve">Dossier de preuve</button>
+          <button class="btn btn--primary btn--sm" id="preuve">Dossier de traçabilité</button>
           <button class="btn btn--ghost btn--sm" id="csv">CSV</button>
           <button class="btn btn--ghost btn--sm" id="pdf">Imprimer</button>
         </div>
@@ -1686,9 +1686,17 @@ function vueRapports(u){
         ${/* Le coût par mission a sa place ici, dans un document de pilotage, avec
               sa formule sous les yeux — pas en quatrième KPI d'accueil, où quatre
               missions suffisent à le faire varier du simple au double. */
-          kpi("Coût par mission validée", cout ? eur(cout.valeur) : "—",
-            cout ? `${eur(cout.abonnement)} / ${nb(cout.missions)} missions` : "aucune mission validée")}
+          kpi("Coût SaaS par mission", cout ? eur(cout.valeur) : "—",
+            cout ? `${eur(cout.abonnement)} HT d'abonnement / ${nb(cout.missions)} missions`
+                 : "aucune mission comptabilisée")}
       </div>
+      <p class="hint" style="margin-top:var(--s4)">
+        « Coût SaaS par mission » rapporte le seul abonnement Riseva au nombre de missions
+        comptabilisées. Il <strong>n'inclut pas</strong> le temps de vos salariés, la valeur du
+        matériel donné, les dons versés, ni les frais engagés sur place — ce ne sont pas nos
+        chiffres, et nous ne les inventerons pas. Il est aussi très instable tant que le nombre de
+        missions est petit : quatre missions de plus le divisent par deux.
+      </p>
       <hr class="sep">
       <div class="two">
         <div>
@@ -1702,10 +1710,15 @@ function vueRapports(u){
           <hr class="sep">
           <h3>Valorisation fiscale</h3>
           <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
-            <div class="between"><span class="muted">Assiette de l'entreprise</span>
-              <span class="tnum">${eur(v.assietteRetenue)}</span></div>
-            <div class="between"><span class="muted">Réduction d'impôt estimée</span>
-              <strong class="tnum" style="color:var(--forest-800)">${eur(v.reduction)}</strong></div>
+            <div class="between"><span class="muted">Assiette connue de Riseva</span>
+              <span class="tnum">${eur(v.assiette)}</span></div>
+            <div class="between"><span class="muted">${v.plafondCalculable
+                ? "Réduction d'impôt estimée" : "Estimation maximale potentielle"}</span>
+              <strong class="tnum" style="color:var(--forest-800)">${
+                v.plafondCalculable ? eur(v.reduction) : eur(v.estimationMax)}</strong></div>
+            ${v.plafondCalculable ? "" : `<p class="hint" style="margin:0">Plafond et report non
+              calculés : ils dépendent de votre chiffre d'affaires, de vos autres dons de
+              l'exercice et de vos reports antérieurs, que Riseva ne connaît pas.</p>`}
             <div class="between"><span class="muted">Dont mécénat de compétences</span>
               <span class="tnum">${eur(v.competencesRetenu)}</span></div>
             <div class="between"><span class="muted">Dons des salariés, hors assiette</span>
@@ -1912,7 +1925,24 @@ function vueAbonnement(u){
    et période de la prestation, montants HT, TVA et TTC, échéance, pénalités de retard
    et indemnité forfaitaire de recouvrement de 40 € (article L. 441-9 du code de commerce).
    Conservation dix ans. */
-/* Dossier de preuve : une page que le responsable RSE pose sur le bureau de sa
+/* Un montant qu'on ne sait pas calculer s'écrit « non calculé », jamais zéro.
+   Zéro est une affirmation ; l'absence n'en est pas une. */
+const eurOuNon = (v) => v === null || v === undefined ? "non calculé" : eur(v);
+
+/* Une empreinte courte et reproductible du jeu d'opérations arrêté. Sans elle, un
+   document régénéré après correction ne peut pas être rapproché de celui qu'on a
+   déjà remis : les deux se ressemblent, et personne ne sait lequel fait foi. */
+function empreinte(missions){
+  const graine = missions.map(m => `${m.id}:${m.etat}:${m.quantite}:${m.points}`).sort().join("|");
+  let x = 0x811c9dc5;
+  for (let i = 0; i < graine.length; i++){
+    x ^= graine.charCodeAt(i);
+    x = Math.imul(x, 0x01000193) >>> 0;
+  }
+  return x.toString(16).padStart(8, "0").toUpperCase().replace(/(.{4})(.{4})/, "$1-$2");
+}
+
+/* Dossier de traçabilité : une page que le responsable RSE pose sur le bureau de sa
    direction et de son expert-comptable. Chaque chiffre y arrive avec son numérateur,
    son dénominateur et sa méthode. Rien n'y est arrondi en sa faveur. */
 function ouvrirPreuve(u){
@@ -1936,7 +1966,7 @@ function ouvrirPreuve(u){
     <td class="m">${methode}</td></tr>`;
 
   const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
-<title>Dossier de preuve — ${esc(e.nom)}, ${esc(sa.nom)}</title>
+<title>Dossier de traçabilité — ${esc(e.nom)}, ${esc(sa.nom)}</title>
 <style>
   body{font:13.5px/1.6 -apple-system,Segoe UI,Inter,sans-serif;color:#2C3026;background:#F2F0E9;
     margin:0;padding:40px 20px}
@@ -1963,11 +1993,22 @@ function ouvrirPreuve(u){
 </style></head><body>
 <div class="noprint"><button onclick="window.print()">Imprimer ou enregistrer en PDF</button></div>
 <div class="p">
-  <h1>Dossier de preuve</h1>
-  <p class="st">${esc(e.nom)} — ${esc(sa.nom)} — édité le ${dateFR(new Date().toISOString())}</p>
+  <h1>Dossier de traçabilité — pièces, sources et méthode</h1>
+  <p class="st">${esc(e.nom)} — ${esc(sa.nom)} — arrêté au ${dateFR(new Date().toISOString())}
+  — empreinte ${empreinte(ms)}</p>
   <p class="st" style="margin-top:10px">Destiné à la direction et à l'expert-comptable. Chaque
   chiffre est donné avec sa méthode de calcul. Les données brutes correspondantes sont
   exportables au format CSV depuis l'espace client.</p>
+  <div class="note alerte" style="margin-top:14px">
+    <strong>Ce document n'est pas un rapport d'audit.</strong> Il rassemble des données
+    <strong>déclarées</strong> — par vos salariés, par les associations — que Riseva horodate,
+    recoupe et met en forme, mais <strong>n'audite pas</strong>. Chaque ligne porte son statut :
+    <em>confirmée</em> quand une association a répondu, <em>estimée</em> quand la mission a été
+    clôturée sans confirmation au bout de quatorze jours. L'empreinte ci-dessus identifie le jeu
+    de données arrêté : deux éditions qui portent la même empreinte contiennent les mêmes
+    opérations, et une empreinte différente signale qu'il s'est passé quelque chose entre les
+    deux.
+  </div>
 
   <h2>1. Population et période</h2>
   <table>
@@ -2034,10 +2075,18 @@ function ouvrirPreuve(u){
           `Coût de revient au prorata du temps validé. Écrêtage par salarié à ${eur(v.plafondSalarie)}${v.ecreteParSalarie ? ", soit " + eur(v.ecreteParSalarie) + " écartés" : ""}.`)}
       ${l("Assiette de l'entreprise", eur(v.assiette),
           "Dons de l'entreprise plus mécénat de compétences retenu.")}
-      ${l("Plafond de l'entreprise", eur(v.plafondEntreprise),
-          "Le plus élevé entre 20 000 € et 5 pour mille du chiffre d'affaires HT déclaré.")}
-      ${l("Réduction d'impôt estimée", eur(v.reduction),
-          "60 % de l'assiette retenue. Estimation, non déclaration : votre expert-comptable arrête le chiffre.")}
+      ${l("Plafond de l'entreprise", eurOuNon(v.plafondEntreprise),
+          v.plafondCalculable
+            ? "Le plus élevé entre 20 000 € et 5 pour mille du chiffre d'affaires HT déclaré."
+            : "Non calculé : le plafond porte sur tous les versements de l'exercice. Il demande le chiffre d'affaires, les dons faits hors Riseva et les reports antérieurs, qui ne sont pas renseignés.")}
+      ${l("Report sur les exercices suivants", eurOuNon(v.reportable),
+          v.plafondCalculable ? "Excédent au-delà du plafond, reportable sur cinq exercices."
+                              : "Non calculé, pour la même raison.")}
+      ${l(v.plafondCalculable ? "Réduction d'impôt estimée" : "Estimation maximale potentielle",
+          v.plafondCalculable ? eur(v.reduction) : eur(v.estimationMax),
+          v.plafondCalculable
+            ? "60 % de l'assiette retenue. Estimation, non déclaration : votre expert-comptable arrête le chiffre."
+            : "60 % de la seule assiette connue de Riseva, plafond non appliqué. Non utilisable pour la déclaration.")}
     </tbody>
   </table>
 
@@ -2083,7 +2132,8 @@ function ouvrirPreuve(u){
 
   <p class="pied">
     Le score mesure un engagement, pas un impact environnemental ou social, et ne doit pas être
-    présenté comme tel. Les règles complètes du calcul sont publiques sur riseva.fr/reglement.html,
+    présenté comme tel. Données déclarées, non auditées par Riseva.
+    Les règles complètes du calcul sont publiques sur riseva.fr/reglement.html,
     avec un exemple chiffré qui se refait à la main. En cas d'écart entre ce document et vos
     propres calculs, écrivez-nous : c'est nous qui avons tort.
   </p>
@@ -2092,7 +2142,7 @@ function ouvrirPreuve(u){
   const w = window.open("", "_blank");
   if (!w){ toast("Autorisez les fenêtres pour ouvrir le dossier."); return; }
   w.document.write(html); w.document.close();
-  toast("Dossier de preuve ouvert dans un nouvel onglet.");
+  toast("Dossier de traçabilité ouvert dans un nouvel onglet.");
 }
 
 function ouvrirFacture(u, fa){
@@ -3628,20 +3678,31 @@ function vueMecenat(u){
   const missionsTT = DB.missions({ entreprise: u.org }).filter(m => {
     const a = DB.annonceDe(m); return a && a.temps_travail; });
   const pretFiscal = (() => {
+    const lignes = v.detailSalaries.flatMap(s => s.lignes);
     const points = [
-      { libelle: "Coût journalier chargé renseigné dans les paramètres",
-        ok: !!e.cout_jour_moyen },
+      { libelle: "Coût horaire chargé renseigné dans les paramètres",
+        ok: !!(e.cout_heure_charge || e.cout_jour_moyen) },
       { libelle: "SIRET et adresse de facturation renseignés",
         ok: !!(e.siret && e.adresse) },
       { libelle: "Associations bénéficiaires ayant déclaré leur éligibilité au mécénat",
-        ok: missionsTT.every(m => DB.eligibleMecenat((DB.annonceDe(m) || {}).asso)) },
-      { libelle: "Convention de mise à disposition éditée pour chaque mission sur le temps de travail",
-        ok: missionsTT.length === 0 ? false : true },
+        ok: missionsTT.length > 0
+            && missionsTT.every(m => DB.eligibleMecenat((DB.annonceDe(m) || {}).asso)) },
+      { libelle: "Heures réellement effectuées saisies pour chaque mission — pas la durée conventionnelle",
+        ok: lignes.length > 0 && lignes.every(x => x.heuresReelles) },
+      { libelle: "Convention de mise à disposition signée par les trois parties",
+        ok: lignes.length > 0 && lignes.every(x => !!x.convention) },
+      { libelle: "Reçu fiscal reçu de chaque association bénéficiaire",
+        ok: lignes.length > 0 && lignes.every(x => !!x.recu) },
+      { libelle: "Chiffre d'affaires, dons faits hors Riseva et reports antérieurs renseignés",
+        ok: v.plafondCalculable },
       { libelle: "Validation par votre expert-comptable avant déclaration",
         ok: false }
     ];
     const ok = points.filter(x => x.ok).length;
-    return { points, ok, total: points.length, pret: ok >= 3 };
+    /* Le dernier contrôle est la validation par l'expert-comptable : il ne peut pas
+       être coché depuis Riseva. Autrement dit le calcul n'est jamais « complet » ici,
+       et c'est exactement ce qu'il faut écrire, plutôt que de se déclarer prêt à 3/5. */
+    return { points, ok, total: points.length, pret: ok === points.length };
   })();
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <section class="card ${pretFiscal.pret ? "" : "card--flat"}"
@@ -3649,11 +3710,12 @@ function vueMecenat(u){
       <div class="between" style="flex-wrap:wrap;gap:var(--s4)">
         <div>
           <h3 style="font-size:var(--t-lg)">${pretFiscal.pret
-            ? "Estimation calculable" : "Estimation non calculable en l'état"}</h3>
+            ? "Contrôles complets"
+            : `Calcul incomplet — ${pretFiscal.ok} contrôle${pretFiscal.ok > 1 ? "s" : ""} sur ${pretFiscal.total}`}</h3>
           <p class="muted" style="font-size:var(--t-sm);margin-top:6px;color:var(--ink-600)">
             ${pretFiscal.pret
-              ? "Les pièces nécessaires existent. Le montant reste une estimation : votre expert-comptable l'arrête."
-              : "Le chiffre ci-dessous ne vaut rien tant que les pièces ne suivent pas."}</p>
+              ? "Les pièces sont réunies. Le montant reste une estimation : votre expert-comptable l'arrête."
+              : "<strong>Non utilisable pour la déclaration</strong> tant que les justificatifs obligatoires ne sont pas complets. Le chiffre ci-dessous est un ordre de grandeur, pas un montant déclarable."}</p>
         </div>
         <span class="badge ${pretFiscal.pret ? "badge--ok" : "badge--warn"}">
           Justificatifs ${pretFiscal.ok} / ${pretFiscal.total}</span>
@@ -3667,13 +3729,19 @@ function vueMecenat(u){
     </section>
 
     <div class="kpis">
-      ${kpi("Réduction d'impôt de l'entreprise", eur(v.reduction),
-            `${Math.round(FISCAL.taux_reduction * 100)} % de ${eur(v.assietteRetenue)}`, "", "kpi--tete grain")}
+      ${kpi(v.plafondCalculable ? "Réduction d'impôt estimée" : "Estimation maximale potentielle",
+            v.plafondCalculable ? eur(v.reduction) : eur(v.estimationMax),
+            v.plafondCalculable
+              ? `${Math.round(FISCAL.taux_reduction * 100)} % de ${eur(v.assietteRetenue)}`
+              : `${Math.round(FISCAL.taux_reduction * 100)} % de ${eur(v.assiette)}, plafond non appliqué`,
+            "", "kpi--tete grain")}
       ${kpi("Mécénat de compétences", eur(v.competencesRetenu),
-            `${v.demiJourneesTT} demi-journée${v.demiJourneesTT > 1 ? "s" : ""} sur le temps de travail`)}
+            `${nb(v.heuresTT)} heure${v.heuresTT > 1 ? "s" : ""} sur le temps de travail, `
+            + `${v.salariesConcernes} salarié${v.salariesConcernes > 1 ? "s" : ""}`)}
       ${kpi("Dons des salariés", eur(v.donsSalaries), "hors assiette de l'entreprise")}
-      ${kpi("Reportable", eur(v.reportable),
-            v.reportable ? `sur ${FISCAL.report_annees} exercices` : "rien au-dessus du plafond")}
+      ${kpi("Report sur les exercices suivants", eurOuNon(v.reportable),
+            v.plafondCalculable ? `sur ${FISCAL.report_annees} exercices`
+                                : "demande votre chiffre d'affaires et vos autres dons")}
     </div>
 
     <div class="two">
@@ -3683,8 +3751,10 @@ function vueMecenat(u){
           <tr><td>Dons versés par l'entreprise elle-même</td>
               <td class="tnum" style="text-align:right">${eur(v.donsEntreprise)}</td></tr>
           <tr><td>Mécénat de compétences, au coût de revient<br>
-              <span class="muted" style="font-size:var(--t-xs)">${v.demiJourneesTT} demi-journées ×
-              ${eur(v.coutDemiJournee)}, ${v.salariesConcernes} salarié${v.salariesConcernes > 1 ? "s" : ""} concerné${v.salariesConcernes > 1 ? "s" : ""}</span></td>
+              <span class="muted" style="font-size:var(--t-xs)">${nb(v.heuresTT)} heures sur
+              ${v.salariesConcernes} salarié${v.salariesConcernes > 1 ? "s" : ""}, valorisées
+              ${v.heuresEstimees ? `sur la base journalière déclarée (${eur(v.coutDemiJournee)}
+              la demi-journée)` : `au coût horaire chargé de ${eur(v.coutHeure)}`}</span></td>
               <td class="tnum" style="text-align:right">${eur(v.competencesBrut)}</td></tr>
           ${v.ecreteParSalarie ? `<tr><td class="muted">Au-delà du plafond de ${eur(v.plafondSalarie)} par salarié</td>
               <td class="tnum" style="text-align:right;color:var(--ink-400)">− ${eur(v.ecreteParSalarie)}</td></tr>` : ""}
@@ -3693,13 +3763,52 @@ function vueMecenat(u){
           <tr><td class="muted">Plafond de l'entreprise<br>
               <span style="font-size:var(--t-xs)">le plus élevé entre ${eur(FISCAL.plafond_plancher)}
               et ${(FISCAL.plafond_taux_ca * 1000)} pour mille du chiffre d'affaires,
-              soit ${pct(FISCAL.plafond_taux_ca * 100)} %</span></td>
-              <td class="tnum" style="text-align:right">${eur(v.plafondEntreprise)}</td></tr>
-          ${v.reportable ? `<tr><td class="muted">Excédent reporté sur les exercices suivants</td>
-              <td class="tnum" style="text-align:right">${eur(v.reportable)}</td></tr>` : ""}
-          <tr><td><strong>Réduction d'impôt de l'entreprise, ${Math.round(FISCAL.taux_reduction * 100)} %</strong></td>
-              <td class="tnum" style="text-align:right"><strong style="color:var(--forest-800)">${eur(v.reduction)}</strong></td></tr>
+              soit ${pct(FISCAL.plafond_taux_ca * 100)} %${v.plafondCalculable ? ""
+                : " — il porte sur tous vos versements de l'exercice, pas seulement sur ceux-ci"}</span></td>
+              <td class="tnum" style="text-align:right">${eurOuNon(v.plafondEntreprise)}</td></tr>
+          <tr><td class="muted">Excédent reporté sur les exercices suivants</td>
+              <td class="tnum" style="text-align:right">${eurOuNon(v.reportable)}</td></tr>
+          <tr><td><strong>${v.plafondCalculable
+                ? `Réduction d'impôt de l'entreprise, ${Math.round(FISCAL.taux_reduction * 100)} %`
+                : "Estimation maximale potentielle, plafond non appliqué"}</strong></td>
+              <td class="tnum" style="text-align:right"><strong style="color:var(--forest-800)">${
+                v.plafondCalculable ? eur(v.reduction) : eur(v.estimationMax)}</strong></td></tr>
         </tbody></table>
+
+        <hr class="sep">
+        <h3 style="font-size:var(--t-lg)">La piste d'audit, salarié par salarié</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+          C'est cette table qu'un contrôle demande, pas le total. Elle rapproche, pour chaque
+          mise à disposition : qui, quand, pour quelle association, combien d'heures, à quel coût
+          horaire chargé, avec quelle convention et quel reçu.</p>
+        ${v.detailSalaries.length ? `<div style="overflow-x:auto">
+        <table class="table" style="margin-top:var(--s5);font-size:var(--t-sm)">
+          <thead><tr><th>Salarié</th><th>Date</th><th>Association</th><th>Heures</th>
+            <th>Coût retenu</th><th>Convention</th><th>Confirmation</th><th>Reçu</th></tr></thead>
+          <tbody>
+            ${v.detailSalaries.flatMap(s => s.lignes.map((x, i) => `<tr>
+              <td>${i === 0 ? esc(s.nom) : ""}</td>
+              <td class="muted tnum">${dateCourte(x.date)}</td>
+              <td class="muted">${esc(x.association)}</td>
+              <td class="tnum">${nb(x.heures)} h${x.heuresReelles ? ""
+                : ` <span class="badge badge--warn">durée conventionnelle</span>`}</td>
+              <td class="tnum">${eur(x.cout)}</td>
+              <td>${x.convention ? `<span class="badge badge--ok">signée</span>`
+                : `<span class="badge badge--warn">non signée</span>`}</td>
+              <td>${x.confirmee ? `<span class="badge badge--ok">association</span>`
+                : `<span class="badge badge--neutre">clôture d'office</span>`}</td>
+              <td>${x.recu ? `<span class="badge badge--ok">reçu</span>`
+                : `<span class="badge badge--warn">attendu</span>`}</td>
+            </tr>`)).join("")}
+          </tbody>
+        </table></div>
+        ${v.heuresEstimees ? `<p class="hint" style="margin-top:var(--s4)">
+          Les durées marquées « conventionnelle » viennent du barème : une demi-journée vaut
+          ${FISCAL.heures_demi_journee} heures. C'est un ordre de grandeur, pas une pièce
+          comptable. La valorisation doit reposer sur les heures réellement effectuées, émargées
+          par l'association : saisissez-les avant de transmettre quoi que ce soit à votre
+          expert-comptable.</p>` : ""}` : `<p class="hint" style="margin-top:var(--s4)">
+          Aucune mise à disposition sur le temps de travail cette saison.</p>`}
 
         <hr class="sep">
         <h3 style="font-size:var(--t-lg)">Les dons de vos salariés, à part</h3>

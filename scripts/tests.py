@@ -298,7 +298,9 @@ def main():
         connecte(p, "u2", "#/rapports")
         tr = norm(p.inner_text(".content")).lower()
         verifie("le coût par mission est donné dans le rapport, avec sa formule",
-                "coût par mission validée" in tr and "missions" in tr)
+                "coût saas par mission" in tr and "d'abonnement /" in tr)
+        verifie("et il dit ce qu'il n'inclut pas",
+                "n'inclut pas" in tr and "temps de vos salariés" in tr)
         i_attend = t.lower().find("action requise")
         i_pos = max(t.find("Votre rang"), t.find("Votre position"))
         i_assos = t.find("Associations soutenues")
@@ -606,7 +608,9 @@ def main():
             p.click("#preuve")
         pr = onglet.value; pr.wait_for_timeout(500)
         d = norm(pr.inner_text("body"))
-        verifie("le dossier de preuve s'édite", "Dossier de preuve" in d)
+        verifie("le dossier de traçabilité s'édite", "Dossier de traçabilité" in d)
+        verifie("il ne se présente pas comme un audit",
+                "non auditées par Riseva" in d and "empreinte" in d.lower())
         verifie("chaque chiffre porte sa méthode",
                 "Méthode" in d and "divisés par" in d)
         verifie("il sépare temps de travail et temps personnel",
@@ -623,7 +627,16 @@ def main():
         connecte(p, "u2", "#/mecenat")
         t = norm(p.inner_text(".content"))
         verifie("le statut documentaire précède le montant",
-                "Justificatifs" in t and ("calculable" in t or "non calculable" in t))
+                "Justificatifs" in t and ("Calcul incomplet" in t or "Contrôles complets" in t))
+        verifie("un calcul incomplet n'est pas présenté comme déclarable",
+                "Non utilisable pour la déclaration" in t
+                and "Estimation maximale potentielle" in t)
+        verifie("le plafond et le report ne sont pas inventés",
+                t.count("non calculé") >= 2)
+        verifie("la piste d'audit est donnée salarié par salarié",
+                "piste d'audit" in t and "Coût retenu" in t and "Convention" in t)
+        verifie("une durée conventionnelle est signalée comme telle",
+                "durée conventionnelle" in t)
         verifie("le plafond par salarié est rappelé", "12 015 €" in t)
         verifie("le non déductible est distingué", "Non déductible" in t)
         p.click("#conv"); p.wait_for_timeout(300)
