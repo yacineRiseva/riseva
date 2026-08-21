@@ -27,10 +27,22 @@ def main():
     echecs = []
 
     titre("Syntaxe des modules")
-    for f in ["public/app/data.js", "public/app/ui.js", "public/app/app.js"]:
-        code, sortie = lancer(f"node --check {f}")
-        print(("  ok   " if code == 0 else "  RATÉ ") + f)
-        if code: echecs.append(f); print(sortie.strip()[:400])
+    # `node --check` ne voit pas tout : un littéral gabarit mal fermé passe la
+    # vérification et casse à l'exécution. On importe réellement les modules.
+    import shutil, tempfile
+    tmp = tempfile.mkdtemp()
+    for f in ["data.js", "ui.js", "app.js"]:
+        shutil.copy(RACINE / "public" / "app" / f, pathlib.Path(tmp) / f)
+    for f in ["data.js", "ui.js", "app.js"]:
+        code, sortie = lancer(
+            "node --input-type=module -e "
+            f"\"import('file://{tmp}/{f}').then(()=>0).catch(e=>{{"
+            "if(/SyntaxError|missing|Unexpected/.test(e.message)){console.error(e.message);process.exit(1)}"
+            "})\"")
+        ok = code == 0
+        print(("  ok   " if ok else "  RATÉ ") + f)
+        if not ok: echecs.append(f); print("      " + sortie.strip()[:400])
+    shutil.rmtree(tmp, ignore_errors=True)
 
     titre("Base de données")
     code, sortie = lancer("service postgresql status")

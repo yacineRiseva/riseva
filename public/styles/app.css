@@ -358,3 +358,6 @@
 .ensemble__estimeL{ font-family:var(--font-display); font-size:var(--t-lg);
   letter-spacing:var(--track-h); color:var(--ink); }
 .ensemble__estimeN{ font-size:var(--t-sm); color:var(--ink-600); margin-top:4px; max-width:70ch; }
+.aFaire{ gap:var(--s8); }
+.aFaire__col{ display:flex; align-items:flex-start; gap:var(--s4); flex:1; min-width:280px; }
+.aFaire__col .aFaire__liste{ flex:1; }

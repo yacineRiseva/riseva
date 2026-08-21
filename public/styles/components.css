@@ -179,3 +179,6 @@ tr.is-anonyme td{color:var(--ink-400)}
   .content{padding:var(--s5)}
   .topbar{padding-inline:var(--s5)}
 }
+/* Une note qui prévient d'une incohérence, pas un message d'erreur : la saisie
+   reste possible, c'est l'association qui sait ce qu'elle annonce. */
+.hint--alerte{color:var(--warn-texte);font-weight:500}

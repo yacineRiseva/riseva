@@ -205,6 +205,8 @@ export function bandeauRealisations(r, { titre = "Ce que ça a produit", sombre 
    C'est la signature graphique de Riseva : elle montre le mécanisme au lieu de le
    décorer. Une barre, trois portions, le dénominateur en clair, et la taille de la
    cohorte. Tout y est vérifiable à l'œil, ce qu'une courbe sans échelle ne permet pas. */
+const PLAFOND = 0.5;
+
 export function jauge({ brut, ecrete, retenu, diviseur, cohorte, cause, unite = "points" }){
   /* Une barre, deux segments : ce qui compte, ce qui a sauté. La version
      précédente mettait « retenus », « écrêtés » et « réalisés » côte à côte dans
@@ -216,8 +218,11 @@ export function jauge({ brut, ecrete, retenu, diviseur, cohorte, cause, unite = 
   const total = Math.max(brut, 1);
   const parTete = diviseur ? Math.round((retenu / diviseur) * 10) / 10 : null;
   return h(`<div class="jauge">
+    ${/* « Points réalisés » rebrouillait score et impact, juste après qu'on ait
+          appris au produit à distinguer les deux. Trois mots, trois choses :
+          bruts, retenus, écrêtés. */""}
     <p class="jauge__equation">
-      <strong class="tnum">${nb(brut)}</strong> ${unite} réalisés
+      <strong class="tnum">${nb(brut)}</strong> points bruts
       <span aria-hidden="true">=</span>
       <b class="jauge__pastille jauge__pastille--retenu"></b>
       <strong class="tnum">${nb(retenu)}</strong> retenus
@@ -231,12 +236,12 @@ export function jauge({ brut, ecrete, retenu, diviseur, cohorte, cause, unite = 
       <i class="jauge__ecrete" style="width:${(ecrete / total) * 100}%"></i>
     </div>
     ${ecrete && cause ? `<p class="jauge__cause">
-      ${nb(ecrete)} points de <strong>${esc(cause.label)}</strong> écrêtés : aucun format ne peut
-      peser plus de la moitié du total retenu. Pour les récupérer, il faut des points
-      d'un autre format, pas davantage du même.</p>` : ""}
+      ${nb(ecrete)} points de <strong>${esc(cause.label)}</strong> écrêtés : chaque format peut
+      représenter au maximum ${Math.round(PLAFOND * 100)} % du score retenu. Pour faire remonter
+      votre score, diversifiez les formats d'engagement.</p>` : ""}
     ${parTete !== null ? `<div class="jauge__calcul">
-      <span>${nb(retenu)} ÷ ${nb(diviseur)} salariés</span>
-      <strong>${parTete} ${unite} par salarié</strong>
+      <span>${nb(retenu)} points retenus ÷ ${nb(diviseur)} salariés</span>
+      <strong>${pct(parTete)} point${parTete > 1 ? "s" : ""} par salarié</strong>
     </div>` : ""}
     ${cohorte ? `<p class="hint">Comparé à ${cohorte} entreprise${cohorte > 1 ? "s" : ""} de la
       même taille.${cohorte < 10 ? " Cohorte trop petite pour publier un rang." : ""}</p>` : ""}

@@ -334,10 +334,13 @@ function tableauEntreprise(u){
   /* Ce qui attend une action passe avant ce qui flatte. Un responsable RSE ouvre cet
      écran pour savoir quoi faire, pas pour contempler son rang. */
   const aFaire = [];
+  /* Ce qui attend quelqu'un d'autre n'est pas une tâche : le distinguer évite de
+     faire porter à l'entreprise une inaction qui n'est pas la sienne. */
+  const aAttendre = [];
   const aValider = ms.filter(m => m.etat === "a_valider");
-  if (aValider.length) aFaire.push({ texte:
+  if (aValider.length) aAttendre.push({ texte:
     `${aValider.length} mission${aValider.length > 1 ? "s" : ""} en attente de confirmation par l'association`,
-    vers:"#/missions", ton:"info" });
+    vers:"#/missions" });
   const aDeclarer = ms.filter(m => m.etat === "engagee" && m.date < "2026-08-20");
   if (aDeclarer.length) aFaire.push({ texte:
     `${aDeclarer.length} mission${aDeclarer.length > 1 ? "s" : ""} passée${aDeclarer.length > 1 ? "s" : ""} que personne n'a déclarée${aDeclarer.length > 1 ? "s" : ""}`,
@@ -356,12 +359,15 @@ function tableauEntreprise(u){
   /* Un seul taux de participation dans tout le produit, celui du protocole de mesure :
      salariés ayant au moins une action validée, divisés par l'effectif de référence.
      Trois définitions concurrentes sur trois écrans, c'est trois fois moins crédible. */
+  const aAgir = aFaire;
   const partVerifiee = DB.indicateurs(eid).participation;
 
   /* Le palmarès des associations, et le total du réseau : deux lectures que le
      responsable RSE demande à voix haute dès la deuxième réunion. */
   const prefs = DB.associationsPreferees(eid, { limite: 3 });
   const res = DB.reseau();
+  const reaEnt = DB.realisations({ entreprise: eid });
+  const semainesActives = DB.semaines(eid).filter(x => x > 0).length;
 
   const coutParAction = validees.length && fact.contrat
     ? Math.round(fact.contrat.montant_ht / validees.length) : null;
@@ -373,16 +379,28 @@ function tableauEntreprise(u){
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     ${/* Deux lignes n'ont pas besoin d'une carte de deux cents pixels. Un bandeau
           bas, dense, qui se lit d'un coup et laisse la place aux résultats. */
-      aFaire.length ? `<section class="aFaire">
-      <span class="aFaire__titre">À traiter
-        <span class="badge ${aFaire.some(x => x.ton === "alerte") ? "badge--warn" : ""}"
-          style="height:20px;margin-left:6px">${aFaire.length}</span></span>
-      <div class="aFaire__liste">
-        ${aFaire.map(x => `<a class="rappel rappel--dense" href="${x.vers}">
-          <span class="notif__point notif__point--${x.ton}"></span>
-          <span>${esc(x.texte)}</span>
-          <span class="rappel__go">${ICONS.arrow || "→"}</span></a>`).join("")}
-      </div>
+      /* Deux colonnes, deux natures. Mettre « nommez un second administrateur »
+         et « l'association n'a pas encore répondu » sous le même titre demandait
+         au lecteur de trier lui-même ce sur quoi il peut agir. */
+      (aAgir.length || aAttendre.length) ? `<section class="aFaire">
+      ${aAgir.length ? `<div class="aFaire__col">
+        <span class="aFaire__titre">Action requise
+          <span class="badge ${aAgir.some(x => x.ton === "alerte") ? "badge--warn" : ""}"
+            style="height:20px;margin-left:6px">${aAgir.length}</span></span>
+        <div class="aFaire__liste">
+          ${aAgir.map(x => `<a class="rappel rappel--dense" href="${x.vers}">
+            <span class="notif__point notif__point--${x.ton}"></span>
+            <span>${esc(x.texte)}</span>
+            <span class="rappel__go">${ICONS.arrow || "→"}</span></a>`).join("")}
+        </div></div>` : ""}
+      ${aAttendre.length ? `<div class="aFaire__col">
+        <span class="aFaire__titre">En attente d'un tiers</span>
+        <div class="aFaire__liste">
+          ${aAttendre.map(x => `<a class="rappel rappel--dense" href="${x.vers}">
+            <span class="notif__point notif__point--info"></span>
+            <span>${esc(x.texte)}</span>
+            <span class="rappel__go">${ICONS.arrow || "→"}</span></a>`).join("")}
+        </div></div>` : ""}
     </section>` : ""}
 
     <div class="kpis">
@@ -393,7 +411,13 @@ function tableauEntreprise(u){
         kpi("Salariés mobilisés", nb(partVerifiee.num),
             `${pct(partVerifiee.valeur ?? 0)} % de l'effectif (${partVerifiee.num}/${partVerifiee.den})`,
             "", "kpi--tete grain")}
-      ${kpi("Missions validées", nb(validees.length), enCours.length + " en cours")}
+      ${/* Le chiffre du bandeau de résultats ne compte que les missions dont
+            l'association a confirmé la production. Sans cette ligne, l'écart entre
+            « 4 validées » et « 3 missions » ne s'explique qu'en lisant les notes. */
+        kpi("Missions validées", nb(validees.length),
+            reaEnt.missions < validees.length
+              ? `dont ${nb(reaEnt.missions)} avec un résultat confirmé par l'association`
+              : enCours.length + " en cours")}
       ${kpi("Heures sur le temps de travail", nb(heuresTT), "valorisables en mécénat")}
       ${kpi("Associations soutenues", nb(prefs.length),
             prefs.length ? "sur " + nb(DB.associations().filter(a => a.valide).length) + " partenaires"
@@ -404,15 +428,18 @@ function tableauEntreprise(u){
 
     ${prefs.length ? `<section class="card">
       <div class="between" style="margin-bottom:var(--s5)">
-        <div><h3>Vos associations</h3>
+        <div><h3>Associations soutenues</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
-          Celles avec qui vos équipes ont le plus travaillé. Les dons personnels
-          des salariés n'entrent pas dans ce compte.</p></div>
+          Les plus récentes d'abord. Les dons personnels des salariés n'entrent pas
+          dans ce compte.</p></div>
         <a class="btn btn--quiet btn--sm" href="#/annuaire">L'annuaire</a>
       </div>
       <div class="pref">
-        ${prefs.map((p, i) => `<article class="pref__c pref__c--${i + 1}">
-          <span class="pref__rang">${["La plus sollicitée", "La deuxième", "La troisième"][i] || ""}</span>
+        ${/* Aucun ordinal : trois associations à une mission chacune ne sont ni
+              première, ni deuxième, ni troisième, et un palmarès d'associations
+              serait de toute façon la mauvaise tonalité pour ce produit. */""}
+        ${prefs.map(p => `<article class="pref__c">
+          <span class="pref__rang">${p.derniere ? "Dernière mission le " + dateCourte(p.derniere) : ""}</span>
           <span class="pref__nom">${esc(p.asso.nom)}</span>
           <span class="muted" style="font-size:var(--t-sm)">${esc(p.asso.cause || "")} · ${esc(p.asso.ville || "")}</span>
           <div class="pref__l"><span>Missions</span><b class="tnum">${nb(p.missions)}</b></div>
@@ -450,6 +477,10 @@ function tableauEntreprise(u){
           <a class="btn btn--quiet btn--sm" href="/reglement.html" target="_blank">Le règlement</a>
         </div>
         <div id="jauge"></div>
+        ${/* Dix semaines plates et un pic ne racontent rien : ça se voit, et ce
+              qui se voit comme un graphique de démonstration en est un. En dessous
+              de trois semaines actives, la courbe attend son tour. */""}
+        ${semainesActives >= 3 ? `
         <hr class="sep">
         <div class="between" style="margin-bottom:var(--s5)">
           <div><h3 style="font-size:var(--t-lg)">Points par semaine</h3>
@@ -468,6 +499,7 @@ function tableauEntreprise(u){
           })()}
         </div>
         ${riviere(DB.semaines(eid), { hauteur: 120, legendes: ["il y a 12 semaines", "aujourd\u2019hui"] })}
+        ` : ""}
         <hr class="sep">
         <div class="three">
           ${Object.entries(BAREME).map(([k, b]) => {
@@ -509,7 +541,7 @@ function tableauEntreprise(u){
             <div>
               <span class="muted" style="font-size:var(--t-sm)">Votre score</span>
               <div style="font-family:var(--font-display);font-size:1.9rem;line-height:1.05;
-                letter-spacing:var(--track-h)">${monParSalarie}
+                letter-spacing:var(--track-h)">${pct(monParSalarie)}
                 <span style="font-size:var(--t-base);color:var(--ink-500)">pts / salarié</span></div>
             </div>
             <div style="text-align:right">
@@ -517,31 +549,35 @@ function tableauEntreprise(u){
                 total >= 10 ? "Médiane de la catégorie" : "Cohorte"}</span>
               <div style="font-family:var(--font-display);font-size:1.9rem;line-height:1.05;
                 letter-spacing:var(--track-h);color:var(--ink-500)">${
-                total >= 10 ? medianeCat : total + " / 10"}</div>
+                total >= 10 ? pct(medianeCat) : total + " / 10"}</div>
             </div>
           </div>
           <p class="hint" style="margin-top:var(--s4)">${
             total >= 10
               ? (monParSalarie >= medianeCat
                   ? `Vous êtes au-dessus de la médiane de votre catégorie.`
-                  : `Il vous manque ${Math.round((medianeCat - monParSalarie) * 10) / 10} points
+                  : `Il vous manque ${pct(Math.round((medianeCat - monParSalarie) * 10) / 10)} point${
+                     medianeCat - monParSalarie > 1 ? "s" : ""}
                      par salarié pour atteindre la médiane de votre catégorie.`)
               : `Votre catégorie compte ${total} entreprise${total > 1 ? "s" : ""}. En dessous de
                  dix, aucun rang n'est publié : la seule progression qui compte pour l'instant est
                  celle de la cohorte.`}</p>
-          ${pts.ecrete ? `<p class="hint" style="margin-top:var(--s4)">
-            ${nb(pts.ecrete)} points ne comptent pas au classement : un format ne peut pas
-            peser plus de la moitié de votre total.</p>` : ""}
+          ${/* L'écrêtage est expliqué une seule fois, dans la jauge, à côté du
+                dessin qui le montre. Le répéter ici mettait deux formulations
+                différentes de la même règle sur le même écran. */""}
         </section>
 
         <section class="card">
           <div class="between" style="margin-bottom:var(--s4)">
-            <h3>À faire</h3><a class="btn btn--quiet btn--sm" href="#/missions">Tout voir</a></div>
+            <h3>Missions en cours</h3><a class="btn btn--quiet btn--sm" href="#/missions">Tout voir</a></div>
           <div class="stack" style="--gap:var(--s3)" id="todo"></div>
         </section>
       </div>
     </div>
 
+    ${/* Passé les premières missions validées, la mise en route n'a plus rien à
+          faire sur un poste de pilotage : elle reste accessible depuis Paramètres,
+          où l'on va quand on cherche à régler quelque chose. */""}
     <section class="card" id="demarrage" style="display:none">
       <div class="between" style="margin-bottom:var(--s5)">
         <div><h3>Mise en route</h3>
@@ -553,11 +589,18 @@ function tableauEntreprise(u){
     </section>
 
     <section class="card">
-      <div class="between" style="margin-bottom:var(--s5)">
-        <h3>Annonces qui vous correspondent</h3>
-        <a class="btn btn--ghost btn--sm" href="#/annonces">Voir les ${DB.annonces({ ouvertes:true }).length} annonces</a>
+      <div class="between">
+        <div><h3>Des besoins près de chez vous</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+          ${nb(DB.annonces({ ouvertes:true }).length)} annonces ouvertes,
+          la plus proche à ${(() => {
+            const d = DB.associationsProches(eid, { avecAnnonces: true })
+                        .map(a => a.distance).filter(x => x != null);
+            return d.length ? nb(d[0]) + " km" : "consulter";
+          })()}.</p></div>
+        <a class="btn btn--ghost btn--sm" href="#/annonces">Voir les annonces</a>
       </div>
-      <div id="reco"></div>
+      <div id="reco" hidden></div>
     </section>
   </div>`);
 
@@ -583,7 +626,7 @@ function tableauEntreprise(u){
     diviseur: e.effectif, cohorte: total,
     cause: ecarts[0] && ecarts[0].perte > 0 ? ecarts[0] : null }));
 
-  const rea = bandeauRealisations(DB.realisations({ entreprise: eid }),
+  const rea = bandeauRealisations(reaEnt,
     { titre: "Ce que vos équipes ont produit", sombre: true });
   if (rea) el.querySelector("#realis").appendChild(rea);
 
@@ -606,7 +649,10 @@ function tableauEntreprise(u){
         texte: "Un seul compte qui peut agir, c'est une panne en cas d'absence.", vers: "#/equipe" }
     ];
     const restantes = etapes.filter(e => !e.fait);
-    if (restantes.length){
+    /* Une entreprise qui a déjà quatre missions validées n'est plus en mise en
+       route, même s'il lui manque une case. Le rappel qui compte — nommer un
+       second administrateur — est déjà dans « Action requise » en haut de page. */
+    if (restantes.length && validees.length < 3){
       const bloc = el.querySelector("#demarrage");
       bloc.style.display = "";
       el.querySelector("#dprogres").textContent =
@@ -1107,7 +1153,7 @@ function vueClassement(u){
             <div class="between"><span class="muted">Score</span>
               <b>points retenus / effectif</b></div>
             <div class="between"><span class="muted">Plafond par format</span>
-              <b>${Math.round(PLAFOND_PAR_FORMAT * 100)} % du retenu</b></div>
+              <b>${Math.round(PLAFOND_PAR_FORMAT * 100)} % du score retenu</b></div>
             <div class="between"><span class="muted">Cohorte minimale</span>
               <b>10 entreprises</b></div>
           </div>
@@ -1153,11 +1199,11 @@ function vueClassement(u){
         ${mien ? `<div>
           <span class="muted" style="font-size:var(--t-sm)">Votre score</span>
           <div style="font-family:var(--font-display);font-size:2.4rem;line-height:1.05;
-            letter-spacing:var(--track-display)">${mien.parSalarie}
+            letter-spacing:var(--track-display)">${pct(mien.parSalarie)}
             <span style="font-size:var(--t-lg);color:var(--ink-500)">point${
               mien.parSalarie > 1 ? "s" : ""} par salarié</span></div>
           <p class="muted" style="font-size:var(--t-sm);margin-top:6px">
-            ${nb(mien.points)} points retenus sur ${nb(mien.brut)} réalisés,
+            ${nb(mien.points)} points retenus sur ${nb(mien.brut)} bruts,
             divisés par ${nb(mien.effectif)} salariés.</p>
         </div>` : ""}
         <div>
@@ -1186,7 +1232,7 @@ function vueClassement(u){
           <br><span class="muted" style="font-size:var(--t-xs)">${esc(e.categorie.label)} · ${e.engages}/${e.effectif} de l'effectif${
             e.ecrete ? ` · ${nb(e.ecrete)} points écrêtés` : ""}</span></td>
         <td style="width:30%"><div class="bar"><i style="width:${(e[cle] / max) * 100}%"></i></div></td>
-        <td class="tnum" style="text-align:right"><strong>${mode === "brut" ? nb(e.points) : e.parSalarie}</strong>
+        <td class="tnum" style="text-align:right"><strong>${mode === "brut" ? nb(e.points) : pct(e.parSalarie)}</strong>
           <br><span class="muted" style="font-size:var(--t-xs)">${mode === "brut" ? "points" : "pts / salarié"}</span></td>
       </tr>`));
     });
@@ -1223,7 +1269,7 @@ function vueClassement(u){
         <div class="calculBox__l"><span class="muted">Effectif déclaré</span>
           <span class="tnum muted">${nb(base)}</span></div>
         <div class="calculBox__l calculBox__l--t"><span>Score, ${nb(pts.retenu)} ÷ ${nb(base)}</span>
-          <span class="tnum">${Math.round((pts.retenu / base) * 10) / 10} pts / salarié</span></div>
+          <span class="tnum">${pct(Math.round((pts.retenu / base) * 10) / 10)} pts / salarié</span></div>
       </div>
       <p class="hint">${ms.length} mission${ms.length > 1 ? "s" : ""} validée${ms.length > 1 ? "s" : ""}
         entre${ms.length > 1 ? "nt" : ""} dans ce calcul.</p>
@@ -2316,11 +2362,15 @@ function tableAnnoncesAsso(annonces, u){
   return t;
 }
 
-/* Lit l'unité de réalisation du formulaire. Sans unité ou sans quantité, on n'invente rien. */
+/* Lit l'objectif du formulaire et le ramène au multiplicateur que stocke le
+   modèle. Sans unité, sans objectif ou sans quantité, on n'invente rien : une
+   annonce sans décompte vaut mieux qu'un décompte inventé. */
 function lireImpact(corps){
   const unite = corps.querySelector("#unite").value;
-  const par = Number(corps.querySelector("#parUnite").value);
-  return unite && par > 0 ? { unite, par_unite: par } : null;
+  const objectif = Number(corps.querySelector("#objectif").value);
+  const quantite = Number(corps.querySelector("#q").value);
+  if (!unite || !(objectif > 0) || !(quantite > 0)) return null;
+  return { unite, par_unite: objectif / quantite, objectif };
 }
 
 function formAnnonce(u, existante = null){
@@ -2339,16 +2389,21 @@ function formAnnonce(u, existante = null){
       <div class="field" style="flex:1"><label>Date</label><input class="input" id="d" type="date"></div>
     </div>
     <div class="field"><label>Lieu</label><input class="input" id="lieu" placeholder="Ville ou adresse"></div>
-    <div class="field"><label>Ce que produit une unité <span class="muted">(facultatif)</span></label>
+    ${/* On demande l'objectif TOTAL, pas un multiplicateur par unité. Une
+          association qui saisit « 40 arbres par demi-journée » sur douze
+          demi-journées publie sans le vouloir un objectif de 480 arbres sous un
+          titre qui en annonce 400 : personne ne fait la multiplication de tête au
+          moment de la saisie, et le chiffre incohérent part en ligne. */""}
+    <div class="field"><label>Objectif annoncé <span class="muted">(facultatif)</span></label>
       <div class="row" style="gap:var(--s3);align-items:stretch">
+        <input class="input" type="number" min="0" step="1" id="objectif" style="width:130px" placeholder="400">
         <select class="select" id="unite" style="flex:1">
           <option value="">Aucun décompte</option>
           ${Object.entries(UNITES).map(([k, v]) => `<option value="${k}">${esc(v.pl)}</option>`).join("")}
         </select>
-        <input class="input" type="number" min="0" step="0.1" id="parUnite" style="width:120px" placeholder="40">
       </div>
-      <p class="hint">Exemple : 40 arbres par demi-journée. La plateforme comptera automatiquement,
-        et vous corrigerez le chiffre réel au moment de valider la mission.</p>
+      <p class="hint" id="apercuObjectif">Le total que la campagne vise, tel qu'il apparaîtra sur
+        l'annonce. Reprenez le chiffre de votre titre : c'est celui que les entreprises liront.</p>
     </div>
     <label class="checkline" id="ttWrap"><input type="checkbox" id="tt">
       <span>Mission proposée sur le temps de travail des salariés.
@@ -2373,11 +2428,39 @@ function formAnnonce(u, existante = null){
     }
   };
   corps.querySelector("#type").addEventListener("change", majTT);
+
+  /* L'aperçu écrit la phrase exacte qui partira sur l'annonce. C'est le seul
+     moment où l'incohérence entre le titre et l'objectif saute aux yeux de la
+     personne qui peut encore la corriger. */
+  const apercu = () => {
+    const n = corps.querySelector("#apercuObjectif");
+    const u = corps.querySelector("#unite").value;
+    const o = Number(corps.querySelector("#objectif").value);
+    if (!u || !(o > 0)){
+      n.textContent = "Le total que la campagne vise, tel qu'il apparaîtra sur l'annonce. "
+        + "Reprenez le chiffre de votre titre : c'est celui que les entreprises liront.";
+      n.classList.remove("hint--alerte");
+      return;
+    }
+    const libelle = (UNITES[u] || {}).pl || u;
+    n.textContent = `L'annonce affichera « Objectif : ${nb(o)} ${libelle} ».`;
+    const titre = corps.querySelector("#titre").value;
+    const chiffres = (titre.match(/\d[\d  ]*/g) || [])
+      .map(x => Number(x.replace(/[^\d]/g, ""))).filter(Boolean);
+    if (chiffres.length && !chiffres.includes(o)){
+      n.textContent += ` Attention : votre titre annonce ${chiffres.map(nb).join(" et ")}.`;
+      n.classList.add("hint--alerte");
+    } else n.classList.remove("hint--alerte");
+  };
+  ["objectif", "unite", "titre"].forEach(id =>
+    corps.querySelector("#" + id).addEventListener("input", apercu));
+  corps.querySelector("#unite").addEventListener("change", apercu);
   if (existante){
     corps.querySelector("#tt").checked = !!existante.temps_travail;
     if (existante.impact){
       corps.querySelector("#unite").value = existante.impact.unite || "";
-      corps.querySelector("#parUnite").value = existante.impact.par_unite || "";
+      corps.querySelector("#objectif").value =
+        Math.round((existante.quantite || 0) * (existante.impact.par_unite || 0)) || "";
     }
     corps.querySelector("#type").value = existante.type;
     corps.querySelector("#type").disabled = true;
@@ -2386,7 +2469,7 @@ function formAnnonce(u, existante = null){
     corps.querySelector("#q").value = existante.quantite;
     corps.querySelector("#lieu").value = existante.lieu || "";
   }
-  majTT();
+  majTT(); apercu();
   modal(existante ? "Modifier l'annonce" : "Publier une annonce", corps, [
     { label:"Annuler" },
     { label:existante ? "Enregistrer" : "Publier", classe:"btn--primary", onClick: () => {
@@ -3874,7 +3957,9 @@ function vueEnsemble(u){
       <h3>Le réseau en chiffres</h3>
       <div class="ensemble__chiffres">
         ${chiffre(nb(r.missions), "missions réalisées")}
-        ${chiffre(nb(r.entreprises), r.entreprises > 1 ? "entreprises engagées" : "entreprise engagée")}
+        ${chiffre(nb(r.entreprises), r.entreprises > 1
+            ? "entreprises avec au moins une action validée"
+            : "entreprise avec au moins une action validée")}
         ${chiffre(nb(r.associations), r.associations > 1 ? "associations soutenues" : "association soutenue")}
         ${chiffre(nb(r.heures) + " h", "de temps offert")}
       </div>

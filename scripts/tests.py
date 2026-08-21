@@ -250,7 +250,7 @@ def main():
         print("\nHiérarchie du tableau de bord")
         connecte(p, "u2")
         t = p.inner_text(".content")
-        verifie("ce qui attend une action passe en premier", "à traiter" in t.lower())
+        verifie("ce qui attend une action passe en premier", "action requise" in t.lower())
         verifie("le premier chiffre est le nombre de personnes, pas un pourcentage",
                 "salariés mobilisés" in t.lower())
         verifie("le pourcentage est là, mais en second, avec son dénominateur",
@@ -262,10 +262,13 @@ def main():
         tr = norm(p.inner_text(".content")).lower()
         verifie("le coût par mission est donné dans le rapport, avec sa formule",
                 "coût par mission validée" in tr and "missions" in tr)
-        i_attend = t.lower().find("à traiter")
+        i_attend = t.lower().find("action requise")
         i_pos = max(t.find("Votre rang"), t.find("Votre position"))
-        i_assos = t.find("Vos associations")
+        i_assos = t.find("Associations soutenues")
         verifie("le classement est toujours là, mais après", i_pos > i_attend >= 0)
+        # Ce qui attend un tiers n'est pas une tâche de l'entreprise.
+        verifie("ce qui dépend d'un tiers est annoncé comme tel",
+                "en attente d'un tiers" in t.lower())
         # « Vos associations » justifie l'abonnement mieux qu'un rang : il passe devant.
         verifie("les associations soutenues passent avant le classement", 0 <= i_assos < i_pos)
         # Ce que dit le classement, le tableau de bord ne le contredit pas.
