@@ -105,8 +105,24 @@ Une analyse d'impact a été conduite : trois critères de la liste CNIL sont r�
 personnes vulnérables et risque d'inférence sensible. Elle est fournie au client dans
 `AIPD.md` et l'aide à documenter la sienne.
 
-## 9. Sort des données
+## 9. Durées de conservation
 
-À la fin du contrat : accès en lecture pendant trente jours, export complet en CSV à tout moment,
-puis suppression sur demande avec certificat, ou conservation limitée aux obligations légales
-(dix ans pour la facturation, six ans pour les pièces liées aux dons).
+| Donnée | Durée |
+|---|---|
+| Données opérationnelles de la saison | Saison, puis 90 jours pour corrections et export, puis suppression ou anonymisation |
+| Compte après résiliation | Export pendant 30 jours au moins, puis suppression de production |
+| Sauvegardes | Purge glissante, 30 à 60 jours après la suppression de production |
+| Journaux de sécurité | 12 mois, davantage seulement en cas d'incident ou de contentieux |
+| Contrat et commande | 5 ans après la fin de la relation |
+| Factures et pièces comptables | 10 ans |
+| Justificatifs fiscaux et mécénat | Fixée par l'entreprise ou l'association, en pratique 6 ans |
+
+**Riseva n'est pas une archive à valeur probante.** Les conventions, émargements et justificatifs
+restent conservés par l'entreprise et l'association, à qui la loi impose de les produire. Riseva
+les prépare et les conserve le temps du service, sans engagement d'archivage légal, sauf accord
+écrit distinct.
+
+## 10. Sort des données
+
+À la fin du contrat : accès en lecture pendant trente jours, export complet à tout moment, puis
+suppression sur demande avec certificat, ou conservation limitée aux obligations légales.

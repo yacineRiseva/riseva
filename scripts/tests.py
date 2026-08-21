@@ -99,6 +99,13 @@ def main():
                 "ne garantit" in t and "impact social" in t)
         verifie("elles traitent la sortie sans frais",
                 "Aucun frais de changement" in t)
+        verifie("la clause de juridiction ne vise que les commerçants",
+                "ni aux associations, ni aux salariés" in t)
+        verifie("Riseva ne se présente pas comme archive légale",
+                "n'est pas votre archive légale" in t.replace("’", "'"))
+        p.goto(BASE + "/engagements.html", wait_until="networkidle")
+        verifie("les avoirs ne sont pas un recours exclusif",
+                "pas un recours exclusif" in p.inner_text(".doc__corps"))
         p.goto(BASE + "/moderation.html", wait_until="networkidle")
         t = p.inner_text(".doc__corps")
         verifie("la politique de modération existe", "service d'hébergement" in t)
