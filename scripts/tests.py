@@ -54,7 +54,11 @@ def main():
 
         print("\nSite public")
         p.goto(BASE + "/", wait_until="networkidle")
-        verifie("l'accueil affiche le titre", "Riseva le rend visible" in p.inner_text("h1"))
+        verifie("l'accueil affiche le titre", "résultats documentés" in p.inner_text("h1"))
+        t = norm(p.inner_text(".hero"))
+        verifie("le prix est visible dès l'accueil", "3 500" in t and "500 €" in t)
+        verifie("le dossier est annoncé avant la signature",
+                "règlement de la saison" in t and "conditions de vente" in t)
         verifie("le barème annoncé est celui du code",
                 "150 pts" in p.inner_text("#bareme") and "100 pts" in p.inner_text("#bareme"))
         verifie("aucune promesse de tarif figé",
@@ -377,6 +381,25 @@ def main():
         p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Valider pour/.test(b.textContent)).click()")
         p.wait_for_timeout(400)
         verifie("la vérification complète est acceptée", "vérifiée pour une saison" in p.inner_text(".toast"))
+
+        print("\nDossier de preuve")
+        connecte(p, "u2", "#/rapports")
+        with p.context.expect_page() as onglet:
+            p.click("#preuve")
+        pr = onglet.value; pr.wait_for_timeout(500)
+        d = norm(pr.inner_text("body"))
+        verifie("le dossier de preuve s'édite", "Dossier de preuve" in d)
+        verifie("chaque chiffre porte sa méthode",
+                "Méthode" in d and "divisés par" in d)
+        verifie("il sépare temps de travail et temps personnel",
+                "temps personnel" in d and "temps de travail" in d)
+        verifie("il isole les dons personnels de l'assiette",
+                "réduction d'impôt indue" in d)
+        verifie("il liste l'état des pièces justificatives",
+                "Conventions de mise à disposition" in d and "émargement" in d.lower())
+        verifie("il rappelle ce que le score n'est pas",
+                "pas un impact environnemental" in d)
+        pr.close()
 
         print("\nMécénat et convention")
         connecte(p, "u2", "#/mecenat")

@@ -1334,9 +1334,10 @@ function vueRapports(u){
             Construit à partir des missions validées. Ce que vous voyez ici est ce que
             contiendra le document final.</p>
         </div>
-        <div class="row" style="gap:var(--s2)">
+        <div class="row" style="gap:var(--s2);flex-wrap:wrap">
+          <button class="btn btn--primary btn--sm" id="preuve">Dossier de preuve</button>
           <button class="btn btn--ghost btn--sm" id="csv">CSV</button>
-          <button class="btn btn--primary btn--sm" id="pdf">Imprimer</button>
+          <button class="btn btn--ghost btn--sm" id="pdf">Imprimer</button>
         </div>
       </div>
       <hr class="sep">
@@ -1433,6 +1434,7 @@ function vueRapports(u){
     tb.appendChild(tr);
   });
 
+  el.querySelector("#preuve").onclick = () => ouvrirPreuve(u);
   el.querySelector("#pdf").onclick = () => { toast("Ouverture de l'aperçu d'impression."); setTimeout(() => window.print(), 400); };
   el.querySelector("#csv").onclick = () => {
     const ms = DB.missions({ entreprise: u.org })
@@ -1569,6 +1571,189 @@ function vueAbonnement(u){
    et période de la prestation, montants HT, TVA et TTC, échéance, pénalités de retard
    et indemnité forfaitaire de recouvrement de 40 € (article L. 441-9 du code de commerce).
    Conservation dix ans. */
+/* Dossier de preuve : une page que le responsable RSE pose sur le bureau de sa
+   direction et de son expert-comptable. Chaque chiffre y arrive avec son numérateur,
+   son dénominateur et sa méthode. Rien n'y est arrondi en sa faveur. */
+function ouvrirPreuve(u){
+  const e = DB.entreprise(u.org);
+  const ind = DB.indicateurs(u.org);
+  const pts = DB.pointsDe(u.org);
+  const v = DB.valorisationMecenat(u.org);
+  const rea = DB.realisations({ entreprise: u.org });
+  const cl = DB.classement({ categorie: (DB.classement().find(x => x.id === u.org) || {}).categorie?.id });
+  const rang = cl.findIndex(x => x.id === u.org) + 1;
+  const ms = DB.missions({ entreprise: u.org })
+               .filter(m => ["validee", "validee_auto"].includes(m.etat));
+  const missionsTT = ms.filter(m => (DB.annonceDe(m) || {}).temps_travail);
+  const assosTT = [...new Set(missionsTT.map(m => (DB.annonceDe(m) || {}).asso))];
+  const assosOk = assosTT.filter(a => DB.eligibleMecenat(a));
+  const sa = DB.saison();
+
+  const l = (cle, valeur, methode) => `<tr>
+    <td>${cle}</td>
+    <td class="v">${valeur}</td>
+    <td class="m">${methode}</td></tr>`;
+
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
+<title>Dossier de preuve — ${esc(e.nom)}, ${esc(sa.nom)}</title>
+<style>
+  body{font:13.5px/1.6 -apple-system,Segoe UI,Inter,sans-serif;color:#2C3026;background:#F2F0E9;
+    margin:0;padding:40px 20px}
+  .p{max-width:900px;margin:0 auto;background:#FAF9F5;padding:48px;border-radius:12px;
+    box-shadow:0 24px 48px -20px rgba(11,38,32,.18)}
+  h1{font-size:23px;letter-spacing:-.02em;color:#131510;margin:0 0 4px}
+  .st{color:#63675C;margin:0}
+  h2{font-size:15px;color:#131510;margin:30px 0 6px;padding-top:18px;border-top:1px solid #E5E2D9}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th{text-align:left;font-size:12px;color:#63675C;font-weight:600;
+    padding:0 10px 7px 0;border-bottom:1px solid #E5E2D9}
+  td{padding:9px 10px 9px 0;border-bottom:1px solid #EFEDE6;vertical-align:top}
+  td:first-child{width:34%;color:#131510}
+  td.v{width:20%;font-variant-numeric:tabular-nums;font-weight:600;color:#131510}
+  td.m{color:#63675C;font-size:12.5px}
+  .note{background:#DFE6D0;border-radius:8px;padding:14px;font-size:12.5px;margin-top:14px}
+  .alerte{background:#F6EAD5}
+  .pied{margin-top:28px;font-size:11.5px;color:#8A8F82;line-height:1.55}
+  @media print{body{background:#fff;padding:0}.p{box-shadow:none;padding:0;background:#fff}
+    .noprint{display:none}h2{page-break-after:avoid}tr{break-inside:avoid}}
+  .noprint{text-align:center;margin-bottom:20px}
+  .noprint button{font:inherit;background:#131510;color:#F2F0E9;border:0;border-radius:12px;
+    padding:11px 22px;cursor:pointer}
+</style></head><body>
+<div class="noprint"><button onclick="window.print()">Imprimer ou enregistrer en PDF</button></div>
+<div class="p">
+  <h1>Dossier de preuve</h1>
+  <p class="st">${esc(e.nom)} — ${esc(sa.nom)} — édité le ${dateFR(new Date().toISOString())}</p>
+  <p class="st" style="margin-top:10px">Destiné à la direction et à l'expert-comptable. Chaque
+  chiffre est donné avec sa méthode de calcul. Les données brutes correspondantes sont
+  exportables au format CSV depuis l'espace client.</p>
+
+  <h2>1. Population et période</h2>
+  <table>
+    <thead><tr><th>Élément</th><th>Valeur</th><th>Méthode</th></tr></thead>
+    <tbody>
+      ${l("Effectif de référence", nb(e.effectif || 0),
+          "Effectif déclaré par l'entreprise à l'ouverture, gelé pour la saison. Sert de dénominateur à tous les taux.")}
+      ${l("Places de l'abonnement", nb(DB.sieges(u.org).total),
+          "Nombre de comptes que le lien d'inscription peut ouvrir.")}
+      ${l("Comptes créés", nb(ind.reperes.R90),
+          "Comptes uniques, non anonymisés, appartenant à l'effectif de référence.")}
+      ${l("Période", dateFR(sa.debut) + " au " + dateFR(sa.fin),
+          "Saison contractuelle. Les validations sont closes quatorze jours après la fin.")}
+    </tbody>
+  </table>
+
+  <h2>2. Participation</h2>
+  <table>
+    <thead><tr><th>Indicateur</th><th>Valeur</th><th>Méthode</th></tr></thead>
+    <tbody>
+      ${l("Participation vérifiée", (ind.participation.valeur ?? "—") + " %",
+          `${ind.participation.num} salariés ayant au moins une action validée, divisés par ${ind.participation.den} de l'effectif de référence. Une inscription seule ne compte pas.`)}
+      ${l("Actions validées", nb(ind.reperes.X),
+          "Combinaisons uniques salarié × association × format × date. Deux versements au même organisme le même jour ne font qu'une action.")}
+      ${l("Concentration", (ind.concentration.valeur ?? "—") + " %",
+          "Part des actions portée par les 10 % de salariés les plus actifs. Une valeur élevée signale un dispositif tenu par quelques personnes.")}
+    </tbody>
+  </table>
+
+  <h2>3. Temps de travail et temps personnel</h2>
+  <table>
+    <thead><tr><th>Élément</th><th>Valeur</th><th>Méthode</th></tr></thead>
+    <tbody>
+      ${l("Demi-journées sur le temps de travail", nb(v.demiJourneesTT),
+          "Missions dont l'annonce porte la mention temps de travail, validées par l'association.")}
+      ${l("Demi-journées sur le temps personnel", nb(v.demiJourneesPerso),
+          "Bénévolat à l'initiative du salarié. Ne se valorise pas.")}
+      ${l("Heures mises à disposition", nb(v.demiJourneesTT * 4),
+          "Quatre heures par demi-journée. Seules les heures validées comptent.")}
+    </tbody>
+  </table>
+
+  <h2>4. Dons</h2>
+  <table>
+    <thead><tr><th>Élément</th><th>Valeur</th><th>Méthode</th></tr></thead>
+    <tbody>
+      ${l("Dons versés par l'entreprise", eur(v.donsEntreprise),
+          "Entrent dans l'assiette de l'entreprise. Reçu au modèle " + esc(FISCAL.cerfa_entreprise) + ".")}
+      ${l("Dons personnels des salariés", eur(v.donsSalaries),
+          "N'entrent PAS dans l'assiette de l'entreprise. Reçus individuels au modèle " + esc(FISCAL.cerfa_particulier) + ", au nom de chaque salarié.")}
+    </tbody>
+  </table>
+  <div class="note alerte">L'article 238 bis vise les versements effectués par l'entreprise
+  elle-même. Faire entrer les dons personnels des salariés dans son assiette produirait une
+  réduction d'impôt indue.</div>
+
+  <h2>5. Valorisation du mécénat</h2>
+  <table>
+    <thead><tr><th>Élément</th><th>Valeur</th><th>Méthode</th></tr></thead>
+    <tbody>
+      ${l("Coût journalier chargé retenu", eur(e.cout_jour_moyen || 0),
+          "Renseigné par l'entreprise, sous sa responsabilité. Rémunération brute et charges, divisées par 220 jours ouvrés.")}
+      ${l("Mécénat de compétences", eur(v.competencesRetenu),
+          `Coût de revient au prorata du temps validé. Écrêtage par salarié à ${eur(v.plafondSalarie)}${v.ecreteParSalarie ? ", soit " + eur(v.ecreteParSalarie) + " écartés" : ""}.`)}
+      ${l("Assiette de l'entreprise", eur(v.assiette),
+          "Dons de l'entreprise plus mécénat de compétences retenu.")}
+      ${l("Plafond de l'entreprise", eur(v.plafondEntreprise),
+          "Le plus élevé entre 20 000 € et 5 pour mille du chiffre d'affaires HT déclaré.")}
+      ${l("Réduction d'impôt estimée", eur(v.reduction),
+          "60 % de l'assiette retenue. Estimation, non déclaration : votre expert-comptable arrête le chiffre.")}
+    </tbody>
+  </table>
+
+  <h2>6. Pièces justificatives</h2>
+  <table>
+    <thead><tr><th>Pièce</th><th>État</th><th>Où</th></tr></thead>
+    <tbody>
+      ${l("Associations bénéficiaires éligibles au mécénat", assosOk.length + " / " + assosTT.length,
+          "Éligibilité déclarée par chaque association. Riseva ne la certifie pas.")}
+      ${l("Conventions de mise à disposition", nb(missionsTT.length) + " à éditer",
+          "Une par mission sur le temps de travail, article L. 8241-3. Éditables depuis l'écran Mécénat.")}
+      ${l("Feuilles d'émargement", "à conserver",
+          "Signées sur place, conservées par l'entreprise et l'association pendant six ans. Riseva n'est pas une archive à valeur probante.")}
+      ${l("Reçus fiscaux", "émis par les associations",
+          "Sous leur numérotation et leur signature. Riseva prépare, elle n'émet pas.")}
+    </tbody>
+  </table>
+
+  <h2>7. Points et classement</h2>
+  <table>
+    <thead><tr><th>Élément</th><th>Valeur</th><th>Méthode</th></tr></thead>
+    <tbody>
+      ${l("Points réalisés", nb(pts.brut), "Somme des points des missions validées, au barème publié.")}
+      ${l("Points écrêtés", nb(pts.ecrete), "Aucun format ne peut peser plus de 50 % du total.")}
+      ${l("Points retenus", nb(pts.retenu), "Ce qui compte au classement.")}
+      ${l("Score", (Math.round((pts.retenu / Math.max(e.effectif || 1, 1)) * 10) / 10) + " par salarié",
+          "Points retenus divisés par l'effectif de référence.")}
+      ${l("Rang", rang + " sur " + cl.length,
+          cl.length < 10
+            ? "Cohorte de moins de dix entreprises : rang indicatif, sans percentile ni trophée."
+            : "Catégorie de taille comparable, recalculé chaque lundi.")}
+    </tbody>
+  </table>
+
+  ${rea.liste.length ? `<h2>8. Réalisations</h2>
+  <table>
+    <thead><tr><th>Unité</th><th>Quantité</th><th>Méthode</th></tr></thead>
+    <tbody>
+      ${rea.liste.map(x => l(esc(x.pl), nb(Math.round(x.quantite)),
+        "Déclaré par l'association bénéficiaire au moment de valider la mission. Riseva additionne, elle n'audite pas.")).join("")}
+    </tbody>
+  </table>` : ""}
+
+  <p class="pied">
+    Le score mesure un engagement, pas un impact environnemental ou social, et ne doit pas être
+    présenté comme tel. Les règles complètes du calcul sont publiques sur riseva.fr/reglement.html,
+    avec un exemple chiffré qui se refait à la main. En cas d'écart entre ce document et vos
+    propres calculs, écrivez-nous : c'est nous qui avons tort.
+  </p>
+</div></body></html>`;
+
+  const w = window.open("", "_blank");
+  if (!w){ toast("Autorisez les fenêtres pour ouvrir le dossier."); return; }
+  w.document.write(html); w.document.close();
+  toast("Dossier de preuve ouvert dans un nouvel onglet.");
+}
+
 function ouvrirFacture(u, fa){
   const e = DB.entreprise(u.org);
   const ht = fa.montant;
