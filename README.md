@@ -70,6 +70,20 @@ tous les rôles, le parcours d'une mission de bout en bout, le quota de places, 
 d'un départ, le lien d'inscription, la publication d'une annonce, les réglages de saison.
 Il sort en erreur au premier échec.
 
+## Les audits
+
+Trois passes visuelles et une passe de code avec ChatGPT (5.6 Sol, effort maximum),
+plus une passe sur le parcours association. Chaque retour est consigné avec, en fin
+de document, ce qui a été corrigé et ce qui reste ouvert :
+
+- `docs/AUDIT-CHATGPT-SECURITE.md` — verdict NO-GO production, quatre blocages
+  exploitables. Tout le P0 corrigé.
+- `docs/AUDIT-CHATGPT-VISUEL.md` et `-VISUEL-2.md` — jusqu'à « prête à être montrée
+  à un client ».
+- `docs/AUDIT-CHATGPT-ASSOCIATIONS.md` — le parcours que traverse une association.
+- `docs/PROCEDURE-EFFACEMENT.md` — ce qui, dans l'effacement, ne peut pas s'écrire
+  en code.
+
 ## Tout vérifier d'un coup
 
     python3 scripts/verifier.py
