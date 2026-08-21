@@ -3900,6 +3900,19 @@ function rendre(){
   root.innerHTML = "";
   const u = moi();
   if (!u){ root.appendChild(vueConnexion()); return; }
+  /* Un accès suspendu, un compte retiré : la session ne survit pas à la décision.
+     Rien ne servait de suspendre quelqu'un si son onglet déjà ouvert continuait
+     de fonctionner comme avant — c'est exactement le trou que le SQL vient de
+     fermer avec des helpers qui renvoient NULL, et l'interface doit dire la
+     même chose. */
+  if (u.role !== "admin" && (u.actif === false || u.anonyme)){
+    setSession(null);
+    root.appendChild(vueConnexion());
+    toast(u.anonyme
+      ? "Ce compte a été retiré de l'entreprise."
+      : "Votre accès a été suspendu par votre administrateur.");
+    return;
+  }
   const table = ROUTES[u.role];
   const nom = (location.hash.split("/")[1] || "tableau");
   const [fn, titre] = table[nom] || table.tableau;

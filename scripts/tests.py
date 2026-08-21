@@ -297,6 +297,19 @@ def main():
         p.wait_for_timeout(400)
         verifie("la décision motivée passe", "Décision notifiée" in p.inner_text(".toast"))
 
+        print("\nSuspension d'accès")
+        connecte(p, "u2", "#/equipe")
+        # On suspend un salarié, puis on essaie d'ouvrir la plateforme avec son compte.
+        p.evaluate("()=>{const e=JSON.parse(localStorage.getItem('riseva.etat'));"
+                   "e.etat.utilisateurs.find(u=>u.id==='u4').actif=false;"
+                   "localStorage.setItem('riseva.etat',JSON.stringify(e));"
+                   "localStorage.setItem('riseva.session',JSON.stringify({uid:'u4'}));}")
+        p.goto(f"{BASE}/app/?s=1#/tableau", wait_until="networkidle"); p.wait_for_timeout(500)
+        verifie("un accès suspendu ne peut plus ouvrir la plateforme",
+                p.is_visible(".login"))
+        verifie("et on lui dit pourquoi", "suspendu" in p.inner_text("body").lower())
+        p.evaluate("()=>localStorage.removeItem('riseva.etat')")
+
         print("\nRègles de calcul")
         # Le plafond porte sur le total retenu, pas sur le brut : avec (6240, 780, 0)
         # la règle « aucun format au-delà de la moitié » impose 1 560, pas 4 290.
