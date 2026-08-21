@@ -633,6 +633,16 @@ def main():
                 and "Estimation maximale potentielle" in t)
         verifie("le plafond et le report ne sont pas inventés",
                 t.count("non calculé") >= 2)
+        # Et une fois l'exercice déclaré, le calcul redevient possible : sinon on aurait
+        # remplacé un chiffre faux par une impasse.
+        connecte(p, "u2", "#/parametres")
+        p.fill("#exdeb", "2026-01-01"); p.fill("#exfin", "2026-12-31")
+        p.fill("#dhors", "0"); p.fill("#rant", "0")
+        p.click("#save"); p.wait_for_timeout(400)
+        p.evaluate("()=>location.hash='#/mecenat'"); p.wait_for_timeout(400)
+        tm = norm(p.inner_text(".content"))
+        verifie("l'exercice déclaré rend le plafond calculable",
+                "non calculé" not in tm and "Réduction d'impôt estimée" in tm)
         verifie("la piste d'audit est donnée salarié par salarié",
                 "piste d'audit" in t and "Coût retenu" in t and "Convention" in t)
         verifie("une durée conventionnelle est signalée comme telle",

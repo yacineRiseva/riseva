@@ -2278,17 +2278,46 @@ function vueParametres(u){
       <section class="card">
         <h3>Données de valorisation</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
-          Ces deux chiffres servent uniquement à estimer votre mécénat. Ils ne sortent jamais
-          de votre espace et n'apparaissent dans aucun classement.</p>
+          Ces chiffres servent uniquement à estimer votre mécénat. Ils ne sortent jamais de votre
+          espace et n'apparaissent dans aucun classement. Tant que les quatre premiers ne sont pas
+          renseignés, Riseva affiche « plafond non calculé » plutôt qu'un montant : le plafond
+          fiscal porte sur <strong>tous</strong> vos versements de l'exercice, pas seulement sur
+          ceux qui passent par ici.</p>
         <div class="stack" style="--gap:var(--s4);margin-top:var(--s5)">
           <div class="field"><label>Chiffre d'affaires HT du dernier exercice</label>
             <input class="input" id="ca" type="number" min="0" value="${e.ca || 0}">
             <p class="hint">Sert à calculer le plafond de 5 ‰. En dessous de 4 M€, c'est le
               plancher de 20 000 € qui s'applique de toute façon.</p></div>
-          <div class="field"><label>Coût journalier moyen chargé d'un salarié</label>
-            <input class="input" id="cout" type="number" min="0" value="${e.cout_jour_moyen || 300}">
-            <p class="hint">Rémunération brute plus charges, divisée par 220 jours ouvrés.
-              Une demi-journée de mécénat de compétences vaut la moitié.</p></div>
+          <div class="row" style="gap:var(--s4)">
+            <div class="field" style="flex:1"><label>Début de l'exercice fiscal</label>
+              <input class="input" id="exdeb" type="date" value="${esc(e.exercice_debut || "")}"></div>
+            <div class="field" style="flex:1"><label>Fin de l'exercice fiscal</label>
+              <input class="input" id="exfin" type="date" value="${esc(e.exercice_fin || "")}"></div>
+          </div>
+          <div class="row" style="gap:var(--s4)">
+            <div class="field" style="flex:1"><label>Autres dons de l'exercice, hors Riseva</label>
+              <input class="input" id="dhors" type="number" min="0"
+                value="${e.dons_hors_riseva ?? ""}" placeholder="0 si aucun">
+              <p class="hint">Ce que vous avez versé ailleurs cette année. Sans ce montant, le
+                plafond ne veut rien dire.</p></div>
+            <div class="field" style="flex:1"><label>Reports des exercices antérieurs</label>
+              <input class="input" id="rant" type="number" min="0"
+                value="${e.report_anterieur ?? ""}" placeholder="0 si aucun">
+              <p class="hint">Excédents non utilisés des cinq exercices précédents, qui
+                s'imputent avant les versements de l'année.</p></div>
+          </div>
+          <div class="row" style="gap:var(--s4)">
+            <div class="field" style="flex:1"><label>Coût journalier moyen chargé d'un salarié</label>
+              <input class="input" id="cout" type="number" min="0" value="${e.cout_jour_moyen || 300}">
+              <p class="hint">Rémunération brute plus charges, divisée par 220 jours ouvrés.
+                Sert à valoriser une demi-journée quand les heures réelles ne sont pas saisies.</p></div>
+            <div class="field" style="flex:1"><label>Coût horaire chargé</label>
+              <input class="input" id="couth" type="number" min="0" step="0.01"
+                value="${e.cout_heure_charge ?? ""}"
+                placeholder="par défaut, le coût journalier / ${FISCAL.heures_jour}">
+              <p class="hint">Utilisé dès que les heures réellement effectuées sont émargées.
+                C'est cette base-là qu'un contrôle demande.</p></div>
+          </div>
           <div class="field"><label>Effectif déclaré</label>
             <input class="input" id="eff" type="number" min="1" value="${e.effectif || 0}">
             <p class="hint">Sert au classement normalisé. ${si.pris} place${si.pris > 1 ? "s" : ""}
@@ -2329,6 +2358,12 @@ function vueParametres(u){
       nom: v("nom").trim() || e.nom, siret: v("siret").trim(), secteur: v("secteur").trim(),
       adresse: v("adresse").trim(), referent: v("ref").trim(), referent_mail: v("refmail").trim(),
       ca: Number(v("ca")) || 0, cout_jour_moyen: Number(v("cout")) || 300,
+      /* Une case vide n'est pas un zéro : « je n'ai rien versé ailleurs » et « je n'ai
+         pas répondu » n'ont pas les mêmes conséquences sur le plafond. */
+      cout_heure_charge: v("couth").trim() === "" ? null : Number(v("couth")),
+      exercice_debut: v("exdeb") || null, exercice_fin: v("exfin") || null,
+      dons_hors_riseva: v("dhors").trim() === "" ? null : Number(v("dhors")),
+      report_anterieur: v("rant").trim() === "" ? null : Number(v("rant")),
       effectif: Number(v("eff")) || e.effectif
     });
     DB.majContrat(u.org, { plateforme_reception: v("pdp").trim(), annuaire_id: v("annu").trim() });
