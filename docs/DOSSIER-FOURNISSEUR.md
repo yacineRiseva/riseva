@@ -20,6 +20,7 @@ promis pour plus tard vaut moins qu'un document imparfait mais disponible tout d
 
 - [ ] Devis nominatif : périmètre, nombre de places, prix ferme, échéances, durée
 - [ ] Accord de sous-traitance (article 28 du RGPD), annexé au devis — `docs/DPA.md`
+- [ ] Analyse d'impact relative à la protection des données — `docs/AIPD.md`
 - [ ] Kit de déploiement salariés : note d'information et trame de consultation du CSE —
       `docs/INFORMATION-SALARIES.md`
 - [ ] Plateforme de réception des factures du client et identifiant d'annuaire

@@ -702,27 +702,46 @@ function vueAnnuaire(u){
 }
 
 function vueMissions(u){
-  const filtre = u.role === "salarie" ? { salarie: u.id } : { entreprise: u.org };
-  const ms = DB.missions(filtre);
-  const el = h(`<section class="card">
+  const salarieVue = u.role === "salarie";
+  /* L'employeur ne voit jamais un don personnel rattaché à un nom : la cause d'une
+     association peut révéler une opinion, une conviction ou un état de santé. */
+  const ms = salarieVue ? DB.missions({ salarie: u.id }) : DB.missionsVueEmployeur(u.org);
+  const agg = salarieVue ? null : DB.donsPersonnelsAgreges(u.org);
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    ${!salarieVue && ms.some(m => m.masquee) ? `<section class="card card--flat"
+      style="background:var(--info-bg);border-color:transparent">
+      <h3 style="font-size:var(--t-lg)">Les dons personnels ne sont pas nominatifs</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:6px;color:var(--ink-600)">
+        Quand un salarié donne de sa poche, ni son nom, ni le montant, ni l'association ne vous
+        sont montrés. La cause d'une association peut révéler une conviction, une opinion ou un
+        état de santé, et cela ne regarde pas l'employeur. Les points comptent pour l'entreprise,
+        c'est tout.
+        ${agg && agg.affichable
+          ? ` Au total : ${eur(agg.affichable.montant)} versés par ${agg.affichable.donateurs} salariés.`
+          : agg && agg.donateurs
+            ? ` Moins de ${agg.seuil} donateurs cette saison : le total n'est pas affiché, il permettrait de remonter aux personnes.`
+            : ""}</p>
+    </section>` : ""}
+    <section class="card">
     <table class="table"><thead><tr>
       <th>Mission</th><th>Association</th><th>Salarié</th><th>Date</th>
       <th>Points</th><th>État</th><th></th></tr></thead><tbody></tbody></table>
-  </section>`);
+  </section></div>`);
   const tb = el.querySelector("tbody");
   if (!ms.length) tb.appendChild(h(`<tr><td colspan="7" class="empty">
     Aucune mission pour l'instant. Tout part d'une annonce à laquelle quelqu'un répond.</td></tr>`));
   ms.forEach(m => {
     const a = DB.annonceDe(m), asso = DB.association(a.asso), s = DB.utilisateur(m.salarie);
-    const tr = h(`<tr>
-      <td><strong>${esc(a.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(BAREME[a.type].label)}</span></td>
-      <td class="muted">${esc(asso.nom)}</td>
-      <td class="muted">${esc(s ? s.nom : "—")}</td>
+    const tr = h(`<tr class="${m.masquee ? "is-anonyme" : ""}">
+      <td><strong>${m.masquee ? "Don personnel d'un salarié" : esc(a.titre)}</strong><br>
+        <span class="muted" style="font-size:var(--t-xs)">${esc(BAREME[a.type].label)}</span></td>
+      <td class="muted">${m.masquee ? "—" : esc(asso.nom)}</td>
+      <td class="muted">${m.masquee ? "—" : esc(s ? s.nom : "—")}</td>
       <td class="muted tnum">${dateCourte(m.date)}</td>
       <td class="tnum"><strong>${nb(m.points)}</strong></td>
       <td><span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].label}</span></td>
       <td style="text-align:right"></td></tr>`);
-    if (m.etat === "engagee"){
+    if (m.etat === "engagee" && !m.masquee && salarieVue){
       const b = h(`<button class="btn btn--ghost btn--sm">Déclarer faite</button>`);
       b.onclick = () => {
         const an = DB.annonceDe(m);
@@ -944,7 +963,10 @@ function vueEquipe(u){
         </div>
       </div>
       <table class="table"><thead><tr>
-        <th>Nom</th><th>Email</th><th>Points</th><th>État</th><th></th></tr></thead><tbody></tbody></table>
+        <th>Nom</th><th>Email</th><th>Points des missions</th><th>État</th><th></th></tr></thead><tbody></tbody></table>
+      <p class="hint">Les points affichés ici sont ceux des missions. Les dons personnels d'un
+        salarié n'y figurent pas et ne vous sont jamais rattachés à un nom : la cause d'une
+        association peut révéler une conviction ou un état de santé.</p>
     </section>
 
     <div class="stack" style="--gap:var(--s5)">
@@ -1017,7 +1039,7 @@ function vueEquipe(u){
           ? `<br><span class="muted" style="font-size:var(--t-xs)">retiré le ${dateFR(g.retire_le || new Date().toISOString())}</span>` : ""}</span>
       </span></td>
       <td class="muted">${g.anonyme ? "—" : esc(g.email)}</td>
-      <td class="tnum">${nb(g.points || 0)}</td>
+      <td class="tnum">${nb(DB.pointsVisiblesEmployeur(g.id))}</td>
       <td><span class="badge ${g.anonyme ? "" : (g.actif ? "badge--ok" : "badge--warn")}">${
         g.anonyme ? "Anonymisé" : (g.actif ? "Actif" : "Suspendu")}</span>${
         g.role === "entreprise_admin" ? ` <span class="badge badge--info" style="margin-left:4px">Admin</span>` : ""}</td>
@@ -1098,8 +1120,8 @@ function vueEquipe(u){
          DB.revoquerInvitation(inv.id); toast("Lien révoqué."); rendre(); }}]));
 
   el.querySelector("#csvEq").onclick = () => {
-    versCSV("riseva-equipe.csv", ["Nom", "Email", "Points", "État"],
-      gens.map(g => [g.nom, g.email || "", g.points || 0,
+    versCSV("riseva-equipe.csv", ["Nom", "Email", "Points des missions", "État"],
+      gens.map(g => [g.nom, g.email || "", DB.pointsVisiblesEmployeur(g.id),
         g.anonyme ? "Anonymisé" : (g.actif ? "Actif" : "Suspendu")]));
     toast("Export téléchargé.");
   };
@@ -2283,7 +2305,8 @@ function vueActivite(u){
     parType[a.type] = (parType[a.type] || 0) + m.points;
   });
   const equipe = DB.salaries(u.org).filter(x => !x.anonyme)
-                   .sort((a, b) => (b.points || 0) - (a.points || 0));
+                   .map(x => ({ ...x, pointsVus: DB.pointsVisiblesEmployeur(x.id) }))
+                   .sort((a, b) => b.pointsVus - a.pointsVus);
   const monRang = equipe.findIndex(x => x.id === u.id) + 1;
   const part = e && e.points ? Math.round(((u.points || 0) / e.points) * 100) : 0;
 
@@ -2327,11 +2350,12 @@ function vueActivite(u){
               ? 'style="font-weight:600;color:var(--forest-800)"' : ""}>
               <span class="row" style="gap:10px"><span class="muted tnum" style="width:14px">${i + 1}</span>
                 ${esc(x.nom)}${x.id === u.id ? " (vous)" : ""}</span>
-              <span class="tnum">${nb(x.points || 0)}</span></div>`).join("")}
+              <span class="tnum">${nb(x.pointsVus)}</span></div>`).join("")}
           </div>
           <hr class="sep">
-          <p class="hint">Ce classement interne ne sort jamais de votre entreprise.
-            Seul le total collectif apparaît dans le classement général.</p>
+          <p class="hint">Ce classement interne ne sort jamais de votre entreprise, et il ne
+            compte que les missions : les dons personnels de chacun n'y apparaissent pas.
+            Vers l'extérieur, seul le total collectif est publié.</p>
         </section>
       </div>
     </div>

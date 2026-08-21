@@ -18,9 +18,15 @@ Chaque flux est qualifié séparément.
 | Comptes des associations partenaires | responsable de traitement | — |
 | Dons des particuliers vers une association | sous-traitant de l'association | — |
 | Journal des accès et sécurité | sous-traitant | responsable de traitement |
+| **Classement interentreprises, comparaison, modération** | **responsable autonome** | — |
 
-Riseva n'est **jamais** responsable conjoint avec le client, et n'utilise jamais les données d'un
-client pour son propre compte, y compris pour améliorer son service.
+Le dernier flux mérite d'être dit franchement plutôt que noyé : Riseva fixe seule le barème, les
+règles de classement et les décisions de modération. Elle en détermine donc les finalités et les
+moyens, ce qui fait d'elle un **responsable de traitement autonome** sur ce périmètre, et non un
+sous-traitant. Écrire « Riseva est sous-traitant pour tout » serait plus simple et faux.
+
+Sur les flux où elle est sous-traitante, Riseva n'utilise jamais les données d'un client pour son
+propre compte, y compris pour améliorer son service.
 
 ## 2. Objet, durée, nature et finalité
 
@@ -39,8 +45,14 @@ client pour son propre compte, y compris pour améliorer son service.
 | Administrateurs | Les mêmes, plus les événements du journal des accès |
 | Référents du client | Nom, fonction, coordonnées professionnelles |
 
-**Aucune donnée sensible** au sens de l'article 9. Aucune donnée de mineur. Aucun transfert hors
-Union européenne dans le fonctionnement normal du service.
+**Aucune donnée sensible n'est collectée** au sens de l'article 9. Mais la cause d'une association
+peut en révéler une par déduction : conviction religieuse, opinion politique, état de santé,
+appartenance syndicale. Le produit est construit pour empêcher cette déduction côté employeur.
+Un don personnel n'est jamais nominatif dans ses écrans, les points affichés dans l'espace Équipe
+sont ceux des missions uniquement, et les agrégats de dons ne s'affichent qu'à partir de cinq
+donateurs. Voir `AIPD.md`, risque 1.
+
+Aucune donnée de mineur. Aucun transfert hors Union européenne dans le fonctionnement normal.
 
 ## 4. Obligations de Riseva
 
@@ -87,7 +99,13 @@ double facteur obligatoire pour les comptes d'administration Riseva.
 
 Le dire vaut mieux que de le laisser découvrir au questionnaire sécurité.
 
-## 8. Sort des données
+## 8. Analyse d'impact
+
+Une analyse d'impact a été conduite : trois critères de la liste CNIL sont réunis, notation,
+personnes vulnérables et risque d'inférence sensible. Elle est fournie au client dans
+`AIPD.md` et l'aide à documenter la sienne.
+
+## 9. Sort des données
 
 À la fin du contrat : accès en lecture pendant trente jours, export complet en CSV à tout moment,
 puis suppression sur demande avec certificat, ou conservation limitée aux obligations légales

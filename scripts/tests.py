@@ -79,6 +79,10 @@ def main():
         t = p.inner_text(".doc__corps")
         verifie("les sous-traitants sont listés", "Supabase" in t and "Resend" in t)
         verifie("les durées de conservation sont données", "10 ans" in t)
+        verifie("le cloisonnement des dons est expliqué au public",
+                "jamais nominatif" in t and "cinq donateurs" in t)
+        verifie("la base légale n'est pas le consentement",
+                "consentement n'est pas la base légale" in t)
         p.goto(BASE + "/engagements.html", wait_until="networkidle")
         t = norm(p.inner_text(".doc__corps"))
         verifie("la disponibilité est chiffrée", "99,5 %" in t)
@@ -197,6 +201,22 @@ def main():
         p.evaluate("()=>{const b=[...document.querySelectorAll('tbody button')].find(x=>x.textContent==='Confirmer'); if(b)b.click()}")
         p.wait_for_timeout(400)
         verifie("une mission peut être confirmée", "créditée" in p.inner_text(".toast") or "crédités" in p.inner_text(".toast"))
+
+        print("\nCloisonnement des dons personnels")
+        connecte(p, "u2", "#/missions")
+        t = p.inner_text(".content")
+        verifie("les dons personnels sont masqués côté employeur",
+                "Don personnel d'un salarié" in t)
+        verifie("l'employeur ne voit ni l'association ni le nom",
+                "ne sont pas nominatifs" in t)
+        verifie("le seuil d'agrégation est respecté",
+                "Moins de 5 donateurs" in t or "versés par" in t)
+        connecte(p, "u2", "#/equipe")
+        verifie("les points affichés sont ceux des missions",
+                "points des missions" in p.inner_text(".content").lower())
+        connecte(p, "u4", "#/missions")
+        verifie("le salarié voit ses propres dons",
+                "Don personnel d'un salarié" not in p.inner_text(".content"))
 
         print("\nSignalement et modération")
         connecte(p, "u4", "#/annonces")

@@ -725,6 +725,52 @@ function creerMock(){
     },
 
     /* ------------------------------------------------------------------ */
+    /* Cloisonnement des dons personnels                                  */
+    /* ------------------------------------------------------------------ */
+    /* La cause d'une association révèle parfois une opinion politique, une conviction
+       religieuse, un état de santé ou une appartenance syndicale : des catégories
+       particulières au sens du RGPD. Rattacher nominativement un don personnel à un
+       salarié dans les écrans de l'employeur revient à lui livrer cette inférence.
+       Règle : dans les vues employeur, un don personnel n'est jamais nominatif, et son
+       montant comme son bénéficiaire sont masqués. Il compte pour l'entreprise, il
+       reste visible dans l'espace du salarié, et c'est tout. */
+    SEUIL_AGREGAT: 5,
+
+    estDonPersonnel(m){
+      const a = api.annonceDe(m);
+      return !!(a && a.type === "don_financier" && m.pour_le_compte_de !== "entreprise");
+    },
+
+    /* Missions telles que l'employeur a le droit de les voir. */
+    missionsVueEmployeur(eid){
+      return api.missions({ entreprise: eid }).map(m => {
+        if (!api.estDonPersonnel(m)) return m;
+        return { ...m, masquee: true, salarie: null, annonce: m.annonce, quantite: null };
+      });
+    },
+
+    /* Points d'un salarié tels que l'employeur peut les voir : ceux des missions
+       opérationnelles, jamais ceux issus d'un don personnel. Sinon il suffit de lire
+       un écart de points pour deviner un montant donné, et à quelle cause. */
+    pointsVisiblesEmployeur(uid){
+      return api.missions({ salarie: uid })
+        .filter(m => ["validee", "validee_auto"].includes(m.etat) && !api.estDonPersonnel(m))
+        .reduce((n, m) => n + m.points, 0);
+    },
+
+    /* Agrégat des dons personnels, publié seulement au-dessus du seuil : en dessous,
+       un total et un effectif suffisent à réidentifier. */
+    donsPersonnelsAgreges(eid){
+      const ms = api.missions({ entreprise: eid })
+        .filter(m => api.estDonPersonnel(m) && ["validee", "validee_auto"].includes(m.etat));
+      const donateurs = new Set(ms.map(m => m.salarie)).size;
+      const montant = ms.reduce((n, m) => n + (Number(m.quantite) || 0), 0);
+      const suffisant = donateurs >= api.SEUIL_AGREGAT;
+      return { donateurs, montant, suffisant, seuil: api.SEUIL_AGREGAT,
+               affichable: suffisant ? { donateurs, montant } : null };
+    },
+
+    /* ------------------------------------------------------------------ */
     /* Signalement de contenu                                             */
     /* ------------------------------------------------------------------ */
     /* Riseva héberge et diffuse des annonces écrites par des tiers. Le règlement sur
