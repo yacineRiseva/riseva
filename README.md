@@ -70,10 +70,35 @@ tous les rôles, le parcours d'une mission de bout en bout, le quota de places, 
 d'un départ, le lien d'inscription, la publication d'une annonce, les réglages de saison.
 Il sort en erreur au premier échec.
 
+## Tout vérifier d'un coup
+
+    python3 scripts/verifier.py
+
+Quatre passes, dans l'ordre où elles comptent :
+
+1. **Syntaxe** des trois modules.
+2. **Base** — `scripts/sql.py` détruit puis recrée une base vide, rejoue `00 → 05`
+   et exécute `supabase/tests.sql` : une cinquantaine d'assertions qui disent ce
+   qu'un visiteur, un salarié et une association peuvent et ne peuvent pas faire.
+   Une installation à blanc qui échoue échoue ici, pas chez le client.
+3. **Parcours** — `scripts/tests.py` ouvre Chromium et traverse les vrais écrans :
+   toutes les vues de tous les rôles, une mission de bout en bout, le quota de
+   places, le départ d'un salarié, le lien d'inscription, la suspension d'un accès.
+4. **Contraste** — `scripts/contraste.py` mesure le rapport de contraste réel de
+   chaque texte affiché sur douze pages, couleur héritée et fond effectif compris,
+   et le compare au seuil WCAG AA. Pas d'échantillon, pas de maquette : ce que le
+   navigateur dessine.
+
+Le fichier `supabase/00_local.sql` recrée en local le peu de Supabase dont les
+migrations dépendent — schéma `auth`, `auth.users`, `auth.uid()`, les rôles
+`anon` / `authenticated` / `service_role`. Il n'est jamais déployé.
+
 ## Brancher Supabase
 
 1. Créer un projet Supabase.
-2. Exécuter dans l'ordre `01_schema.sql`, `02_logique.sql`, `03_rls.sql`, `04_seed.sql`.
+2. Exécuter dans l'ordre `01_schema.sql`, `02_logique.sql`, `03_rls.sql`, `04_seed.sql`,
+   `05_taches.sql`. L'ordre n'est pas indicatif : `03` retire tous les droits par
+   défaut avant d'en rendre nommément, et `05` reprend la propriété des fonctions.
 3. Copier `public/app/config.example.js` en `public/app/config.js` et y mettre l'URL du projet
    et la clé anonyme.
 4. Déployer les fonctions Edge : `supabase functions deploy demande-validation valider-mission rapport recu-fiscal`.

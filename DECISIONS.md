@@ -103,6 +103,13 @@ pas les conversations. Toute nouvelle décision s'ajoute en haut de la section c
 | 20/08/2026 | Barre latérale allégée : 236 px, fond moins noir, état actif marqué par un filet vert. Le principe de la barre sombre est conservé. | La relecture externe recommandait de l'abandonner. Refusé : direction validée par le fondateur le 31/07. |
 | 20/08/2026 | Bouton principal en encre noire, vert réservé aux accents et à la donnée. | Le vert en aplat sur les boutons, cause principale de l'effet daté. |
 | 20/08/2026 | Design system figé dans `DESIGN.md` et `tokens.css`. On ne rediscute plus les valeurs page par page. | Six itérations rejetées entre le 28 et le 31/07. |
+| 21/08/2026 | Rien n'est accordé par défaut côté base : `03_rls.sql` commence par retirer tous les droits sur les tables, les fonctions et les séquences, puis rend colonne par colonne et fonction par fonction. Un objet oublié est muet, jamais ouvert. | Des policies écrites par-dessus les droits CRUD que Supabase accorde d'office. Motif : audit externe, quatre blocages exploitables. |
+| 21/08/2026 | Ce qui décide d'un droit — rôle, entreprise, association, activité — sort de `profil` et vit dans `private.appartenance`, hors API. | Un `UPDATE` sur `profil` sans `WITH CHECK` : n'importe qui pouvait se nommer administrateur Riseva. |
+| 21/08/2026 | Aucune écriture métier directe : trois RPC pour les missions, une pour rejoindre une entreprise, une pour publier une annonce. Elles fixent serveur-side l'auteur, l'entreprise, les points, l'état et les dates. | Des policies `INSERT`/`UPDATE` sur `mission`, qui laissaient un salarié s'attribuer un état validé et ses propres points. |
+| 21/08/2026 | Le plafond par format porte sur le total RETENU : `min(v, brut − v)`. | `min(v, brut / 2)`, qui laissait passer un score où un format pesait 82 %. |
+| 21/08/2026 | Confirmé et estimé ne sont plus additionnés. Une validation automatique donne des points, jamais une réalisation confirmée ; l'interface dit combien de missions sont dans ce cas. | Un chiffre estimé présenté comme un résultat. |
+| 21/08/2026 | Plus aucun compteur dénormalisé : `entreprise.points`, `profil.points`, les douze semaines et les quatre trimestres sont dérivés des missions à chaque lecture. | Des totaux figés, et des courbes écrites à la main qui montaient joliment sans rien dire. |
+| 21/08/2026 | Le contraste est mesuré, pas discuté : `scripts/contraste.py` compare chaque texte affiché à son fond réel sur douze pages. `--ink-400` redescendu à #62675B, quatre couleurs de texte d'état ajoutées, bloc d'appel de l'accueil corrigé (il écrivait en gris foncé sur fond forêt, 1,9:1). | L'appréciation à l'œil. |
 | 30/07/2026 | Logo reçu : monogramme R dans un carré, rivière, vert #6DBE45. | — |
 
 ## Encore ouvert
