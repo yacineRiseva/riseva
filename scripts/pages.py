@@ -115,10 +115,9 @@ de la saison suivante.</p>
       à l'entreprise.</li>
   <li>Sans réponse de l'association sous <strong>quatorze jours</strong>, la mission est
       <strong>clôturée automatiquement sans confirmation</strong>. Les points sont crédités à
-      l'entreprise — le client n'est pas pris en otage par l'inaction d'un partenaire non payant —
-      mais le résultat reste <strong>estimé</strong> et il est identifié comme tel partout où il
-      apparaît. Riseva n'écrit jamais qu'une mission a été confirmée quand personne ne l'a
-      confirmée.</li>
+      l'entreprise selon le barème, mais le résultat reste <strong>estimé</strong> et il est
+      identifié comme <strong>non confirmé</strong> partout où il apparaît. Riseva n'écrit jamais
+      qu'une mission a été confirmée quand personne ne l'a confirmée.</li>
   <li>Si l'association refuse, aucun point n'est crédité, elle doit motiver son refus, et le besoin
       redevient disponible sur l'annonce.</li>
 </ul>
@@ -270,10 +269,10 @@ par les entreprises.</p>
       jours. Chacun contient trois boutons — réalisée comme prévu, réalisée partiellement, non
       réalisée — qui fonctionnent <strong>sans vous connecter</strong>.</li>
   <li>Sans réponse au bout de quatorze jours, la mission est <strong>clôturée automatiquement sans
-      confirmation</strong>. Les points sont crédités à l'entreprise, parce qu'un client ne peut
-      pas être bloqué par l'inaction d'un partenaire non payant. Mais le résultat reste
-      <strong>estimé</strong>, et il est écrit comme tel sur tous les écrans et dans tous les
-      rapports. Nous n'écrirons jamais que vous avez confirmé ce que vous n'avez pas confirmé.</li>
+      confirmation</strong>. Les points sont crédités à l'entreprise selon le barème, mais le
+      résultat reste <strong>estimé</strong> et identifié comme <strong>non confirmé</strong> sur
+      tous les écrans et dans tous les rapports. Nous n'écrirons jamais que vous avez confirmé ce
+      que vous n'avez pas confirmé.</li>
   <li><strong>Une clôture automatique n'est pas une faute et n'entraîne aucune suspension.</strong>
       Vous avez une association à faire tourner, pas une boîte de réception à surveiller. Si les
       clôtures se répètent, nous vous appelons pour comprendre — un référent absent, une adresse

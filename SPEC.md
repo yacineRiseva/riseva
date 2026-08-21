@@ -98,7 +98,8 @@ Le barème v1 ci-dessus est **provisoire et révisable à la fin de la première
 4. L'association valide ou refuse. Validée -> `validee`, les points sont crédités à l'entreprise.
    Refusée -> `refusee`, aucun point.
 5. Sans réponse de l'association sous 14 jours, la mission passe en `validee_auto` et les points sont crédités.
-   Motif : ne pas bloquer le client sur l'inaction d'un partenaire non payant.
+   Motif : ne pas bloquer indéfiniment un dossier sur une absence de réponse.
+   Le résultat correspondant reste estimé et identifié comme non confirmé.
 
 Les points sont crédités à l'**entreprise**, et attribués nominativement au salarié pour son propre suivi.
 

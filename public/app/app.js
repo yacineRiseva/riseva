@@ -335,7 +335,7 @@ function tableauEntreprise(u){
      écran pour savoir quoi faire, pas pour contempler son rang. */
   const aFaire = [];
   /* Ce qui attend quelqu'un d'autre n'est pas une tâche : le distinguer évite de
-     faire porter à l'entreprise une inaction qui n'est pas la sienne. */
+     reprocher à l'entreprise un délai qui ne dépend pas d'elle. */
   const aAttendre = [];
   const aValider = ms.filter(m => m.etat === "a_valider");
   if (aValider.length) aAttendre.push({ texte:
@@ -3482,7 +3482,7 @@ function vueMoteur(){
   const j = DB.journalMoteur();
   const dernier = j[0] || {};
   const regles = [
-    ["Validation sans retour", "Quatorze jours après la déclaration du salarié, une mission sans réponse de l'association est comptée comme réalisée. L'inaction d'un partenaire non payant ne doit pas pénaliser le client.", dernier.validations_auto],
+    ["Validation sans retour", "Quatorze jours après la déclaration du salarié, une mission sans réponse de l'association est comptée comme réalisée. Les points sont crédités selon le barème, mais le résultat reste estimé et identifié comme non confirmé.", dernier.validations_auto],
     ["Fermeture des annonces périmées", "Une annonce dont la date est dépassée depuis plus de sept jours est fermée. C'est l'engagement de fraîcheur pris envers les clients.", dernier.annonces_fermees],
     ["Génération des rapports", "Chaque période close produit son rapport, sans que personne le demande.", dernier.rapports],
     ["Recalcul du classement", "Refait chaque lundi. Aucun rang n'est stocké : il se déduit des points, ce qui interdit tout écart entre l'affiché et le réel.", dernier.classement ? "à jour" : "—"]

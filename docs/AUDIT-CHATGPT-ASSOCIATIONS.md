@@ -176,3 +176,35 @@ que dois-je confirmer aujourd'hui, qu'avons-nous reçu, que puis-je exporter.
 Reste ouvert, faute d'information : le nom du prestataire de paiement et ses frais,
 une photo du référent, un numéro direct, et les preuves chiffrées — elles n'existeront
 qu'après les premiers pilotes.
+
+## Quatrième passe — signerait-elle, maintenant ?
+
+Question posée après les dix corrections ci-dessus : *une présidente d'association de
+quinze bénévoles signerait-elle, maintenant, après un appel de quinze minutes ?*
+
+Réponse : oui, les motifs de refus liés à la méfiance sont levés — opacité,
+appropriation des résultats, sanctions automatiques, travail caché, collecte d'argent
+incertaine. Mais le sérieux ne suffit pas. Trois conditions restent nécessaires, et
+aucune ne dépend du produit :
+
+1. elle a un besoin concret dans les trois prochains mois ;
+2. ce besoin entre dans un format réellement ouvert — donc bénévolat ou matériel,
+   puisque le don financier est fermé tant que le prestataire n'est pas raccordé ;
+3. Yacine rédige vraiment la première annonce.
+
+**Conséquence sur l'objectif de l'appel.** Il ne s'agit pas de lui faire créer un
+compte. Il s'agit d'obtenir l'autorisation de lui envoyer une première annonce déjà
+rédigée, qu'elle pourra corriger ou refuser. Une fois qu'elle voit son besoin
+correctement formulé, accepter la charte devient une formalité compréhensible. La page
+d'acquisition et le formulaire ne demandent donc aucune inscription : ils demandent
+trois lignes sur ce que fait l'association.
+
+**Une phrase corrigée dans le règlement et la charte.** « L'inaction d'un partenaire
+non payant » : le raisonnement économique est juste, mais l'expression range
+l'association au rang de fournisseur gratuit au service du client payant. Remplacée
+partout par la formulation neutre — *les points sont crédités selon le barème, mais le
+résultat reste estimé et identifié comme non confirmé*. Corrigé dans
+`scripts/pages.py` (règlement + charte), dans l'espace Riseva (`app.js`) et dans
+`SPEC.md`.
+
+Le message de démarchage qui en découle est écrit dans `docs/DEMARCHAGE-ASSOCIATIONS.md`.
