@@ -74,6 +74,11 @@ export function modal(titre, corps, actions = []){
   return ov;
 }
 
+/* Un pourcentage en français s'écrit avec une virgule. « 1.4 % » sur un tableau
+   de bord vendu à une direction RSE, c'est une faute de frappe à chaque lecture. */
+export const pct = (v, dec = 1) =>
+  (Number(v) || 0).toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: dec });
+
 export function kpi(label, valeur, delta = "", sens = "", classe = ""){
   return `<div class="card kpi ${classe}">
     <span class="kpi__label">${esc(label)}</span>

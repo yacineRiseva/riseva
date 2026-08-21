@@ -296,3 +296,15 @@
 .realis__e{ display:block; margin-top:2px; font-size:var(--t-xs); color:var(--ink-500); }
 .card--dark .realis__e{ color:var(--forest-100); opacity:.55; }
 .ensemble__est{ font-style:normal; color:var(--ink-500); font-size:var(--t-xs); }
+
+/* --- Ce qu'il reste à traiter --------------------------------------- */
+/* Un bandeau, pas une carte : deux lignes d'action ne justifient pas de
+   repousser les résultats sous la ligne de flottaison. */
+.aFaire{ display:flex; align-items:flex-start; gap:var(--s5); flex-wrap:wrap;
+  padding:var(--s3) var(--s5); border-radius:var(--r-md);
+  background:var(--paper-raised); border:var(--line-soft); }
+.aFaire__titre{ display:flex; align-items:center; font-size:var(--t-xs);
+  letter-spacing:var(--track-wide); text-transform:uppercase; color:var(--ink-500);
+  padding-top:9px; white-space:nowrap; }
+.aFaire__liste{ flex:1; min-width:260px; display:flex; flex-direction:column; }
+.rappel--dense{ padding:6px var(--s3); }

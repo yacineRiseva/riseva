@@ -250,13 +250,23 @@ def main():
         print("\nHiérarchie du tableau de bord")
         connecte(p, "u2")
         t = p.inner_text(".content")
-        verifie("ce qui attend une action passe en premier", "Ce qui vous attend" in t)
-        verifie("le premier chiffre est la participation", "participation vérifiée" in t.lower())
-        verifie("un seul taux de participation dans tout le produit",
-                t.lower().count("participation vérifiée") >= 1 and "salariés engagés" not in t)
-        verifie("le coût par mission est donné", "coût par mission validée" in t.lower())
-        i_attend = t.find("Ce qui vous attend"); i_rang = t.find("Votre rang")
+        verifie("ce qui attend une action passe en premier", "à traiter" in t.lower())
+        verifie("le premier chiffre est le nombre de personnes, pas un pourcentage",
+                "salariés mobilisés" in t.lower())
+        verifie("le pourcentage est là, mais en second, avec son dénominateur",
+                "de l'effectif" in t.lower())
+        # Deux dénominateurs sous un seul mot donnaient 1,4 % ici et 60 % au classement.
+        verifie("« participation » ne désigne qu'une seule chose",
+                "% de participation" not in t)
+        connecte(p, "u2", "#/rapports")
+        tr = norm(p.inner_text(".content")).lower()
+        verifie("le coût par mission est donné dans le rapport, avec sa formule",
+                "coût par mission validée" in tr and "missions" in tr)
+        i_attend = t.lower().find("à traiter"); i_rang = t.find("Votre rang")
+        i_assos = t.find("Vos associations")
         verifie("le rang est toujours là, mais après", i_rang > i_attend >= 0)
+        # « Vos associations » justifie l'abonnement mieux qu'un rang : il passe devant.
+        verifie("les associations soutenues passent avant le classement", 0 <= i_assos < i_rang)
 
         print("\nCloisonnement des dons personnels")
         connecte(p, "u2", "#/missions")

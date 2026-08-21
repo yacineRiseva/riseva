@@ -1,5 +1,5 @@
 import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, lienPublic, connecterSupabase } from "./data.js";
-import { h, esc, nb, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
+import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
 /* Session                                                             */
@@ -368,13 +368,14 @@ function tableauEntreprise(u){
   }, 0);
 
   const el = h(`<div class="stack" style="--gap:var(--s5)">
-    ${aFaire.length ? `<section class="card">
-      <div class="between" style="margin-bottom:var(--s5)">
-        <h3>Ce qui vous attend</h3>
-        <span class="badge ${aFaire.some(x => x.ton === "alerte") ? "badge--warn" : ""}">${aFaire.length}</span>
-      </div>
-      <div class="stack" style="--gap:var(--s2)">
-        ${aFaire.map(x => `<a class="rappel" href="${x.vers}">
+    ${/* Deux lignes n'ont pas besoin d'une carte de deux cents pixels. Un bandeau
+          bas, dense, qui se lit d'un coup et laisse la place aux résultats. */
+      aFaire.length ? `<section class="aFaire">
+      <span class="aFaire__titre">À traiter
+        <span class="badge ${aFaire.some(x => x.ton === "alerte") ? "badge--warn" : ""}"
+          style="height:20px;margin-left:6px">${aFaire.length}</span></span>
+      <div class="aFaire__liste">
+        ${aFaire.map(x => `<a class="rappel rappel--dense" href="${x.vers}">
           <span class="notif__point notif__point--${x.ton}"></span>
           <span>${esc(x.texte)}</span>
           <span class="rappel__go">${ICONS.arrow || "→"}</span></a>`).join("")}
@@ -382,14 +383,60 @@ function tableauEntreprise(u){
     </section>` : ""}
 
     <div class="kpis">
-      ${kpi("Participation vérifiée", (partVerifiee.valeur ?? 0) + " %",
-            `${partVerifiee.num} salariés sur ${partVerifiee.den} de l'effectif`,
+      ${/* Le nombre de personnes d'abord, le pourcentage ensuite. « 1,4 % » en
+            chiffre principal, c'est un score d'échec affiché en grand le jour de
+            la mise en route ; « 3 salariés mobilisés » est le même fait, dit
+            dans le sens où on peut agir dessus. */
+        kpi("Salariés mobilisés", nb(partVerifiee.num),
+            `${pct(partVerifiee.valeur ?? 0)} % de l'effectif (${partVerifiee.num}/${partVerifiee.den})`,
             "", "kpi--tete grain")}
       ${kpi("Missions validées", nb(validees.length), enCours.length + " en cours")}
       ${kpi("Heures sur le temps de travail", nb(heuresTT), "valorisables en mécénat")}
-      ${kpi("Coût par mission validée", coutParAction ? eur(coutParAction) : "—",
-            coutParAction ? "abonnement rapporté aux missions" : "aucune mission validée")}
+      ${kpi("Associations soutenues", nb(prefs.length),
+            prefs.length ? "sur " + nb(DB.associations().filter(a => a.valide).length) + " partenaires"
+                         : "aucune pour l'instant")}
     </div>
+
+    <div id="realis"></div>
+
+    ${prefs.length ? `<section class="card">
+      <div class="between" style="margin-bottom:var(--s5)">
+        <div><h3>Vos associations</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+          Celles avec qui vos équipes ont le plus travaillé. Les dons personnels
+          des salariés n'entrent pas dans ce compte.</p></div>
+        <a class="btn btn--quiet btn--sm" href="#/annuaire">L'annuaire</a>
+      </div>
+      <div class="pref">
+        ${prefs.map((p, i) => `<article class="pref__c pref__c--${i + 1}">
+          <span class="pref__rang">${["La plus sollicitée", "La deuxième", "La troisième"][i] || ""}</span>
+          <span class="pref__nom">${esc(p.asso.nom)}</span>
+          <span class="muted" style="font-size:var(--t-sm)">${esc(p.asso.cause || "")} · ${esc(p.asso.ville || "")}</span>
+          <div class="pref__l"><span>Missions</span><b class="tnum">${nb(p.missions)}</b></div>
+          <div class="pref__l"><span>Salariés impliqués</span><b class="tnum">${nb(p.salaries)}</b></div>
+          <div class="pref__l"><span>Points rapportés</span><b class="tnum">${nb(p.points)}</b></div>
+          ${p.impacts.length ? `<div class="pref__l" style="border-top:var(--line-soft);padding-top:var(--s3)">
+            <span>${esc(p.impacts[0].quantite > 1 ? p.impacts[0].pl : p.impacts[0].un)}</span>
+            <b class="tnum">${nb(p.impacts[0].quantite)}</b></div>` : ""}
+          <a class="btn btn--ghost btn--sm" style="margin-top:auto"
+             href="/asso.html?id=${p.asso.id}" target="_blank">Sa page</a>
+        </article>`).join("")}
+      </div>
+    </section>` : ""}
+
+    <section class="card card--dark grain">
+      <div class="between" style="margin-bottom:var(--s5)">
+        <div><h3 style="color:var(--paper)">Tous ensemble</h3>
+        <p style="color:var(--forest-100);opacity:.75;font-size:var(--t-sm);margin-top:4px">
+          Ce que toutes les entreprises du réseau ont fait, la vôtre comprise.</p></div>
+        <a class="btn btn--lime btn--sm" href="#/ensemble">Voir la forêt</a>
+      </div>
+      <div class="three">
+        ${kpi("Missions du réseau", nb(res.missions), "", "", "kpi--nu")}
+        ${kpi("Arbres plantés", nb(res.arbres), "", "", "kpi--nu")}
+        ${kpi("Associations soutenues", nb(res.associations), "", "", "kpi--nu")}
+      </div>
+    </section>
 
     <div class="two">
       <section class="card">
@@ -486,47 +533,6 @@ function tableauEntreprise(u){
         </section>
       </div>
     </div>
-
-    <div id="realis"></div>
-
-    ${prefs.length ? `<section class="card">
-      <div class="between" style="margin-bottom:var(--s5)">
-        <div><h3>Vos associations</h3>
-        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
-          Celles avec qui vos équipes ont le plus travaillé. Les dons personnels
-          des salariés n'entrent pas dans ce compte.</p></div>
-        <a class="btn btn--quiet btn--sm" href="#/annuaire">L'annuaire</a>
-      </div>
-      <div class="pref">
-        ${prefs.map((p, i) => `<article class="pref__c pref__c--${i + 1}">
-          <span class="pref__rang">${["La plus sollicitée", "La deuxième", "La troisième"][i] || ""}</span>
-          <span class="pref__nom">${esc(p.asso.nom)}</span>
-          <span class="muted" style="font-size:var(--t-sm)">${esc(p.asso.cause || "")} · ${esc(p.asso.ville || "")}</span>
-          <div class="pref__l"><span>Missions</span><b class="tnum">${nb(p.missions)}</b></div>
-          <div class="pref__l"><span>Salariés impliqués</span><b class="tnum">${nb(p.salaries)}</b></div>
-          <div class="pref__l"><span>Points rapportés</span><b class="tnum">${nb(p.points)}</b></div>
-          ${p.impacts.length ? `<div class="pref__l" style="border-top:var(--line-soft);padding-top:var(--s3)">
-            <span>${esc(p.impacts[0].quantite > 1 ? p.impacts[0].pl : p.impacts[0].un)}</span>
-            <b class="tnum">${nb(p.impacts[0].quantite)}</b></div>` : ""}
-          <a class="btn btn--ghost btn--sm" style="margin-top:auto"
-             href="/asso.html?id=${p.asso.id}" target="_blank">Sa page</a>
-        </article>`).join("")}
-      </div>
-    </section>` : ""}
-
-    <section class="card card--dark grain">
-      <div class="between" style="margin-bottom:var(--s5)">
-        <div><h3 style="color:var(--paper)">Tous ensemble</h3>
-        <p style="color:var(--forest-100);opacity:.75;font-size:var(--t-sm);margin-top:4px">
-          Ce que toutes les entreprises du réseau ont fait, la vôtre comprise.</p></div>
-        <a class="btn btn--lime btn--sm" href="#/ensemble">Voir la forêt</a>
-      </div>
-      <div class="three">
-        ${kpi("Missions du réseau", nb(res.missions), "", "", "kpi--nu")}
-        ${kpi("Arbres plantés", nb(res.arbres), "", "", "kpi--nu")}
-        ${kpi("Associations soutenues", nb(res.associations), "", "", "kpi--nu")}
-      </div>
-    </section>
 
     <section class="card" id="demarrage" style="display:none">
       <div class="between" style="margin-bottom:var(--s5)">
@@ -1477,6 +1483,11 @@ function vueRapports(u){
   const res = DB.impactReseau();
   const maxT = Math.max(...r.trimestres.map(t => t.points), 1);
   const v = DB.valorisationMecenat(u.org);
+  const fa = DB.etatFacturation(u.org);
+  const cout = r.missions && fa.contrat
+    ? { valeur: Math.round(fa.contrat.montant_ht / r.missions),
+        abonnement: fa.contrat.montant_ht, missions: r.missions }
+    : null;
 
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <section class="card">
@@ -1510,10 +1521,14 @@ function vueRapports(u){
       <div class="kpis">
         <div class="card kpi kpi--tete grain"><span class="kpi__label">Points retenus</span>
           <span class="kpi__value">${nb(r.points)}</span></div>
-        ${kpi("Rang", rangFR(r.rang), "sur " + r.total)}
-        ${kpi("Participation vérifiée", (DB.indicateurs(u.org).participation.valeur ?? 0) + " %",
-            r.salariesEngages + " sur " + r.salariesTotal)}
+        ${kpi("Salariés mobilisés", nb(r.salariesEngages),
+            `${pct(DB.indicateurs(u.org).participation.valeur ?? 0)} % de l'effectif (${r.salariesEngages}/${r.salariesTotal})`)}
         ${kpi("Associations soutenues", nb(r.associations))}
+        ${/* Le coût par mission a sa place ici, dans un document de pilotage, avec
+              sa formule sous les yeux — pas en quatrième KPI d'accueil, où quatre
+              missions suffisent à le faire varier du simple au double. */
+          kpi("Coût par mission validée", cout ? eur(cout.valeur) : "—",
+            cout ? `${eur(cout.abonnement)} / ${nb(cout.missions)} missions` : "aucune mission validée")}
       </div>
       <hr class="sep">
       <div class="two">
@@ -1814,7 +1829,7 @@ function ouvrirPreuve(u){
   <table>
     <thead><tr><th>Indicateur</th><th>Valeur</th><th>Méthode</th></tr></thead>
     <tbody>
-      ${l("Participation vérifiée", (ind.participation.valeur ?? "—") + " %",
+      ${l("Participation dans l'effectif", ind.participation.valeur == null ? "—" : pct(ind.participation.valeur) + " %",
           `${ind.participation.num} salariés ayant au moins une action validée, divisés par ${ind.participation.den} de l'effectif de référence. Une inscription seule ne compte pas.`)}
       ${l("Actions validées", nb(ind.reperes.X),
           "Combinaisons uniques salarié × association × format × date. Deux versements au même organisme le même jour ne font qu'une action.")}
@@ -1992,7 +2007,7 @@ function ouvrirFacture(u, fa){
 
   <div class="tot">
     <div><span style="color:#63675C">Total HT</span><span>${eur(ht)}</span></div>
-    <div><span style="color:#63675C">TVA ${(FACTURATION.tva * 100).toFixed(0)} %</span><span>${eur(tva)}</span></div>
+    <div><span style="color:#63675C">TVA ${nb(FACTURATION.tva * 100)} %</span><span>${eur(tva)}</span></div>
     <div class="g"><span>Total TTC</span><span>${eur(ttc)}</span></div>
   </div>
 
@@ -2729,7 +2744,7 @@ function vuePilotes(){
     pe.appendChild(h(`<tr>
       <td><strong>${esc(e.nom)}</strong></td>
       <td class="tnum">${x.inscriptionI0.valeur === null ? "—" : x.inscriptionI0.valeur + " %"}</td>
-      <td class="tnum">${x.participation.valeur === null ? "—" : x.participation.valeur + " %"}</td>
+      <td class="tnum">${x.participation.valeur === null ? "—" : pct(x.participation.valeur) + " %"}</td>
       <td class="tnum">${x.realisation.valeur === null ? "—" : x.realisation.valeur + " %"}</td>
     </tr>`));
   });
@@ -3213,7 +3228,7 @@ function vueMecenat(u){
           <tr><td class="muted">Plafond de l'entreprise<br>
               <span style="font-size:var(--t-xs)">le plus élevé entre ${eur(FISCAL.plafond_plancher)}
               et ${(FISCAL.plafond_taux_ca * 1000)} pour mille du chiffre d'affaires,
-              soit ${(FISCAL.plafond_taux_ca * 100).toFixed(1)} %</span></td>
+              soit ${pct(FISCAL.plafond_taux_ca * 100)} %</span></td>
               <td class="tnum" style="text-align:right">${eur(v.plafondEntreprise)}</td></tr>
           ${v.reportable ? `<tr><td class="muted">Excédent reporté sur les exercices suivants</td>
               <td class="tnum" style="text-align:right">${eur(v.reportable)}</td></tr>` : ""}
