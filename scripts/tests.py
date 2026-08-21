@@ -188,6 +188,29 @@ def main():
         p.wait_for_timeout(400)
         verifie("une mission peut être confirmée", "créditée" in p.inner_text(".toast") or "crédités" in p.inner_text(".toast"))
 
+        print("\nSignalement et modération")
+        connecte(p, "u4", "#/annonces")
+        p.evaluate("()=>document.querySelector('[data-sig]').click()"); p.wait_for_timeout(300)
+        verifie("le signalement est accessible depuis chaque annonce", p.is_visible(".modal #motif"))
+        p.fill(".modal #prec", "La description ne correspond pas à ce qui est demandé sur place.")
+        p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Envoyer le signalement/.test(b.textContent)).click()")
+        p.wait_for_timeout(400)
+        verifie("le signalement est enregistré", "décision motivée" in p.inner_text(".toast"))
+        p.evaluate("()=>{localStorage.setItem('riseva.session',JSON.stringify({uid:'u1'}));location.hash='#/moderation'}")
+        p.reload(); p.wait_for_timeout(600)
+        verifie("le signalement remonte à la modération",
+                p.eval_on_selector_all("tbody tr", "r=>r.length") >= 1)
+        p.evaluate("()=>[...document.querySelectorAll('tbody button')].find(b=>/Décider/.test(b.textContent)).click()")
+        p.wait_for_timeout(300)
+        p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Notifier/.test(b.textContent)).click()")
+        p.wait_for_timeout(300)
+        verifie("une décision non motivée est refusée",
+                "doit être motivée" in p.inner_text(".toast"))
+        p.fill(".modal #mot", "Vérifié auprès de l'association, la description a été corrigée.")
+        p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Notifier/.test(b.textContent)).click()")
+        p.wait_for_timeout(400)
+        verifie("la décision motivée passe", "Décision notifiée" in p.inner_text(".toast"))
+
         print("\nRéalisations et automatismes")
         connecte(p, "u2")
         t = p.inner_text(".content")
@@ -237,6 +260,19 @@ def main():
         connecte(p, "u2", "#/abonnement")
         verifie("les factures s'affichent", p.eval_on_selector_all("tbody tr", "r=>r.length") >= 2)
         verifie("pas de reconduction tacite", "reconduction tacite" in p.inner_text(".content"))
+        with p.context.expect_page() as onglet:
+            p.evaluate("()=>[...document.querySelectorAll('tbody button')].find(b=>/Voir/.test(b.textContent)).click()")
+        fac = onglet.value; fac.wait_for_timeout(400)
+        f = norm(fac.inner_text("body"))
+        verifie("la facture porte les montants HT, TVA et TTC",
+                "Total HT" in f and "TVA 20 %" in f and "Total TTC" in f)
+        verifie("elle mentionne pénalités et indemnité de 40 €",
+                "indemnité forfaitaire" in f and "40 €" in f)
+        verifie("elle rappelle que les dons n'y figurent pas", "ne transitent" in f)
+        fac.close()
+        connecte(p, "u2", "#/parametres")
+        verifie("la facturation électronique est prise en compte",
+                "plateforme agréée" in p.inner_text(".content"))
         connecte(p, "u2", "#/parametres")
         p.fill("#cout", "400"); p.click("#save"); p.wait_for_timeout(400)
         p.evaluate("()=>location.hash='#/mecenat'"); p.wait_for_timeout(400)

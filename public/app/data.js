@@ -34,6 +34,19 @@ export const categorieDe = (effectif) =>
    - Mécénat de compétences : valorisation au coût de revient (rémunération brute
      chargée, au prorata du temps), plafonnée à trois fois le plafond mensuel de la
      Sécurité sociale par salarié et par an. PMSS 2026 = 4 005 €, donc 12 015 €. */
+/* Taux et mentions de facturation. La TVA d'un abonnement SaaS français à un
+   professionnel établi en France est au taux normal. */
+export const FACTURATION = {
+  tva: 0.20,
+  penalites_taux: "taux d'intérêt légal majoré de 10 points",
+  indemnite_recouvrement: 40,          // article L. 441-10 du code de commerce
+  delai_paiement_jours: 30,
+  conservation_ans: 10,
+  /* Calendrier de la réforme, à tenir à jour. */
+  reception_obligatoire_le: "2026-09-01",
+  emission_pme_le: "2027-09-01"
+};
+
 export const FISCAL = {
   annee: 2026,
   taux_reduction: 0.60,
@@ -104,9 +117,15 @@ const seed = {
     { entreprise:"e1", statut:"actif", signe_le:J(-40), debut:"2027-01-01", fin:"2027-12-31",
       montant_ht:3800, acompte:500, reconduction:false,
       factures:[
-        { ref:"RSV-2026-0007", libelle:"Acompte saison 2027", montant:500,  date:J(-40), echeance:J(-10), etat:"payee" },
-        { ref:"RSV-2027-0031", libelle:"Solde saison 2027",   montant:3300, date:"2027-01-05", echeance:"2027-02-04", etat:"a_venir" }
-      ] }
+        { ref:"RSV-2026-0007", libelle:"Acompte saison 2027", montant:500,  date:J(-40),
+          echeance:J(-10), etat:"payee",  periode:"acompte, saison 2027" },
+        { ref:"RSV-2027-0031", libelle:"Solde saison 2027",   montant:3300, date:"2027-01-05",
+          echeance:"2027-02-04", etat:"a_venir", periode:"01/01/2027 au 31/12/2027" }
+      ],
+      /* Facturation électronique : au 1er septembre 2026 toute entreprise doit pouvoir
+         RECEVOIR une facture par une plateforme agréée. Un PDF par courriel ne suffit plus.
+         On demande donc au client son numéro d'annuaire et sa plateforme dès la signature. */
+      plateforme_reception:"", annuaire_id:"" }
   ],
   associations: [
     { id:"a1", nom:"Refuge des Quatre Vents", ville:"Saint-Étienne", cause:"Protection animale",
@@ -175,6 +194,7 @@ const seed = {
     { id:"u7", nom:"Élise Tournier",  email:"elise@quatrevents.org",    role:"association",      org:"a1" },
     { id:"u9", nom:"Paul Girard",     email:"paul@groupe-vidal.fr",     role:"salarie",          org:"e2", points:600, actif:true }
   ],
+  signalements: [],
   acces: [
     { id:"ac1", entreprise:"e1", utilisateur:"u3", quoi:"inscription", code:"LAFARGE-7QK2", date:J(-28) },
     { id:"ac2", entreprise:"e1", utilisateur:"u4", quoi:"inscription", code:"LAFARGE-7QK2", date:J(-27) },
@@ -703,6 +723,48 @@ function creerMock(){
       m.realise = Math.max(0, Number(quantite) || 0);
       return m;
     },
+
+    /* ------------------------------------------------------------------ */
+    /* Signalement de contenu                                             */
+    /* ------------------------------------------------------------------ */
+    /* Riseva héberge et diffuse des annonces écrites par des tiers. Le règlement sur
+       les services numériques impose, quelle que soit la taille de l'hébergeur, un
+       mécanisme de signalement électronique, accessible et facile d'utilisation, et
+       une décision motivée notifiée à l'auteur du signalement (article 16 du DSA). */
+    MOTIFS_SIGNALEMENT: {
+      hors_objet:   "Sans rapport avec l'objet de l'association",
+      trompeur:     "Description trompeuse ou inexacte",
+      illicite:     "Contenu illicite",
+      dangereux:    "Mission dangereuse ou sans encadrement",
+      donnees:      "Données personnelles exposées",
+      autre:        "Autre motif"
+    },
+    signaler({ annonce, par, motif, precisions }){
+      const a = api.annonce(annonce);
+      if (!a) throw new Error("Annonce introuvable");
+      const sg = { id:id("sg"), annonce, association:a.asso, par, motif,
+        precisions: precisions || "", etat:"recu", decision:null, motivation:null,
+        recu_le: new Date().toISOString().slice(0, 10), decide_le:null };
+      s.signalements.unshift(sg);
+      return sg;
+    },
+    signalements: (etat) => s.signalements.filter(x => !etat || x.etat === etat),
+    /* Une décision non motivée ne vaut rien : le texte l'exige, et c'est de toute
+       façon la seule façon qu'une association comprenne ce qu'on lui reproche. */
+    deciderSignalement(sid, decision, motivation){
+      const sg = s.signalements.find(x => x.id === sid);
+      if (!sg) return null;
+      if (!motivation || !motivation.trim())
+        throw new Error("Une décision doit être motivée, le règlement l'exige");
+      sg.etat = "traite"; sg.decision = decision; sg.motivation = motivation.trim();
+      sg.decide_le = new Date().toISOString().slice(0, 10);
+      if (decision === "retire"){
+        const a = api.annonce(sg.annonce);
+        if (a){ a.etat = "close"; a.retiree_moderation = true; }
+      }
+      return sg;
+    },
+    annonce: (aid) => s.annonces.find(a => a.id === aid) || null,
 
     /* ------------------------------------------------------------------ */
     /* Notifications                                                      */

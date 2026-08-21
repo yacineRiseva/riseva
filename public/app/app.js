@@ -1,4 +1,4 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, UNITES, connecterSupabase } from "./data.js";
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, connecterSupabase } from "./data.js";
 import { h, esc, nb, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
@@ -73,7 +73,8 @@ const MENUS = {
     { groupe: "Paramètres", items: [
       ["saison",  "Saison et barème", "settings"],
       ["journal", "Journal des envois", "report"],
-      ["moteur",  "Automatismes",        "settings"]
+      ["moteur",  "Automatismes",        "settings"],
+      ["moderation", "Modération",       "alert"]
     ]}
   ]
 };
@@ -494,13 +495,47 @@ function listeAnnonces(annonces, u){
       </div>
       <div class="offer__side">
         <span class="offer__pts">${pts}</span>
-        <button class="btn btn--ghost btn--sm">Se positionner</button>
+        <button class="btn btn--ghost btn--sm" data-go>Se positionner</button>
+        <button class="btn btn--quiet btn--sm" data-sig
+          title="Signaler cette annonce">Signaler</button>
       </div>
     </article>`);
-    card.querySelector("button").onclick = () => ouvrirEngagement(a, u);
+    card.querySelector("[data-go]").onclick = () => ouvrirEngagement(a, u);
+    card.querySelector("[data-sig]").onclick = () => ouvrirSignalement(u, a);
     box.appendChild(card);
   });
   return box;
+}
+
+/* Signalement d'une annonce. Le règlement sur les services numériques impose un
+   mécanisme électronique accessible et une décision motivée notifiée à l'auteur.
+   Il s'applique quelle que soit la taille de l'hébergeur : nous en sommes un. */
+function ouvrirSignalement(u, a){
+  const motifs = DB.MOTIFS_SIGNALEMENT;
+  const corps = h(`<div class="stack" style="--gap:var(--s4)">
+    <p class="muted" style="font-size:var(--t-sm)">
+      Vous signalez « ${esc(a.titre)} », publiée par ${esc((DB.association(a.asso) || {}).nom || "")}.
+      Riseva examine chaque signalement et vous répond par une décision motivée.</p>
+    <div class="field"><label>Motif</label>
+      <select class="select" id="motif">
+        ${Object.entries(motifs).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}
+      </select></div>
+    <div class="field"><label>Précisions</label>
+      <textarea class="textarea" id="prec" placeholder="Ce que vous avez constaté, aussi factuellement que possible."></textarea></div>
+    <p class="hint">Un signalement abusif répété peut entraîner la suspension de votre compte.
+      Les signalements sont conservés douze mois.</p>
+  </div>`);
+  modal("Signaler cette annonce", corps, [
+    { label:"Annuler" },
+    { label:"Envoyer le signalement", classe:"btn--primary", onClick: () => {
+        try {
+          DB.signaler({ annonce: a.id, par: u.id,
+            motif: corps.querySelector("#motif").value,
+            precisions: corps.querySelector("#prec").value });
+        } catch (e){ toast(e.message); return false; }
+        toast("Signalement enregistré. Vous recevrez une décision motivée.");
+      }}
+  ]);
 }
 
 function ouvrirEngagement(a, u){
@@ -1267,7 +1302,8 @@ function vueAbonnement(u){
         </div>
         <table class="table"><thead><tr>
           <th>Référence</th><th>Libellé</th><th>Émise</th><th>Échéance</th>
-          <th style="text-align:right">Montant</th><th>État</th><th></th>
+          <th style="text-align:right">HT</th><th style="text-align:right">TTC</th>
+          <th>État</th><th></th>
         </tr></thead><tbody></tbody></table>
       </section>
 
@@ -1313,23 +1349,29 @@ function vueAbonnement(u){
   c.factures.forEach(fa => {
     const enRetard = fa.etat !== "payee" && fa.echeance < "2026-08-20";
     const cle = enRetard ? "en_retard" : fa.etat;
+    const ttc = Math.round(fa.montant * (1 + FACTURATION.tva));
     const tr = h(`<tr>
       <td style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(fa.ref)}</td>
-      <td><strong>${esc(fa.libelle)}</strong></td>
+      <td><strong>${esc(fa.libelle)}</strong>${fa.periode
+        ? `<br><span class="muted" style="font-size:var(--t-xs)">${esc(fa.periode)}</span>` : ""}</td>
       <td class="muted tnum">${dateCourte(fa.date)}</td>
       <td class="muted tnum">${dateCourte(fa.echeance)}</td>
-      <td class="tnum" style="text-align:right"><strong>${eur(fa.montant)}</strong></td>
+      <td class="tnum" style="text-align:right">${eur(fa.montant)}</td>
+      <td class="tnum" style="text-align:right"><strong>${eur(ttc)}</strong></td>
       <td><span class="badge ${(etats[cle] || etats.a_venir)[1]}">${(etats[cle] || etats.a_venir)[0]}</span></td>
       <td style="text-align:right"></td></tr>`);
-    const b = h(`<button class="btn btn--quiet btn--sm">Télécharger</button>`);
-    b.onclick = () => toast("La facture s'ouvre dans l'aperçu d'impression.");
+    const b = h(`<button class="btn btn--quiet btn--sm">Voir</button>`);
+    b.onclick = () => ouvrirFacture(u, fa);
     tr.lastElementChild.appendChild(b);
     tb.appendChild(tr);
   });
 
   el.querySelector("#csvF").onclick = () => {
-    versCSV("riseva-factures.csv", ["Référence", "Libellé", "Émise", "Échéance", "Montant", "État"],
-      c.factures.map(fa => [fa.ref, fa.libelle, fa.date, fa.echeance, fa.montant, fa.etat]));
+    versCSV("riseva-factures.csv",
+      ["Référence", "Libellé", "Période", "Émise", "Échéance", "HT", "TVA", "TTC", "État"],
+      c.factures.map(fa => [fa.ref, fa.libelle, fa.periode || "", fa.date, fa.echeance,
+        fa.montant, Math.round(fa.montant * FACTURATION.tva),
+        Math.round(fa.montant * (1 + FACTURATION.tva)), fa.etat]));
     toast("Export téléchargé.");
   };
   el.querySelector("#rec").onclick = () => {
@@ -1338,6 +1380,103 @@ function vueAbonnement(u){
     rendre();
   };
   return el;
+}
+
+/* Facture conforme, ouverte dans un onglet. Les mentions ne sont pas décoratives :
+   numéro unique dans une séquence continue, dates, identité des parties, désignation
+   et période de la prestation, montants HT, TVA et TTC, échéance, pénalités de retard
+   et indemnité forfaitaire de recouvrement de 40 € (article L. 441-9 du code de commerce).
+   Conservation dix ans. */
+function ouvrirFacture(u, fa){
+  const e = DB.entreprise(u.org);
+  const ht = fa.montant;
+  const tva = Math.round(ht * FACTURATION.tva);
+  const ttc = ht + tva;
+  const champ = (x) => x || `<span class="v">[à compléter]</span>`;
+
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
+<title>Facture ${esc(fa.ref)} — Riseva</title>
+<style>
+  body{font:14px/1.6 -apple-system,Segoe UI,Inter,sans-serif;color:#2C3026;background:#F2F0E9;
+    margin:0;padding:44px 20px}
+  .p{max-width:720px;margin:0 auto;background:#FAF9F5;padding:48px;border-radius:12px;
+    box-shadow:0 24px 48px -20px rgba(11,38,32,.18)}
+  h1{font-size:22px;letter-spacing:-.02em;color:#131510;margin:0}
+  .ref{font-family:ui-monospace,Menlo,monospace;color:#63675C;margin-top:4px}
+  .cols{display:flex;gap:36px;margin-top:32px}
+  .cols>div{flex:1;font-size:13px}
+  .t{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#8A8F82;margin-bottom:6px}
+  table{width:100%;border-collapse:collapse;margin-top:32px}
+  th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    color:#63675C;padding:0 0 8px;border-bottom:1px solid #E5E2D9}
+  td{padding:12px 0;border-bottom:1px solid #E5E2D9;vertical-align:top}
+  .r{text-align:right;font-variant-numeric:tabular-nums}
+  .tot{margin-top:20px;margin-left:auto;width:280px;font-variant-numeric:tabular-nums}
+  .tot div{display:flex;justify-content:space-between;padding:7px 0}
+  .tot .g{border-top:2px solid #131510;margin-top:6px;padding-top:10px;
+    font-weight:600;color:#131510;font-size:16px}
+  .m{margin-top:32px;font-size:11.5px;color:#63675C;line-height:1.55}
+  .v{background:#F6EAD5;padding:0 4px;border-radius:3px}
+  @media print{body{background:#fff;padding:0}.p{box-shadow:none;padding:0;background:#fff}
+    .noprint{display:none}}
+  .noprint{text-align:center;margin-bottom:20px}
+  .noprint button{font:inherit;background:#131510;color:#F2F0E9;border:0;border-radius:12px;
+    padding:11px 22px;cursor:pointer}
+</style></head><body>
+<div class="noprint"><button onclick="window.print()">Imprimer ou enregistrer en PDF</button></div>
+<div class="p">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div><h1>Facture</h1><p class="ref">${esc(fa.ref)}</p></div>
+    <div style="text-align:right;font-size:13px;color:#63675C">
+      Émise le ${dateFR(fa.date)}<br>Échéance le ${dateFR(fa.echeance)}</div>
+  </div>
+
+  <div class="cols">
+    <div>
+      <p class="t">Émetteur</p>
+      <strong style="color:#131510">Riseva</strong><br>
+      ${champ("")}<br>SIREN ${champ("")}<br>TVA intracommunautaire ${champ("")}<br>
+      contact@riseva.fr
+    </div>
+    <div>
+      <p class="t">Client</p>
+      <strong style="color:#131510">${esc(e.nom)}</strong><br>
+      ${champ(esc(e.adresse || ""))}<br>SIRET ${champ(esc(e.siret || ""))}<br>
+      ${esc(e.referent || "")}
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th>Désignation</th><th>Période</th><th class="r">Montant HT</th></tr></thead>
+    <tbody><tr>
+      <td><strong style="color:#131510">${esc(fa.libelle)}</strong><br>
+        <span style="color:#63675C">Abonnement à la plateforme Riseva, ${DB.sieges(u.org).total} places</span></td>
+      <td style="color:#63675C">${esc(fa.periode || "")}</td>
+      <td class="r">${eur(ht)}</td>
+    </tr></tbody>
+  </table>
+
+  <div class="tot">
+    <div><span style="color:#63675C">Total HT</span><span>${eur(ht)}</span></div>
+    <div><span style="color:#63675C">TVA ${(FACTURATION.tva * 100).toFixed(0)} %</span><span>${eur(tva)}</span></div>
+    <div class="g"><span>Total TTC</span><span>${eur(ttc)}</span></div>
+  </div>
+
+  <p class="m">
+    Paiement à ${FACTURATION.delai_paiement_jours} jours à compter de la date d'émission.<br>
+    En cas de retard, pénalités au ${esc(FACTURATION.penalites_taux)}, exigibles sans rappel,
+    et indemnité forfaitaire pour frais de recouvrement de ${eur(FACTURATION.indemnite_recouvrement)}
+    (articles L. 441-9 et L. 441-10 du code de commerce). Pas d'escompte pour paiement anticipé.<br>
+    Aucune commission n'est prélevée sur les dons versés aux associations, qui ne transitent
+    jamais par Riseva et ne figurent pas sur cette facture.<br>
+    Document conservé ${FACTURATION.conservation_ans} ans.
+  </p>
+</div></body></html>`;
+
+  const w = window.open("", "_blank");
+  if (!w){ toast("Autorisez les fenêtres pour ouvrir la facture."); return; }
+  w.document.write(html); w.document.close();
+  toast("Facture ouverte dans un nouvel onglet.");
 }
 
 function vueParametres(u){
@@ -1356,6 +1495,17 @@ function vueParametres(u){
         </div>
         <div class="field"><label>Adresse de facturation</label>
           <input class="input" id="adresse" value="${esc(e.adresse || "")}"></div>
+        <div class="row" style="gap:var(--s4);align-items:stretch">
+          <div class="field" style="flex:1"><label>Plateforme de réception des factures</label>
+            <input class="input" id="pdp" value="${esc((DB.contrat(u.org) || {}).plateforme_reception || "")}"
+              placeholder="Nom de votre plateforme agréée"></div>
+          <div class="field" style="flex:1"><label>Identifiant annuaire</label>
+            <input class="input" id="annu" value="${esc((DB.contrat(u.org) || {}).annuaire_id || "")}"
+              placeholder="SIRET ou routage"></div>
+        </div>
+        <p class="hint">Depuis le 1<sup>er</sup> septembre 2026, toute entreprise doit pouvoir
+          recevoir ses factures par une plateforme agréée : un PDF par courriel ne suffit plus.
+          Dites-nous laquelle vous utilisez et nous vous adressons vos factures dessus.</p>
         <div class="row" style="gap:var(--s4);align-items:stretch">
           <div class="field" style="flex:1"><label>Référent Riseva</label>
             <input class="input" id="ref" value="${esc(e.referent || "")}"></div>
@@ -1423,6 +1573,7 @@ function vueParametres(u){
       ca: Number(v("ca")) || 0, cout_jour_moyen: Number(v("cout")) || 300,
       effectif: Number(v("eff")) || e.effectif
     });
+    DB.majContrat(u.org, { plateforme_reception: v("pdp").trim(), annuaire_id: v("annu").trim() });
     toast("Paramètres enregistrés."); rendre();
   };
   const libelles = { inscription:"Inscription", creation_lien:"Création du lien",
@@ -2229,6 +2380,83 @@ function vueActivite(u){
   return el;
 }
 
+function vueModeration(){
+  const motifs = DB.MOTIFS_SIGNALEMENT;
+  const tous = DB.signalements();
+  const enAttente = tous.filter(x => x.etat === "recu");
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <section class="card card--flat" style="background:${enAttente.length ? "var(--warn-bg)" : "var(--forest-050)"};border-color:transparent">
+      <h3 style="font-size:var(--t-lg)">${enAttente.length
+        ? `${enAttente.length} signalement${enAttente.length > 1 ? "s" : ""} en attente`
+        : "Aucun signalement en attente"}</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:6px;color:var(--ink-600)">
+        Riseva héberge et diffuse des annonces écrites par des tiers. Le règlement sur les services
+        numériques impose un mécanisme de signalement accessible et une décision motivée notifiée
+        à son auteur, quelle que soit la taille de l'hébergeur. Une décision non motivée ne vaut rien.</p>
+    </section>
+    <section class="card">
+      <table class="table"><thead><tr>
+        <th>Annonce</th><th>Motif</th><th>Reçu</th><th>État</th><th></th>
+      </tr></thead><tbody></tbody></table>
+    </section>
+  </div>`);
+  const tb = el.querySelector("tbody");
+  if (!tous.length){
+    tb.appendChild(h(`<tr><td colspan="5"></td></tr>`));
+    tb.querySelector("td").appendChild(vide({
+      titre: "Rien à modérer",
+      texte: "Aucune annonce n'a été signalée. Le bouton existe sur chaque annonce, dans tous les espaces." }));
+  }
+  tous.forEach(sg => {
+    const a = DB.annonce(sg.annonce);
+    const asso = DB.association(sg.association);
+    const par = DB.utilisateur(sg.par);
+    const tr = h(`<tr>
+      <td><strong>${esc(a ? a.titre : "annonce supprimée")}</strong><br>
+        <span class="muted" style="font-size:var(--t-xs)">${esc(asso ? asso.nom : "")}${
+          par ? ` · signalé par ${esc(par.nom)}` : ""}</span>
+        ${sg.precisions ? `<br><span class="muted" style="font-size:var(--t-xs)">« ${esc(sg.precisions)} »</span>` : ""}</td>
+      <td class="muted">${esc(motifs[sg.motif] || sg.motif)}</td>
+      <td class="muted tnum">${dateCourte(sg.recu_le)}</td>
+      <td><span class="badge ${sg.etat === "recu" ? "badge--warn"
+        : sg.decision === "retire" ? "badge--danger" : "badge--ok"}">${
+        sg.etat === "recu" ? "À traiter"
+        : sg.decision === "retire" ? "Retirée" : "Conservée"}</span>
+        ${sg.motivation ? `<br><span class="muted" style="font-size:var(--t-xs)">${esc(sg.motivation)}</span>` : ""}</td>
+      <td style="text-align:right"></td></tr>`);
+    if (sg.etat === "recu"){
+      const b = h(`<button class="btn btn--ghost btn--sm">Décider</button>`);
+      b.onclick = () => {
+        const corps = h(`<div class="stack" style="--gap:var(--s4)">
+          <p class="muted" style="font-size:var(--t-sm)">
+            Motif invoqué : ${esc(motifs[sg.motif] || sg.motif)}.
+            ${sg.precisions ? `« ${esc(sg.precisions)} »` : ""}</p>
+          <div class="field"><label>Décision</label>
+            <select class="select" id="dec">
+              <option value="conserve">Conserver l'annonce</option>
+              <option value="retire">Retirer l'annonce</option>
+            </select></div>
+          <div class="field"><label>Motivation, communiquée à l'auteur du signalement et à l'association</label>
+            <textarea class="textarea" id="mot" placeholder="Ce qui a été vérifié, et pourquoi cette décision."></textarea></div>
+        </div>`);
+        modal("Décider du signalement", corps, [
+          { label:"Annuler" },
+          { label:"Notifier la décision", classe:"btn--primary", onClick: () => {
+              try {
+                DB.deciderSignalement(sg.id, corps.querySelector("#dec").value,
+                  corps.querySelector("#mot").value);
+              } catch (e){ toast(e.message); return false; }
+              toast("Décision notifiée."); rendre();
+            }}
+        ]);
+      };
+      tr.lastElementChild.appendChild(b);
+    }
+    tb.appendChild(tr);
+  });
+  return el;
+}
+
 function vueMoteur(){
   const j = DB.journalMoteur();
   const dernier = j[0] || {};
@@ -2988,6 +3216,7 @@ const ROUTES = {
     saison:         [vueAdminSaison,           "Saison et barème"],
     journal:        [vueJournal,               "Journal des envois"],
     moteur:         [vueMoteur,                "Automatismes"],
+    moderation:     [vueModeration,            "Modération"],
     preferences:    [vuePreferences,           "Préférences"]
   }
 };
