@@ -44,7 +44,8 @@ export const ICONS = {
   clock:     P(`<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>`),
   cloche:    P(`<path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M13.7 20a2 2 0 0 1-3.4 0"/>`),
   leaf:      P(`<path d="M20 4C10 4 4 10 4 20c8 0 16-6 16-16Z"/><path d="M4 20C8 16 12 13 17 11"/>`),
-  arrow:     P(`<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>`)
+  arrow:     P(`<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>`),
+  pin:       P(`<path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/>`)
 };
 
 export function toast(message){
@@ -219,4 +220,110 @@ export function jauge({ brut, ecrete, retenu, diviseur, cohorte, unite = "points
     ${cohorte ? `<p class="hint">Comparé à ${cohorte} entreprise${cohorte > 1 ? "s" : ""} de la
       même taille.${cohorte < 10 ? " Cohorte trop petite pour un percentile." : ""}</p>` : ""}
   </div>`);
+}
+
+/* ------------------------------------------------------------------ */
+/* Vignettes d'annonce                                                 */
+/* ------------------------------------------------------------------ */
+/* Pas de photo de banque d'images : elles se reconnaissent, elles vieillissent, et
+   elles ne disent rien de la mission. On dessine la scène à partir de ce que la
+   mission produit réellement. Le motif est déterministe : la même annonce donne
+   toujours la même image, ce qui évite l'effet loterie au rechargement. */
+const graine = (txt) => {
+  let n = 0;
+  for (let i = 0; i < txt.length; i++) n = (n * 31 + txt.charCodeAt(i)) >>> 0;
+  return () => { n = (n * 1103515245 + 12345) >>> 0; return (n >>> 16) / 65535; };
+};
+
+const MOTIFS = {
+  arbre:       "foret",
+  haie:        "foret",
+  metre_berge: "riviere",
+  dechet_kg:   "riviere",
+  repas:       "caisses",
+  colis:       "caisses",
+  kit:         "caisses",
+  animal:      "pattes",
+  eleve:       "silhouettes",
+  maraude:     "silhouettes"
+};
+const MOTIF_TYPE = {
+  benevolat_demi_journee: "silhouettes",
+  don_materiel: "caisses",
+  don_financier: "riviere"
+};
+
+function dessinFore(al){
+  let d = "";
+  for (let i = 0; i < 9; i++){
+    const x = 14 + i * 36 + al() * 10;
+    const y = 96 - al() * 8;
+    const hh = 26 + al() * 22;
+    const w = hh * 0.42;
+    d += `<path d="M${x} ${y} L${x - w} ${y} L${x} ${y - hh} L${x + w} ${y} Z"
+      fill="none" stroke="var(--lime)" stroke-opacity="${0.35 + al() * 0.45}" stroke-width="1.6"/>
+      <path d="M${x} ${y} v7" stroke="var(--lime)" stroke-opacity=".3" stroke-width="1.4"/>`;
+  }
+  return d;
+}
+function dessinRiviere(al){
+  let d = "";
+  for (let i = 0; i < 4; i++){
+    const y = 40 + i * 16 + al() * 6;
+    d += `<path d="M-10 ${y} C 60 ${y - 12 - al() * 8}, 120 ${y + 14}, 190 ${y - 4}
+      S 300 ${y - 16}, 370 ${y + 6}" fill="none" stroke="var(--lime)"
+      stroke-opacity="${0.5 - i * 0.09}" stroke-width="1.8" stroke-linecap="round"/>`;
+  }
+  return d;
+}
+function dessinCaisses(al){
+  let d = "";
+  for (let i = 0; i < 7; i++){
+    const w = 26 + al() * 16, hh = 20 + al() * 12;
+    const x = 18 + i * 44 + al() * 8, y = 98 - hh;
+    d += `<rect x="${x}" y="${y}" width="${w}" height="${hh}" rx="2" fill="none"
+      stroke="var(--lime)" stroke-opacity="${0.35 + al() * 0.4}" stroke-width="1.6"/>
+      <path d="M${x} ${y + hh / 2} h${w}" stroke="var(--lime)" stroke-opacity=".25" stroke-width="1.3"/>`;
+  }
+  return d;
+}
+function dessinPattes(al){
+  let d = "";
+  for (let i = 0; i < 11; i++){
+    const x = 20 + i * 30 + al() * 12, y = 34 + al() * 56, r = 3.4 + al() * 1.6;
+    const o = 0.3 + al() * 0.45;
+    d += `<circle cx="${x}" cy="${y}" r="${r * 1.5}" fill="none" stroke="var(--lime)"
+      stroke-opacity="${o}" stroke-width="1.5"/>
+      <circle cx="${x - r * 1.8}" cy="${y - r * 1.9}" r="${r * 0.6}" fill="var(--lime)" fill-opacity="${o}"/>
+      <circle cx="${x}" cy="${y - r * 2.5}" r="${r * 0.6}" fill="var(--lime)" fill-opacity="${o}"/>
+      <circle cx="${x + r * 1.8}" cy="${y - r * 1.9}" r="${r * 0.6}" fill="var(--lime)" fill-opacity="${o}"/>`;
+  }
+  return d;
+}
+function dessinSilhouettes(al){
+  let d = "";
+  for (let i = 0; i < 8; i++){
+    const x = 22 + i * 42 + al() * 10, y = 98 - al() * 6;
+    const hh = 30 + al() * 16, o = 0.3 + al() * 0.45;
+    d += `<circle cx="${x}" cy="${y - hh}" r="5" fill="none" stroke="var(--lime)"
+      stroke-opacity="${o}" stroke-width="1.6"/>
+      <path d="M${x} ${y - hh + 6} v${hh * 0.45} M${x - 8} ${y - hh + 12} h16
+        M${x} ${y - hh * 0.5} l-7 ${hh * 0.5} M${x} ${y - hh * 0.5} l7 ${hh * 0.5}"
+        fill="none" stroke="var(--lime)" stroke-opacity="${o}" stroke-width="1.6"
+        stroke-linecap="round"/>`;
+  }
+  return d;
+}
+
+export function vignette(annonce, { hauteur = 132 } = {}){
+  const cle = (annonce.impact && annonce.impact.unite) || "";
+  const motif = MOTIFS[cle] || MOTIF_TYPE[annonce.type] || "riviere";
+  const al = graine(annonce.id + annonce.titre);
+  const dessins = { foret: dessinFore, riviere: dessinRiviere, caisses: dessinCaisses,
+                    pattes: dessinPattes, silhouettes: dessinSilhouettes };
+  return `<svg class="vignette" viewBox="0 0 360 110" preserveAspectRatio="xMidYMid slice"
+    style="height:${hauteur}px" role="img" aria-hidden="true">
+    <rect width="360" height="110" fill="var(--forest-900)"/>
+    ${dessins[motif](al)}
+  </svg>`;
 }

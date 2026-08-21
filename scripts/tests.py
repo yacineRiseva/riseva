@@ -135,7 +135,7 @@ def main():
 
         print("\nParcours d'une mission")
         connecte(p, "u4", "#/annonces")
-        p.eval_on_selector_all(".offer button", "b=>b[0].click()"); p.wait_for_timeout(300)
+        p.eval_on_selector_all(".annonce [data-go]", "b=>b[0].click()"); p.wait_for_timeout(300)
         verifie("le calcul des points s'affiche", "points pour votre entreprise" in p.inner_text("#calc"))
         p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Confirmer/.test(b.textContent)).click()")
         p.wait_for_timeout(400)
@@ -207,8 +207,8 @@ def main():
 
         print("\nConsentement et éligibilité")
         connecte(p, "u4", "#/annonces")
-        p.evaluate("""()=>{const o=[...document.querySelectorAll('.offer')].find(x=>/temps de travail/.test(x.innerText));
-          o.querySelector('button').click()}""")
+        p.evaluate("""()=>{const o=[...document.querySelectorAll('.annonce')].find(x=>/Temps de travail/.test(x.innerText));
+          o.querySelector('[data-go]').click()}""")
         p.wait_for_timeout(300)
         verifie("le consentement est demandé", p.is_visible(".modal #consent"))
         p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Confirmer/.test(b.textContent)).click()")

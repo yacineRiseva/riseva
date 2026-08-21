@@ -26,6 +26,43 @@ export const lienPublic = (chemin) => {
   return (local ? SITE : location.origin) + chemin;
 };
 
+/* ------------------------------------------------------------------ */
+/* Géolocalisation                                                     */
+/* ------------------------------------------------------------------ */
+/* Base Adresse Nationale : service public français, gratuit, sans clé et sans
+   compte à créer. On lui envoie une adresse, elle renvoie des coordonnées.
+   Rien d'autre ne sort d'ici : ni identité, ni contexte. */
+export const GEOCODEUR = "https://api-adresse.data.gouv.fr/search/";
+
+export async function geocoder(adresse, { signal } = {}){
+  const q = String(adresse || "").trim();
+  if (q.length < 5) return null;
+  try {
+    const r = await fetch(`${GEOCODEUR}?q=${encodeURIComponent(q)}&limit=1&autocomplete=0`,
+      { signal, headers: { Accept: "application/json" } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const f = j.features && j.features[0];
+    if (!f) return null;
+    const [lon, lat] = f.geometry.coordinates;
+    return { lat, lon, label: f.properties.label,
+             ville: f.properties.city, code_postal: f.properties.postcode,
+             precision: f.properties.type, score: f.properties.score,
+             source: "BAN", le: new Date().toISOString().slice(0, 10) };
+  } catch { return null; }   // hors ligne ou service indisponible : on continue sans
+}
+
+/* Distance orthodromique, en kilomètres. Suffisamment juste à l'échelle d'un pays,
+   et sans dépendance : une bibliothèque de cartographie pour ça serait absurde. */
+export function distanceKm(a, b){
+  if (!a || !b || a.lat == null || b.lat == null) return null;
+  const R = 6371, rad = (d) => (d * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat), dLon = rad(b.lon - a.lon);
+  const x = Math.sin(dLat / 2) ** 2
+    + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(x)));
+}
+
 export const CATEGORIES = [
   { id:"tpe", label:"Moins de 50 salariés",  min:0,   max:49 },
   { id:"pme", label:"50 à 199 salariés",     min:50,  max:199 },
@@ -111,17 +148,17 @@ const seed = {
     etat: "ouverte", prix_min: 3500, prix_max: 4000, acompte: 500
   },
   entreprises: [
-    { id:"e1", nom:"Lafarge Ciments",     effectif:210, sieges:210, ca:48_000_000, cout_jour_moyen:340,
+    { id:"e1", lat:45.7333, lon:4.8137, nom:"Lafarge Ciments",     effectif:210, sieges:210, ca:48_000_000, cout_jour_moyen:340,
       referent:"Claire Fontaine", referent_mail:"claire@lafarge-ciments.fr", siret:"39312091600025",
       domaines:["lafarge-ciments.fr"],
       adresse:"12 rue des Docks, 69009 Lyon", points:12480, secteur:"Industrie",  ville:"Lyon" },
-    { id:"e2", nom:"Groupe Vidal",        effectif:340, sieges:350, ca:62_000_000, cout_jour_moyen:290, points:18020, secteur:"Logistique", ville:"Lille" },
-    { id:"e3", nom:"Cabinet Marchand",    effectif:64,  sieges:75,  ca:9_800_000,  cout_jour_moyen:520,  points:15470, secteur:"Conseil",    ville:"Paris" },
-    { id:"e4", nom:"Novaterre",           effectif:120, sieges:120, ca:21_000_000, cout_jour_moyen:310, points:14100, secteur:"Agro",       ville:"Nantes" },
-    { id:"e5", nom:"Atelier Berthier",    effectif:38,  sieges:50,  ca:3_400_000,  cout_jour_moyen:280,  points:11040, secteur:"Artisanat",  ville:"Toulouse" },
-    { id:"e6", nom:"Sirius Assurances",   effectif:520, sieges:500, ca:140_000_000, cout_jour_moyen:400, points:9380,  secteur:"Assurance",  ville:"Bordeaux" },
-    { id:"e7", nom:"Delmas & Fils",       effectif:87,  sieges:100, ca:12_000_000, cout_jour_moyen:300, points:7920,  secteur:"BTP",        ville:"Rennes" },
-    { id:"e8", nom:"Kervella Transport",  effectif:145, sieges:150, ca:18_000_000, cout_jour_moyen:270, points:6410,  secteur:"Transport",  ville:"Brest" }
+    { id:"e2", lat:50.6292, lon:3.0573, nom:"Groupe Vidal",        effectif:340, sieges:350, ca:62_000_000, cout_jour_moyen:290, points:18020, secteur:"Logistique", ville:"Lille" },
+    { id:"e3", lat:48.8566, lon:2.3522, nom:"Cabinet Marchand",    effectif:64,  sieges:75,  ca:9_800_000,  cout_jour_moyen:520,  points:15470, secteur:"Conseil",    ville:"Paris" },
+    { id:"e4", lat:47.2184, lon:-1.5536, nom:"Novaterre",           effectif:120, sieges:120, ca:21_000_000, cout_jour_moyen:310, points:14100, secteur:"Agro",       ville:"Nantes" },
+    { id:"e5", lat:43.6047, lon:1.4442, nom:"Atelier Berthier",    effectif:38,  sieges:50,  ca:3_400_000,  cout_jour_moyen:280,  points:11040, secteur:"Artisanat",  ville:"Toulouse" },
+    { id:"e6", lat:44.8378, lon:-0.5792, nom:"Sirius Assurances",   effectif:520, sieges:500, ca:140_000_000, cout_jour_moyen:400, points:9380,  secteur:"Assurance",  ville:"Bordeaux" },
+    { id:"e7", lat:48.1173, lon:-1.6778, nom:"Delmas & Fils",       effectif:87,  sieges:100, ca:12_000_000, cout_jour_moyen:300, points:7920,  secteur:"BTP",        ville:"Rennes" },
+    { id:"e8", lat:48.3904, lon:-4.4861, nom:"Kervella Transport",  effectif:145, sieges:150, ca:18_000_000, cout_jour_moyen:270, points:6410,  secteur:"Transport",  ville:"Brest" }
   ],
   contrats: [
     { entreprise:"e1", statut:"actif", signe_le:J(-40), debut:"2027-01-01", fin:"2027-12-31",
@@ -140,19 +177,23 @@ const seed = {
   associations: [
     { id:"a1", nom:"Refuge des Quatre Vents", ville:"Saint-Étienne", cause:"Protection animale",
       resume:"Refuge de 180 places qui recueille chiens et chats abandonnés depuis 1998.",
+      adresse:"14 chemin du Bois, 42000 Saint-Étienne", lat:45.4397, lon:4.3872,
       site:"", valide:true, rna:"W423001234", verifiee_le:J(-120), a_reverifier_le:J(240), suspendue:false,
       recus:{ actif:true, eligible_mecenat:true, signataire:"Élise Tournier",
               qualite:"Présidente", prochain_numero:47, prefixe:"QV-2027-" } },
     { id:"a2", nom:"Racines Vives", ville:"Clermont-Ferrand", cause:"Reforestation",
       resume:"Replantation de haies bocagères et de forêts mixtes sur des parcelles agricoles.",
+      adresse:"3 route des Prés, 63200 Riom", lat:45.8938, lon:3.1128,
       site:"", valide:true, rna:"W631004567", verifiee_le:J(-60), a_reverifier_le:J(300), suspendue:false,
       recus:{ actif:true, eligible_mecenat:true, signataire:"Marc Aubert",
               qualite:"Trésorier", prochain_numero:12, prefixe:"RV-2027-" } },
     { id:"a3", nom:"Rivière Propre 42", ville:"Roanne", cause:"Dépollution",
       resume:"Nettoyage des berges de la Loire et sensibilisation dans les écoles.",
+      adresse:"8 quai de Loire, 42300 Roanne", lat:46.0367, lon:4.0680,
       site:"", valide:true, rna:"W422009876", verifiee_le:J(-200), a_reverifier_le:J(-20), suspendue:false },
     { id:"a4", nom:"Le Panier Solidaire", ville:"Villeurbanne", cause:"Aide alimentaire",
       resume:"Distribution de 900 colis par mois et maraude hebdomadaire.",
+      adresse:"22 rue Garibaldi, 69003 Lyon", lat:45.7578, lon:4.8515,
       site:"", valide:true, rna:"W691002345", verifiee_le:J(-30), a_reverifier_le:J(330), suspendue:false },
     { id:"a5", nom:"Second Souffle", ville:"Grenoble", cause:"Réemploi",
       resume:"Reconditionnement de matériel informatique pour des familles et des écoles.",
@@ -747,6 +788,57 @@ function creerMock(){
       if (!m) return null;
       m.realise = Math.max(0, Number(quantite) || 0);
       return m;
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* Proximité                                                          */
+    /* ------------------------------------------------------------------ */
+    /* Une entreprise lyonnaise n'a rien à faire d'un besoin à Brest. La distance
+       se calcule à partir des adresses que chacun a saisies, géocodées une fois. */
+    coordsDe(entite){
+      if (!entite) return null;
+      return entite.lat != null && entite.lon != null
+        ? { lat: entite.lat, lon: entite.lon } : null;
+    },
+
+    /* Géocode une adresse et l'enregistre sur l'entité. Appelé au moment où
+       l'adresse change, pas à chaque affichage. */
+    async situer(type, id, adresse){
+      const g = await geocoder(adresse);
+      if (!g) return null;
+      const cible = type === "entreprise" ? api.entreprise(id) : api.association(id);
+      if (!cible) return null;
+      Object.assign(cible, { adresse, lat: g.lat, lon: g.lon,
+        geo_label: g.label, geo_source: g.source, geo_le: g.le });
+      return g;
+    },
+
+    distanceEntre(eid, aid){
+      return distanceKm(api.coordsDe(api.entreprise(eid)), api.coordsDe(api.association(aid)));
+    },
+
+    /* Associations triées par distance. Celles dont l'adresse n'est pas géocodée
+       arrivent en fin de liste plutôt que d'être exclues : une adresse manquante
+       n'est pas une raison de faire disparaître une association. */
+    associationsProches(eid, { rayon = null, avecAnnonces = false } = {}){
+      const dep = api.coordsDe(api.entreprise(eid));
+      return api.associations()
+        .filter(a => a.valide && !a.suspendue)
+        .map(a => ({ ...a,
+          distance: distanceKm(dep, api.coordsDe(a)),
+          annoncesOuvertes: api.annonces({ asso: a.id, ouvertes: true }).length }))
+        .filter(a => !avecAnnonces || a.annoncesOuvertes > 0)
+        .filter(a => rayon == null || a.distance == null || a.distance <= rayon)
+        .sort((x, y) => {
+          if (x.distance == null) return 1;
+          if (y.distance == null) return -1;
+          return x.distance - y.distance;
+        });
+    },
+
+    /* Distance d'une annonce, via son association. */
+    distanceAnnonce(eid, annonce){
+      return annonce ? api.distanceEntre(eid, annonce.asso) : null;
     },
 
     /* ------------------------------------------------------------------ */

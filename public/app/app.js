@@ -1,5 +1,5 @@
 import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, lienPublic, connecterSupabase } from "./data.js";
-import { h, esc, nb, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, versCSV, vide, bandeauRealisations } from "./ui.js";
+import { h, esc, nb, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
 /* Session                                                             */
@@ -538,40 +538,53 @@ function tableauEntreprise(u){
 }
 
 function listeAnnonces(annonces, u){
-  const box = h(`<div></div>`);
+  const box = h(`<div class="grilleAnnonces"></div>`);
   if (!annonces.length){
+    box.className = "";
     box.appendChild(vide({ titre:"Aucune annonce ouverte",
       texte:"Les associations du réseau publient au fil de leurs besoins. Revenez dans quelques jours, ou élargissez vos filtres." }));
     return box;
   }
   annonces.forEach(a => {
-    const asso = DB.association(a.asso);
+    const asso = DB.association(a.asso) || {};
     const b = BAREME[a.type];
-    const pts = a.type === "don_financier" ? `${b.points} pt / 10 €` : `${nb(b.points)} pts`;
+    const distance = u.org ? DB.distanceAnnonce(u.org, a) : null;
     const restant = a.type === "don_financier"
-      ? `${eur(a.restant)} restants sur ${eur(a.quantite)}`
+      ? `${eur(a.restant)} restants`
       : `${a.restant} place${a.restant > 1 ? "s" : ""} sur ${a.quantite}`;
-    const card = h(`<article class="offer">
-      <div>
-        <div class="row" style="gap:var(--s3)">
+    const imp = a.impact && UNITES[a.impact.unite] ? a.impact : null;
+
+    const card = h(`<article class="annonce">
+      <div class="annonce__haut">
+        ${vignette(a)}
+        <span class="annonce__asso">
+          <span class="annonce__pastille">${initiales(asso.nom || "?")}</span>
+          ${esc(asso.nom || "")}
+        </span>
+        <span class="annonce__pts">
+          <span class="annonce__ptsN">${a.type === "don_financier" ? b.points : nb(b.points)}</span>
+          <span class="annonce__ptsL">${a.type === "don_financier" ? "pt / 10 €" : "points"}</span>
+        </span>
+      </div>
+      <div class="annonce__corps">
+        <div class="row" style="gap:var(--s2);flex-wrap:wrap">
           <span class="badge badge--brand">${esc(b.label)}</span>
-          ${a.temps_travail ? `<span class="badge badge--info" title="Mécénat de compétences, valorisable fiscalement">Sur le temps de travail</span>` : ""}
-          ${a.impact && UNITES[a.impact.unite] ? `<span class="badge badge--lime">${nb(a.impact.par_unite)} ${esc(UNITES[a.impact.unite].pl)}</span>` : ""}
-          <span class="muted" style="font-size:var(--t-sm)">${esc(asso.nom)}</span>
+          ${a.temps_travail ? `<span class="badge badge--info"
+            title="Mécénat de compétences, valorisable fiscalement">Temps de travail</span>` : ""}
+          ${imp ? `<span class="badge">${nb(imp.par_unite)} ${esc(UNITES[imp.unite].pl)}</span>` : ""}
         </div>
-        <h4 style="margin-top:var(--s3)">${esc(a.titre)}</h4>
-        <p>${esc(a.description)}</p>
-        <div class="offer__meta">
-          <span>${esc(a.lieu)}</span><span>·</span>
-          <span>${dateFR(a.date)}</span><span>·</span>
+        <h4>${esc(a.titre)}</h4>
+        <p class="muted" style="font-size:var(--t-sm)">${esc(a.description)}</p>
+        <div class="annonce__meta">
+          <span>${ICONS.pin || ""} <b>${esc(a.lieu || asso.ville || "")}</b>${
+            distance != null ? ` · ${distance} km` : ""}</span>
+          <span><b>${dateFR(a.date)}</b></span>
           <span>${esc(restant)}</span>
         </div>
       </div>
-      <div class="offer__side">
-        <span class="offer__pts">${pts}</span>
-        <button class="btn btn--ghost btn--sm" data-go>Se positionner</button>
-        <button class="btn btn--quiet btn--sm" data-sig
-          title="Signaler cette annonce">Signaler</button>
+      <div class="annonce__actions">
+        <button class="btn btn--forest btn--sm" data-go>Se positionner</button>
+        <button class="btn btn--quiet btn--sm" data-sig title="Signaler cette annonce">Signaler</button>
       </div>
     </article>`);
     card.querySelector("[data-go]").onclick = () => ouvrirEngagement(a, u);
@@ -581,9 +594,6 @@ function listeAnnonces(annonces, u){
   return box;
 }
 
-/* Signalement d'une annonce. Le règlement sur les services numériques impose un
-   mécanisme électronique accessible et une décision motivée notifiée à l'auteur.
-   Il s'applique quelle que soit la taille de l'hébergeur : nous en sommes un. */
 function ouvrirSignalement(u, a){
   const motifs = DB.MOTIFS_SIGNALEMENT;
   const corps = h(`<div class="stack" style="--gap:var(--s4)">
