@@ -444,6 +444,27 @@ ecrire("confidentialite.html",
   </tbody>
 </table>
 
+<h2>Groupes et filiales : le lien capitalistique ne donne aucun droit</h2>
+<p>Quand un groupe souscrit pour plusieurs sociétés, <strong>chaque société reste responsable
+de traitement pour ses propres salariés</strong>. Deux sociétés d'un même groupe sont deux
+responsables distincts : les données nominatives ne circulent pas de l'une à l'autre, et
+détenir le capital n'y change rien.</p>
+<ul>
+  <li>La société qui <strong>paie</strong> reçoit les factures. Cela ne lui ouvre aucun accès
+      aux personnes d'une autre société.</li>
+  <li>La vue consolidée d'un groupe ne montre que des <strong>agrégats</strong> : points,
+      missions, effectifs, indicateurs, par société et par établissement. Jamais un nom, jamais
+      un dossier individuel.</li>
+  <li>Un <strong>référent de site</strong> ne voit que les salariés de son établissement. Pas
+      ceux des autres sites, pas le contrat, pas les factures, pas le mécénat.</li>
+  <li>Ce cloisonnement n'est pas un filtre d'affichage : c'est une règle appliquée par la base
+      de données elle-même, et vérifiée à chaque mise en production.</li>
+</ul>
+<p>Les indicateurs sociaux et de sécurité que Riseva collecte sont des <strong>agrégats par
+établissement</strong> : effectifs, heures travaillées, nombre d'accidents, journées perdues.
+<strong>Aucune donnée de santé n'est traitée</strong> : ni diagnostic, ni nature de lésion, ni
+identité de la personne accidentée.</p>
+
 <h2>Ce que nous traitons</h2>
 <table>
   <thead><tr><th>Catégorie</th><th>Données</th><th>Conservation</th></tr></thead>
@@ -691,6 +712,24 @@ au bon de commande.</p>
 <p>L'abonnement ouvre un nombre de places égal à l'effectif déclaré. Un compte occupe une place.
 Le retrait d'un salarié libère la sienne immédiatement. Des places peuvent être ajoutées en cours
 de saison, au prorata.</p>
+
+<h2>4 bis. Abonnement de groupe</h2>
+<ul>
+  <li>Le <strong>payeur</strong> et les <strong>bénéficiaires</strong> sont distincts et nommés
+      au bon de commande : une société peut régler pour plusieurs sociétés du même groupe.</li>
+  <li>Payer ne donne <strong>aucun droit</strong> sur les données personnelles des salariés
+      d'une autre société. Les conventions et reçus de mécénat restent rattachés à l'employeur
+      réel.</li>
+  <li>Les places se répartissent en <strong>quotas par établissement</strong>. La somme des
+      quotas ne peut pas dépasser les places du contrat, et un quota ne peut pas descendre en
+      dessous des comptes déjà ouverts sur le site.</li>
+  <li>Une <strong>clé de répartition analytique</strong>, au prorata des comptes ouverts, est
+      exportable pour l'imputation interne.</li>
+  <li>Le <strong>plafond fiscal de mécénat</strong> se calcule société par société. Riseva ne
+      consolide jamais un plafond au niveau du groupe.</li>
+  <li>Le prix d'un abonnement de groupe est établi sur devis, selon le nombre de sociétés,
+      d'établissements et de comptes.</li>
+</ul>
 
 <h2>5. Obligations du client</h2>
 <ul>
