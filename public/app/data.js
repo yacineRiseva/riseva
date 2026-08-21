@@ -12,6 +12,19 @@ export const BAREME = {
 /* Règle anti-optimisation : aucun format ne peut peser plus de la moitié des points
    d'une entreprise sur une saison. Sans ce plafond, il suffirait de virer de l'argent
    pour truster le classement, ce qui viderait le jeu de son sens. */
+/* Le circuit de paiement des dons. Tant qu'il n'est pas ouvert, la fiche publique
+   d'une association ne doit pas montrer un bouton « Donner », une mention
+   « paiement sécurisé » et une promesse de reçu fiscal automatique : ce sont
+   trois affirmations fausses sur la même carte, et c'est exactement ce qu'une
+   présidente d'association vérifiera en premier. Un aperçu annoncé comme tel est
+   honnête ; un formulaire actif qui ne mène nulle part ne l'est pas. */
+export const PAIEMENT = {
+  ouvert: false,
+  prestataire: null,          // renseigné le jour où le circuit ouvre
+  frais_annonces: null,       // frais du prestataire, même si Riseva prend 0 %
+  delai_versement: null
+};
+
 export const PLAFOND_PAR_FORMAT = 0.5;
 
 /* Une association a quatorze jours pour répondre, comptés depuis la déclaration

@@ -9,6 +9,7 @@ au premier échec.
 """
 import http.server, socketserver, threading, functools, pathlib, sys, contextlib
 from playwright.sync_api import sync_playwright
+import re
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent / "public"
 PORT = 8123
@@ -355,6 +356,23 @@ def main():
         connecte(p, "u7", "#/avalider")
         verifie("l'association lit la même phrase dans son espace",
                 "clôturée automatiquement" in p.inner_text(".content"))
+
+        print("\nLes dons en ligne, tant qu'ils n'existent pas")
+        p.goto(f"{BASE}/asso.html?id=a2", wait_until="networkidle"); p.wait_for_timeout(500)
+        fiche = p.inner_text("body")
+        verifie("aucun bouton Donner tant que le circuit n'est pas ouvert",
+                p.eval_on_selector_all("#go", "e=>e.length") == 0)
+        verifie("l'état est annoncé comme un aperçu", "Aperçu" in fiche)
+        verifie("aucune promesse de paiement sécurisé", "Paiement sécurisé" not in fiche)
+        verifie("un don personnel ne rapporte rien à l'employeur",
+                "points pour l'entreprise du donateur" not in fiche)
+        # La fiche publique suit les mêmes règles que la page Annonces.
+        verifie("l'objectif est un objectif, pas un multiplicateur",
+                "Objectif : 400 arbres plantés" in fiche)
+        # « 1 200 arbres plantés » contient « 0 arbres plantés » : on cherche un zéro
+        # isolé, pas une chaîne de caractères.
+        verifie("aucun objectif à zéro n'est affiché",
+                re.search(r"Objectif\s*:\s*0\s", fiche) is None)
 
         print("\nLes formulaires publics")
         # Un formulaire qui dit « envoyé » sans rien envoyer est un mensonge poli.

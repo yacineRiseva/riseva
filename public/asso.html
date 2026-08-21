@@ -26,7 +26,7 @@
 </div></footer>
 
 <script type="module">
-import { DB, BAREME, UNITES } from "/app/data.js";
+import { DB, BAREME, UNITES, PAIEMENT } from "/app/data.js";
 import { h, esc, nb, eur, dateFR, toast } from "/app/ui.js";
 
 const id = new URLSearchParams(location.search).get("id") || "a1";
@@ -65,19 +65,33 @@ const corps = h(`<section class="section"><div class="wrap assoGrid">
     <div class="card" style="margin-top:var(--s6)" id="liste"></div>
   </div>
   <aside class="card" style="padding:var(--s8);position:sticky;top:88px">
-    <h3>Faire un don</h3>
-    <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
-      Le paiement est encaissé directement par l'association. Riseva ne prélève rien. Le reçu
-      fiscal vous parvient automatiquement, émis par l'association elle-même.</p>
-    <div class="amountRow" style="margin-top:var(--s6)" id="amts"></div>
-    <div class="field" style="margin-top:var(--s4)">
-      <label for="libre">Autre montant</label>
-      <input class="input" id="libre" type="number" min="5" placeholder="En euros">
-    </div>
-    <p class="hint" id="pts"></p>
-    <button class="btn btn--brand btn--block btn--lg" style="margin-top:var(--s5)" id="go">Donner</button>
-    <p class="hint center" style="margin-top:var(--s4)">Paiement sécurisé. Reçu fiscal ouvrant droit
-      à réduction d'impôt selon la législation en vigueur.</p>
+    ${PAIEMENT.ouvert ? `
+      <h3>Faire un don</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+        Le paiement est encaissé directement par ${esc(a.nom)}. Riseva ne prélève rien. Le reçu
+        fiscal vous parvient automatiquement, émis par l'association elle-même.</p>
+      <div class="amountRow" style="margin-top:var(--s6)" id="amts"></div>
+      <div class="field" style="margin-top:var(--s4)">
+        <label for="libre">Autre montant</label>
+        <input class="input" id="libre" type="number" min="5" placeholder="En euros">
+      </div>
+      <p class="hint" id="pts"></p>
+      <button class="btn btn--brand btn--block btn--lg" style="margin-top:var(--s5)" id="go">Donner</button>
+      <p class="hint center" style="margin-top:var(--s4)">Paiement sécurisé. Reçu fiscal ouvrant droit
+        à réduction d'impôt selon la législation en vigueur.</p>
+    ` : `
+      <span class="badge badge--warn">Aperçu</span>
+      <h3 style="margin-top:var(--s4)">Les dons en ligne arrivent</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+        Le circuit de paiement n'est pas encore ouvert : il n'y a donc pas de bouton ici, plutôt
+        qu'un bouton qui ne mènerait nulle part. Quand il ouvrira, l'argent ira directement chez
+        ${esc(a.nom)}, Riseva ne prélèvera rien, et le reçu fiscal sera émis par l'association
+        elle-même.</p>
+      <hr class="sep">
+      <p class="muted" style="font-size:var(--t-sm)">
+        D'ici là, ${esc(a.nom)} reçoit du temps et du matériel par Riseva. Pour donner de l'argent,
+        passez par ses propres moyens de collecte.</p>
+    `}
   </aside>
 </div></section>`);
 root.appendChild(corps);
@@ -110,8 +124,14 @@ annonces.forEach(an => {
 });
 
 let montant = 50;
+if (PAIEMENT.ouvert){
 const amts = corps.querySelector("#amts"), libre = corps.querySelector("#libre"), pts = corps.querySelector("#pts");
-const maj = () => { pts.textContent = `Soit ${nb(DB.pointsPour("don_financier", montant))} points pour l'entreprise du donateur.`; };
+/* Un don fait à titre personnel ne rapporte aucun point à l'entreprise du
+   donateur : c'est toute la règle de cloisonnement du produit. L'écrire ici
+   revenait à la contredire sur la page la plus publique du site. */
+const maj = () => { pts.textContent =
+  `Un don versé par une entreprise abonnée lui rapporterait ${nb(DB.pointsPour("don_financier", montant))} points. `
+  + `Un don personnel ne rapporte aucun point à l'employeur du donateur.`; };
 [20, 50, 100, 250].forEach(v => {
   const b = h(`<button class="amount ${v === 50 ? "is-on" : ""}">${v} €</button>`);
   b.onclick = () => { montant = v; libre.value = ""; 
@@ -123,6 +143,7 @@ libre.oninput = () => { montant = Number(libre.value) || 0;
 maj();
 corps.querySelector("#go").onclick = () =>
   toast("Le module de paiement sera branché dès l'obtention de l'accès partenaire.");
+}
 </script>
 </body>
 </html>
