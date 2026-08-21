@@ -9,8 +9,8 @@
   --ink-700:#2C3026;
   --ink-600:#4A4F42;
   --ink-500:#63675C;        /* texte secondaire */
-  --ink-400:#8A8F82;
-  --ink-300:#A8AB9F;
+  --ink-400:#62675B;        /* texte tertiaire, lisible sur papier (5,1:1) */
+  --ink-300:#7A7F72;        /* décor, séparateurs — jamais du texte courant */
   --ink-200:#CFD1C6;
   --ink-100:#E5E2D9;
   --ink-050:#EFEDE6;
@@ -46,10 +46,10 @@
   --amber-100:#F6EAD5;
 
   /* ---- Sémantique ---- */
-  --ok:#2E7A62; --ok-bg:#DFE6D0;
-  --warn:#C97F1E; --warn-bg:#F6EAD5;
-  --danger:#A63A2B; --danger-bg:#F4E2DE;
-  --info:#3D82AD; --info-bg:#DCE9F1;
+  --ok:#2E7A62; --ok-bg:#DFE6D0; --ok-texte:#245F4C;      /* 5,8:1 sur --ok-bg */
+  --warn:#C97F1E; --warn-bg:#F6EAD5; --warn-texte:#7E4E10; /* 5,9:1 sur --warn-bg */
+  --danger:#A63A2B; --danger-bg:#F4E2DE; --danger-texte:#8C2F22; /* 6,6:1 */
+  --info:#3D82AD; --info-bg:#DCE9F1; --info-texte:#255877;  /* 6,2:1 */
 
   /* ---- Typo ---- */
   --font-display:'Instrument Sans','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;

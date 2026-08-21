@@ -72,6 +72,10 @@
 .faq p{margin-top:var(--s3);color:var(--ink-500);font-size:var(--t-base);max-width:64ch}
 
 /* ============ CTA final ============ */
+/* Fond forêt : tout ce qui s'écrit dessus doit changer de couleur, sinon le
+   texte courant reste en gris foncé et tombe à 1,9:1 — invisible, littéralement. */
+.cta .lede,.cta p{color:rgba(223,230,208,.82)}
+.cta h1,.cta h2,.cta h3{color:var(--paper)}
 .cta{background:var(--forest-900);border-radius:var(--r-xl);padding:var(--s16) var(--s12);
   position:relative;overflow:hidden}
 .cta__river{position:absolute;right:-60px;bottom:-40px;width:420px;opacity:.22;pointer-events:none}
@@ -79,7 +83,7 @@
 /* ============ Footer ============ */
 .foot{border-top:var(--line);padding-block:var(--s10);font-size:var(--t-sm);color:var(--ink-500)}
 .foot__grid{display:grid;grid-template-columns:1.6fr repeat(4,1fr);gap:var(--s8)}
-.foot h4{font-size:var(--t-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-400);
+.foot h4{font-size:var(--t-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-600);
   font-family:var(--font-ui);font-weight:600;margin-bottom:var(--s3)}
 .foot li+li{margin-top:var(--s2)}
 .foot a:hover{color:var(--ink)}

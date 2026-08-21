@@ -221,7 +221,7 @@ function coquille(u, vue, titre, actions = ""){
           <span class="avatar">${initiales(u.nom)}</span>
           <span style="min-width:0">
             <b style="display:block;color:var(--paper);font-size:var(--t-sm)">${esc(u.nom)}</b>
-            <span style="font-size:var(--t-xs);color:rgba(223,230,208,.45);display:block;
+            <span style="font-size:var(--t-xs);color:rgba(223,230,208,.72);display:block;
               overflow:hidden;text-overflow:ellipsis">${esc(org ? org.nom : "Riseva")}</span>
           </span>
         </div>

@@ -44,10 +44,10 @@
   background:var(--ink-050);color:var(--ink-600)}
 .badge--brand{background:var(--forest-050);color:var(--forest-700)}
 .badge--lime{background:var(--lime);color:var(--ink)}
-.badge--ok{background:var(--ok-bg);color:var(--forest-800)}
-.badge--warn{background:var(--warn-bg);color:var(--amber)}
-.badge--danger{background:var(--danger-bg);color:var(--danger)}
-.badge--info{background:var(--info-bg);color:var(--water-texte)}
+.badge--ok{background:var(--ok-bg);color:var(--ok-texte)}
+.badge--warn{background:var(--warn-bg);color:var(--warn-texte)}
+.badge--danger{background:var(--danger-bg);color:var(--danger-texte)}
+.badge--info{background:var(--info-bg);color:var(--info-texte)}
 .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
 
 /* ============ Formulaires ============ */
@@ -64,6 +64,9 @@
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2363675C' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right var(--s4) center}
 .hint{font-size:var(--t-sm);color:var(--ink-500);margin-top:6px}
+/* Une note posée sur fond forêt garde sinon sa couleur de papier : 2,8:1, un
+   texte qu'on ne lit qu'en le sachant déjà. */
+.section--dark .hint,.card--dark .hint,.cta .hint{color:rgba(223,230,208,.68)}
 .error{font-size:var(--t-sm);color:var(--danger);margin-top:6px}
 .checkline{display:flex;gap:var(--s3);align-items:flex-start;font-size:var(--t-sm);color:var(--ink-600)}
 .checkline input{margin-top:3px;accent-color:var(--forest-700);width:16px;height:16px;flex:none}
@@ -127,15 +130,17 @@ tr.is-anonyme td{color:var(--ink-400)}
 
 /* ============ Coquille applicative ============ */
 .app{display:grid;grid-template-columns:var(--sidebar) 1fr;min-height:100vh;background:var(--paper)}
-.side{background:var(--forest-900);color:rgba(223,230,208,.7);display:flex;flex-direction:column;
+.side{background:var(--forest-900);color:rgba(223,230,208,.82);display:flex;flex-direction:column;
   padding:var(--s5) var(--s4);position:sticky;top:0;height:100vh}
 .side__brand{display:flex;align-items:center;gap:10px;padding:var(--s2) var(--s2) var(--s6)}
 .side__brand img{height:22px;width:auto;align-self:flex-start;flex:none}
 .side__group{margin-top:var(--s5)}
 .side__title{font-size:var(--t-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;
-  color:rgba(223,230,208,.42);padding:0 var(--s3) var(--s2)}
+  /* .42 tombait à 3,3:1 : un intitulé de rubrique qu'on devine plutôt qu'on
+     ne le lit. .68 le remet à 6,4:1 sans le faire crier plus fort qu'un lien. */
+  color:rgba(223,230,208,.68);padding:0 var(--s3) var(--s2)}
 .side__link{display:flex;align-items:center;gap:10px;height:38px;padding:0 var(--s3);
-  border-radius:var(--r-sm);font-size:var(--t-sm);font-weight:500;color:rgba(223,230,208,.68);
+  border-radius:var(--r-sm);font-size:var(--t-sm);font-weight:500;color:rgba(223,230,208,.86);
   transition:background var(--dur) var(--ease),color var(--dur) var(--ease);cursor:pointer}
 .side__link:hover{background:rgba(223,230,208,.07);color:var(--paper)}
 .side__link.is-active{background:rgba(223,230,208,.09);color:var(--paper);
