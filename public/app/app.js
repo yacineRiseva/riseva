@@ -940,7 +940,11 @@ function vueAnnuaire(u){
     <section class="card">
       <div class="between" style="margin-bottom:var(--s5)">
         <h3>${nb(assos.length)} associations partenaires en France</h3>
-        <span class="muted" style="font-size:var(--t-sm)">Vérifiées par Riseva</span>
+        ${/* « Vérifiées par Riseva » pouvait s'entendre comme une garantie
+              d'impact, ou pire, d'éligibilité fiscale — que Riseva ne certifie
+              pas. On dit ce qui est réellement contrôlé, et on ouvre la liste. */""}
+        <button class="btn btn--quiet btn--sm" id="quoiVerifie">
+          Existence juridique et coordonnées contrôlées</button>
       </div>
       <div class="annuaire__haut">
         <div id="carte"></div>
@@ -974,6 +978,23 @@ function vueAnnuaire(u){
     </section>
     <div id="liste" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))"></div>
   </div>`);
+
+  el.querySelector("#quoiVerifie").onclick = () => modal("Ce que Riseva vérifie",
+    `<p class="muted">Avant qu'une association apparaisse ici, cinq points sont
+     contrôlés, et consignés avec leur date :</p>
+     <ul class="liste" style="margin-top:var(--s4)">
+       <li>Existence juridique confirmée : RNA ou SIREN, statuts.</li>
+       <li>Référent et signataire des reçus identifiés.</li>
+       <li>Objet réel cohérent avec l'activité annoncée.</li>
+       <li>Coordonnées vérifiées et actives.</li>
+       <li>Éligibilité au mécénat déclarée par l'association elle-même.</li>
+     </ul>
+     <p class="hint" style="margin-top:var(--s5)">Ce que Riseva ne vérifie pas :
+     l'éligibilité fiscale, qui relève de l'administration et de la déclaration de
+     l'association, et l'impact réel des missions, qui est déclaré par l'association
+     bénéficiaire. La vérification est refaite chaque saison.
+     <a href="/charte-associations.html" target="_blank" style="color:var(--forest-800)">La charte</a>.</p>`,
+    [{ label:"Fermer" }]);
 
   el.querySelector("#carte").appendChild(carteFrance([
     ...(situe ? [{ lat: monEnt.lat, lon: monEnt.lon, nom: monEnt.nom, principal: true }] : []),
@@ -3994,7 +4015,7 @@ function vueEnsemble(u){
         </div>`).join("") || `<p class="muted">Rien n'a encore été confirmé.</p>`}
       </div>
       ${reste.length ? `<details class="volet">
-        <summary>Voir les ${nb(reste.length)} autres résultats</summary>
+        <summary>Les ${nb(reste.length)} autres résultats</summary>
         <div class="ensemble__unites" style="margin-top:var(--s4)">
           ${reste.map(x => `<div class="ensemble__u">
             <span class="ensemble__uq tnum">${nb(x.quantite)}</span>

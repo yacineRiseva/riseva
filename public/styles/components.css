@@ -182,3 +182,6 @@ tr.is-anonyme td{color:var(--ink-400)}
 /* Une note qui prévient d'une incohérence, pas un message d'erreur : la saisie
    reste possible, c'est l'association qui sait ce qu'elle annonce. */
 .hint--alerte{color:var(--warn-texte);font-weight:500}
+.liste{padding-left:1.1em;display:flex;flex-direction:column;gap:6px;
+  font-size:var(--t-sm);color:var(--ink-600)}
+.liste li{list-style:disc}

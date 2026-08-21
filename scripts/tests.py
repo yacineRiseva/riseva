@@ -327,6 +327,23 @@ def main():
         verifie("et on lui dit pourquoi", "suspendu" in p.inner_text("body").lower())
         p.evaluate("()=>localStorage.removeItem('riseva.etat')")
 
+        print("\nCe qu'on promet")
+        connecte(p, "u2", "#/annuaire")
+        a = p.inner_text(".content")
+        verifie("l'annuaire ne promet pas une vérification qu'il ne fait pas",
+                "Vérifiées par Riseva" not in a)
+        p.evaluate("()=>document.querySelector('#quoiVerifie').click()"); p.wait_for_timeout(300)
+        m = p.inner_text(".modal")
+        verifie("ce que Riseva vérifie est écrit", "Existence juridique" in m)
+        verifie("ce que Riseva ne vérifie pas l'est aussi",
+                "ne vérifie pas" in m and "éligibilité fiscale" in m)
+        p.evaluate("()=>document.querySelector('.overlay')?.remove()")
+        # Les trois plus proches sont en haut : la grille ne les répète pas.
+        connecte(p, "u2", "#/annuaire")
+        noms = p.eval_on_selector_all(".annonce__loin", "e=>e.length")
+        verifie("l'annuaire ne se répète pas",
+                p.inner_text(".content").count("Le Panier Solidaire") == 1)
+
         print("\nRègles de calcul")
         # Le plafond porte sur le total retenu, pas sur le brut : avec (6240, 780, 0)
         # la règle « aucun format au-delà de la moitié » impose 1 560, pas 4 290.

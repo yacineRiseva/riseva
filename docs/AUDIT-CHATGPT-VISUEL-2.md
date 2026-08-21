@@ -7,21 +7,21 @@
 
 ## Critique — ce qui détruit encore la confiance
 
-- [ ] **Les annonces ont l'air générées.** « Plantation de 400 arbres » affiche
+- [x] **Les annonces ont l'air générées.** « Plantation de 400 arbres » affiche
   « Objectif : 480 arbres ». « Croquettes et couvertures » devient « 5 kits
   distribués ». La sortie des chiens dit 40 chiens dans le texte et 72 animaux en
   objectif. → Un objectif ne s'affiche que s'il est saisi explicitement, dans la
   même unité que le titre, sans conversion implicite, avec un aperçu avant
   publication.
-- [ ] **« 4 missions validées » contre « 3 missions ».** La logique est juste, la
+- [x] **« 4 missions validées » contre « 3 missions ».** La logique est juste, la
   lecture ne l'est pas. → Badge « 3 missions avec résultat confirmé », et sous les
   KPI : « 4 missions validées, dont 3 avec un résultat confirmé par l'association ».
-- [ ] **Le classement des associations est faux visuellement.** « La plus
+- [x] **Le classement des associations est faux visuellement.** « La plus
   sollicitée », « la deuxième », « la troisième », alors que chacune a une mission :
   l'ordre vient en réalité des points. → Supprimer l'ordinal, titre « Associations
   soutenues », tri par activité récente. Classer des associations par points serait
   de toute façon la mauvaise tonalité.
-- [ ] **« Vérifiées par Riseva » promet trop.** Identité ? Éligibilité fiscale ?
+- [x] **« Vérifiées par Riseva » promet trop.** Identité ? Éligibilité fiscale ?
   Impact ? → Dire précisément ce qui est contrôlé, avec un lien « Ce que Riseva
   vérifie ».
 
@@ -29,25 +29,25 @@
 
 Dix blocs fonctionnels. Les quatre premiers forment déjà un excellent tableau de bord.
 
-- [ ] « Mise en route » → dans Paramètres passé les premières missions.
-- [ ] « Annonces qui vous correspondent » → un lien, pas une grille.
-- [ ] La courbe hebdomadaire, dix semaines plates et un pic → dans Rapports, ou
+- [x] « Mise en route » → dans Paramètres passé les premières missions.
+- [x] « Annonces qui vous correspondent » → un lien, pas une grille.
+- [x] La courbe hebdomadaire, dix semaines plates et un pic → dans Rapports, ou
   seulement au-delà de trois semaines actives.
-- [ ] Les 840 points écrêtés expliqués deux fois dans deux colonnes → une seule.
-- [ ] « À traiter » mélange ce qui demande une action et ce qui attend un tiers.
+- [x] Les 840 points écrêtés expliqués deux fois dans deux colonnes → une seule.
+- [x] « À traiter » mélange ce qui demande une action et ce qui attend un tiers.
   → « Action requise » / « En attente d'un tiers ».
-- [ ] Le panneau « À faire » décrit des statuts, pas des actions → « Missions en cours ».
+- [x] Le panneau « À faire » décrit des statuts, pas des actions → « Missions en cours ».
 
 ## Terminologie
 
-- [ ] « 960 points réalisés » rebrouille score et impact → « points bruts »,
+- [x] « 960 points réalisés » rebrouille score et impact → « points bruts »,
   « points retenus », « points écrêtés », partout.
-- [ ] « des points d'un autre format » → « diversifiez les formats d'engagement ».
-- [ ] Décimales : `0.6` s'affiche encore avec un point → `Intl.NumberFormat('fr-FR')`
+- [x] « des points d'un autre format » → « diversifiez les formats d'engagement ».
+- [x] Décimales : `0.6` s'affiche encore avec un point → `Intl.NumberFormat('fr-FR')`
   partout.
-- [ ] « 50 % du retenu » est circulaire → « Chaque format peut représenter au
+- [x] « 50 % du retenu » est circulaire → « Chaque format peut représenter au
   maximum 50 % du score retenu. »
-- [ ] « Entreprises engagées » → « entreprises avec au moins une action validée ».
+- [x] « Entreprises engagées » → « entreprises avec au moins une action validée ».
 
 ## Graphismes
 
@@ -62,23 +62,23 @@ Dix blocs fonctionnels. Les quatre premiers forment déjà un excellent tableau 
 
 ## Redondances
 
-- [ ] Annuaire : « Les plus proches de vous » répète les trois premières cartes.
+- [x] Annuaire : « Les plus proches de vous » répète les trois premières cartes.
   → Commencer la grille à la quatrième, ou supprimer le panneau.
-- [ ] Deux appels concurrents par carte, douze fois : « Sa page » et « Ses annonces ».
+- [x] Deux appels concurrents par carte, douze fois : « Sa page » et « Ses annonces ».
   → La carte entière mène à la fiche, un seul bouton « Voir les annonces ».
-- [ ] « Sa page » fait maquette → « Voir la fiche ».
-- [ ] Tous ensemble : le badge « 25 missions sans réponse » est dans le bloc des
+- [x] « Sa page » fait maquette → « Voir la fiche ».
+- [x] Tous ensemble : le badge « 25 missions sans réponse » est dans le bloc des
   résultats confirmés. → Le déplacer dans le bloc ambre : « 25 missions
   auto-validées après 14 jours sans réponse ».
-- [ ] « la production est déduite de l'annonce » → « Le résultat est estimé à partir
+- [x] « la production est déduite de l'annonce » → « Le résultat est estimé à partir
   de l'objectif annoncé : il n'a pas été constaté par l'association. »
-- [ ] Les « + Voir… » font liens artisanaux → chevron et vrai état ouvert/fermé.
+- [x] Les « + Voir… » font liens artisanaux → chevron et vrai état ouvert/fermé.
 
 ## Page Classement
 
-- [ ] Le titre « Classement de la saison » ouvre une page sans classement.
+- [x] Le titre « Classement de la saison » ouvre une page sans classement.
   → Conditionnel : « Votre score de saison » + badge « Classement à venir » sous dix.
-- [ ] Raccourcir : « 2 entreprises sur les 10 nécessaires. Le classement sera publié
+- [x] Raccourcir : « 2 entreprises sur les 10 nécessaires. Le classement sera publié
   lorsque la cohorte atteindra ce seuil. » Et ne pas remplir le vide artificiellement.
 
 ## Test des dix secondes — ce qui échoue encore
@@ -90,3 +90,41 @@ Dix blocs fonctionnels. Les quatre premiers forment déjà un excellent tableau 
 5. Si « points réalisés » désigne des actions, des impacts ou un score.
 6. Pourquoi « Classement » mène à une page sans classement.
 7. Ce qu'il faut réellement faire dans « À traiter » et « À faire ».
+
+
+## Où en est la correction
+
+Tout est appliqué.
+
+- **Annonces.** Les vingt-et-un objectifs du jeu de démonstration ont été repris un
+  par un pour coller à leur titre : 400 arbres annoncés valent 400 affichés, la
+  sortie des chiens dit 42 chiens des deux côtés, les croquettes et les ordinateurs
+  ont perdu un décompte en « kits » qui n'avait aucun sens. Surtout, le formulaire
+  demande désormais **l'objectif total**, plus un multiplicateur par unité : c'est
+  la saisie « 40 arbres par demi-journée » sur douze demi-journées qui produisait
+  480 sous un titre annonçant 400. Un aperçu écrit la phrase exacte qui partira,
+  et prévient quand le chiffre du titre ne correspond pas.
+- **4 validées / 3 confirmées.** Écrit sous le KPI, en toutes lettres.
+- **Associations.** Plus d'ordinal, plus de tri par points : « Associations
+  soutenues », les plus récentes d'abord, avec la date de la dernière mission.
+- **Vérification.** « Existence juridique et coordonnées contrôlées », et un bouton
+  qui ouvre les cinq points vérifiés — ainsi que les deux qui ne le sont pas :
+  l'éligibilité fiscale et l'impact réel.
+- **Tableau de bord.** De 5 200 à 3 880 pixels. « Action requise » et « En attente
+  d'un tiers » séparés, « Missions en cours » au lieu de « À faire », mise en route
+  retirée passé trois missions validées, grille d'annonces remplacée par une ligne
+  et un lien, courbe hebdomadaire masquée sous trois semaines actives, écrêtage
+  expliqué une seule fois.
+- **Terminologie.** Points bruts / retenus / écrêtés partout, « chaque format peut
+  représenter au maximum 50 % du score retenu », « diversifiez les formats
+  d'engagement », « entreprises avec au moins une action validée », et les décimales
+  en français via `Intl.NumberFormat('fr-FR')`.
+- **Graphismes.** Losange du siège et son halo agrandis d'un tiers, cartouche de
+  points passé sur une ligne et réduit d'un quart, hachures de l'écrêtage
+  atténuées, légende de la forêt en « 89 paliers de 25 franchis ».
+- **Redondances.** L'annuaire commence la grille à la quatrième association, la
+  carte entière mène à la fiche et un seul bouton mène aux annonces. Le badge des
+  missions sans réponse a rejoint le bloc ambre des estimations. Les volets ont un
+  chevron et un vrai état.
+- **Classement.** Sous dix entreprises, le titre devient « Votre score de saison »
+  et le badge « Classement à venir ».
