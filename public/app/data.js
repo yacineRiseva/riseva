@@ -149,8 +149,12 @@ const J = (n) => { const d = new Date(2026, 7, 20); d.setDate(d.getDate() + n); 
 /* Jeu de démonstration                                                */
 /* ------------------------------------------------------------------ */
 const seed = {
+  /* La saison de démonstration est celle qui tourne, pas celle qu'on vend. Un
+     client connecté est au milieu de son année ; le site public, lui, prend les
+     préinscriptions pour la suivante. Afficher « Saison 2027 » au-dessus
+     d'annonces datées d'août 2026 ne trompait personne, ça décrédibilisait tout. */
   saison: {
-    id: "s2027", nom: "Saison 2027", debut: "2027-01-01", fin: "2027-12-31",
+    id: "s2026", nom: "Saison 2026", debut: "2026-01-01", fin: "2026-12-31",
     etat: "ouverte", prix_min: 3500, prix_max: 4000, acompte: 500
   },
   entreprises: [
@@ -167,13 +171,15 @@ const seed = {
     { id:"e8", lat:48.3904, lon:-4.4861, nom:"Kervella Transport",  effectif:145, sieges:150, ca:18_000_000, cout_jour_moyen:270,  secteur:"Transport",  ville:"Brest" }
   ],
   contrats: [
-    { entreprise:"e1", statut:"actif", signe_le:J(-40), debut:"2027-01-01", fin:"2027-12-31",
+    { entreprise:"e1", statut:"actif", signe_le:"2025-11-14", debut:"2026-01-01", fin:"2026-12-31",
       montant_ht:3800, acompte:500, reconduction:false,
       factures:[
-        { ref:"RSV-2026-0007", libelle:"Acompte saison 2027", montant:500,  date:J(-40),
-          echeance:J(-10), etat:"payee",  periode:"acompte, saison 2027" },
-        { ref:"RSV-2027-0031", libelle:"Solde saison 2027",   montant:3300, date:"2027-01-05",
-          echeance:"2027-02-04", etat:"a_venir", periode:"01/01/2027 au 31/12/2027" }
+        { ref:"RSV-2025-0007", libelle:"Acompte saison 2026", montant:500,  date:"2025-11-14",
+          echeance:"2025-12-14", etat:"payee",  periode:"acompte, saison 2026" },
+        { ref:"RSV-2026-0031", libelle:"Solde saison 2026",   montant:3300, date:"2026-01-05",
+          echeance:"2026-02-04", etat:"payee", periode:"01/01/2026 au 31/12/2026" },
+        { ref:"RSV-2026-0148", libelle:"Acompte saison 2027", montant:500,  date:J(-6),
+          echeance:J(24), etat:"a_venir", periode:"acompte, saison 2027" }
       ],
       /* Facturation électronique : au 1er septembre 2026 toute entreprise doit pouvoir
          RECEVOIR une facture par une plateforme agréée. Un PDF par courriel ne suffit plus.
@@ -632,7 +638,13 @@ function creerMock(){
           brut: p.brut,
           ecrete: p.ecrete,
           parSalarie: Math.round((p.retenu / base) * 10) / 10,
-          participation: sal.length ? Math.round((engages / sal.length) * 100) : 0,
+          /* Deux chiffres, deux noms. « Participation » désigne partout la part de
+             l'EFFECTIF qui a une action validée ; la part des seuls inscrits est
+             l'« activation ». Les confondre sous un seul mot donnait 1,4 % sur un
+             écran et 60 % sur l'autre, pour la même entreprise le même jour. */
+          participation: Math.round((engages / base) * 1000) / 10,
+          activation: sal.length ? Math.round((engages / sal.length) * 100) : 0,
+          engages, inscrits: sal.length,
           categorie: categorieDe(e.effectif || 0)
         };
       });

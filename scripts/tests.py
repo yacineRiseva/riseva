@@ -489,8 +489,14 @@ def main():
         t = norm(p.inner_text(".modal"))
         verifie("le détail du score s'affiche", "Total brut" in t and "pts / salarié" in t)
         p.evaluate("()=>document.querySelector('.overlay')?.remove()")
+        # Sous dix entreprises : pas de rang, pas de barre comparative, pas de trophée.
+        c = p.inner_text(".content")
         verifie("une cohorte trop petite est annoncée comme telle",
-                "non significatif" in p.inner_text(".content"))
+                "Cohorte" in c and "/ 10" in c)
+        verifie("aucun rang n'est affiché sous dix entreprises",
+                p.eval_on_selector_all("tbody tr", "r=>r.length") == 0)
+        verifie("le score de l'entreprise est montré à la place",
+                "point" in c and "par salarié" in c)
         verifie("l'écrêtage est montré", "Plafond par format" in t)
         p.evaluate("()=>document.querySelector('.overlay')?.remove()")
 

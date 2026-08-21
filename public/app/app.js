@@ -316,8 +316,17 @@ function tableauEntreprise(u){
   const enCours = ms.filter(m => m.etat === "engagee" || m.etat === "a_valider");
   const salaries = DB.salaries(eid).filter(x => x.actif);
   const engages = salaries.filter(x => DB.pointsVisiblesEmployeur(x.id) > 0).length;
-  const seuilTop = dansCat[Math.max(0, Math.ceil(total * 0.1) - 1)]?.parSalarie ?? 0;
+  /* Plus de « barre d'objectif » sans objectif : une jauge à moitié pleine avec un
+     tiret à droite ne mesure rien. On donne le score, et un point de comparaison
+     qui existe — la médiane de la catégorie quand la cohorte est assez grande,
+     l'avancement de la cohorte sinon. */
   const monParSalarie = moiCl.parSalarie || 0;
+  const scores = dansCat.map(x => x.parSalarie).sort((a, b) => a - b);
+  const medianeCat = scores.length
+    ? Math.round(((scores.length % 2
+        ? scores[(scores.length - 1) / 2]
+        : (scores[scores.length / 2 - 1] + scores[scores.length / 2]) / 2)) * 10) / 10
+    : 0;
 
   /* Ce qui attend une action passe avant ce qui flatte. Un responsable RSE ouvre cet
      écran pour savoir quoi faire, pas pour contempler son rang. */
@@ -440,19 +449,31 @@ function tableauEntreprise(u){
             </span>
           </div>
           <hr class="sep" style="margin:0 0 var(--s5)">
-          <h3 style="font-size:var(--t-lg)">Objectif du trimestre</h3>
-          <p class="muted" style="font-size:var(--t-sm);margin-top:6px">
-            ${total < 10
-              ? `Votre catégorie ne compte que ${total} entreprise${total > 1 ? "s" : ""} cette saison :
-                 trop peu pour parler de décile. Le rang est affiché tel quel, sans pourcentage.`
-              : monParSalarie >= seuilTop
-                ? "Vous êtes dans les 10 % les plus actifs de votre catégorie."
-                : `Il vous manque ${Math.max(0, Math.round((seuilTop - monParSalarie) * 10) / 10)} points par salarié pour entrer dans les 10 % de votre catégorie.`}</p>
-          <div class="bar" style="margin-top:var(--s5)">
-            <i style="width:${Math.min(100, (monParSalarie / Math.max(seuilTop, 0.1)) * 100)}%"></i></div>
-          <div class="between" style="margin-top:var(--s3);font-size:var(--t-xs);color:var(--ink-400)">
-            <span>${monParSalarie} pts par salarié</span>
-            <span>${total < 10 ? "—" : seuilTop + " pour le top 10 %"}</span></div>
+          <h3 style="font-size:var(--t-lg)">Où vous en êtes</h3>
+          <div class="between" style="margin-top:var(--s4);align-items:flex-end">
+            <div>
+              <span class="muted" style="font-size:var(--t-sm)">Votre score</span>
+              <div style="font-family:var(--font-display);font-size:1.9rem;line-height:1.05;
+                letter-spacing:var(--track-h)">${monParSalarie}
+                <span style="font-size:var(--t-base);color:var(--ink-500)">pts / salarié</span></div>
+            </div>
+            <div style="text-align:right">
+              <span class="muted" style="font-size:var(--t-sm)">${
+                total >= 10 ? "Médiane de la catégorie" : "Cohorte"}</span>
+              <div style="font-family:var(--font-display);font-size:1.9rem;line-height:1.05;
+                letter-spacing:var(--track-h);color:var(--ink-500)">${
+                total >= 10 ? medianeCat : total + " / 10"}</div>
+            </div>
+          </div>
+          <p class="hint" style="margin-top:var(--s4)">${
+            total >= 10
+              ? (monParSalarie >= medianeCat
+                  ? `Vous êtes au-dessus de la médiane de votre catégorie.`
+                  : `Il vous manque ${Math.round((medianeCat - monParSalarie) * 10) / 10} points
+                     par salarié pour atteindre la médiane de votre catégorie.`)
+              : `Votre catégorie compte ${total} entreprise${total > 1 ? "s" : ""}. En dessous de
+                 dix, aucun rang n'est publié : la seule progression qui compte pour l'instant est
+                 celle de la cohorte.`}</p>
           ${pts.ecrete ? `<p class="hint" style="margin-top:var(--s4)">
             ${nb(pts.ecrete)} points ne comptent pas au classement : un format ne peut pas
             peser plus de la moitié de votre total.</p>` : ""}
@@ -1011,40 +1032,21 @@ function vueClassement(u){
         </tr></thead><tbody></tbody></table>
       </section>
 
-      <div class="stack" style="--gap:var(--s10)">
-        <section>
-          <h3>Comment le score est calculé</h3>
-          <div class="stack" style="--gap:var(--s4);margin-top:var(--s5);font-size:var(--t-sm)">
-            <div><strong>Points par salarié</strong>
-              <p class="muted" style="margin-top:2px">Les points retenus divisés par l'effectif.
-              C'est la lecture principale : une entreprise de quarante personnes et un groupe de
-              quatre mille n'ont ni le même potentiel, ni le même taux de participation.</p></div>
-            <div><strong>Plafond par format</strong>
-              <p class="muted" style="margin-top:2px">Aucun format ne peut peser plus de
-              ${Math.round(PLAFOND_PAR_FORMAT * 100)} % des points d'une entreprise.
-              Sans ce plafond, il suffirait de virer de l'argent pour truster le classement.</p></div>
-            <div><strong>Total brut</strong>
-              <p class="muted" style="margin-top:2px">Gardé comme lecture secondaire, jamais
-              comme classement de référence.</p></div>
-          </div>
-        </section>
-
-        <section>
-          <h3>Le barème</h3>
-          <div class="stack" style="--gap:var(--s4);margin-top:var(--s5)">
-            ${Object.entries(BAREME).map(([k, b]) => `
-              <div class="row" style="align-items:flex-start;gap:var(--s4)">
-                <span style="color:var(--forest-700)">${ICONS[b.icone]}</span>
-                <div><strong>${esc(b.label)}</strong>
-                <p class="muted" style="font-size:var(--t-sm);margin-top:2px">
-                  ${b.points} point${b.points > 1 ? "s" : ""} par ${esc(b.unite)}</p></div>
-              </div>`).join("")}
+      <div class="stack" style="--gap:var(--s5)">
+        <section class="card">
+          <h3 style="font-size:var(--t-lg)">Comprendre mon score</h3>
+          <div class="stack" style="--gap:var(--s3);margin-top:var(--s4);font-size:var(--t-sm)">
+            <div class="between"><span class="muted">Score</span>
+              <b>points retenus / effectif</b></div>
+            <div class="between"><span class="muted">Plafond par format</span>
+              <b>${Math.round(PLAFOND_PAR_FORMAT * 100)} % du retenu</b></div>
+            <div class="between"><span class="muted">Cohorte minimale</span>
+              <b>10 entreprises</b></div>
           </div>
           <hr class="sep">
-          <button class="btn btn--ghost btn--block btn--sm" id="detail">Voir le détail de mon score</button>
+          <button class="btn btn--ghost btn--block btn--sm" id="detail">Le détail de mon score</button>
           <p class="hint">Le score mesure un engagement, pas un impact environnemental.
-            Riseva ne le présente jamais comme une mesure scientifique.
-            <a href="/reglement.html" target="_blank" style="color:var(--forest-800)">Le règlement complet</a>.</p>
+            <a href="/reglement.html" target="_blank" style="color:var(--forest-800)">Le règlement</a>.</p>
         </section>
       </div>
     </div>
@@ -1065,20 +1067,47 @@ function vueClassement(u){
       + (decile ? "" : ` · cohorte de ${cl.length}, trop petite pour parler de décile`);
     const av = el.querySelector("#avertCohorte");
     av.innerHTML = "";
-    el.querySelector("#etatCohorte").textContent = decile ? "Semaine 34" : "Cohorte en constitution";
-    el.querySelector("#etatCohorte").className = "badge" + (decile ? "" : " badge--warn");
-    if (!decile && cl.length){
-      av.appendChild(h(`<div class="card card--flat" style="background:var(--warn-bg);
-        border-color:transparent;margin-bottom:var(--s5)">
-        <p class="muted" style="font-size:var(--t-sm);color:var(--ink-600)">
-          <strong style="color:var(--ink)">Classement non significatif.</strong>
-          ${cl.length} entreprise${cl.length > 1 ? "s" : ""} dans cette catégorie : il en faut au
-          moins dix pour qu'un rang veuille dire quelque chose. Les positions sont affichées à
-          titre indicatif, sans percentile, et aucun trophée n'est attribué tant que la cohorte
-          n'est pas constituée.</p></div>`));
-    }
     const tb = el.querySelector("tbody");
+    const tete = el.querySelector("thead");
     tb.innerHTML = "";
+
+    /* Sous dix entreprises, on ne classe pas. Afficher malgré tout un rang, une
+       barre comparative et « vous êtes 2e » après avoir écrit trois fois que le
+       classement n'est pas significatif, c'est laisser le lecteur retenir une
+       seule chose : qu'il est dernier. On montre son score, et l'avancement de
+       la cohorte — le seul objectif qui existe vraiment à ce stade. */
+    if (!decile){
+      el.querySelector("#etatCohorte").textContent = "Cohorte en constitution";
+      el.querySelector("#etatCohorte").className = "badge badge--warn";
+      tete.style.display = "none";
+      const mien = cl.find(e => e.id === u.org);
+      av.appendChild(h(`<div class="stack" style="--gap:var(--s5)">
+        ${mien ? `<div>
+          <span class="muted" style="font-size:var(--t-sm)">Votre score</span>
+          <div style="font-family:var(--font-display);font-size:2.4rem;line-height:1.05;
+            letter-spacing:var(--track-display)">${mien.parSalarie}
+            <span style="font-size:var(--t-lg);color:var(--ink-500)">point${
+              mien.parSalarie > 1 ? "s" : ""} par salarié</span></div>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:6px">
+            ${nb(mien.points)} points retenus sur ${nb(mien.brut)} réalisés,
+            divisés par ${nb(mien.effectif)} salariés.</p>
+        </div>` : ""}
+        <div>
+          <div class="between" style="margin-bottom:var(--s2)">
+            <span class="muted" style="font-size:var(--t-sm)">Cohorte</span>
+            <b class="tnum">${cl.length} / 10</b>
+          </div>
+          <div class="bar"><i style="width:${Math.min(100, (cl.length / 10) * 100)}%"></i></div>
+          <p class="hint">${cl.length} entreprise${cl.length > 1 ? "s" : ""} dans cette catégorie.
+            Le classement ouvrira quand la comparaison sera significative : à dix, un rang
+            veut dire quelque chose, à deux il ne dit que l'ordre d'arrivée.</p>
+        </div>
+      </div>`));
+      return;
+    }
+    tete.style.display = "";
+    el.querySelector("#etatCohorte").textContent = "Cohorte constituée";
+    el.querySelector("#etatCohorte").className = "badge badge--ok";
     if (!cl.length){ tb.appendChild(h(`<tr><td colspan="4" class="empty">Aucune entreprise dans cette catégorie.</td></tr>`)); return; }
     cl.forEach(e => {
       const moiOrg = e.id === u.org;
@@ -1086,7 +1115,7 @@ function vueClassement(u){
         <td>${e.rang}</td>
         <td><strong>${esc(e.nom)}</strong>${moiOrg ? ` <span class="muted">(vous)</span>` : ""}${
           decile && e.rang <= seuil ? ` <span class="badge badge--brand" style="height:20px;margin-left:6px">top 10 %</span>` : ""}
-          <br><span class="muted" style="font-size:var(--t-xs)">${esc(e.categorie.label)} · ${e.participation} % de participation${
+          <br><span class="muted" style="font-size:var(--t-xs)">${esc(e.categorie.label)} · ${e.engages}/${e.effectif} de l'effectif${
             e.ecrete ? ` · ${nb(e.ecrete)} points écrêtés` : ""}</span></td>
         <td style="width:30%"><div class="bar"><i style="width:${(e[cle] / max) * 100}%"></i></div></td>
         <td class="tnum" style="text-align:right"><strong>${mode === "brut" ? nb(e.points) : e.parSalarie}</strong>
@@ -1148,9 +1177,9 @@ function vueClassement(u){
     const cl = DB.classement({ mode, categorie: categorie || null });
     versCSV("riseva-classement.csv",
       ["Rang", "Entreprise", "Catégorie", "Effectif", "Points retenus", "Points bruts",
-       "Points par salarié", "Participation %"],
+       "Points par salarié", "Participation dans l'effectif %", "Activation des inscrits %"],
       cl.map(e => [e.rang, e.nom, e.categorie.label, e.effectif, e.points, e.brut,
-                   e.parSalarie, e.participation]));
+                   e.parSalarie, e.participation, e.activation]));
     toast("Export téléchargé.");
   };
   dessine();
