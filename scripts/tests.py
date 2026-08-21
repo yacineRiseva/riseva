@@ -87,6 +87,18 @@ def main():
         t = norm(p.inner_text(".doc__corps"))
         verifie("la disponibilité est chiffrée", "99,5 %" in t)
         verifie("l'impayé ne coupe pas les données", "en otage" in t)
+        p.goto(BASE + "/cgv.html", wait_until="networkidle")
+        t = norm(p.inner_text(".doc__corps"))
+        verifie("les CGV plafonnent la responsabilité de façon tenable",
+                "50 000 €" in t and "dol, faute lourde" in t)
+        verifie("elles interdisent l'entraînement d'IA sur les données clients",
+                "intelligence" in t and "artificielle" in t)
+        verifie("elles ne prétendent pas que le client possède les données",
+                "ne sont pas un bien appropriable" in t)
+        verifie("elles excluent la garantie de résultat",
+                "ne garantit" in t and "impact social" in t)
+        verifie("elles traitent la sortie sans frais",
+                "Aucun frais de changement" in t)
         p.goto(BASE + "/moderation.html", wait_until="networkidle")
         t = p.inner_text(".doc__corps")
         verifie("la politique de modération existe", "service d'hébergement" in t)

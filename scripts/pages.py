@@ -342,8 +342,33 @@ ecrire("confidentialite.html",
     <tr><td>Facturation</td><td>Raison sociale, SIRET, adresse, factures</td><td>10 ans, obligation légale</td></tr>
   </tbody>
 </table>
-<p>Aucune donnée sensible au sens de l'article 9 du RGPD n'est collectée. Aucun profilage,
-aucune décision automatisée produisant des effets juridiques. Aucune revente, jamais.</p>
+<p>Aucune donnée sensible au sens de l'article 9 n'est collectée. Aucun profilage, aucune
+décision automatisée produisant des effets juridiques. Aucune revente, jamais.</p>
+
+<div class="encadre">
+  <p><strong>Ce que votre employeur ne voit pas.</strong> La cause d'une association peut révéler
+  une conviction, une opinion, un état de santé ou une appartenance syndicale. Le produit est
+  construit pour empêcher cette déduction :</p>
+  <ul>
+    <li>un don personnel n'est <strong>jamais nominatif</strong> dans les écrans de l'employeur :
+        ni votre nom, ni le montant, ni l'association ;</li>
+    <li>les points affichés dans l'espace Équipe sont ceux <strong>des missions uniquement</strong> ;</li>
+    <li>les totaux de dons ne s'affichent qu'à partir de <strong>cinq donateurs</strong> : en
+        dessous, un total et un effectif suffiraient à remonter aux personnes ;</li>
+    <li>le classement interne ne sort jamais de votre entreprise, et vers l'extérieur seul le
+        total collectif est publié.</li>
+  </ul>
+</div>
+
+<p>Une <strong>analyse d'impact</strong> a été conduite : trois critères de la liste de la CNIL
+sont réunis, notation, personnes vulnérables et risque d'inférence sensible. Elle est fournie
+aux clients avec le contrat.</p>
+
+<p>Enfin, le <strong>consentement n'est pas la base légale</strong> retenue pour les comptes et
+les missions : la relation entre un employeur et son salarié est déséquilibrée, et un
+consentement qu'on ne peut pas refuser librement n'en est pas un. La base est l'intérêt légitime,
+avec participation volontaire et refus sans conséquence. L'accord demandé mission par mission
+pour les missions sur le temps de travail répond, lui, à une exigence du code du travail.</p>
 
 <h2>Le départ d'un salarié</h2>
 <p>Le retrait d'un salarié <strong>anonymise</strong> son compte : nom et adresse effacés, remplacés
@@ -482,84 +507,170 @@ d'un client pour se faire payer est une pratique que nous n'aurons pas.</p>
 ecrire("cgv.html",
   surtitre="Le contrat",
   titre="Conditions générales de vente",
-  description="Conditions de vente de l'abonnement Riseva aux entreprises.",
+  description="Conditions de vente de l'abonnement Riseva aux entreprises : prix, garanties, responsabilité, données, réversibilité.",
   chapo="Version de travail, à faire relire par un juriste avant la première signature. "
-        "Elle est publiée telle quelle parce qu'un acheteur préfère un document imparfait mais "
+        "Publiée telle quelle parce qu'un acheteur préfère un document imparfait mais "
         "disponible à un document promis pour plus tard.",
   corps="""
-<h2>1. Objet</h2>
+<h2>1. Objet et documents contractuels</h2>
 <p>Riseva fournit un service en ligne qui met en relation des entreprises abonnées et des
-associations partenaires, comptabilise les actions réalisées et produit des rapports. Le présent
-document régit la vente de l'abonnement aux entreprises. L'usage de la plateforme par les
-utilisateurs relève des <a href="/cgu.html">conditions d'utilisation</a>.</p>
+associations partenaires, comptabilise les actions réalisées et produit des rapports.</p>
+<p>Le contrat est formé, dans cet ordre de priorité, par : le bon de commande signé, les
+conditions particulières éventuelles, les présentes conditions générales, les
+<a href="/engagements.html">engagements de service</a>, l'accord de sous-traitance annexé, et
+les <a href="/reglement.html">règles de la saison</a>. Chacune de ces pages est datée et
+versionnée ; la version applicable est celle en vigueur à la signature, et elle est jointe
+au bon de commande.</p>
 
 <h2>2. Commande et durée</h2>
 <ul>
   <li>La préinscription est gratuite et n'engage à rien.</li>
-  <li>La commande est formée par la signature du devis, qui vaut acceptation des présentes.</li>
-  <li>L'abonnement couvre une <strong>saison</strong>, d'une durée d'une année fiscale.</li>
-  <li>Il n'est pas reconduit tacitement.</li>
+  <li>La commande est formée par la signature du bon de commande.</li>
+  <li>L'abonnement couvre une <strong>saison</strong>, d'une durée d'une année.</li>
+  <li><strong>Pas de reconduction tacite.</strong> Il s'arrête à la clôture, après remise du
+      rapport annuel.</li>
 </ul>
 
-<h2>3. Prix et paiement</h2>
+<h2>3. Prix, facturation et paiement</h2>
 <ul>
-  <li>Le prix figure au devis. Il est ferme pour la durée de la saison.</li>
-  <li>Un acompte de 500 € est versé à la confirmation. Il est déduit du montant total et
-      <strong>remboursé intégralement si la saison ne démarre pas</strong>.</li>
-  <li>Le solde est facturé à l'ouverture de la saison, payable à trente jours.</li>
-  <li>Retard de paiement : intérêts au taux d'intérêt légal majoré de dix points et indemnité
-      forfaitaire de recouvrement de 40 €, conformément à l'article L. 441-10 du code de commerce.</li>
-  <li>Aucune commission n'est prélevée sur les dons.</li>
+  <li>Le prix figure au bon de commande. Il est ferme pour la durée de la saison.</li>
+  <li>Acompte de 500 € à la confirmation, déduit du total et <strong>remboursé intégralement
+      si la saison ne démarre pas</strong>.</li>
+  <li>Solde facturé à l'ouverture, payable à trente jours.</li>
+  <li>Retard : pénalités au taux d'intérêt légal majoré de dix points, exigibles sans rappel,
+      et indemnité forfaitaire de recouvrement de 40 € (articles L. 441-9 et L. 441-10 du code
+      de commerce). Pas d'escompte pour paiement anticipé.</li>
+  <li><strong>Facturation électronique.</strong> Le client communique sa plateforme agréée de
+      réception et son identifiant d'annuaire à la signature. Depuis le 1<sup>er</sup> septembre
+      2026, un PDF par courriel ne vaut plus facture.</li>
+  <li>Aucune commission n'est prélevée sur les dons, qui ne transitent jamais par Riseva et ne
+      figurent sur aucune facture.</li>
 </ul>
 
 <h2>4. Places</h2>
 <p>L'abonnement ouvre un nombre de places égal à l'effectif déclaré. Un compte occupe une place.
-Le retrait d'un salarié libère sa place immédiatement. Des places supplémentaires peuvent être
-ajoutées en cours de saison, au prorata.</p>
+Le retrait d'un salarié libère la sienne immédiatement. Des places peuvent être ajoutées en cours
+de saison, au prorata.</p>
 
 <h2>5. Obligations du client</h2>
 <ul>
   <li>Déclarer un effectif exact : il détermine les places et le classement normalisé.</li>
   <li>Désigner au moins <strong>deux administrateurs</strong>.</li>
   <li>Déclarer les domaines de messagerie autorisés pour le lien d'inscription.</li>
-  <li>Informer ses salariés du traitement de leurs données, en sa qualité de responsable de traitement.</li>
+  <li>Informer ses salariés et consulter son comité social et économique avant le déploiement.
+      Riseva fournit les textes, la démarche appartient au client.</li>
+  <li>Ne pas utiliser les données de la plateforme à des fins d'évaluation professionnelle,
+      de décision de carrière, de rémunération ou de discipline.</li>
 </ul>
 
 <h2>6. Obligations de Riseva</h2>
 <ul>
   <li>Fournir le service conformément aux <a href="/engagements.html">engagements de service</a>.</li>
-  <li>Vérifier les associations selon la <a href="/charte-associations.html">charte</a>, sans
-      garantir leur éligibilité fiscale, qui relève d'elles seules.</li>
-  <li>Appliquer le <a href="/reglement.html">règlement de la saison</a> de façon identique
-      à tous les clients.</li>
-  <li>Traiter les données personnelles en qualité de sous-traitant, dans les conditions de
-      l'accord de sous-traitance annexé au devis.</li>
+  <li>Vérifier les associations selon la <a href="/charte-associations.html">charte</a>.</li>
+  <li>Appliquer les <a href="/reglement.html">règles de la saison</a> de façon identique à tous.</li>
+  <li>Traiter les données personnelles selon l'accord de sous-traitance annexé.</li>
+  <li>Traiter les signalements selon la <a href="/moderation.html">politique de modération</a>.</li>
 </ul>
 
-<h2>7. Responsabilité</h2>
+<h2>7. Données, contenus et propriété intellectuelle</h2>
+<p>On n'écrira pas ici que « le client est propriétaire de toutes les données » : les données
+personnelles ne sont pas un bien appropriable, et l'écrire ferait joli sans rien vouloir dire.</p>
+<ul>
+  <li>L'<strong>entreprise</strong> conserve ses droits sur ses données et ses contenus.</li>
+  <li>L'<strong>association</strong> conserve ses droits sur ses données, son nom et ses visuels.</li>
+  <li><strong>Riseva</strong> reçoit uniquement la licence nécessaire pour héberger, reproduire et
+      diffuser ces contenus pendant la durée du service, et pour rien d'autre.</li>
+  <li>Riseva conserve ses droits sur le logiciel, la marque, le design, les modèles de documents
+      et les règles de calcul.</li>
+  <li>Le client reçoit un droit <strong>perpétuel</strong> d'utiliser et d'archiver les rapports
+      qu'il a exportés, y compris après la fin du contrat.</li>
+</ul>
+<div class="encadre">
+  <p><strong>Réutilisation des données.</strong> Riseva ne peut réutiliser des statistiques
+  transversales que si elles sont <strong>réellement anonymisées de manière irréversible</strong>.
+  Sont interdits sans accord écrit distinct : toute tentative de réidentification, la vente ou la
+  cession des données clients, et leur usage pour entraîner un modèle d'intelligence
+  artificielle.</p>
+  <p>La publication du <strong>nom</strong> d'une entreprise dans un classement public suppose son
+  acceptation explicite au bon de commande. Le client peut demander à tout moment d'y figurer de
+  manière anonyme ou de ne plus y figurer, sous quinze jours.</p>
+</div>
+
+<h2>8. Garanties</h2>
+<p>Riseva garantit :</p>
+<ul>
+  <li>un service substantiellement conforme à sa documentation ;</li>
+  <li>une exécution professionnelle et diligente ;</li>
+  <li>détenir les droits nécessaires sur le logiciel, et garantir le client contre toute
+      réclamation de propriété intellectuelle le concernant ;</li>
+  <li>une sécurité conforme à ce qui est décrit sur la page <a href="/securite.html">Sécurité</a> ;</li>
+  <li>des sauvegardes et une restauration conformes aux RPO et RTO annoncés ;</li>
+  <li><strong>l'exactitude du calcul par rapport au barème publié</strong> : une erreur avérée est
+      corrigée rétroactivement et le classement recalculé ;</li>
+  <li>la correction des anomalies critiques dans les délais des engagements de service.</li>
+</ul>
+<p>Riseva ne garantit <strong>pas</strong>, et c'est volontaire :</p>
+<ul>
+  <li>un taux de participation, un rang au classement, un impact social, ni une économie fiscale ;</li>
+  <li>l'éligibilité fiscale d'une association. Elle garantit en revanche que le produit
+      <strong>bloque l'émission</strong> quand les réglages sont incomplets, signale les données
+      manquantes et reproduit fidèlement les paramètres validés par l'association ;</li>
+  <li>l'exactitude du coût de revient déclaré par le client : la valorisation du mécénat de
+      compétences relève de sa responsabilité, et sa déclaration fiscale aussi.</li>
+</ul>
+<p>L'association reste seule émettrice du reçu fiscal et seule à certifier son éligibilité.</p>
+
+<h2>9. Responsabilité</h2>
 <ul>
   <li>Riseva n'organise pas les missions de bénévolat et ne les assure pas. En cas de dommage
-      pendant une mission, la responsabilité relève de l'entreprise et de l'association.</li>
-  <li>Riseva n'encaisse pas les dons et n'émet pas les reçus fiscaux : elle les prépare pour le
-      compte de l'association, seule habilitée à les délivrer et seule responsable de leur
-      régularité.</li>
-  <li>Les estimations de réduction d'impôt fournies par la plateforme sont indicatives et ne
-      valent pas conseil fiscal.</li>
-  <li>La responsabilité de Riseva est plafonnée au montant de l'abonnement de la saison en cours.</li>
+      pendant une mission, la relation demeure entre l'entreprise, l'association et le salarié.</li>
+  <li>Sont indemnisables les <strong>dommages directs et prévisibles</strong> uniquement.</li>
+  <li><strong>Plafond ordinaire</strong> : le montant des redevances hors taxes payées ou dues au
+      titre de la saison concernée.</li>
+  <li><strong>Plafond renforcé</strong> pour les manquements à la confidentialité, à la protection
+      des données personnelles, à la sécurité et à la propriété intellectuelle : 50 000 €, ou
+      trois fois la redevance annuelle si ce montant est supérieur.</li>
+  <li><strong>Sans plafond</strong> : dol, faute lourde, dommages corporels, obligations de
+      paiement, et tout ce que la loi interdit de limiter.</li>
 </ul>
 
-<h2>8. Résiliation</h2>
+<h2>10. Réversibilité et sortie</h2>
+<p>Le règlement européen sur les données couvre expressément les services en nuage depuis le
+12 septembre 2025. Ce qui suit n'est donc pas une faveur.</p>
 <ul>
-  <li>Par le client, à tout moment, avec remboursement au prorata si le manquement vient de Riseva.</li>
-  <li>Par Riseva, en cas de non-paiement persistant après deux relances écrites, ou de fraude
-      établie au sens du règlement de la saison.</li>
+  <li>Export de <strong>toutes</strong> les données saisies, produites et de leurs métadonnées
+      pertinentes : entreprises, comptes, missions, validations, points bruts et retenus,
+      justificatifs, conventions, émargements, rapports et historiques utiles.</li>
+  <li>Formats structurés, courants et lisibles par machine, avec dictionnaire des données.</li>
+  <li>Registre public à jour des formats et des éventuelles restrictions.</li>
+  <li>Préavis de changement plafonné à deux mois.</li>
+  <li>Transition de trente jours maximum ; une impossibilité technique doit être motivée sous
+      quatorze jours ouvrables, prolongation maximale de sept mois.</li>
+  <li>Suppression complète après récupération et sortie réussie, avec certificat.</li>
+  <li><strong>Aucun frais de changement à compter du 12 janvier 2027.</strong> D'ici là, seuls des
+      coûts directs démontrables pourraient être facturés ; Riseva y renonce par avance.</li>
+</ul>
+
+<h2>11. Suspension et résiliation</h2>
+<ul>
+  <li>Un impayé suspend la publication de nouvelles missions. Il ne coupe jamais l'accès en
+      lecture, ne supprime aucune donnée et n'annule aucun point acquis.</li>
+  <li>Le client peut résilier à tout moment, avec remboursement au prorata si le manquement
+      vient de Riseva.</li>
+  <li>Riseva peut résilier en cas de non-paiement persistant après deux relances écrites, ou de
+      fraude établie au sens des règles de la saison.</li>
   <li>Dans tous les cas, les données restent exportables trente jours.</li>
 </ul>
 
-<h2>9. Droit applicable</h2>
-<p>Droit français. À défaut d'accord amiable, compétence des tribunaux du ressort du siège de Riseva.</p>
-""")
+<h2>12. Confidentialité et assurance</h2>
+<p>Chaque partie garde confidentielles les informations de l'autre pendant le contrat et trois ans
+après. Riseva est assurée en responsabilité civile professionnelle ; l'attestation est jointe au
+devis.</p>
 
+<h2>13. Droit applicable</h2>
+<p>Droit français. À défaut d'accord amiable, compétence des tribunaux du ressort du siège de
+Riseva.</p>
+""")
 
 # ---------------------------------------------------------------- modération
 ecrire("moderation.html",
