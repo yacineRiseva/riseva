@@ -2500,9 +2500,15 @@ function tableAnnoncesAsso(annonces, u){
   annonces.forEach(a => {
     const engagees = DB.missions({}).filter(m =>
       m.annonce === a.id && m.etat !== "refusee" && DB.deLaSaison(m)).length;
+    /* « Participants » ne veut rien dire sur un don de matériel ou une collecte
+       financière : chaque format a son mot. */
     const tr = h(`<tr>
       <td><strong>${esc(a.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${dateFR(a.date)} · ${esc(a.lieu || "")}${
-        engagees ? ` · ${engagees} participant${engagees > 1 ? "s" : ""} inscrit${engagees > 1 ? "s" : ""}` : ""}</span></td>
+        engagees ? ` · ${engagees} ${a.type === "benevolat_demi_journee"
+          ? "participant" + (engagees > 1 ? "s inscrits" : " inscrit")
+          : a.type === "don_materiel"
+            ? "don" + (engagees > 1 ? "s proposés" : " proposé")
+            : "versement" + (engagees > 1 ? "s reçus" : " reçu")}` : ""}</span></td>
       <td class="muted">${esc(BAREME[a.type].label)}</td>
       ${/* « 4 / 6 » se lit comme une note. Ce qui compte pour une association, c'est
             combien il reste, et dans quelle unité. */""}

@@ -7,7 +7,7 @@ au premier échec.
 
     python3 scripts/tests.py
 """
-import http.server, socketserver, threading, functools, pathlib, sys, contextlib
+import http.server, socketserver, threading, functools, pathlib, sys, contextlib, subprocess
 from playwright.sync_api import sync_playwright
 import re
 
@@ -45,7 +45,36 @@ def connecte(p, uid, route="#/tableau"):
     p.goto(f"{BASE}/app/?t=1{route}", wait_until="networkidle")
     p.wait_for_timeout(350)
 
+def modules_valides():
+    """Un littéral gabarit mal fermé passe `node --check` et casse à l'exécution.
+    On importe réellement les trois modules avant d'ouvrir le navigateur : l'erreur
+    arrive alors avec son message, pas sous la forme d'une page blanche."""
+    import shutil, tempfile
+    tmp = tempfile.mkdtemp()
+    for f in ["data.js", "ui.js", "app.js"]:
+        shutil.copy(RACINE / "app" / f, pathlib.Path(tmp) / f)
+    ok = True
+    for f in ["data.js", "ui.js", "app.js"]:
+        r = subprocess.run(
+            ["node", "--input-type=module", "-e",
+             f"import('file://{tmp}/{f}').catch(e=>{{"
+             "if(/SyntaxError|Missing|missing|Unexpected/.test(e.message))"
+             "{console.error(e.message);process.exit(1)}})"],
+            capture_output=True, text=True)
+        if r.returncode:
+            print(f"  RATÉ {f} — {r.stderr.strip()[:200]}")
+            ok = False
+    shutil.rmtree(tmp, ignore_errors=True)
+    return ok
+
+
 def main():
+    print("Syntaxe des modules")
+    if not modules_valides():
+        print("\nUn module ne se charge pas : inutile d'ouvrir un navigateur.")
+        sys.exit(1)
+    print("  ok   les trois modules se chargent")
+
     erreurs_js = []
     with serveur(), sync_playwright() as pw:
         nav = pw.chromium.launch()
