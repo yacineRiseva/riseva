@@ -345,11 +345,13 @@ def main():
         verifie("la provenance du chiffre est dite", "elle n'audite pas" in t)
         connecte(p, "u2", "#/ensemble")
         te = p.inner_text(".content")
-        verifie("la page Tous ensemble additionne tout le réseau", "Tous ensemble" in te)
+        verifie("la page Tous ensemble additionne tout le réseau",
+                "réseau Riseva" in te and "missions réalisées" in te)
         verifie("la forêt affiche le vrai décompte sous le dessin", "arbres plantés" in te)
-        verifie("l'échelle du dessin est annoncée", "arbre dessiné" in te.lower())
+        verifie("l'échelle du dessin est annoncée", "un pour" in te.lower() and "dessin" in te.lower())
         verifie("le confirmé et l'estimé ne sont pas mélangés",
-                "estimés" in te and "sans réponse de l'association" in te)
+                "confirmé" in te.lower() and "estimés" in te.lower()
+                and "faute de réponse" in te.lower())
         connecte(p, "u1", "#/moteur")
         t = p.inner_text(".content")
         verifie("les automatismes sont listés", "Validation sans retour" in t

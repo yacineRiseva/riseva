@@ -397,26 +397,42 @@ function projeter(L, H, marge){
 const trace = (pts, p) => "M" + pts.map(([lo, la]) =>
   `${p.x(lo).toFixed(1)} ${p.y(la).toFixed(1)}`).join(" L") + " Z";
 
-export function carteFrance(points, { hauteur = 340, legende = "" } = {}){
-  const L = 460, H = 440;
-  const p = projeter(L, H, 16);
+export function carteFrance(points, { hauteur = 300, legende = "", compacte = false } = {}){
+  /* Cadre serré sur la France, contour appuyé, siège en losange avec son nom
+     écrit. La version précédente laissait un hexagone pâle au milieu d'un grand
+     vide, et ne distinguait le siège des associations que par la couleur — donc
+     pas du tout pour qui ne distingue pas ces deux verts, et jamais sans survol. */
+  const L = 340, H = 360;
+  const p = projeter(L, H, compacte ? 8 : 14);
   const dessines = points.filter(x => x.lat != null && x.lon != null);
+  const moi = dessines.find(x => x.principal);
+  const losange = (cx, cy, r) =>
+    `M${cx} ${cy - r} L${cx + r} ${cy} L${cx} ${cy + r} L${cx - r} ${cy} Z`;
   return h(`<div class="carte">
     <svg viewBox="0 0 ${L} ${H}" style="height:${hauteur}px" role="img"
       aria-label="Carte de France, ${dessines.length} lieu${dessines.length > 1 ? "x" : ""}">
-      <path d="${trace(HEXAGONE, p)}" fill="var(--forest-050)" stroke="var(--forest-100)"
-        stroke-width="1.6" stroke-linejoin="round"/>
-      <path d="${trace(CORSE, p)}" fill="var(--forest-050)" stroke="var(--forest-100)"
-        stroke-width="1.6" stroke-linejoin="round"/>
-      ${dessines.map(pt => `
-        <g class="carte__pt ${pt.principal ? "carte__pt--moi" : ""}">
+      <path d="${trace(HEXAGONE, p)}" fill="var(--forest-050)" stroke="var(--forest-700)"
+        stroke-width="1.4" stroke-linejoin="round" opacity=".9"/>
+      <path d="${trace(CORSE, p)}" fill="var(--forest-050)" stroke="var(--forest-700)"
+        stroke-width="1.4" stroke-linejoin="round" opacity=".9"/>
+      ${dessines.filter(x => !x.principal).map(pt => `
+        <g class="carte__pt">
           <circle cx="${p.x(pt.lon).toFixed(1)}" cy="${p.y(pt.lat).toFixed(1)}"
-            r="${pt.principal ? 10 : 7}" class="carte__halo"/>
+            r="7" class="carte__halo"/>
           <circle cx="${p.x(pt.lon).toFixed(1)}" cy="${p.y(pt.lat).toFixed(1)}"
-            r="${pt.principal ? 5 : 3.4}" class="carte__coeur"/>
-          <title>${esc(pt.nom || "")}${pt.distance != null ? ` — ${pt.distance} km` : ""}</title>
+            r="4" class="carte__coeur"/>
+          <title>${esc(pt.nom || "")}${pt.distance != null ? ` — ${nb(pt.distance)} km` : ""}</title>
         </g>`).join("")}
+      ${moi ? `<g class="carte__pt carte__pt--moi">
+        <path d="${losange(p.x(moi.lon), p.y(moi.lat), 9)}" class="carte__halo"/>
+        <path d="${losange(p.x(moi.lon), p.y(moi.lat), 5)}" class="carte__coeur"/>
+        <title>${esc(moi.nom || "")}</title>
+      </g>` : ""}
     </svg>
+    <p class="carte__legende">
+      <span><b class="carte__cle carte__cle--asso"></b> Association partenaire</span>
+      ${moi ? `<span><b class="carte__cle carte__cle--moi"></b> ${esc(moi.nom)}</span>` : ""}
+    </p>
     ${legende ? `<p class="hint">${esc(legende)}</p>` : ""}
   </div>`);
 }
@@ -432,105 +448,97 @@ export function carteFrance(points, { hauteur = 340, legende = "" } = {}){
    d'accueil, c'est l'état du compteur à l'instant où on ouvre la page. Le vrai
    chiffre est écrit dessous, en toutes lettres, parce qu'un dessin ne prouve
    rien tout seul. */
-const MAX_ARBRES_DESSINES = 120;
+/* Cent arbres au maximum, rangés en cinq rangs de vingt, séparés tous les dix.
+   La version précédente semait les positions au hasard : joli, et parfaitement
+   incomptable. Un décompte déguisé qu'on ne peut pas recompter n'est plus un
+   décompte, c'est une illustration. Ici on peut vérifier à l'œil — dix, vingt,
+   trente — et le pas est écrit dessous. */
+const RANGS = 5;
+const COLONNES = 20;
+const MAX_ARBRES_DESSINES = RANGS * COLONNES;
+const PAR_GROUPE = 10;
 
-function halton(i, base){
-  let f = 1, r = 0, n = i;
-  while (n > 0){ f /= base; r += f * (n % base); n = Math.floor(n / base); }
-  return r;
-}
-
-/* Une échelle ronde, choisie pour que la forêt reste lisible : on ne dessine
-   jamais plus de 120 arbres, et le pas est un nombre qu'on peut annoncer. */
+/* Une échelle ronde, choisie pour que la forêt reste comptable. */
 function echelleForet(total){
   const paliers = [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000];
   return paliers.find(p => total / p <= MAX_ARBRES_DESSINES) || 50000;
 }
 
-/* Du vert profond au fond, du vert clair devant : c'est la perspective
-   atmosphérique, et c'est ce qui donne une profondeur sans dégradé tape-à-l'œil. */
+/* Du vert profond au fond, du vert clair devant : perspective atmosphérique,
+   sans dégradé ni faux relief. */
 function teinteArbre(p){
-  const m = p * p;                       /* l'avant-plan s'éclaircit tard */
-  const r = Math.round(28 + 122 * m);
-  const v = Math.round(74 + 122 * m);
-  const b = Math.round(58 + 20 * m);
-  return `rgb(${r},${v},${b})`;
+  const m = p * p;
+  return `rgb(${Math.round(30 + 118 * m)},${Math.round(78 + 118 * m)},${Math.round(60 + 18 * m)})`;
 }
 
-/* x et y arrivent en nombres, et le restent : un `${x + r}` sur une chaîne
-   colle deux nombres bout à bout et l'attribut d= devient illisible. */
+/* x et y arrivent en nombres, et le restent : un `${x + r}` sur une chaîne colle
+   deux nombres bout à bout et l'attribut d= devient illisible. */
 function arbre(i, xb, yb, t){
   const x = Math.round(xb * 10) / 10, y = Math.round(yb * 10) / 10;
-  const c = teinteArbre((t - 24) / 52);
-  const troncH = t * 0.3;
+  const c = teinteArbre(Math.min(1, Math.max(0, (t - 16) / 26)));
+  const troncH = t * 0.3, base = y - troncH;
   const tronc = `<path d="M${x} ${y} v${-troncH}" stroke="rgb(58,48,36)"
-    stroke-width="${Math.max(1.1, t * 0.06)}" stroke-linecap="round" opacity=".55"/>`;
-  const forme = i % 6;
-  if (forme === 1 && t < 42){
-    /* jeune pousse : une tige, deux feuilles, rien de plus */
-    return tronc + `<path d="M${x} ${y - t * 0.28} q${-t * 0.2} ${-t * 0.06} ${-t * 0.03} ${-t * 0.24}
-      q${t * 0.19} ${t * 0.06} ${t * 0.03} ${t * 0.24} Z" fill="${c}"/>
-      <path d="M${x} ${y - t * 0.4} q${t * 0.2} ${-t * 0.06} ${t * 0.03} ${-t * 0.26}
-      q${-t * 0.19} ${t * 0.07} ${-t * 0.03} ${t * 0.26} Z" fill="${c}" opacity=".82"/>`;
+    stroke-width="${Math.max(1, t * 0.07)}" stroke-linecap="round" opacity=".6"/>`;
+  /* Une seule silhouette, deux variantes d'étage. Mélanger conifères et feuillus
+     faisait cohabiter deux langages graphiques dans une image qui sert à compter :
+     l'œil trie les formes au lieu d'additionner les unités. */
+  const l = t * (i % 4 === 0 ? 0.38 : 0.33);
+  const etages = i % 4 === 0 ? 2 : 3;
+  let d = "";
+  for (let k = 0; k < etages; k++){
+    const u = etages > 1 ? k / (etages - 1) : 1;       /* 0 = étage haut, 1 = étage bas */
+    const sommet = base - t * (0.88 - u * 0.32);
+    const pied   = base - t * 0.46 * (1 - u);          /* le dernier étage repose sur le tronc */
+    const demi   = l * (0.54 + u * 0.46);
+    d += `<path d="M${x} ${sommet} L${x - demi} ${pied} L${x + demi} ${pied} Z"
+      fill="${c}" opacity="${1 - u * 0.14}"/>`;
   }
-  if (forme === 0 || forme === 3 || forme === 5){
-    /* feuillu : une couronne large, une masse d'ombre décalée */
-    const r = t * 0.31, base = y - troncH;
-    return tronc + `<ellipse cx="${x}" cy="${base - r * 0.62}" rx="${r * 1.1}" ry="${r * 0.95}" fill="${c}"/>
-      <ellipse cx="${x - r * 0.4}" cy="${base - r * 1.12}" rx="${r * 0.64}" ry="${r * 0.58}"
-        fill="${c}" opacity=".88"/>
-      <ellipse cx="${x + r * 0.48}" cy="${base - r * 1.02}" rx="${r * 0.5}" ry="${r * 0.46}"
-        fill="${c}" opacity=".74"/>`;
-  }
-  /* conifère : trois étages, large en bas */
-  const l = t * 0.34, base = y - troncH;
-  return tronc + `<path d="M${x} ${base - t * 0.78} L${x - l * 0.62} ${base - t * 0.44}
-      L${x + l * 0.62} ${base - t * 0.44} Z" fill="${c}"/>
-    <path d="M${x} ${base - t * 0.58} L${x - l * 0.84} ${base - t * 0.2}
-      L${x + l * 0.84} ${base - t * 0.2} Z" fill="${c}" opacity=".92"/>
-    <path d="M${x} ${base - t * 0.34} L${x - l} ${base} L${x + l} ${base} Z" fill="${c}" opacity=".85"/>`;
+  return tronc + d;
 }
 
 export function foret(total, { unite = "arbres plantés", legende = true } = {}){
   const n = Math.max(0, Math.round(Number(total) || 0));
   const pas = echelleForet(n);
   const dessines = Math.min(MAX_ARBRES_DESSINES, Math.floor(n / pas));
+
   /* Le dessin garde son rapport : pas de hauteur en pixels imposée, donc pas de
      recadrage qui couperait la cime des arbres selon la largeur de l'écran. */
-  const L = 1200, H = 336, sol = 314, ciel = 104;
+  const L = 1200, H = 200, marge = 40;
+  const groupes = COLONNES / PAR_GROUPE;
+  const ecart = 26;                                    /* respiration tous les dix */
+  const largeur = L - marge * 2 - ecart * (groupes - 1);
+  const pasX = largeur / COLONNES;
 
   const plants = [];
   for (let i = 0; i < dessines; i++){
-    const profondeur = halton(i + 1, 3);            /* 0 = horizon, 1 = premier plan */
-    const x = 26 + halton(i + 1, 2) * (L - 52);
-    const y = ciel + profondeur * (sol - ciel);
-    plants.push({ i, x, y, taille: 24 + profondeur * 52, profondeur });
+    const rang = Math.floor(i / COLONNES);             /* 0 = fond, 4 = premier plan */
+    const col = i % COLONNES;
+    const p = RANGS > 1 ? rang / (RANGS - 1) : 1;
+    const decale = rang % 2 ? pasX * 0.35 : 0;         /* les rangs se croisent, sans se chevaucher */
+    plants.push({
+      i,
+      x: marge + col * pasX + pasX / 2 + Math.floor(col / PAR_GROUPE) * ecart + decale,
+      y: 58 + p * 122,
+      taille: 17 + p * 27
+    });
   }
-  plants.sort((a, b) => a.profondeur - b.profondeur);   /* l'arrière se dessine d'abord */
 
   const el = h(`<figure class="foret">
     <svg class="foret__svg" viewBox="0 0 ${L} ${H}" preserveAspectRatio="xMidYMid meet"
       role="img"
-      aria-label="${nb(n)} ${esc(unite)}, représentés par ${dessines} arbre${dessines > 1 ? "s" : ""} dessiné${dessines > 1 ? "s" : ""}">
-      <defs>
-        <linearGradient id="foretCiel" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#0B2620"/>
-          <stop offset=".55" stop-color="#10352B"/>
-          <stop offset="1" stop-color="#16412F"/>
-        </linearGradient>
-      </defs>
-      <rect width="${L}" height="${H}" fill="url(#foretCiel)"/>
-      <path d="M0 ${ciel + 4} C 150 ${ciel - 26}, 330 ${ciel + 14}, 500 ${ciel - 8}
-        S 800 ${ciel + 16}, ${L} ${ciel - 14} L${L} ${H} L0 ${H} Z"
-        fill="#123A2C" opacity=".55"/>
+      aria-label="${nb(n)} ${esc(unite)}, représentés par ${dessines} arbre${dessines > 1 ? "s" : ""} dessiné${dessines > 1 ? "s" : ""}, un arbre pour ${nb(pas)}">
+      <rect width="${L}" height="${H}" fill="#0B2620"/>
+      <path d="M0 46 C 180 30, 380 58, 560 40 S 900 60, ${L} 34 L${L} ${H} L0 ${H} Z"
+        fill="#123A2C" opacity=".5"/>
       ${plants.map(p => arbre(p.i, p.x, p.y, p.taille)).join("")}
-      ${dessines === 0 ? `<text x="${L / 2}" y="${(ciel + sol) / 2}" text-anchor="middle"
-        fill="var(--forest-100)" opacity=".55" font-size="18">Le terrain est prêt. Les premiers arbres arrivent.</text>` : ""}
+      ${dessines === 0 ? `<text x="${L / 2}" y="${H / 2}" text-anchor="middle"
+        fill="#DFE6D0" opacity=".6" font-size="16">Le terrain est prêt. Les premiers arbres arrivent.</text>` : ""}
     </svg>
     <figcaption class="foret__pied">
       <span class="foret__nb tnum">${nb(n)}</span>
       <span class="foret__unite">${esc(unite)}</span>
-      ${legende && dessines > 0 ? `<span class="foret__echelle">1 arbre dessiné = ${nb(pas)} ${pas > 1 ? "arbres réels" : "arbre réel"}</span>` : ""}
+      ${legende && dessines > 0 ? `<span class="foret__echelle">${dessines} arbre${
+        dessines > 1 ? "s" : ""} dessiné${dessines > 1 ? "s" : ""}, un pour ${nb(pas)}</span>` : ""}
     </figcaption>
   </figure>`);
   return el;

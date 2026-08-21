@@ -238,8 +238,8 @@
 .carte svg{display:block;width:100%;margin-inline:auto}
 .carte__halo{fill:var(--forest-600);fill-opacity:.18}
 .carte__coeur{fill:var(--forest-700)}
-.carte__pt--moi .carte__halo{fill:var(--lime);fill-opacity:.35}
-.carte__pt--moi .carte__coeur{fill:var(--ink)}
+.carte__pt--moi .carte__halo{fill:var(--brand);fill-opacity:.28}
+.carte__pt--moi .carte__coeur{fill:var(--brand-800)}
 .carte__pt{transition:transform var(--dur) var(--ease)}
 .carte__pt:hover .carte__halo{fill-opacity:.4}
 
@@ -252,8 +252,10 @@
 .foret__nb{ font-family:var(--font-display); font-size:clamp(2rem,1.2rem + 2.4vw,3rem);
   line-height:1; letter-spacing:var(--track-display); color:var(--lime); }
 .foret__unite{ color:var(--forest-100); font-size:var(--t-lg); }
-.foret__echelle{ margin-left:auto; color:var(--forest-100); opacity:.6;
-  font-size:var(--t-xs); letter-spacing:var(--track-wide); text-transform:uppercase; }
+/* Plus de capitales espacées minuscules : le pas de l'échelle est une
+   information, il se lit en bas de casse à taille de texte courant. */
+.foret__echelle{ margin-left:auto; color:var(--forest-100); opacity:.78;
+  font-size:var(--t-sm); }
 
 /* --- Tous ensemble ------------------------------------------------- */
 .ensemble__chiffres{ display:grid; gap:var(--s4);
@@ -317,3 +319,42 @@
 .jauge__cause{ margin-top:var(--s3); font-size:var(--t-sm); color:var(--ink-600);
   padding:var(--s3) var(--s4); border-radius:var(--r-sm); background:var(--paper-sunk); }
 .jauge__cause strong{ color:var(--ink); }
+
+/* --- Légende de la carte -------------------------------------------- */
+.carte__legende{ display:flex; gap:var(--s5); flex-wrap:wrap; margin-top:var(--s3);
+  font-size:var(--t-sm); color:var(--ink-600); }
+.carte__legende span{ display:inline-flex; align-items:center; gap:6px; }
+.carte__cle{ width:10px; height:10px; border-radius:50%; background:var(--forest-700); }
+.carte__cle--moi{ border-radius:2px; transform:rotate(45deg); background:var(--brand-800); }
+
+/* --- Haut de l'annuaire --------------------------------------------- */
+/* La carte occupait 60 % de la hauteur utile avant le premier résultat. Elle
+   passe en colonne, et les trois plus proches se lisent à côté d'elle. */
+.annuaire__haut{ display:grid; gap:var(--s6); grid-template-columns:minmax(0,38%) 1fr;
+  align-items:start; }
+@media (max-width:900px){ .annuaire__haut{ grid-template-columns:1fr } }
+.proche{ display:grid; grid-template-columns:1fr auto; gap:2px var(--s4);
+  padding:var(--s3) var(--s4); border-radius:var(--r-sm); background:var(--paper-sunk);
+  transition:background var(--dur) var(--ease); }
+.proche:hover{ background:var(--forest-050); }
+.proche__nom{ grid-column:1; grid-row:1; font-weight:550; }
+.proche__meta{ grid-column:1; grid-row:2; font-size:var(--t-sm); color:var(--ink-500); }
+.proche__km{ grid-column:2; grid-row:1 / span 2; align-self:center; justify-self:end;
+  font-family:var(--font-display); font-size:var(--t-lg); color:var(--forest-700); }
+
+/* --- Volet dépliable ------------------------------------------------ */
+.volet{ border-top:var(--line-soft); padding-top:var(--s4); }
+.volet > summary{ cursor:pointer; font-size:var(--t-sm); font-weight:550;
+  color:var(--forest-800); list-style:none; }
+.volet > summary::-webkit-details-marker{ display:none; }
+.volet > summary::before{ content:"+ "; }
+.volet[open] > summary::before{ content:"– "; }
+
+/* --- Le bloc des estimations ---------------------------------------- */
+.ensemble__estime{ display:grid; gap:2px; padding:var(--s4) var(--s5);
+  border-radius:var(--r-md); background:var(--warn-bg); }
+.ensemble__estimeT{ font-size:var(--t-xs); letter-spacing:var(--track-wide);
+  text-transform:uppercase; color:var(--warn-texte); font-weight:600; }
+.ensemble__estimeL{ font-family:var(--font-display); font-size:var(--t-lg);
+  letter-spacing:var(--track-h); color:var(--ink); }
+.ensemble__estimeN{ font-size:var(--t-sm); color:var(--ink-600); margin-top:4px; max-width:70ch; }

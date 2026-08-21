@@ -196,7 +196,7 @@ function vueConnexion(){
 /* ------------------------------------------------------------------ */
 /* Coquille applicative                                                */
 /* ------------------------------------------------------------------ */
-function coquille(u, vue, titre, actions = ""){
+function coquille(u, vue, titre, actions = "", periode = DB.saison().nom){
   const route = (location.hash.split("/")[1] || "tableau");
   const menu = MENUS[u.role].map(g => `
     <div class="side__group">
@@ -235,7 +235,10 @@ function coquille(u, vue, titre, actions = ""){
             <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
               stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
           <strong style="font-family:var(--font-display);font-size:var(--t-lg)">${esc(titre)}</strong>
-          <span class="badge badge--brand"><span class="dot"></span>${esc(DB.saison().nom)}</span>
+          ${/* Le bandeau dit la période à laquelle appartiennent les chiffres de la
+                page. « Saison 2026 » au-dessus d'un total qui court depuis le
+                lancement racontait deux périmètres à la fois. */""}
+          <span class="badge badge--brand"><span class="dot"></span>${esc(periode)}</span>
         </div>
         <div class="row">${actions}
           <div class="notifs">
@@ -883,12 +886,26 @@ function vueAnnuaire(u){
   const situe = monEnt && monEnt.lat != null;
   const causes = [...new Set(assos.map(a => a.cause).filter(Boolean))].sort();
   const el = h(`<div class="stack" style="--gap:var(--s5)">
-    <section class="card stack" style="--gap:var(--s4)">
-      <div class="between">
-        <h3>Les associations, et où elles sont</h3>
-        <span class="muted" style="font-size:var(--t-sm)">${nb(assos.length)} partenaires vérifiés</span>
+    <section class="card">
+      <div class="between" style="margin-bottom:var(--s5)">
+        <h3>${nb(assos.length)} associations partenaires en France</h3>
+        <span class="muted" style="font-size:var(--t-sm)">Vérifiées par Riseva</span>
       </div>
-      <div id="carte"></div>
+      <div class="annuaire__haut">
+        <div id="carte"></div>
+        <div class="stack" style="--gap:var(--s3)">
+          <h4 style="font-size:var(--t-sm);letter-spacing:var(--track-wide);
+            text-transform:uppercase;color:var(--ink-500)">${situe ? "Les plus proches de vous" : "Quelques partenaires"}</h4>
+          ${assos.slice(0, 3).map(a => `<a class="proche" href="/asso.html?id=${a.id}" target="_blank">
+            <span class="proche__nom">${esc(a.nom)}</span>
+            <span class="proche__meta">${esc(a.cause || "")} · ${esc(a.ville || "")}</span>
+            ${a.distance != null ? `<span class="proche__km tnum">${nb(a.distance)} km</span>` : ""}
+          </a>`).join("")}
+          ${situe ? `<p class="hint">Distances à vol d'oiseau depuis votre siège.</p>`
+                  : `<p class="hint">Renseignez l'adresse de l'entreprise dans Paramètres
+                     pour voir les distances.</p>`}
+        </div>
+      </div>
     </section>
     <section class="card card--pad-sm">
       <div class="row" style="gap:var(--s3);flex-wrap:wrap">
@@ -910,9 +927,7 @@ function vueAnnuaire(u){
   el.querySelector("#carte").appendChild(carteFrance([
     ...(situe ? [{ lat: monEnt.lat, lon: monEnt.lon, nom: monEnt.nom, principal: true }] : []),
     ...assos.map(a => ({ lat: a.lat, lon: a.lon, nom: a.nom, distance: a.distance }))
-  ], { hauteur: 400, legende: situe
-      ? "Le point clair, c'est votre siège. Passez la souris sur un point pour lire la distance."
-      : "Renseignez l'adresse de l'entreprise dans Paramètres pour voir les distances." }));
+  ], { hauteur: 300, compacte: true }));
 
   const dessine = () => {
     const q = el.querySelector("#q").value.trim().toLowerCase();
@@ -943,7 +958,7 @@ function vueAnnuaire(u){
         <div class="row" style="gap:var(--s3);flex-wrap:wrap">
           <span class="badge badge--brand">${esc(a.cause || "Association")}</span>
           <span class="muted" style="font-size:var(--t-sm)">${esc(a.ville)}</span>
-          ${a.distance != null ? `<span class="annonce__loin">${ICONS.pin || ""} ${nb(a.distance)} km</span>` : ""}
+          ${a.distance != null ? `<span class="annonce__loin" title="À vol d'oiseau depuis votre siège">${ICONS.pin || ""} ${nb(a.distance)} km</span>` : ""}
         </div>
         <h3>${esc(a.nom)}</h3>
         <p class="muted" style="font-size:var(--t-sm)">${esc(a.resume)}</p>
@@ -3823,35 +3838,32 @@ function vueEnsemble(u){
   const mien = u.org ? DB.realisations({ entreprise: u.org }) : null;
   const mesArbres = mien ? (mien.parUnite.arbre || 0) : 0;
   const part = r.arbres ? Math.round((mesArbres / r.arbres) * 100) : 0;
-  const cumul = DB.cumulParMois("arbre");
-  const assos = DB.associations().filter(a => a.valide);
   const monEnt = u.org ? DB.entreprise(u.org) : null;
+  const liste = r.realisations.liste;
+  const tete = liste.slice(0, 4), reste = liste.slice(4);
 
   const chiffre = (n, l) => `<div class="ensemble__c">
     <span class="ensemble__cn tnum">${n}</span><span class="ensemble__cl">${esc(l)}</span></div>`;
 
   const el = h(`<div class="stack" style="--gap:var(--s6)">
-    <section class="stack" style="--gap:var(--s3)">
-      <h2>Tous ensemble</h2>
-      <p class="muted" style="max-width:64ch">
-        Ce que toutes les entreprises abonnées à Riseva ont fait, mises bout à bout.
-        Personne n'est nommé ici : ni une entreprise, ni un salarié. Ce sont des
-        additions, et elles sont calculées à chaque ouverture de page, pas recopiées.
+    <section class="stack" style="--gap:var(--s2)">
+      <h2>Résultats déclarés par le réseau Riseva</h2>
+      <p class="muted" style="max-width:62ch">
+        Depuis le lancement, toutes entreprises confondues. Aucune n'est nommée ici,
+        aucun salarié non plus.
       </p>
     </section>
 
-    <section class="stack" style="--gap:var(--s4)">
-      <div class="between">
-        <h3>La forêt du réseau</h3>
-        <span class="muted" style="font-size:var(--t-sm)">Chiffres déclarés par les associations</span>
-      </div>
-      <div id="foret"></div>
-      <p class="hint">
-        Un arbre apparaît quand le compteur franchit un palier, et il reste à sa place.
-        Ce n'est pas une animation d'accueil : c'est l'état du décompte au moment où
-        vous ouvrez la page.
+    <div id="foret"></div>
+
+    ${monEnt ? `<section class="card card--dark grain stack" style="--gap:var(--s3)">
+      <h3 style="color:var(--paper)">Votre part</h3>
+      <p style="color:var(--forest-100);max-width:62ch">
+        ${esc(monEnt.nom)} a fait planter <strong class="tnum" style="color:var(--lime)">${nb(mesArbres)}</strong>
+        arbre${mesArbres > 1 ? "s" : ""} confirmés sur les ${nb(r.arbres)} du réseau${part >= 1 ? `, soit ${part} %` : ""}.
+        ${mien && mien.missions ? `${nb(mien.missions)} de vos missions ont produit un résultat mesurable.` : ""}
       </p>
-    </section>
+    </section>` : ""}
 
     <section class="card stack" style="--gap:var(--s5)">
       <h3>Le réseau en chiffres</h3>
@@ -3859,70 +3871,56 @@ function vueEnsemble(u){
         ${chiffre(nb(r.missions), "missions réalisées")}
         ${chiffre(nb(r.entreprises), r.entreprises > 1 ? "entreprises engagées" : "entreprise engagée")}
         ${chiffre(nb(r.associations), r.associations > 1 ? "associations soutenues" : "association soutenue")}
-        ${chiffre(nb(r.salaries), r.salaries > 1 ? "salariés mobilisés" : "salarié mobilisé")}
         ${chiffre(nb(r.heures) + " h", "de temps offert")}
-        ${chiffre(eur(r.euros), "versés aux associations")}
       </div>
     </section>
 
     <section class="card stack" style="--gap:var(--s5)">
-      <h3>Ce que ça a produit, en vrai</h3>
+      <div class="between">
+        <h3>Ce que les associations ont confirmé</h3>
+        ${r.realisations.sansReponse ? `<span class="badge badge--warn">${nb(r.realisations.sansReponse)}
+          mission${r.realisations.sansReponse > 1 ? "s" : ""} sans réponse</span>` : ""}
+      </div>
       <div class="ensemble__unites">
-        ${r.realisations.liste.map(x => `<div class="ensemble__u">
+        ${tete.map(x => `<div class="ensemble__u">
           <span class="ensemble__uq tnum">${nb(x.quantite)}</span>
-          <span class="ensemble__ul">${esc(x.quantite > 1 ? x.pl : x.un)}${
-            x.estime ? ` <em class="ensemble__est">+ ${nb(x.estime)} estimés</em>` : ""}</span>
+          <span class="ensemble__ul">${esc(x.quantite > 1 ? x.pl : x.un)}</span>
         </div>`).join("") || `<p class="muted">Rien n'a encore été confirmé.</p>`}
       </div>
-      <p class="hint">
-        Chaque unité vient d'une annonce qui l'avait annoncée, et d'une association
-        qui a confirmé le chiffre après la mission. Riseva additionne, elle n'audite pas.
-        ${r.realisations.sansReponse ? `${nb(r.realisations.sansReponse)} mission${
-          r.realisations.sansReponse > 1 ? "s se sont" : " s'est"} validée${
-          r.realisations.sansReponse > 1 ? "s" : ""} sans réponse de l'association : leur
-          production est estimée d'après l'annonce, et comptée séparément.` : ""}
-      </p>
+      ${reste.length ? `<details class="volet">
+        <summary>Voir les ${nb(reste.length)} autres résultats</summary>
+        <div class="ensemble__unites" style="margin-top:var(--s4)">
+          ${reste.map(x => `<div class="ensemble__u">
+            <span class="ensemble__uq tnum">${nb(x.quantite)}</span>
+            <span class="ensemble__ul">${esc(x.quantite > 1 ? x.pl : x.un)}</span>
+          </div>`).join("")}
+        </div>
+      </details>` : ""}
+
+      ${/* Les estimations ne se glissent pas en petit gris au milieu des chiffres
+            confirmés : elles ont leur propre bloc, avec la raison pour laquelle
+            elles existent. */
+        Object.keys(r.realisations.estimeParUnite).length ? `<div class="ensemble__estime">
+        <span class="ensemble__estimeT">Estimés, en plus</span>
+        <span class="ensemble__estimeL">${Object.entries(r.realisations.estimeParUnite)
+          .sort((a, b) => b[1] - a[1]).slice(0, 4)
+          .map(([k, v]) => `${nb(v)} ${esc((UNITES[k] || {}).pl || k)}`).join(" · ")}</span>
+        <span class="ensemble__estimeN">Missions validées faute de réponse de l'association
+          sous quatorze jours : la production est déduite de l'annonce, pas constatée.</span>
+      </div>` : ""}
+
+      <details class="volet">
+        <summary>Comment ces chiffres sont calculés</summary>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);max-width:70ch">
+          Chaque unité vient d'une annonce qui l'annonçait, et d'une association qui a
+          confirmé le chiffre après la mission. Le confirmé et l'estimé ne sont jamais
+          additionnés. Riseva additionne, elle n'audite pas.
+        </p>
+      </details>
     </section>
-
-    ${monEnt ? `<section class="card card--dark grain stack" style="--gap:var(--s4)">
-      <h3 style="color:var(--paper)">Votre part</h3>
-      <p style="color:var(--forest-100);max-width:60ch">
-        ${esc(monEnt.nom)} a fait planter <strong class="tnum" style="color:var(--lime)">${nb(mesArbres)}</strong>
-        arbre${mesArbres > 1 ? "s" : ""} confirmés sur les ${nb(r.arbres)} du réseau${part >= 1 ? `, soit ${part} %` : ""}.
-        ${mien && mien.missions ? `Et ${nb(mien.missions)} mission${mien.missions > 1 ? "s" : ""} qui ont produit quelque chose de mesurable.` : ""}
-      </p>
-    </section>` : ""}
-
-    <section class="card stack" style="--gap:var(--s4)">
-      <div class="between">
-        <h3>Où le réseau agit</h3>
-        <span class="muted" style="font-size:var(--t-sm)">${nb(assos.length)} associations partenaires</span>
-      </div>
-      <div id="carte"></div>
-    </section>
-
-    ${cumul.length > 1 ? `<section class="card stack" style="--gap:var(--s4)">
-      <h3>La progression, mois après mois</h3>
-      <div id="courbe"></div>
-      <p class="hint">Cumul des arbres plantés, du premier mois documenté à aujourd'hui.</p>
-    </section>` : ""}
   </div>`);
 
   el.querySelector("#foret").appendChild(foret(r.arbres, { unite: "arbres plantés" }));
-
-  el.querySelector("#carte").appendChild(carteFrance([
-    ...(monEnt && monEnt.lat != null
-      ? [{ lat: monEnt.lat, lon: monEnt.lon, nom: monEnt.nom, principal: true }] : []),
-    ...assos.map(a => ({ lat: a.lat, lon: a.lon, nom: a.nom }))
-  ], { hauteur: 420, legende: monEnt && monEnt.lat != null
-        ? "Le point clair, c'est vous. Les autres sont les associations partenaires."
-        : "Les associations partenaires, là où elles sont." }));
-
-  const courbe = el.querySelector("#courbe");
-  if (courbe) courbe.innerHTML = riviere(cumul.map(c => c.cumul), {
-    hauteur: 170, legendes: cumul.map(c => c.mois)
-  });
-
   return el;
 }
 
@@ -4005,7 +4003,8 @@ function rendre(){
   let actions = "";
   if (u.role === "association" && nom === "mesannonces")
     actions = `<button class="btn btn--primary btn--sm" id="np">Publier une annonce</button>`;
-  const el = coquille(u, fn(u), titre, actions);
+  const el = coquille(u, fn(u), titre, actions,
+    nom === "ensemble" ? "Depuis le lancement" : DB.saison().nom);
   root.appendChild(el);
   el.querySelector("#np")?.addEventListener("click", () => formAnnonce(u));
 }
