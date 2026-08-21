@@ -685,7 +685,31 @@ function vueMissions(u){
       <td style="text-align:right"></td></tr>`);
     if (m.etat === "engagee"){
       const b = h(`<button class="btn btn--ghost btn--sm">Déclarer faite</button>`);
-      b.onclick = () => { DB.declarerFaite(m.id); toast("L'association va recevoir le mail de confirmation."); rendre(); };
+      b.onclick = () => {
+        const an = DB.annonceDe(m);
+        const imp = an && an.impact && UNITES[an.impact.unite] ? an.impact : null;
+        if (!imp){
+          DB.declarerFaite(m.id);
+          toast("L'association va recevoir le mail de confirmation."); rendre(); return;
+        }
+        const attendu = Math.round(m.quantite * imp.par_unite);
+        const corps = h(`<div>
+          <p class="muted">Vous y étiez. Donnez le chiffre que vous avez constaté, l'association
+          le confirmera ou le corrigera.</p>
+          <div class="field" style="margin-top:var(--s5)">
+            <label>${esc(UNITES[imp.unite].pl.charAt(0).toUpperCase() + UNITES[imp.unite].pl.slice(1))}</label>
+            <input class="input" type="number" min="0" id="rp" value="${attendu}">
+            <p class="hint">Prévu d'après l'annonce : ${nb(attendu)}. Ce chiffre n'entre au
+              décompte qu'une fois l'association d'accord.</p>
+          </div>
+        </div>`);
+        modal("Déclarer « " + esc(an.titre) + " » réalisée", corps, [
+          { label:"Annuler" },
+          { label:"Déclarer", classe:"btn--primary", onClick: () => {
+              DB.declarerFaite(m.id, Number(corps.querySelector("#rp").value));
+              toast("L'association va recevoir le mail de confirmation."); rendre(); }}
+        ]);
+      };
       tr.lastElementChild.appendChild(b);
     }
     tb.appendChild(tr);
@@ -1691,14 +1715,17 @@ function vueAValider(u){
           toast("Mission confirmée, points crédités."); rendre(); return;
         }
         const attendu = Math.round(m.quantite * imp.par_unite);
+        const propose = m.realise_propose;
+        const sal = DB.utilisateur(m.salarie);
         const corps = h(`<div>
-          <p class="muted">Vous étiez là, vous seule savez ce qui a réellement été fait.
-          Ce chiffre alimente le décompte de l'entreprise et celui du réseau.</p>
+          <p class="muted">Vous étiez là. C'est votre chiffre qui fait foi et qui alimente le
+          décompte de l'entreprise et celui du réseau.</p>
           <div class="field" style="margin-top:var(--s5)">
             <label>${esc(UNITES[imp.unite].pl.charAt(0).toUpperCase() + UNITES[imp.unite].pl.slice(1))}</label>
-            <input class="input" type="number" min="0" id="re" value="${attendu}">
-            <p class="hint">Estimation d'après l'annonce : ${nb(attendu)}.
-              Corrigez librement, c'est votre chiffre qui fait foi.</p>
+            <input class="input" type="number" min="0" id="re" value="${propose != null ? propose : attendu}">
+            <p class="hint">${propose != null
+              ? `${esc(sal ? sal.nom : "Le salarié")} a déclaré ${nb(propose)}. Prévu d'après l'annonce : ${nb(attendu)}.`
+              : `Prévu d'après l'annonce : ${nb(attendu)}.`} Corrigez librement.</p>
           </div>
         </div>`);
         modal("Confirmer « " + a.titre + " »", corps, [
@@ -1795,12 +1822,28 @@ function tableauAdmin(){
         <h3>À traiter</h3>
         <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
           ${as.filter(a => !a.valide).map(a =>
-            `<div class="between"><span>${esc(a.nom)}</span><span class="badge badge--warn">à valider</span></div>`).join("")
-            || `<p class="muted">Rien en attente.</p>`}
+            `<div class="between"><span>${esc(a.nom)}</span><span class="badge badge--warn">à valider</span></div>`).join("")}
+          ${DB.aReverifier().map(a =>
+            `<div class="between"><span>${esc(a.nom)}</span><span class="badge badge--warn">à revérifier</span></div>`).join("")}
+          ${!as.filter(a => !a.valide).length && !DB.aReverifier().length
+            ? `<p class="muted">Rien en attente.</p>` : ""}
         </div>
+        <hr class="sep">
+        <h3 style="font-size:var(--t-lg)">Dernier passage du moteur</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+          ${(() => { const j = DB.journalMoteur()[0];
+            return j ? `${dateFR(j.le)} · ${j.validations_auto} validation(s) automatique(s),
+                        ${j.annonces_fermees} fermeture(s), ${j.rapports} rapport(s).`
+                     : "Le moteur n'a pas encore tourné."; })()}</p>
+        <a class="btn btn--ghost btn--sm" style="margin-top:var(--s4)" href="#/moteur">Voir les automatismes</a>
       </section>
     </div>
+
+    <div id="reaR"></div>
   </div>`);
+  const rr = bandeauRealisations(DB.realisations(),
+    { titre: "Ce que le réseau a produit", sombre: true });
+  if (rr) el.querySelector("#reaR").appendChild(rr);
   return el;
 }
 
@@ -2822,10 +2865,24 @@ function vuePreferences(u){
       <div class="stack" style="--gap:var(--s5);margin-top:var(--s6)" id="l"></div>
       <button class="btn btn--primary" style="margin-top:var(--s8)" id="save">Enregistrer</button>
     </section>
-    <section class="card">
-      <h3>Notifications en cours</h3>
-      <div class="stack" style="--gap:var(--s3);margin-top:var(--s5)" id="apercu"></div>
-    </section>
+    <div class="stack" style="--gap:var(--s5)">
+      <section class="card">
+        <h3>Notifications en cours</h3>
+        <div class="stack" style="--gap:var(--s3);margin-top:var(--s5)" id="apercu"></div>
+      </section>
+
+      <section class="card">
+        <h3>Cet environnement</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+          Tout ce que vous faites ici est enregistré et retrouvé à votre retour, exactement
+          comme dans la version en production. ${DB.enregistreLe()
+            ? `Dernier enregistrement le ${dateFR(DB.enregistreLe())}.` : ""}</p>
+        <button class="btn btn--ghost btn--sm" style="margin-top:var(--s5)" id="raz">
+          Remettre la démonstration à neuf</button>
+        <p class="hint">Efface tout ce qui a été saisi et revient au jeu de départ.
+          Une démonstration qu'on ne peut pas remettre à zéro finit par ne plus rien démontrer.</p>
+      </section>
+    </div>
   </div>`);
   const box = el.querySelector("#l");
   lignes.forEach(([cle, titre, texte]) => {
@@ -2847,6 +2904,15 @@ function vuePreferences(u){
     DB.majPreferences(u.id, champs);
     toast("Préférences enregistrées.");
   };
+  el.querySelector("#raz").onclick = () => modal("Remettre la démonstration à neuf",
+    `<p class="muted">Tout ce qui a été saisi depuis le début disparaît : annonces publiées,
+     missions engagées, réglages, comptes créés. Le jeu de départ revient.</p>
+     <p class="hint" style="margin-top:var(--s4)">Cette action ne se défait pas.</p>`,
+    [{ label:"Annuler" },
+     { label:"Tout remettre à neuf", classe:"btn--primary", onClick: () => {
+         DB.reinitialiser();
+         try { localStorage.removeItem("riseva.notifs.lues"); } catch {}
+         location.reload(); }}]);
   return el;
 }
 

@@ -397,8 +397,17 @@ function creerMock(){
                     : null };
       s.missions.unshift(m); return m;
     },
-    declarerFaite(mid){
-      const m = s.missions.find(x => x.id === mid); if (m) m.etat = "a_valider"; return m;
+    /* Le salarié déclare ce qu'il a fait, chiffre à l'appui. L'association corrigera si
+       besoin : c'est elle qui tranche, mais partir de son chiffre à lui évite la page
+       blanche et fait remonter une information que personne d'autre n'a. */
+    declarerFaite(mid, realisePropose){
+      const m = s.missions.find(x => x.id === mid);
+      if (!m) return null;
+      m.etat = "a_valider";
+      m.declaree_le = new Date().toISOString().slice(0, 10);
+      if (realisePropose !== undefined && realisePropose !== null)
+        m.realise_propose = Math.max(0, Number(realisePropose) || 0);
+      return m;
     },
     /* Validation en masse : la lenteur d'une association bloque les points de plusieurs
        entreprises à la fois. On lui donne de quoi trancher d'un coup. */

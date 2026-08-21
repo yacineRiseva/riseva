@@ -104,8 +104,13 @@ def main():
         p.wait_for_timeout(400)
         verifie("le salarié est positionné", "positionné" in p.inner_text(".toast"))
         p.evaluate("()=>location.hash='#/missions'"); p.wait_for_timeout(300)
-        p.evaluate("()=>{const b=[...document.querySelectorAll('tbody button')].find(x=>/Déclarer/.test(x.textContent)); if(b)b.click()}")
-        p.wait_for_timeout(300)
+        p.evaluate("()=>{const b=[...document.querySelectorAll('tbody button')].find(x=>/Déclarer faite/.test(x.textContent)); if(b)b.click()}")
+        p.wait_for_timeout(350)
+        if p.is_visible(".modal #rp"):
+            verifie("le salarié chiffre ce qu'il a fait", True)
+            p.fill(".modal #rp", "45")
+            p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/^Déclarer$/.test(b.textContent.trim())).click()")
+            p.wait_for_timeout(350)
         verifie("la mission passe à valider", "confirmation" in p.inner_text(".toast"))
 
         print("\nQuota de places et anonymisation")

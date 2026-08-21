@@ -137,3 +137,38 @@
 .card--dark .realis__n{color:var(--lime)}
 .card--dark .realis__l{color:rgba(223,230,208,.7)}
 .card--dark .hint{color:rgba(223,230,208,.5)}
+
+/* ============ Impression ============ */
+/* Un rapport qu'on imprime depuis l'écran doit sortir comme un document, pas comme
+   une capture d'application. On retire la coquille et on remet la page à plat. */
+@media print{
+  @page{margin:18mm 16mm}
+  .side,.topbar,.notifs,.toast,.overlay{display:none !important}
+  .app{display:block}
+  .content{padding:0;max-width:none}
+  body{background:#fff;color:#131510;font-size:11pt}
+  .card{break-inside:avoid;box-shadow:none;border:1px solid #E5E2D9;background:#fff;
+    padding:14px 16px}
+  .card--dark,.kpi--tete{background:#fff !important;color:#131510 !important;
+    border:1px solid #E5E2D9 !important}
+  .card--dark h1,.card--dark h2,.card--dark h3,.kpi--tete .kpi__value{color:#131510 !important}
+  .kpi--tete .kpi__label,.card--dark .muted{color:#63675C !important}
+  .grain::after{display:none}
+  .two{display:block}
+  .two>*+*{margin-top:14px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .realis__n{color:#131510 !important;font-size:1.6rem}
+  .realis__l{color:#63675C !important}
+  .realis__c{border-left-color:#1F5C4A !important}
+  .btn{display:none}
+  h2,h3{break-after:avoid}
+  table{break-inside:auto}
+  tr{break-inside:avoid}
+  /* En-tête et pied de page du document imprimé. */
+  .content::before{content:"Riseva — rapport de saison";display:block;
+    font-size:9pt;letter-spacing:.12em;text-transform:uppercase;color:#63675C;
+    padding-bottom:10px;margin-bottom:18px;border-bottom:1px solid #E5E2D9}
+  .content::after{content:"Document généré par Riseva. Les chiffres de réalisation sont déclarés par les associations bénéficiaires. Le score mesure un engagement, pas un impact environnemental.";
+    display:block;margin-top:22px;padding-top:10px;border-top:1px solid #E5E2D9;
+    font-size:8.5pt;color:#8A8F82}
+}
