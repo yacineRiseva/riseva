@@ -1,4 +1,4 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, lienPublic, connecterSupabase } from "./data.js";
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
 import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
@@ -5413,6 +5413,20 @@ window.addEventListener("hashchange", rendre);
 
 /* Branche Supabase si window.RISEVA_CONFIG existe (défini dans /app/config.js),
    sinon l'application reste en mode démonstration. */
+/* En production, une écriture revient du serveur après coup : l'écran se
+   redessine à ce moment-là, et un refus de policy s'annonce au lieu de se
+   perdre dans une promesse que personne n'attend. */
+brancherEvenements({
+  apres: () => rendre(),
+  erreur: (e) => toast(e && e.message ? e.message : "L'enregistrement a été refusé.")
+});
+addEventListener("unhandledrejection", (e) => {
+  const m = e.reason && e.reason.message;
+  if (!m) return;
+  e.preventDefault();
+  toast(m);
+});
+
 (async () => {
   if (window.RISEVA_CONFIG) { try { await connecterSupabase(window.RISEVA_CONFIG); } catch (e) { console.warn(e); } }
   rendre();

@@ -2696,6 +2696,21 @@ async function chargerEtat(client){
   };
 }
 
+/* En production, une écriture est un aller-retour : on appelle la RPC, on relit,
+   puis seulement on redessine. L'interface, elle, est synchrone — elle a été
+   écrite pour un état en mémoire. Plutôt que de saupoudrer des `await` dans
+   trente-cinq gestionnaires de clic, on annonce l'arrivée du nouvel état.
+
+   Le contrat est explicite : rien n'est affiché comme fait avant que le serveur
+   l'ait accepté. L'écran garde l'état d'avant pendant l'aller-retour, puis se
+   redessine. Une écriture refusée déclenche `surErreur`, jamais un silence. */
+let apresEcriture = () => {};
+let surErreur = () => {};
+export function brancherEvenements({ apres, erreur } = {}){
+  if (apres) apresEcriture = apres;
+  if (erreur) surErreur = erreur;
+}
+
 function creerSupabase(client){
   const rpc = async (nom, args) => {
     const { data, error } = await client.rpc(nom, args);
@@ -2709,9 +2724,19 @@ function creerSupabase(client){
      accepté. Une écriture refusée par une policy doit se voir tout de suite,
      pas à la prochaine visite. */
   const ecrire = async (fn) => {
-    const r = await fn();
-    moteur = creerMoteur({ etat: await chargerEtat(client), persister: false, mode: "supabase" });
-    return r;
+    try {
+      const r = await fn();
+      moteur = creerMoteur({ etat: await chargerEtat(client), persister: false, mode: "supabase" });
+      apresEcriture();
+      return r;
+    } catch (e){
+      /* Relire même après un refus : l'écran doit revenir à ce que le serveur
+         dit, pas rester sur ce que l'utilisateur croyait avoir fait. */
+      try { moteur = creerMoteur({ etat: await chargerEtat(client), persister: false, mode: "supabase" }); } catch {}
+      surErreur(e);
+      apresEcriture();
+      throw e;
+    }
   };
 
   const dos = {
