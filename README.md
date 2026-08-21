@@ -101,9 +101,16 @@ migrations dépendent — schéma `auth`, `auth.users`, `auth.uid()`, les rôles
    défaut avant d'en rendre nommément, et `05` reprend la propriété des fonctions.
 3. Copier `public/app/config.example.js` en `public/app/config.js` et y mettre l'URL du projet
    et la clé anonyme.
-4. Déployer les fonctions Edge : `supabase functions deploy demande-validation valider-mission rapport recu-fiscal`.
-5. Planifier `valider_missions_sans_reponse()` une fois par jour et `rafraichir_classement()`
-   chaque lundi.
+4. Figer la bibliothèque cliente : `./scripts/figer-dependance.sh`. Elle atterrit
+   dans `public/app/vendor/`, avec son empreinte. Sans ce fichier, l'application
+   refuse de démarrer sur le domaine de production plutôt que d'importer du code
+   tiers modifiable à l'exécution.
+5. Déployer les fonctions Edge : `supabase functions deploy demande-validation valider-mission rapport recu-fiscal paiement`.
+6. Renseigner `WEBHOOK_SECRET` dans les variables de la fonction `paiement`, et
+   donner cette URL au prestataire de paiement. C'est le seul chemin par lequel un
+   don entre dans la base.
+7. `05_taches.sql` planifie déjà `private.moteur()` chaque nuit via pg_cron :
+   validation automatique, fermeture des annonces, rapports, purges.
 
 La clé anonyme est publique par nature : c'est RLS qui protège les données, jamais le secret
 de la clé. La clé `service_role` ne doit exister que dans les variables d'environnement des

@@ -110,7 +110,7 @@ Ce document sert de plan de correction. Une ligne cochée est une ligne corrigé
   where etat='ouverte'`, `acces(cree_le)`, `don(association, cree_le)`.
 - [x] `classement_saison` rescanne `mission` par entreprise. → Agrégat set-based.
 - [x] `ca integer` déborde au-delà de 2 147 483 647 €. → `numeric(15,2)`.
-- [ ] Import navigateur d'une dépendance tierce mutable. → Version bundlée.
+- [x] Import navigateur d'une dépendance tierce mutable. → Version bundlée.
 
 ## Ce qui n'a pas été trouvé
 
@@ -143,5 +143,9 @@ Ce qui reste ouvert, et pourquoi :
   `mission.salarie` passe à NULL, mais l'appel à l'API Auth Admin et le rejeu des
   demandes d'effacement sur les sauvegardes sont une procédure d'exploitation,
   pas une migration.
-- **Dépendance navigateur bundlée.** `@supabase/supabase-js` est encore importé
-  depuis un CDN à l'exécution.
+- **Dépendance navigateur.** `scripts/figer-dependance.sh` télécharge une version
+  exacte dans `public/app/vendor/`, en consigne l'empreinte SHA-256, et
+  `connecterSupabase()` charge cette copie en priorité ; le repli CDN est épinglé
+  et refusé sur le domaine de production. Reste à lancer le script une fois, dans
+  un environnement qui a accès au registre — le conteneur de développement ne
+  l'a pas.

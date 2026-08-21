@@ -1793,7 +1793,7 @@ export async function connecterSupabase(config){
         + "est interdit sur le domaine de production.");
     return impl;                                    // développement : démo assumée
   }
-  const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+  const { createClient } = await chargerPilote();
   const client = createClient(config.url, config.anonKey);
   const dos = creerSupabase(client);
   const manquantes = Object.keys(impl).filter(k => typeof impl[k] === "function"
@@ -1803,6 +1803,27 @@ export async function connecterSupabase(config){
       + " méthodes manquantes). Démarrage refusé plutôt que de servir de la démonstration.");
   impl = dos;
   return impl;
+}
+
+/* La bibliothèque cliente, figée. Importée d'un CDN à l'exécution, elle est
+   mutable : le jour où l'URL sert autre chose, ce sont nos jetons de session qui
+   partent ailleurs, sans qu'aucun de nos fichiers ait changé. On charge donc en
+   priorité la copie déposée dans `public/app/vendor/`, produite par
+   `scripts/figer-dependance.sh` et versionnée avec le reste. Le repli CDN est
+   épinglé à une version exacte et interdit en production. */
+const PILOTE_LOCAL = "./vendor/supabase.js";
+const PILOTE_CDN   = "https://esm.sh/@supabase/supabase-js@2.45.4";
+
+async function chargerPilote(){
+  try { return await import(PILOTE_LOCAL); }
+  catch {
+    if (estProduction())
+      throw new Error("Riseva : la bibliothèque Supabase n'est pas figée dans "
+        + "public/app/vendor/. Lancez scripts/figer-dependance.sh avant de déployer.");
+    console.warn("Riseva : bibliothèque Supabase chargée depuis un CDN. "
+      + "Acceptable en développement, jamais en production.");
+    return await import(/* @vite-ignore */ PILOTE_CDN);
+  }
 }
 
 /* Le socle de la vraie implémentation. Chaque méthode qui existe ici parle à
