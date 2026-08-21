@@ -183,7 +183,10 @@ export function bandeauRealisations(r, { titre = "Ce que ça a produit", sombre 
   const el = h(`<section class="card ${sombre ? "card--dark grain" : ""} realis">
     <div class="between" style="margin-bottom:var(--s6)">
       <h3>${esc(titre)}</h3>
-      <span class="badge ${sombre ? "badge--lime" : "badge--brand"}">${nb(r.missions)} mission${r.missions > 1 ? "s" : ""}</span>
+      ${/* « 3 missions » à côté de « 4 missions validées » semblait se contredire.
+            Le badge dit ce qu'il compte : des résultats confirmés. */""}
+      <span class="badge ${sombre ? "badge--lime" : "badge--brand"}">${nb(r.missions)} résultat${
+        r.missions > 1 ? "s" : ""} confirmé${r.missions > 1 ? "s" : ""}</span>
     </div>
     <div class="realis__grid">
       ${r.liste.map(x => `<div class="realis__c">
@@ -193,10 +196,9 @@ export function bandeauRealisations(r, { titre = "Ce que ça a produit", sombre 
       </div>`).join("")}
     </div>
     <p class="hint" style="margin-top:var(--s6)">${esc(note)}${r.sansReponse ? `
-      Les gros chiffres sont ceux que les associations ont confirmés. ${nb(r.sansReponse)}
-      mission${r.sansReponse > 1 ? "s ont" : " a"} été validée${r.sansReponse > 1 ? "s" : ""} faute de
-      réponse sous quatorze jours : ce qu'elle${r.sansReponse > 1 ? "s ont" : " a"} produit reste une
-      estimation, comptée à part.` : ""}</p>
+      ${nb(r.sansReponse)} résultat${r.sansReponse > 1 ? "s" : ""} estimé${
+      r.sansReponse > 1 ? "s sont comptés" : " est compté"} séparément.` : ""}
+      <a href="/reglement.html#mesure" target="_blank" class="realis__methode">Voir la méthode</a></p>
   </section>`);
   return el;
 }
@@ -243,8 +245,8 @@ export function jauge({ brut, ecrete, retenu, diviseur, cohorte, cause, unite = 
       <span>${nb(retenu)} points retenus ÷ ${nb(diviseur)} salariés</span>
       <strong>${pct(parTete)} point${parTete > 1 ? "s" : ""} par salarié</strong>
     </div>` : ""}
-    ${cohorte ? `<p class="hint">Comparé à ${cohorte} entreprise${cohorte > 1 ? "s" : ""} de la
-      même taille.${cohorte < 10 ? " Cohorte trop petite pour publier un rang." : ""}</p>` : ""}
+    ${/* La cohorte est expliquée une fois, dans « Où vous en êtes ». La répéter
+          ici mettait deux formulations de la même réserve sur le même écran. */""}
   </div>`);
 }
 

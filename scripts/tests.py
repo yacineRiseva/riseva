@@ -381,11 +381,12 @@ def main():
         connecte(p, "u2")
         t = p.inner_text(".content")
         verifie("le décompte des réalisations s'affiche", "arbres plantés" in t)
-        verifie("la provenance du chiffre est dite", "elle n'audite pas" in t)
+        verifie("la provenance du chiffre est dite",
+                "confirmés par les associations" in t and "Voir la méthode" in t)
         connecte(p, "u2", "#/ensemble")
         te = p.inner_text(".content")
         verifie("la page Tous ensemble additionne tout le réseau",
-                "réseau Riseva" in te and "missions réalisées" in te)
+                "réseau Riseva" in te and "missions validées" in te)
         verifie("la forêt affiche le vrai décompte sous le dessin", "arbres plantés" in te)
         verifie("l'échelle du dessin est annoncée", "palier" in te.lower())
         verifie("le confirmé et l'estimé ne sont pas mélangés",

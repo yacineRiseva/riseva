@@ -337,10 +337,16 @@
 .annuaire__haut{ display:grid; gap:var(--s6); grid-template-columns:minmax(0,38%) 1fr;
   align-items:start; }
 @media (max-width:900px){ .annuaire__haut{ grid-template-columns:1fr } }
-.proche{ display:grid; grid-template-columns:1fr auto; gap:2px var(--s4);
+/* Une ligne cliquable qui ne le montre pas ne se clique pas : chevron, survol,
+   et le curseur qui va avec. */
+.proche{ display:grid; grid-template-columns:1fr auto auto; gap:2px var(--s4);
   padding:var(--s3) var(--s4); border-radius:var(--r-sm); background:var(--paper-sunk);
   transition:background var(--dur) var(--ease); }
 .proche:hover{ background:var(--forest-050); }
+.proche:hover .proche__go{ transform:translateX(3px); }
+.proche__go{ grid-column:3; grid-row:1 / span 2; align-self:center; width:8px; height:8px;
+  border-right:2px solid var(--ink-400); border-top:2px solid var(--ink-400);
+  transform:rotate(45deg); transition:transform var(--dur) var(--ease); }
 .proche__nom{ grid-column:1; grid-row:1; font-weight:550; }
 .proche__meta{ grid-column:1; grid-row:2; font-size:var(--t-sm); color:var(--ink-500); }
 .proche__km{ grid-column:2; grid-row:1 / span 2; align-self:center; justify-self:end;
@@ -372,3 +378,5 @@
 .aFaire{ gap:var(--s8); }
 .aFaire__col{ display:flex; align-items:flex-start; gap:var(--s4); flex:1; min-width:280px; }
 .aFaire__col .aFaire__liste{ flex:1; }
+.realis__methode{ color:var(--forest-800); text-decoration:underline; text-underline-offset:2px; }
+.card--dark .realis__methode{ color:var(--lime); }

@@ -158,12 +158,35 @@ Le calcul est refait chaque lundi matin.</p>
 <p>Chaque entreprise peut télécharger le détail de ses missions au format CSV et refaire ce calcul.
 Si les deux ne concordent pas, écrivez-nous : c'est nous qui avons tort.</p>
 
-<h2>5. Ce que le score n'est pas</h2>
+<h2 id="mesure">5. Ce que les associations confirment</h2>
+
+<p>Une annonce peut annoncer un objectif : quatre cents arbres, trois cents colis, mille repas.
+Quand la mission est faite, le salarié la déclare, et <strong>l'association tranche</strong> : elle
+confirme, elle corrige le chiffre, ou elle refuse. C'est elle qui était sur place, c'est son chiffre
+qui compte.</p>
+
+<p>Si elle ne répond pas sous quatorze jours, la mission est validée d'office pour ne pas bloquer
+l'entreprise. Mais dans ce cas <strong>personne n'a compté</strong> : l'entreprise marque ses points,
+et le résultat reste une estimation, déduite de l'objectif annoncé.</p>
+
+<div class="encadre">
+  <p><strong>Deux chiffres, jamais additionnés.</strong></p>
+  <p><strong>Résultats confirmés</strong> — déclarés par l'association après la mission. Ce sont les
+  chiffres affichés en grand, et les seuls qui partent dans un rapport comme des résultats.</p>
+  <p><strong>Résultats estimés</strong> — calculés à partir de l'objectif de l'annonce, faute de
+  réponse. Ils sont affichés à part, dans un bloc distinct, et jamais ajoutés aux précédents.</p>
+</div>
+
+<p>Riseva additionne, elle n'audite pas. Nous ne nous rendons pas sur place et nous ne recomptons pas
+les arbres : nous garantissons que le chiffre affiché est bien celui que l'association a saisi, à la
+date où elle l'a saisi, et qu'un silence n'est jamais présenté comme une confirmation.</p>
+
+<h2>6. Ce que le score n'est pas</h2>
 <p>Le score mesure un <strong>engagement</strong> : du temps donné, du matériel donné, de l'argent
 donné. Ce n'est pas une mesure d'impact environnemental ou social, et Riseva ne le présentera jamais
 comme telle, ni dans l'interface, ni dans les rapports, ni en rendez-vous commercial.</p>
 
-<h2>6. Litiges</h2>
+<h2>7. Litiges</h2>
 <ul>
   <li><strong>Contestation d'un refus.</strong> L'entreprise dispose de quinze jours pour contester
       un refus de validation. Riseva demande sa version à l'association et tranche par écrit.</li>

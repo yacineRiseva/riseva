@@ -371,10 +371,12 @@ function tableauEntreprise(u){
 
   const coutParAction = validees.length && fact.contrat
     ? Math.round(fact.contrat.montant_ht / validees.length) : null;
-  const heuresTT = validees.reduce((n, m) => {
+  const heures = (surTempsDeTravail) => validees.reduce((n, m) => {
     const a = DB.annonceDe(m);
-    return n + (a && a.temps_travail && a.type === "benevolat_demi_journee" ? m.quantite * 4 : 0);
+    if (!a || a.type !== "benevolat_demi_journee") return n;
+    return n + (!!a.temps_travail === surTempsDeTravail ? m.quantite * 4 : 0);
   }, 0);
+  const heuresTT = heures(true), heuresPerso = heures(false);
 
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     ${/* Deux lignes n'ont pas besoin d'une carte de deux cents pixels. Un bandeau
@@ -418,7 +420,12 @@ function tableauEntreprise(u){
             reaEnt.missions < validees.length
               ? `dont ${nb(reaEnt.missions)} avec un résultat confirmé par l'association`
               : enCours.length + " en cours")}
-      ${kpi("Heures sur le temps de travail", nb(heuresTT), "valorisables en mécénat")}
+      ${/* « Heures offertes » regroupait deux choses différentes : du bénévolat
+            sur temps personnel et du mécénat de compétences sur temps de travail.
+            Seul le second se valorise fiscalement. */
+        kpi("Heures consacrées aux missions", nb(heuresTT + heuresPerso),
+            heuresTT ? `dont ${nb(heuresTT)} h sur le temps de travail, valorisables en mécénat`
+                     : "toutes sur le temps personnel des salariés")}
       ${kpi("Associations soutenues", nb(prefs.length),
             prefs.length ? "sur " + nb(DB.associations().filter(a => a.valide).length) + " partenaires"
                          : "aucune pour l'instant")}
@@ -444,7 +451,9 @@ function tableauEntreprise(u){
           <span class="muted" style="font-size:var(--t-sm)">${esc(p.asso.cause || "")} · ${esc(p.asso.ville || "")}</span>
           <div class="pref__l"><span>Missions</span><b class="tnum">${nb(p.missions)}</b></div>
           <div class="pref__l"><span>Salariés impliqués</span><b class="tnum">${nb(p.salaries)}</b></div>
-          <div class="pref__l"><span>Points rapportés</span><b class="tnum">${nb(p.points)}</b></div>
+          ${/* « Points rapportés » entretenait un palmarès implicite des
+                associations. La date, les missions, les salariés et le résultat
+                réel disent tout ce qu'il faut. Les points restent dans le rapport. */""}
           ${p.impacts.length ? `<div class="pref__l" style="border-top:var(--line-soft);padding-top:var(--s3)">
             <span>${esc(p.impacts[0].quantite > 1 ? p.impacts[0].pl : p.impacts[0].un)}</span>
             <b class="tnum">${nb(p.impacts[0].quantite)}</b></div>` : ""}
@@ -471,7 +480,7 @@ function tableauEntreprise(u){
     <div class="two">
       <section class="card">
         <div class="between" style="margin-bottom:var(--s6)">
-          <div><h3>Vos ${nb(pts.brut)} points, après application du plafond</h3>
+          <div><h3>Votre score : ${nb(pts.retenu)} points retenus sur ${nb(pts.brut)} bruts</h3>
           <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
             Chaque format peut représenter au maximum ${Math.round(PLAFOND_PAR_FORMAT * 100)} % du score retenu</p></div>
           <a class="btn btn--quiet btn--sm" href="/reglement.html" target="_blank">Le règlement</a>
@@ -626,8 +635,12 @@ function tableauEntreprise(u){
     diviseur: e.effectif, cohorte: total,
     cause: ecarts[0] && ecarts[0].perte > 0 ? ecarts[0] : null }));
 
-  const rea = bandeauRealisations(reaEnt,
-    { titre: "Ce que vos équipes ont produit", sombre: true });
+  const rea = bandeauRealisations(reaEnt, {
+    titre: "Ce que vos équipes ont produit", sombre: true,
+    /* Cinq phrases défensives en pied de bloc principal se lisent comme une
+       excuse. Deux suffisent, et la méthode complète est à un clic. */
+    note: `${nb(reaEnt.missions)} résultat${reaEnt.missions > 1 ? "s" : ""} confirmé${
+      reaEnt.missions > 1 ? "s" : ""} par les associations.` });
   if (rea) el.querySelector("#realis").appendChild(rea);
 
   if (u.role === "entreprise_admin"){
@@ -722,9 +735,8 @@ function listeAnnonces(annonces, u){
           <span class="annonce__ptsN">+${a.type === "don_financier" ? b.points : nb(b.points)}</span>
           ${/* Le libellé sort du barème : « points par demi-journée » collé sur un don
                 de matériel annonçait une unité qui n'existe pas pour ce format. */""}
-          <span class="annonce__ptsL">${a.type === "don_financier"
-            ? "pts / 10 €"
-            : `pts / ${esc(b.unite)}`}</span>
+          <span class="annonce__ptsL">${
+            `pt${b.points > 1 ? "s" : ""} / ${a.type === "don_financier" ? "10 €" : esc(b.unite)}`}</span>
         </span>
       </div>
       <div class="annonce__corps">
@@ -955,6 +967,7 @@ function vueAnnuaire(u){
             <span class="proche__nom">${esc(a.nom)}</span>
             <span class="proche__meta">${esc(a.cause || "")} · ${esc(a.ville || "")}</span>
             ${a.distance != null ? `<span class="proche__km tnum">${nb(a.distance)} km</span>` : ""}
+            <span class="proche__go" aria-hidden="true"></span>
           </a>`).join("")}
           ${situe ? `<p class="hint">Distances à vol d'oiseau depuis votre siège.</p>`
                   : `<p class="hint">Renseignez l'adresse de l'entreprise dans Paramètres
@@ -2522,8 +2535,19 @@ function formAnnonce(u, existante = null){
     const titre = corps.querySelector("#titre").value;
     const chiffres = (titre.match(/\d[\d  ]*/g) || [])
       .map(x => Number(x.replace(/[^\d]/g, ""))).filter(Boolean);
-    if (chiffres.length && !chiffres.includes(o)){
-      n.textContent += ` Attention : votre titre annonce ${chiffres.map(nb).join(" et ")}.`;
+    /* On compare le nombre ET le mot. « Objectif : 10 kits » sous un titre qui
+       parle d'équipements, c'est le même écart que 480 sous un titre à 400 :
+       le lecteur voit deux unités et n'en croit aucune. */
+    const motCle = libelle.split(" ")[0].replace(/s$/, "").toLowerCase();
+    const ecarts = [];
+    if (chiffres.length && !chiffres.includes(o))
+      ecarts.push(`votre titre annonce ${chiffres.map(nb).join(" et ")}`);
+    if (titre.length > 6 && motCle.length > 3
+        && !titre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+              .includes(motCle.normalize("NFD").replace(/[\u0300-\u036f]/g, "")))
+      ecarts.push(`le mot « ${libelle.split(" ")[0]} » n'apparaît pas dans votre titre`);
+    if (ecarts.length){
+      n.textContent += " Attention : " + ecarts.join(", et ") + ".";
       n.classList.add("hint--alerte");
     } else n.classList.remove("hint--alerte");
   };
@@ -3151,7 +3175,8 @@ function tableauSalarie(u){
     const a = DB.annonceDe(m);
     todo.appendChild(h(`<div class="between" style="font-size:var(--t-sm)">
       <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.titre)}</span>
-      <span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].label}</span></div>`));
+      <span class="badge ${ETATS_MISSION[m.etat].badge}">${
+        m.etat === "a_valider" ? "En attente de l'association" : ETATS_MISSION[m.etat].label}</span></div>`));
   });
 
   el.querySelector("#reco").appendChild(listeAnnonces(
@@ -4132,8 +4157,8 @@ function vueEnsemble(u){
     <section class="stack" style="--gap:var(--s2)">
       <h2>Résultats déclarés par le réseau Riseva</h2>
       <p class="muted" style="max-width:62ch">
-        Depuis le lancement, toutes entreprises confondues. Aucune n'est nommée ici,
-        aucun salarié non plus.
+        Depuis le lancement, toutes entreprises confondues. Les données sont agrégées :
+        aucune entreprise ni aucun salarié n'est nommé.
       </p>
     </section>
 
@@ -4151,7 +4176,9 @@ function vueEnsemble(u){
     <section class="card stack" style="--gap:var(--s5)">
       <h3>Le réseau en chiffres</h3>
       <div class="ensemble__chiffres">
-        ${chiffre(nb(r.missions), "missions réalisées")}
+        ${chiffre(nb(r.missions), r.realisations.sansReponse
+            ? `missions validées, dont ${nb(r.realisations.sansReponse)} clôturées automatiquement sans confirmation`
+            : "missions validées")}
         ${chiffre(nb(r.entreprises), r.entreprises > 1
             ? "entreprises avec au moins une action validée"
             : "entreprise avec au moins une action validée")}
@@ -4185,7 +4212,9 @@ function vueEnsemble(u){
             confirmés : elles ont leur propre bloc, avec la raison pour laquelle
             elles existent. */
         Object.keys(r.realisations.estimeParUnite).length ? `<div class="ensemble__estime">
-        <span class="ensemble__estimeT">Estimés, en plus</span>
+        ${/* « En plus » invitait à additionner l'estimé au confirmé, ce que tout
+              le reste du produit s'interdit. */""}
+        <span class="ensemble__estimeT">Résultats estimés — non confirmés</span>
         <span class="ensemble__estimeL">${Object.entries(r.realisations.estimeParUnite)
           .sort((a, b) => b[1] - a[1]).slice(0, 4)
           .map(([k, v]) => `${nb(v)} ${esc((UNITES[k] || {}).pl || k)}`).join(" · ")}</span>
@@ -4219,7 +4248,7 @@ const ROUTES = {
     tableau:   [tableauEntreprise, "Tableau de bord"],
     annonces:  [vueAnnonces,       "Annonces"],
     missions:  [vueMissions,       "Nos missions"],
-    classement:[vueClassement,     "Classement"],
+    classement:[vueClassement,     "Score et classement"],
     annuaire:  [vueAnnuaire,       "Associations"],
     ensemble:  [vueEnsemble,       "Tous ensemble"],
     equipe:    [vueEquipe,         "Équipe"],
@@ -4233,7 +4262,7 @@ const ROUTES = {
     tableau:   [tableauSalarie,    "Tableau de bord"],
     annonces:  [vueAnnonces,       "Annonces"],
     missions:  [vueMissions,       "Mes missions"],
-    classement:[vueClassement,     "Classement"],
+    classement:[vueClassement,     "Score et classement"],
     annuaire:  [vueAnnuaire,       "Associations"],
     ensemble:  [vueEnsemble,       "Tous ensemble"],
     activite:  [vueActivite,       "Mon activité"],
