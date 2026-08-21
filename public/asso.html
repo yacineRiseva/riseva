@@ -34,11 +34,39 @@ const a = DB.association(id) || DB.associations()[0];
 const annonces = DB.annonces({ asso: a.id, ouvertes: true });
 
 const root = document.getElementById("root");
-root.appendChild(h(`<section class="assoHero"><div class="wrap">
+/* Cette page appartient à l'association, pas à Riseva. Son nom en grand, ses liens,
+   son contact, et un bouton pour la partager : c'est une page qu'elle doit avoir
+   envie de mettre dans sa lettre d'information. Riseva n'apparaît que comme tiers
+   organisateur, et ce qu'elle a vérifié est écrit exactement, avec sa date. */
+const hero = h(`<section class="assoHero"><div class="wrap">
   <p class="eyebrow">${esc(a.cause)} · ${esc(a.ville)}</p>
   <h1 class="display" style="margin-top:var(--s5);max-width:18ch">${esc(a.nom)}</h1>
+  ${a.nom_juridique && a.nom_juridique !== a.nom
+    ? `<p class="muted" style="margin-top:var(--s3);font-size:var(--t-sm)">${esc(a.nom_juridique)}${
+        a.rna ? ` · RNA ${esc(a.rna)}` : ""}</p>` : ""}
   <p class="lede" style="margin-top:var(--s6)">${esc(a.resume)}</p>
-</div></section>`));
+  <div class="row" style="gap:var(--s3);flex-wrap:wrap;margin-top:var(--s6)">
+    ${a.site ? `<a class="btn btn--ghost btn--sm" href="${esc(a.site)}" target="_blank"
+       rel="noopener">Leur site</a>` : ""}
+    ${(a.reseaux || []).map(r => `<a class="btn btn--quiet btn--sm" href="${esc(r.url)}"
+       target="_blank" rel="noopener">${esc(r.nom)}</a>`).join("")}
+    ${a.contact_public ? `<a class="btn btn--quiet btn--sm"
+       href="mailto:${esc(a.contact_public)}">Les contacter</a>` : ""}
+    <button class="btn btn--quiet btn--sm" id="partager">Partager cette page</button>
+  </div>
+  ${a.verifiee_le ? `<p class="hint" style="margin-top:var(--s6);max-width:62ch">
+    Riseva a vérifié le ${dateFR(a.verifiee_le)} l'existence juridique de l'association, l'identité
+    de son référent, la cohérence de son objet et ses coordonnées.
+    <a href="/charte-associations.html" style="color:var(--forest-800)">Ce que Riseva vérifie</a> —
+    et ce qu'elle ne vérifie pas : l'éligibilité fiscale et l'impact des missions.</p>` : ""}
+</div></section>`);
+root.appendChild(hero);
+hero.querySelector("#partager").onclick = async (ev) => {
+  const lien = location.href;
+  if (navigator.share){ try { await navigator.share({ title: a.nom, url: lien }); return; } catch {} }
+  try { await navigator.clipboard.writeText(lien); toast("Lien copié."); }
+  catch { ev.target.textContent = lien; }
+};
 
 /* Ce que cette association a déjà obtenu grâce au réseau : c'est ce qui donne envie
    de donner, bien plus qu'un discours. */

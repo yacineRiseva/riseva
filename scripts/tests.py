@@ -403,6 +403,18 @@ def main():
         verifie("aucun objectif à zéro n'est affiché",
                 re.search(r"Objectif\s*:\s*0\s", fiche) is None)
 
+        print("\nLa page que l'association partage")
+        p.goto(f"{BASE}/asso.html?id=a2", wait_until="networkidle"); p.wait_for_timeout(400)
+        f = p.inner_text("body")
+        verifie("son nom juridique et son RNA y figurent", "loi 1901" in f and "W631004567" in f)
+        verifie("ses propres liens y figurent", "Leur site" in f and "Instagram" in f)
+        verifie("elle peut partager la page", "Partager cette page" in f)
+        verifie("ce que Riseva vérifie est daté", "Riseva a vérifié le" in f)
+        verifie("ce que Riseva ne vérifie pas est dit aussi",
+                "ne vérifie pas" in f and "éligibilité fiscale" in f)
+        verifie("le résultat est attribué à l'association",
+                "Résultats déclarés par Racines Vives" in f)
+
         print("\nLes formulaires publics")
         # Un formulaire qui dit « envoyé » sans rien envoyer est un mensonge poli.
         p.goto(f"{BASE}/associations.html#rejoindre", wait_until="networkidle")
