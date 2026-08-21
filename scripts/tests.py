@@ -569,6 +569,22 @@ def main():
                 "indemnité forfaitaire" in f and "40 €" in f)
         verifie("elle rappelle que les dons n'y figurent pas", "ne transitent" in f)
         fac.close()
+        # Une facture d'acompte pour une saison non reconduite crée une créance qui
+        # n'existe pas, et contredit « pas de reconduction tacite » sur le même écran.
+        connecte(p, "u2", "#/abonnement")
+        ct = norm(p.inner_text(".content"))
+        verifie("rien n'est dû tant que le renouvellement n'est pas décidé",
+                "Non décidée" in ct and "Reste à régler" in ct and "tout est à jour" in ct)
+        verifie("la saison suivante est proposée, pas facturée",
+                "Proposition de renouvellement" in ct and "Devis, pas une facture" in ct)
+        verifie("l'acompte est donné HT et TTC", "600 €" in ct and "engagement ferme" in ct)
+        avantF = p.eval_on_selector_all("tbody tr", "r=>r.length")
+        p.click("#rec"); p.wait_for_timeout(400)
+        verifie("accepter le renouvellement émet alors la facture",
+                p.eval_on_selector_all("tbody tr", "r=>r.length") == avantF + 1)
+        p.click("#rec"); p.wait_for_timeout(400)
+        verifie("annuler la retire, tant qu'elle n'est pas payée",
+                p.eval_on_selector_all("tbody tr", "r=>r.length") == avantF)
         connecte(p, "u2", "#/parametres")
         verifie("la facturation électronique est prise en compte",
                 "plateforme agréée" in p.inner_text(".content"))

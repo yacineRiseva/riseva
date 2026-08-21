@@ -203,8 +203,14 @@ const seed = {
           echeance:"2025-12-14", etat:"payee",  periode:"acompte, saison 2026" },
         { ref:"RSV-2026-0031", libelle:"Solde saison 2026",   montant:3300, date:"2026-01-05",
           echeance:"2026-02-04", etat:"payee", periode:"01/01/2026 au 31/12/2026" },
-        { ref:"RSV-2026-0148", libelle:"Acompte saison 2027", montant:500,  date:J(-6),
-          echeance:J(24), etat:"a_venir", periode:"acompte, saison 2027" }
+      ],
+      /* Une facture d'acompte pour la saison suivante, alors que le renouvellement
+         n'est pas décidé, crée une créance que rien ne fonde — et rend fausses, en
+         même temps, les mentions « pas de reconduction tacite » et « reste à régler ».
+         Tant que le client n'a pas accepté, il n'existe qu'une proposition. */
+      devis:[
+        { ref:"DEV-2026-0148", libelle:"Acompte saison 2027", montant:500, date:J(-6),
+          validite:J(24), periode:"acompte, saison 2027" }
       ],
       /* Facturation électronique : au 1er septembre 2026 toute entreprise doit pouvoir
          RECEVOIR une facture par une plateforme agréée. Un PDF par courriel ne suffit plus.
@@ -1450,10 +1456,25 @@ function creerMock(){
       const f = c.factures.find(x => x.ref === ref); if (f) f.etat = "payee";
       return f;
     },
-    /* Renouvellement : jamais tacite. Décision du 20/08/2026. */
+    /* Renouvellement : jamais tacite. Décision du 20/08/2026.
+       Accepter la proposition la transforme en facture — c'est l'acceptation qui crée
+       la créance, pas l'affichage. Revenir en arrière la remet à l'état de devis, tant
+       qu'elle n'a pas été payée. */
     reconduire(eid, oui){
       const c = api.contrat(eid); if (!c) return null;
-      c.reconduction = !!oui; return c;
+      c.reconduction = !!oui;
+      c.devis = c.devis || [];
+      if (oui){
+        c.devis.forEach(d => {
+          if (c.factures.some(f => f.ref === d.ref.replace("DEV-", "RSV-"))) return;
+          c.factures.push({ ref: d.ref.replace("DEV-", "RSV-"), libelle: d.libelle,
+            montant: d.montant, date: d.date, echeance: d.validite,
+            etat: "envoyee", periode: d.periode, devis: d.ref });
+        });
+      } else {
+        c.factures = c.factures.filter(f => !f.devis || f.etat === "payee");
+      }
+      return c;
     },
     joursAvantFinSaison(){
       const fin = new Date(s.saison.fin);

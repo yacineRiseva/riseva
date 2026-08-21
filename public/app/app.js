@@ -1855,14 +1855,19 @@ function vueAbonnement(u){
             <div class="between"><span class="muted">Signé le</span><span>${dateFR(c.signe_le)}</span></div>
             <div class="between"><span class="muted">Période</span>
               <span>${dateFR(c.debut)} — ${dateFR(c.fin)}</span></div>
-            <div class="between"><span class="muted">Acompte versé</span><span class="tnum">${eur(c.acompte)}</span></div>
+            <div class="between"><span class="muted">Acompte versé</span>
+              <span class="tnum">${eur(c.acompte)} HT — ${eur(Math.round(c.acompte * (1 + FACTURATION.tva)))} TTC</span></div>
             <div class="between"><span class="muted">Places incluses</span><span class="tnum">${si.total}</span></div>
           </div>
           <hr class="sep">
           <p class="muted" style="font-size:var(--t-sm)">
-            L'acompte de ${eur(c.acompte)} est remboursé intégralement si la saison ne démarre pas.
-            Aucune commission n'est prélevée sur les dons. Un salarié retiré libère sa place
-            immédiatement.</p>
+            L'acompte de ${eur(c.acompte)} HT (${eur(Math.round(c.acompte * (1 + FACTURATION.tva)))} TTC)
+            <strong style="color:var(--ink)">matérialise un engagement ferme des deux côtés</strong> :
+            ce n'est pas une réservation qu'on annule d'un mot. Il est remboursé intégralement si
+            la saison ne démarre pas au sens de l'article « Démarrage » du contrat, c'est-à-dire si
+            l'un des cinq critères de recette n'est pas constaté à la date convenue. La TVA est
+            exigible dès l'encaissement de l'acompte. Aucune commission n'est prélevée sur les
+            dons. Un salarié retiré libère sa place immédiatement.</p>
         </section>
 
         <section class="card">
@@ -1874,6 +1879,19 @@ function vueAbonnement(u){
             <strong style="color:var(--ink)">Pas de reconduction tacite.</strong> Votre abonnement
             prend fin à la clôture de la saison, après remise du rapport annuel. Vous décidez
             ensuite, sans rien à résilier.</p>
+          ${(c.devis || []).length && !c.reconduction ? `
+          <div class="stack" style="--gap:var(--s2);margin-top:var(--s5);padding:var(--s4);
+            background:var(--paper-sunk);border-radius:var(--r-sm);font-size:var(--t-sm)">
+            <div class="between"><strong>Proposition de renouvellement</strong>
+              <span class="badge">Devis, pas une facture</span></div>
+            ${c.devis.map(d => `<div class="between"><span class="muted">${esc(d.libelle)}</span>
+              <span class="tnum">${eur(d.montant)} HT</span></div>
+              <div class="between"><span class="muted">Valable jusqu'au</span>
+              <span class="tnum">${dateFR(d.validite)}</span></div>`).join("")}
+            <p class="hint" style="margin:0">Aucune somme n'est due tant que vous n'avez pas
+              accepté. La facture d'acompte n'est émise qu'après votre acceptation, et c'est
+              seulement à ce moment-là qu'elle apparaît dans vos factures.</p>
+          </div>` : ""}
           <div class="row" style="gap:var(--s2);margin-top:var(--s5)">
             <button class="btn ${c.reconduction ? "btn--ghost" : "btn--primary"} btn--sm" id="rec">
               ${c.reconduction ? "Annuler la reconduction" : "Reconduire pour la saison suivante"}</button>
