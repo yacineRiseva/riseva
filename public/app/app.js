@@ -664,7 +664,7 @@ function listeAnnonces(annonces, u){
       <div class="annonce__haut">
         ${vignette(a)}
         <span class="annonce__asso">
-          <span class="annonce__pastille">${initiales(asso.nom || "?")}</span>
+          <span class="annonce__pastille" aria-hidden="true">${initiales(asso.nom || "?")}</span>
           ${esc(asso.nom || "")}
         </span>
         <span class="annonce__pts" title="Barème de la saison, identique pour toutes les entreprises">

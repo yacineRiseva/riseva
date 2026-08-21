@@ -41,6 +41,34 @@ MESURE = r"""
     return [255,255,255];
   };
   const res = [];
+  /* Les placeholders ne sont pas des nœuds de texte : sans cette passe, le champ
+     de recherche le plus visible de la page échappe à la mesure. */
+  document.querySelectorAll('input[placeholder],textarea[placeholder]').forEach(el => {
+    const r = el.getBoundingClientRect(); if (!r.width) return;
+    const s = getComputedStyle(el);
+    const av = rgb(s.color); if (!av) return;
+    const ar = fond(el);
+    /* Chrome n'expose pas la couleur du placeholder : la règle de la feuille de
+       style la donne, à défaut on prend celle du champ. */
+    let ph = null;
+    for (const f of document.styleSheets) {
+      let regles; try { regles = f.cssRules } catch (e) { continue }
+      for (const g of regles) {
+        if (g.selectorText && /placeholder/.test(g.selectorText) && g.style.color) {
+          try { if (el.matches(g.selectorText.replace(/::?-?[a-z-]*placeholder/g, ''))) ph = g.style.color; } catch (e) {}
+        }
+      }
+    }
+    const c0 = ph ? rgb(ph) : av, a0 = ph ? alpha(ph) : alpha(s.color);
+    if (!c0) return;
+    const c = melange(c0, ar, a0);
+    const L1 = lum(c), L2 = lum(ar);
+    const ratio = (Math.max(L1,L2) + .05) / (Math.min(L1,L2) + .05);
+    const px = parseFloat(s.fontSize);
+    res.push({ texte: el.getAttribute('placeholder').slice(0,60),
+               ratio: Math.round(ratio*100)/100, px: Math.round(px*10)/10,
+               large: false, seuil: 4.5, ou: 'placeholder' });
+  });
   document.querySelectorAll('body *').forEach(el => {
     const texte = [...el.childNodes].filter(n => n.nodeType === 3)
       .map(n => n.textContent.trim()).join(' ').trim();
@@ -49,6 +77,7 @@ MESURE = r"""
     if (!r.width || !r.height) return;
     const s = getComputedStyle(el);
     if (s.visibility === 'hidden' || s.opacity === '0') return;
+    const decor = !!el.closest('[aria-hidden="true"]');
     const av = rgb(s.color); if (!av) return;
     const a = alpha(s.color);
     const ar = fond(el);
@@ -59,7 +88,7 @@ MESURE = r"""
     const gras = parseInt(s.fontWeight) >= 700 || s.fontWeight === 'bold';
     const large = px >= 24 || (px >= 18.66 && gras);
     res.push({ texte: texte.slice(0,60), ratio: Math.round(ratio*100)/100,
-               px: Math.round(px*10)/10, large, seuil: large ? 3 : 4.5,
+               px: Math.round(px*10)/10, large, seuil: large ? 3 : 4.5, decor,
                ou: el.className && typeof el.className === 'string'
                    ? el.tagName.toLowerCase() + '.' + el.className.split(' ')[0]
                    : el.tagName.toLowerCase() });
@@ -70,6 +99,7 @@ MESURE = r"""
 
 def main():
     faibles = collections.defaultdict(list)
+    minus = collections.defaultdict(list)
     total = 0
     with sync_playwright() as pw:
         b = pw.chromium.launch()
@@ -85,11 +115,28 @@ def main():
                 total += 1
                 if m["ratio"] < m["seuil"]:
                     faibles[nom].append(m)
+                # Rien en dessous de douze pixels : un contraste correct ne rachète
+                # pas un corps qu'on ne peut pas lire.
+                if m["px"] < 12 and not m.get("decor"):
+                    minus[nom].append(m)
         b.close()
 
     print(f"{total} textes mesurés sur {len(PAGES)} pages.\n")
+
+    if minus:
+        print("Sous douze pixels")
+        for page, l in minus.items():
+            vus = set()
+            for m in l:
+                if m["ou"] in vus: continue
+                vus.add(m["ou"])
+                print(f"  {m['px']}px  {page:<16} {m['ou']:<28} « {m['texte']} »")
+        print()
+
     if not faibles:
-        print("Tout passe le seuil WCAG AA.")
+        print("Tout passe le seuil WCAG AA." if not minus
+              else "Contraste : tout passe le seuil WCAG AA.")
+        if minus and "--strict" in sys.argv: sys.exit(1)
         return
     n = 0
     for page, l in faibles.items():
