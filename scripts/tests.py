@@ -789,6 +789,16 @@ def main():
         verifie("une mutation ne déplace pas les missions déjà faites",
                 fige[0] == fige[1], str(fige))
 
+        # Le tableau de bord d'une entreprise multi-sites montre ses sites, et la
+        # facturation donne de quoi imputer la dépense.
+        connecte(p, "u2", "#/tableau")
+        tb = norm(p.inner_text(".content"))
+        verifie("le tableau de bord montre les sites, normalisés par l'effectif",
+                "Vos sites" in tb and "par salarié" in tb.replace("/ salarié", "par salarié"))
+        connecte(p, "u2", "#/abonnement")
+        verifie("une clé de répartition analytique est proposée",
+                p.eval_on_selector_all("#csvR", "l=>l.length") == 1)
+
         print("\nIndicateurs sociaux et sécurité")
         connecte(p, "u2", "#/indicateurs")
         i = norm(p.inner_text(".content"))

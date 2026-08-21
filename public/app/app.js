@@ -343,6 +343,12 @@ function coquille(u, vue, titre, actions = "", periode = DB.saison().nom){
 /* Vues entreprise                                                     */
 /* ------------------------------------------------------------------ */
 function tableauEntreprise(u){
+  /* Le classement entre sites de l'entreprise. Il ne dépend d'aucune autre
+     entreprise, donc il fonctionne dès la première saison — contrairement au
+     classement entre entreprises, qui attend dix participantes. */
+  const sites = DB.etablissements(u.org).length > 1
+    ? DB.classementSites({ entreprise: u.org }) : [];
+  const maxSite = Math.max(...sites.map(x => x.parSalarie), 0.01);
   const eid = u.org;
   const e = DB.entreprise(eid);
   const clCat = DB.classement();
@@ -470,6 +476,30 @@ function tableauEntreprise(u){
     </div>
 
     <div id="realis"></div>
+
+    ${/* Une entreprise mono-site n'a que faire d'un tableau de sites : cette bande
+          n'apparaît que si l'entreprise en compte plusieurs. */""}
+    ${sites.length > 1 ? `<section class="card">
+      <div class="between" style="margin-bottom:var(--s5);align-items:flex-start">
+        <div><h3>Vos sites</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+          Rapporté à l'effectif de chaque site, sinon le siège écrase l'agence.
+          Cette comparaison-là ne dépend de personne d'autre que vous.</p></div>
+        <a class="btn btn--quiet btn--sm" href="#/sites">Quotas et référents</a>
+      </div>
+      <div class="stack" style="--gap:var(--s3)">
+        ${sites.map(x => `<div>
+          <div class="between" style="font-size:var(--t-sm);margin-bottom:6px">
+            <span><b>${x.rang}.</b> ${esc(x.nom)} — ${esc(x.ville)}
+              <span class="muted">· ${nb(x.comptes)} compte${x.comptes > 1 ? "s" : ""} sur ${nb(x.quota || 0)}</span></span>
+            <span class="tnum">${nb(x.points)} pts · ${pct(x.parSalarie, 2)} / salarié</span></div>
+          <div class="bar"><i style="width:${Math.max(2, (x.parSalarie / maxSite) * 100)}%"></i></div>
+        </div>`).join("")}
+      </div>
+      ${sites.some(x => !x.comptes) ? `<p class="hint" style="margin-top:var(--s5)">
+        ${sites.filter(x => !x.comptes).map(x => esc(x.ville)).join(", ")} n'${sites.filter(x => !x.comptes).length > 1 ? "ont" : "a"}
+        encore aucun compte ouvert. Nommez-y un référent : c'est lui qui invitera ses salariés.</p>` : ""}
+    </section>` : ""}
 
     ${prefs.length ? `<section class="card">
       <div class="between" style="margin-bottom:var(--s5)">
@@ -1879,7 +1909,11 @@ function vueAbonnement(u){
       <section class="card">
         <div class="between" style="margin-bottom:var(--s5)">
           <h3>Factures</h3>
-          <button class="btn btn--ghost btn--sm" id="csvF">Exporter</button>
+          <div class="row" style="gap:var(--s2)">
+            ${DB.etablissements(u.org).length > 1
+              ? `<button class="btn btn--ghost btn--sm" id="csvR">Clé de répartition</button>` : ""}
+            <button class="btn btn--ghost btn--sm" id="csvF">Exporter</button>
+          </div>
         </div>
         <table class="table"><thead><tr>
           <th>Référence</th><th>Libellé</th><th>Émise</th><th>Échéance</th>
@@ -1973,6 +2007,28 @@ function vueAbonnement(u){
         Math.round(fa.montant * (1 + FACTURATION.tva)), fa.etat]));
     toast("Export téléchargé.");
   };
+  /* Ce que réclame un contrôleur de gestion : de quoi imputer la dépense site par
+     site. La clé retenue est le nombre de comptes ouverts, parce que c'est ce qui
+     est facturé — pas l'effectif, qui ne l'est pas. Elle est écrite en haut du
+     fichier, sinon personne ne sait ce qu'il additionne. */
+  el.querySelector("#csvR")?.addEventListener("click", () => {
+    const etabs = DB.etablissements(u.org).map(et => ({
+      et, comptes: DB.sieges(u.org, { etablissement: et.id }).pris
+    }));
+    const total = etabs.reduce((n, x) => n + x.comptes, 0);
+    versCSV("riseva-cle-de-repartition.csv",
+      ["Société", "SIREN", "Établissement", "Ville", "SIRET", "Comptes ouverts",
+       "Quote-part", "Montant HT imputable"],
+      etabs.map(x => {
+        const part = total ? x.comptes / total : 0;
+        return [DB.entreprise(u.org).nom, DB.entreprise(u.org).siren || "",
+                x.et.nom, x.et.ville, x.et.siret || "", x.comptes,
+                (Math.round(part * 10000) / 100) + " %",
+                Math.round(c.montant_ht * part * 100) / 100];
+      }).concat([["", "", "TOTAL", "", "", total, "100 %", c.montant_ht]]));
+    toast("Clé de répartition téléchargée : au prorata des comptes ouverts.");
+  });
+
   el.querySelector("#rec").onclick = () => {
     DB.reconduire(u.org, !c.reconduction);
     toast(c.reconduction ? "Reconduction annulée." : "Reconduction enregistrée, nous reviendrons vers vous.");
