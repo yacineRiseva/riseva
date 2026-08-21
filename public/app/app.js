@@ -2398,7 +2398,10 @@ function tableauAsso(u){
      réellement produit chez elle, et ce qui l'attend côté reçus. Le tableau de
      bord ne montrait que ses propres annonces — une liste qu'elle connaît déjà. */
   const rea = bandeauRealisations(DB.realisations({ asso: aid }), {
-    titre: "Ce que les entreprises ont produit chez vous", sombre: true,
+    /* C'est l'association qui réalise. Les entreprises apportent des moyens.
+       Écrire l'inverse, c'est lui dire que son travail sert d'abord à fabriquer
+       les indicateurs RSE de nos clients. */
+    titre: "Ce que vous avez réalisé avec le soutien des entreprises", sombre: true,
     note: "Ces chiffres sont ceux que vous avez confirmés en validant les missions." });
   if (rea) el.querySelector("#produit").appendChild(rea);
   return el;
