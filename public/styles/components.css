@@ -48,6 +48,9 @@
 .badge--warn{background:var(--warn-bg);color:var(--warn-texte)}
 .badge--danger{background:var(--danger-bg);color:var(--danger-texte)}
 .badge--info{background:var(--info-bg);color:var(--info-texte)}
+/* Une clôture sans confirmation n'est ni une réussite ni une faute : elle ne doit
+   donc être ni verte ni rouge. */
+.badge--neutre{background:var(--ink-050);color:var(--ink-600)}
 .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
 
 /* ============ Formulaires ============ */

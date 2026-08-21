@@ -148,12 +148,19 @@ export const UNITES = {
   metre_berge:{ un:"mètre de berge",      pl:"mètres de berge nettoyés", icone:"leaf" }
 };
 
+/* Deux libellés par état, parce que deux personnes ne lisent pas la même chose.
+   « À valider » dans l'espace de l'entreprise laissait croire qu'elle avait
+   quelque chose à faire, alors qu'elle attend l'association ; et « validée sans
+   retour » disait exactement le contraire de la règle — personne n'a validé.
+   `label` est ce que voit celui qui attend, `labelAsso` ce que voit celle qui agit. */
 export const ETATS_MISSION = {
-  engagee:      { label: "Engagée",            badge: "badge--info"   },
-  a_valider:    { label: "À valider",          badge: "badge--warn"   },
-  validee:      { label: "Validée",            badge: "badge--ok"     },
-  validee_auto: { label: "Validée sans retour", badge: "badge--ok"    },
-  refusee:      { label: "Refusée",            badge: "badge--danger" }
+  engagee:      { label: "Engagée",     labelAsso: "Engagée",     badge: "badge--info"   },
+  a_valider:    { label: "En attente de l'association",
+                                        labelAsso: "À confirmer", badge: "badge--warn"   },
+  validee:      { label: "Confirmée",   labelAsso: "Confirmée",   badge: "badge--ok"     },
+  validee_auto: { label: "Clôturée sans confirmation",
+                  labelAsso: "Clôturée sans confirmation",        badge: "badge--neutre" },
+  refusee:      { label: "Refusée",     labelAsso: "Refusée",     badge: "badge--danger" }
 };
 
 const J = (n) => { const d = new Date(2026, 7, 20); d.setDate(d.getDate() + n); return d.toISOString().slice(0,10); };
@@ -1718,6 +1725,11 @@ function creerMock(){
         entreprises: s.entreprises.length,
         associations: s.associations.filter(a => a.valide).length,
         missions: ms.length,
+        /* Confirmées et clôturées d'office ne se totalisent pas sous le même mot :
+           « validées par les associations » recouvrait les deux, ce qui attribuait
+           à quelqu'un un accord qu'il n'a jamais donné. */
+        confirmees: ms.filter(m => m.etat === "validee").length,
+        closesSansReponse: ms.filter(m => m.etat === "validee_auto").length,
         demiJournees, euros, materiel,
         salaries: s.utilisateurs.filter(u => u.role === "salarie" && !u.anonyme).length,
         heures: demiJournees * 4,
@@ -1800,6 +1812,14 @@ function creerMock(){
 /* Sélection de l'implémentation                                       */
 /* ------------------------------------------------------------------ */
 let impl = creerMock();
+let branche = false;
+
+/* Vrai seulement quand la couche Supabase a effectivement pris la main. Tout ce
+   qui affiche un chiffre devant un client — et d'abord la page d'accueil — doit
+   le demander avant de publier quoi que ce soit : un total tiré du jeu de
+   démonstration, présenté comme un résultat, est un mensonge commercial même
+   quand personne ne l'a voulu. */
+export function donneesReelles(){ return branche; }
 
 /* Domaines sur lesquels la démonstration n'a rien à faire. Un client qui ouvre
    riseva.fr et voit des chiffres inventés ne le saura jamais : c'est la
@@ -1834,6 +1854,7 @@ export async function connecterSupabase(config){
     throw new Error("Riseva : la couche Supabase est incomplète (" + manquantes.length
       + " méthodes manquantes). Démarrage refusé plutôt que de servir de la démonstration.");
   impl = dos;
+  branche = true;
   return impl;
 }
 

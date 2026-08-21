@@ -369,7 +369,7 @@ def main():
         # Une seule formulation, et surtout : un silence n'est pas une faute.
         pages = {}
         for nom, url in [("acquisition", "/associations.html"), ("charte", "/charte-associations.html"),
-                         ("règlement", "/reglement.html")]:
+                         ("règlement", "/reglement.html"), ("accueil", "/")]:
             p.goto(BASE + url, wait_until="networkidle"); p.wait_for_timeout(200)
             pages[nom] = p.inner_text("body")
         for nom, corps in pages.items():
@@ -377,7 +377,8 @@ def main():
                     "clôturée automatiquement sans confirmation" in corps
                     or "clôture automatique" in corps)
         verifie("aucune page ne dit qu'un silence vaut réalisation",
-                all("comptée comme réalisée" not in c for c in pages.values()))
+                all("comptée comme réalisée" not in c and "considérée comme réalisée" not in c
+                    for c in pages.values()))
         verifie("la charte dit qu'un silence n'entraîne pas de suspension",
                 "n'entraîne aucune suspension" in pages["charte"])
         verifie("la charte distingue le silence de la fausse confirmation",
@@ -511,10 +512,19 @@ def main():
         p.click("#run"); p.wait_for_timeout(500)
         verifie("le moteur peut être relancé",
                 p.eval_on_selector_all("#hj tbody tr", "r=>r.length") == avant + 1)
+        # Le compteur du réseau ne doit apparaître que si les chiffres viennent de la
+        # vraie base. En démonstration, l'accueil doit dire qu'il n'y a rien, pas
+        # afficher des totaux inventés qu'un acheteur lira comme des références.
         p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(600)
-        verifie("le site public affiche le compteur du réseau", p.is_visible("#reseauReal"))
-        verifie("le compteur est alimenté par les données",
-                "arbres plantés" in p.inner_text("#reseauGrid"))
+        verifie("aucun total de démonstration sur la page d'accueil",
+                p.eval_on_selector_all("#reseauReal", "l=>l.length") == 0)
+        verifie("l'accueil dit qu'il n'y a encore rien à montrer",
+                "Rien encore" in p.inner_text("#reseauVide"))
+        cumul = p.evaluate("""async()=>{const m=await import('/app/data.js');
+                    const r=m.DB.impactReseau();
+                    return [r.confirmees, r.closesSansReponse, r.missions]}""")
+        verifie("le cumul distingue les confirmations des clôtures d'office",
+                cumul[0] + cumul[1] == cumul[2] and cumul[1] > 0, str(cumul))
 
         print("\nEnregistrement automatique")
         connecte(p, "u7", "#/mesannonces")

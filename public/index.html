@@ -124,7 +124,8 @@
   <div class="wrap">
     <div class="stats">
       <div><b>1 an</b><span>Une saison calée sur votre année fiscale</span></div>
-      <div><b>3 formats</b><span>Don financier, demi-journée, matériel</span></div>
+      <div><b>2 formats</b><span>Bénévolat et matériel. Le don financier attend son
+        prestataire de paiement</span></div>
       <div><b>0 €</b><span>Pour les associations, toujours</span></div>
       <div><b>1 lien</b><span>À diffuser en interne, chacun crée son compte</span></div>
     </div>
@@ -184,9 +185,9 @@
       <article class="card card--hover stack" style="--gap:var(--s3)">
         <span class="badge badge--brand">1</span>
         <h3>L'association publie</h3>
-        <p class="muted">Elle décrit son besoin et choisit un format : un don financier,
-          une demi-journée de bénévolat ou du matériel. Elle n'a rien à installer,
-          rien à brancher, et elle ne paie rien.</p>
+        <p class="muted">Elle décrit son besoin et choisit un format : une demi-journée de
+          bénévolat ou un don de matériel — et, quand le paiement sera raccordé, un don
+          financier. Elle n'a rien à installer, rien à brancher, et elle ne paie rien.</p>
       </article>
       <article class="card card--hover stack" style="--gap:var(--s3)">
         <span class="badge badge--brand">2</span>
@@ -215,6 +216,27 @@
   </div>
 </section>
 
+<!-- Tant que le réseau n'a rien produit pour de vrai, c'est ça qu'on affiche.
+     Un total tiré du jeu de démonstration mis à cet endroit se lit comme une
+     référence client : c'est la seule chose qu'un acheteur retiendra, et c'est
+     faux. Mieux vaut la case vide et la date. -->
+<section class="section section--dark grain" id="reseauVide">
+  <div class="wrap">
+    <p class="eyebrow">Ce que le réseau a produit</p>
+    <h2 style="margin-top:var(--s4);max-width:24ch">Rien encore, et nous n'allons pas
+      l'inventer</h2>
+    <p class="lede" style="margin-top:var(--s5);max-width:60ch">
+      Riseva n'a pas démarré. Aucune mission n'a été confirmée, donc il n'y a pas un seul
+      chiffre à mettre ici. Cet emplacement se remplira tout seul, à partir de ce que les
+      associations auront réellement confirmé — pas avant, et sans retouche.
+    </p>
+    <p class="hint" style="margin-top:var(--s6);max-width:60ch">
+      Les écrans montrés plus haut sont des exemples de restitution, construits sur un jeu
+      de démonstration. Ils montrent la forme du produit, jamais des résultats obtenus.
+    </p>
+  </div>
+</section>
+
 <section class="section" id="bareme">
   <div class="wrap">
     <div class="between" style="align-items:flex-end">
@@ -231,6 +253,7 @@
     <div class="cols-3" style="margin-top:var(--s10)">
       <article class="card rule">
         <span class="badge">Don financier</span>
+        <span class="badge badge--warn" style="margin-left:6px">Pas encore ouvert</span>
         <div class="rule__pts">1 pt <small>par tranche de 10 €</small></div>
         <p class="muted">Le don part directement à l'association. L'argent ne passe pas par Riseva.
           Le reçu fiscal est préparé par nos soins et émis par l'association.</p>
@@ -260,11 +283,13 @@
   <div class="wrap split">
     <div>
       <p class="eyebrow">Pour les associations</p>
-      <h2 style="margin-top:var(--s4)">Gratuit, et sans travail supplémentaire</h2>
+      <h2 style="margin-top:var(--s4)">Gratuit, et sans intégration technique</h2>
       <p class="lede" style="margin-top:var(--s5)">
-        Vous publiez ce dont vous avez besoin, vous confirmez quand c'est fait. C'est tout.
-        Pas d'intégration technique, pas de compte à ouvrir chez un prestataire de paiement,
-        pas de commission sur vos dons.
+        Vous publiez ce dont vous avez besoin, vous accueillez, vous confirmez quand c'est fait.
+        Ce n'est pas rien, mais c'est tout — et nous écrivons la première annonce avec vous.
+        Rien à installer, aucune commission sur vos dons. Le jour où les dons en ligne
+        ouvriront, il faudra vérifier votre compte et votre IBAN, comme pour n'importe
+        quelle collecte : c'est de l'administratif, et nous vous accompagnerons.
       </p>
       <div class="row" style="margin-top:var(--s8);gap:var(--s3)">
         <a class="btn btn--onDark" href="/associations.html">Rejoindre le réseau</a>
@@ -379,8 +404,10 @@
     <details open>
       <summary>Qui valide qu'une mission a bien été faite ?</summary>
       <p>L'association, et elle seule. Elle reçoit un mail automatique après la date prévue et
-      répond en un clic. Sans réponse de sa part sous quatorze jours, la mission est considérée
-      comme réalisée, pour ne pas bloquer votre équipe.</p>
+      répond en un clic. Sans réponse de sa part sous quatorze jours, la mission est
+      <strong>clôturée automatiquement sans confirmation</strong> : les points sont crédités selon
+      le barème, mais le résultat reste <strong>estimé</strong> et il est identifié comme
+      <strong>non confirmé</strong> partout où il apparaît, y compris dans vos rapports.</p>
     </details>
     <details>
       <summary>Est-ce que Riseva touche une part des dons ?</summary>
@@ -510,25 +537,32 @@
 <script type="module">
   /* Le compteur du réseau se remplit tout seul à partir des données réelles.
      Aucun chiffre n'est saisi à la main dans cette page. */
-  import { DB } from "/app/data.js";
+  import { DB, donneesReelles } from "/app/data.js";
   import { nb } from "/app/ui.js";
-  const r = DB.impactReseau();
-  const grille = document.getElementById("reseauGrid");
   const bloc = document.getElementById("reseauReal");
-  const cases = [
+  const vide = document.getElementById("reseauVide");
+  /* La condition n'est pas « y a-t-il des chiffres » mais « ces chiffres
+     viennent-ils de la vraie base ». Le jeu de démonstration en produit aussi,
+     et c'est précisément le piège. */
+  const r = donneesReelles() ? DB.impactReseau() : null;
+  const cases = r ? [
     ...r.realisations.map(x => [Math.round(x.quantite), x.pl]),
     [r.heures, "heures de bénévolat"],
     [r.associations, "associations soutenues"]
-  ].filter(([n]) => n > 0);
+  ].filter(([n]) => n > 0) : [];
   if (cases.length){
     bloc.style.display = "";
-    grille.innerHTML = cases.map(([n, l]) =>
+    vide.remove();
+    document.getElementById("reseauGrid").innerHTML = cases.map(([n, l]) =>
       `<div class="realis__c"><span class="realis__n">${nb(n)}</span>
        <span class="realis__l">${l}</span></div>`).join("");
     document.getElementById("reseauNote").textContent =
-      `Cumul de ${nb(r.missions)} missions validées par les associations bénéficiaires depuis `
-      + `l'ouverture. Riseva additionne ce que les associations déclarent, elle ne l'audite pas, `
-      + `et ne présente jamais ces chiffres comme une mesure d'impact environnemental.`;
+      `Cumul de ${nb(r.confirmees)} missions confirmées par une association, et `
+      + `${nb(r.closesSansReponse)} clôturées automatiquement sans confirmation au bout de `
+      + `quatorze jours. Riseva additionne ce que les associations déclarent, elle ne l'audite `
+      + `pas, et ne présente jamais ces chiffres comme une mesure d'impact environnemental.`;
+  } else {
+    bloc.remove();
   }
 </script>
 </body>

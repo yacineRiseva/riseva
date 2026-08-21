@@ -2757,7 +2757,7 @@ function vueAValider(u){
       <td class="muted tnum">${dateCourte(m.date)}</td>
       <td>${jours === null ? '<span class="muted">—</span>'
             : `<span class="badge ${jours <= 3 ? "badge--warn" : ""}">${jours} j</span>`}</td>
-      <td><span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].label}</span></td>
+      <td><span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].labelAsso}</span></td>
       <td style="text-align:right"></td></tr>`);
     const cb = tr.querySelector("input");
     if (cb) cb.onchange = () => { cb.checked ? selection.add(m.id) : selection.delete(m.id); majCompteur(); };
@@ -3276,8 +3276,7 @@ function tableauSalarie(u){
     const a = DB.annonceDe(m);
     todo.appendChild(h(`<div class="between" style="font-size:var(--t-sm)">
       <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.titre)}</span>
-      <span class="badge ${ETATS_MISSION[m.etat].badge}">${
-        m.etat === "a_valider" ? "En attente de l'association" : ETATS_MISSION[m.etat].label}</span></div>`));
+      <span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].label}</span></div>`));
   });
 
   el.querySelector("#reco").appendChild(listeAnnonces(
