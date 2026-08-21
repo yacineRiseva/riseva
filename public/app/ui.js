@@ -184,9 +184,14 @@ export function bandeauRealisations(r, { titre = "Ce que ça a produit", sombre 
       ${r.liste.map(x => `<div class="realis__c">
         <span class="realis__n">${nb(Math.round(x.quantite))}</span>
         <span class="realis__l">${esc(x.pl)}</span>
+        ${x.estime ? `<span class="realis__e">+ ${nb(Math.round(x.estime))} estimés</span>` : ""}
       </div>`).join("")}
     </div>
-    <p class="hint" style="margin-top:var(--s6)">${esc(note)}</p>
+    <p class="hint" style="margin-top:var(--s6)">${esc(note)}${r.sansReponse ? `
+      Les gros chiffres sont ceux que les associations ont confirmés. ${nb(r.sansReponse)}
+      mission${r.sansReponse > 1 ? "s ont" : " a"} été validée${r.sansReponse > 1 ? "s" : ""} faute de
+      réponse sous quatorze jours : ce qu'elle${r.sansReponse > 1 ? "s ont" : " a"} produit reste une
+      estimation, comptée à part.` : ""}</p>
   </section>`);
   return el;
 }

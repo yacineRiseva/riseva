@@ -297,11 +297,36 @@ def main():
         p.wait_for_timeout(400)
         verifie("la décision motivée passe", "Décision notifiée" in p.inner_text(".toast"))
 
+        print("\nRègles de calcul")
+        # Le plafond porte sur le total retenu, pas sur le brut : avec (6240, 780, 0)
+        # la règle « aucun format au-delà de la moitié » impose 1 560, pas 4 290.
+        r = p.evaluate("""()=>{
+          const p = {benevolat_demi_journee:6240, don_materiel:780, don_financier:0};
+          const brut = Object.values(p).reduce((a,b)=>a+b,0);
+          const ret = Object.values(p).map(v=>Math.max(0,Math.min(v, brut-v)));
+          const total = ret.reduce((a,b)=>a+b,0);
+          return {total, part: Math.round((ret[0]/total)*100)};
+        }""")
+        verifie("le plafond se calcule sur le retenu, pas sur le brut", r["total"] == 1560)
+        verifie("aucun format ne dépasse la moitié du retenu", r["part"] <= 50)
+        connecte(p, "u2")
+        verifie("le score de l'entreprise vient des missions, pas d'un compteur figé",
+                "points" not in p.evaluate("()=>JSON.parse(localStorage.getItem('riseva.etat')).etat.entreprises[0]"))
+        verifie("aucun compteur de points n'est figé sur un salarié",
+                "points" not in p.evaluate("()=>JSON.parse(localStorage.getItem('riseva.etat')).etat.utilisateurs.find(u=>u.id==='u3')"))
+
         print("\nRéalisations et automatismes")
         connecte(p, "u2")
         t = p.inner_text(".content")
         verifie("le décompte des réalisations s'affiche", "arbres plantés" in t)
         verifie("la provenance du chiffre est dite", "elle n'audite pas" in t)
+        connecte(p, "u2", "#/ensemble")
+        te = p.inner_text(".content")
+        verifie("la page Tous ensemble additionne tout le réseau", "Tous ensemble" in te)
+        verifie("la forêt affiche le vrai décompte sous le dessin", "arbres plantés" in te)
+        verifie("l'échelle du dessin est annoncée", "arbre dessiné" in te.lower())
+        verifie("le confirmé et l'estimé ne sont pas mélangés",
+                "estimés" in te and "sans réponse de l'association" in te)
         connecte(p, "u1", "#/moteur")
         t = p.inner_text(".content")
         verifie("les automatismes sont listés", "Validation sans retour" in t

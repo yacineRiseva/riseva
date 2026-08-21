@@ -315,7 +315,7 @@ function tableauEntreprise(u){
   const validees = ms.filter(m => m.etat === "validee" || m.etat === "validee_auto");
   const enCours = ms.filter(m => m.etat === "engagee" || m.etat === "a_valider");
   const salaries = DB.salaries(eid).filter(x => x.actif);
-  const engages = salaries.filter(x => (x.points || 0) > 0).length;
+  const engages = salaries.filter(x => DB.pointsVisiblesEmployeur(x.id) > 0).length;
   const seuilTop = dansCat[Math.max(0, Math.ceil(total * 0.1) - 1)]?.parSalarie ?? 0;
   const monParSalarie = moiCl.parSalarie || 0;
 
@@ -1310,7 +1310,7 @@ function vueEquipe(u){
          rendue à votre abonnement.</p>
          <p class="muted" style="margin-top:var(--s4)">Son nom et son adresse disparaissent de la
          plateforme. Il apparaîtra désormais comme <strong>salarié retiré</strong> dans les listes et
-         dans l'historique des missions. Les ${nb(g.points || 0)} points qu'il a rapportés restent
+         dans l'historique des missions. Les ${nb(DB.pointsVisiblesEmployeur(g.id))} points qu'il a rapportés restent
          acquis à l'entreprise.</p>
          <p class="hint" style="margin-top:var(--s4)">Cette opération ne se défait pas.</p>`,
         [{ label:"Annuler" },
@@ -2100,7 +2100,7 @@ function vueParametres(u){
       [...ms.map(m => { const a = DB.annonceDe(m), sal = DB.utilisateur(m.salarie);
           return ["mission", a.titre, (DB.association(a.asso) || {}).nom, sal ? sal.nom : "—",
                   m.date, m.quantite, m.points, ETATS_MISSION[m.etat].label]; }),
-       ...DB.salaries(u.org).map(g => ["salarié", g.nom, "", g.email || "", "", "", g.points || 0,
+       ...DB.salaries(u.org).map(g => ["salarié", g.nom, "", g.email || "", "", "", DB.pointsVisiblesEmployeur(g.id),
           g.anonyme ? "anonymisé" : (g.actif ? "actif" : "suspendu")]),
        ...((DB.contrat(u.org) || {}).factures || []).map(f =>
           ["facture", f.libelle, "", f.ref, f.date, "", f.montant, f.etat])]);
@@ -2467,7 +2467,7 @@ function tableauAdmin(){
       ${kpi("Entreprises", nb(es.length), "saison en cours", "", "kpi--tete grain")}
       ${kpi("Associations", nb(as.filter(a => a.valide).length), as.filter(a => !a.valide).length + " en attente")}
       ${kpi("Préinscriptions", nb(ps.length), ps.filter(p => p.etat === "confirmee").length + " confirmées")}
-      ${kpi("Points du réseau", nb(es.reduce((s, e) => s + e.points, 0)))}
+      ${kpi("Points du réseau", nb(es.reduce((s, e) => s + DB.pointsDe(e.id).retenu, 0)))}
     </div>
     <div class="two">
       <section class="card">
@@ -2516,7 +2516,7 @@ function vueAdminEntreprises(){
       <td style="width:22%"><div class="between" style="font-size:var(--t-xs);margin-bottom:5px">
           <span class="muted tnum">${si.pris} / ${si.total}</span></div>
         <div class="bar"><i style="width:${si.total ? (si.pris / si.total) * 100 : 0}%"></i></div></td>
-      <td class="tnum"><strong>${nb(e.points)}</strong></td>
+      <td class="tnum"><strong>${nb(DB.pointsDe(e.id).retenu)}</strong></td>
       <td class="tnum">${e.rang}</td></tr>`));
   });
   return el;
@@ -2780,11 +2780,15 @@ function vueActivite(u){
                    .map(x => ({ ...x, pointsVus: DB.pointsVisiblesEmployeur(x.id) }))
                    .sort((a, b) => b.pointsVus - a.pointsVus);
   const monRang = equipe.findIndex(x => x.id === u.id) + 1;
-  const part = e && e.points ? Math.round(((u.points || 0) / e.points) * 100) : 0;
+  /* Aucun compteur figé : les points du salarié comme ceux de l'entreprise se
+     relisent dans les missions validées, à chaque affichage. */
+  const mesPoints = DB.pointsVisiblesEmployeur(u.id);
+  const totalEnt = e ? DB.pointsDe(e.id).retenu : 0;
+  const part = totalEnt ? Math.round((mesPoints / totalEnt) * 100) : 0;
 
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <div class="kpis">
-      ${kpi("Mes points", nb(u.points || 0), `${part} % du total de l'entreprise`, "", "kpi--tete grain")}
+      ${kpi("Mes points", nb(mesPoints), `${part} % du total de l'entreprise`, "", "kpi--tete grain")}
       ${kpi("Missions réalisées", nb(validees.length), ms.length - validees.length + " en cours")}
       ${kpi("Rang dans l'équipe", rangFR(monRang), "sur " + equipe.length)}
       ${kpi("Demi-journées", nb(validees.filter(m => (DB.annonceDe(m) || {}).type === "benevolat_demi_journee")
@@ -3769,12 +3773,17 @@ function vueEnsemble(u){
       <div class="ensemble__unites">
         ${r.realisations.liste.map(x => `<div class="ensemble__u">
           <span class="ensemble__uq tnum">${nb(x.quantite)}</span>
-          <span class="ensemble__ul">${esc(x.quantite > 1 ? x.pl : x.un)}</span>
-        </div>`).join("") || `<p class="muted">Rien n'a encore été déclaré.</p>`}
+          <span class="ensemble__ul">${esc(x.quantite > 1 ? x.pl : x.un)}${
+            x.estime ? ` <em class="ensemble__est">+ ${nb(x.estime)} estimés</em>` : ""}</span>
+        </div>`).join("") || `<p class="muted">Rien n'a encore été confirmé.</p>`}
       </div>
       <p class="hint">
         Chaque unité vient d'une annonce qui l'avait annoncée, et d'une association
         qui a confirmé le chiffre après la mission. Riseva additionne, elle n'audite pas.
+        ${r.realisations.sansReponse ? `${nb(r.realisations.sansReponse)} mission${
+          r.realisations.sansReponse > 1 ? "s se sont" : " s'est"} validée${
+          r.realisations.sansReponse > 1 ? "s" : ""} sans réponse de l'association : leur
+          production est estimée d'après l'annonce, et comptée séparément.` : ""}
       </p>
     </section>
 
@@ -3782,7 +3791,7 @@ function vueEnsemble(u){
       <h3 style="color:var(--paper)">Votre part</h3>
       <p style="color:var(--forest-100);max-width:60ch">
         ${esc(monEnt.nom)} a fait planter <strong class="tnum" style="color:var(--lime)">${nb(mesArbres)}</strong>
-        arbre${mesArbres > 1 ? "s" : ""} sur les ${nb(r.arbres)} du réseau${part >= 1 ? `, soit ${part} %` : ""}.
+        arbre${mesArbres > 1 ? "s" : ""} confirmés sur les ${nb(r.arbres)} du réseau${part >= 1 ? `, soit ${part} %` : ""}.
         ${mien && mien.missions ? `Et ${nb(mien.missions)} mission${mien.missions > 1 ? "s" : ""} qui ont produit quelque chose de mesurable.` : ""}
       </p>
     </section>` : ""}

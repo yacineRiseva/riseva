@@ -289,3 +289,8 @@
 .kpi--nu{ background:transparent; border:none; box-shadow:none; padding:0; }
 .kpi--nu .kpi__label{ color:var(--forest-100); opacity:.7; }
 .kpi--nu .kpi__value{ color:var(--lime); }
+
+/* --- Part estimée d'une réalisation -------------------------------- */
+.realis__e{ display:block; margin-top:2px; font-size:var(--t-xs); color:var(--ink-400); }
+.card--dark .realis__e{ color:var(--forest-100); opacity:.55; }
+.ensemble__est{ font-style:normal; color:var(--ink-400); font-size:var(--t-xs); }

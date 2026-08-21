@@ -14,6 +14,12 @@ export const BAREME = {
    pour truster le classement, ce qui viderait le jeu de son sens. */
 export const PLAFOND_PAR_FORMAT = 0.5;
 
+/* Une association a quatorze jours pour répondre, comptés depuis la déclaration
+   de la mission. La même constante vaut pour le SQL (tache_validation_auto) et
+   pour le protocole de mesure : trois délais concurrents, c'est trois chiffres
+   qui ne tombent jamais juste. */
+export const DELAI_VALIDATION_JOURS = 14;
+
 /* Catégories de taille. Comparer une entreprise de 40 salariés à une de 4 000 n'a
    aucun sens : le classement principal est normalisé, et il se lit par catégorie. */
 /* Adresse publique du service. En démonstration on tourne sur un fichier local ou sur
@@ -151,14 +157,14 @@ const seed = {
     { id:"e1", lat:45.7333, lon:4.8137, nom:"Lafarge Ciments",     effectif:210, sieges:210, ca:48_000_000, cout_jour_moyen:340,
       referent:"Claire Fontaine", referent_mail:"claire@lafarge-ciments.fr", siret:"39312091600025",
       domaines:["lafarge-ciments.fr"],
-      adresse:"12 rue des Docks, 69009 Lyon", points:12480, secteur:"Industrie",  ville:"Lyon" },
-    { id:"e2", lat:50.6292, lon:3.0573, nom:"Groupe Vidal",        effectif:340, sieges:350, ca:62_000_000, cout_jour_moyen:290, points:18020, secteur:"Logistique", ville:"Lille" },
-    { id:"e3", lat:48.8566, lon:2.3522, nom:"Cabinet Marchand",    effectif:64,  sieges:75,  ca:9_800_000,  cout_jour_moyen:520,  points:15470, secteur:"Conseil",    ville:"Paris" },
-    { id:"e4", lat:47.2184, lon:-1.5536, nom:"Novaterre",           effectif:120, sieges:120, ca:21_000_000, cout_jour_moyen:310, points:14100, secteur:"Agro",       ville:"Nantes" },
-    { id:"e5", lat:43.6047, lon:1.4442, nom:"Atelier Berthier",    effectif:38,  sieges:50,  ca:3_400_000,  cout_jour_moyen:280,  points:11040, secteur:"Artisanat",  ville:"Toulouse" },
-    { id:"e6", lat:44.8378, lon:-0.5792, nom:"Sirius Assurances",   effectif:520, sieges:500, ca:140_000_000, cout_jour_moyen:400, points:9380,  secteur:"Assurance",  ville:"Bordeaux" },
-    { id:"e7", lat:48.1173, lon:-1.6778, nom:"Delmas & Fils",       effectif:87,  sieges:100, ca:12_000_000, cout_jour_moyen:300, points:7920,  secteur:"BTP",        ville:"Rennes" },
-    { id:"e8", lat:48.3904, lon:-4.4861, nom:"Kervella Transport",  effectif:145, sieges:150, ca:18_000_000, cout_jour_moyen:270, points:6410,  secteur:"Transport",  ville:"Brest" }
+      adresse:"12 rue des Docks, 69009 Lyon", secteur:"Industrie",  ville:"Lyon" },
+    { id:"e2", lat:50.6292, lon:3.0573, nom:"Groupe Vidal",        effectif:340, sieges:350, ca:62_000_000, cout_jour_moyen:290, secteur:"Logistique", ville:"Lille" },
+    { id:"e3", lat:48.8566, lon:2.3522, nom:"Cabinet Marchand",    effectif:64,  sieges:75,  ca:9_800_000,  cout_jour_moyen:520,  secteur:"Conseil",    ville:"Paris" },
+    { id:"e4", lat:47.2184, lon:-1.5536, nom:"Novaterre",           effectif:120, sieges:120, ca:21_000_000, cout_jour_moyen:310, secteur:"Agro",       ville:"Nantes" },
+    { id:"e5", lat:43.6047, lon:1.4442, nom:"Atelier Berthier",    effectif:38,  sieges:50,  ca:3_400_000,  cout_jour_moyen:280,  secteur:"Artisanat",  ville:"Toulouse" },
+    { id:"e6", lat:44.8378, lon:-0.5792, nom:"Sirius Assurances",   effectif:520, sieges:500, ca:140_000_000, cout_jour_moyen:400,  secteur:"Assurance",  ville:"Bordeaux" },
+    { id:"e7", lat:48.1173, lon:-1.6778, nom:"Delmas & Fils",       effectif:87,  sieges:100, ca:12_000_000, cout_jour_moyen:300,  secteur:"BTP",        ville:"Rennes" },
+    { id:"e8", lat:48.3904, lon:-4.4861, nom:"Kervella Transport",  effectif:145, sieges:150, ca:18_000_000, cout_jour_moyen:270,  secteur:"Transport",  ville:"Brest" }
   ],
   contrats: [
     { entreprise:"e1", statut:"actif", signe_le:J(-40), debut:"2027-01-01", fin:"2027-12-31",
@@ -342,24 +348,24 @@ const seed = {
       quantite:80, restant:56, date:J(33), lieu:"Paris", etat:"ouverte" }
   ],
   missions: [
-    { id:"m1", annonce:"an1", entreprise:"e1", salarie:"u3", etat:"validee",     quantite:2, points:300,  date:J(-12) },
-    { id:"m2", annonce:"an2", entreprise:"e1", salarie:"u4", etat:"validee",     quantite:3, points:450,  date:J(-9) },
-    { id:"m3", annonce:"an4", entreprise:"e1", salarie:"u3", etat:"validee",     quantite:600, points:60, date:J(-7) },
-    { id:"m4", annonce:"an5", entreprise:"e1", salarie:"u5", etat:"a_valider",   quantite:3, points:300,  date:J(-2) },
+    { id:"m1", annonce:"an1", entreprise:"e1", salarie:"u3", etat:"validee",     quantite:2, points:300,  date:J(-12), declaree_le:J(-11), tranchee_le:J(-10), realise:22 },
+    { id:"m2", annonce:"an2", entreprise:"e1", salarie:"u4", etat:"validee",     quantite:3, points:450,  date:J(-9), declaree_le:J(-8), tranchee_le:J(-7), realise:118 },
+    { id:"m3", annonce:"an4", entreprise:"e1", salarie:"u3", etat:"validee",     quantite:600, points:60, date:J(-7), declaree_le:J(-7), tranchee_le:J(-6), realise:68 },
+    { id:"m4", annonce:"an5", entreprise:"e1", salarie:"u5", etat:"a_valider",   quantite:3, points:300,  date:J(-2), declaree_le:J(-2) },
     { id:"m5", annonce:"an1", entreprise:"e1", salarie:"u4", etat:"engagee",     quantite:2, points:300,  date:J(9)  },
-    { id:"m6", annonce:"an7", entreprise:"e1", salarie:"u5", etat:"validee_auto",quantite:1, points:150,  date:J(-4) },
+    { id:"m6", annonce:"an7", entreprise:"e1", salarie:"u5", etat:"validee_auto",quantite:1, points:150,  date:J(-4), declaree_le:J(-20), tranchee_le:J(-6) },
     { id:"m7", annonce:"an3", entreprise:"e1", salarie:"u3", etat:"refusee",     quantite:1, points:0,    date:J(-6) },
-    { id:"m8", annonce:"an2", entreprise:"e2", salarie:"u9", etat:"validee",     quantite:4, points:600,  date:J(-5) }
+    { id:"m8", annonce:"an2", entreprise:"e2", salarie:"u9", etat:"validee",     quantite:4, points:600,  date:J(-5), declaree_le:J(-4), tranchee_le:J(-3), realise:155 }
   ],
   utilisateurs: [
     { id:"u1", nom:"Yacine Bounoua",  email:"contact@riseva.fr",        role:"admin",            org:null },
     { id:"u2", nom:"Claire Fontaine", email:"claire@lafarge-ciments.fr",role:"entreprise_admin", org:"e1" },
-    { id:"u3", nom:"Malik Ferhat",    email:"malik@lafarge-ciments.fr", role:"salarie",          org:"e1", points:360, actif:true },
-    { id:"u4", nom:"Sonia Delaunay",  email:"sonia@lafarge-ciments.fr", role:"salarie",          org:"e1", points:750, actif:true },
-    { id:"u5", nom:"Hugo Vasseur",    email:"hugo@lafarge-ciments.fr",  role:"salarie",          org:"e1", points:450, actif:true },
-    { id:"u6", nom:"Nadia Berrada",   email:"nadia@lafarge-ciments.fr", role:"salarie",          org:"e1", points:0,   actif:false },
+    { id:"u3", nom:"Malik Ferhat",    email:"malik@lafarge-ciments.fr", role:"salarie",          org:"e1", actif:true },
+    { id:"u4", nom:"Sonia Delaunay",  email:"sonia@lafarge-ciments.fr", role:"salarie",          org:"e1", actif:true },
+    { id:"u5", nom:"Hugo Vasseur",    email:"hugo@lafarge-ciments.fr",  role:"salarie",          org:"e1", actif:true },
+    { id:"u6", nom:"Nadia Berrada",   email:"nadia@lafarge-ciments.fr", role:"salarie",          org:"e1", actif:false },
     { id:"u7", nom:"Élise Tournier",  email:"elise@quatrevents.org",    role:"association",      org:"a1" },
-    { id:"u9", nom:"Paul Girard",     email:"paul@groupe-vidal.fr",     role:"salarie",          org:"e2", points:600, actif:true }
+    { id:"u9", nom:"Paul Girard",     email:"paul@groupe-vidal.fr",     role:"salarie",          org:"e2", actif:true }
   ],
   signalements: [],
   acces: [
@@ -451,16 +457,25 @@ function engendrerReseau(base){
       const quantite = a.type === "don_financier"
         ? (2 + Math.floor(r() * 24)) * 10
         : 1 + Math.floor(r() * 3);
-      base.missions.push({
+      const repond = r() > 0.12;             /* la plupart des associations répondent */
+      const date = jour(14 + Math.floor(r() * 500));
+      const mission = {
         id: `m-${e.id}-${k + 1}`,
         annonce: a.id, entreprise: e.id, salarie: equipe[Math.floor(r() * equipe.length)],
-        etat: r() > 0.06 ? "validee" : "validee_auto",
+        etat: repond ? "validee" : "validee_auto",
         quantite,
         points: a.type === "don_financier"
           ? Math.floor((quantite / 10) * bareme)
           : quantite * bareme,
-        date: jour(14 + Math.floor(r() * 500)), reseau: true
-      });
+        date, declaree_le: date, tranchee_le: date, reseau: true
+      };
+      /* Quand elle répond, elle donne son chiffre, et il n'est jamais pile celui
+         annoncé : c'est le terrain qui compte, pas la brochure. */
+      if (repond && a.impact && a.impact.unite){
+        const attendu = Math.round(quantite * (a.impact.par_unite || 0));
+        mission.realise = Math.max(0, Math.round(attendu * (0.82 + r() * 0.3)));
+      }
+      base.missions.push(mission);
     }
   });
 }
@@ -549,30 +564,21 @@ function creerMock(){
         const a = api.annonceDe(m); if (!a) return;
         parType[a.type] = (parType[a.type] || 0) + m.points;
       });
-      let brut = Object.values(parType).reduce((x, y) => x + y, 0);
+      const brut = Object.values(parType).reduce((x, y) => x + y, 0);
 
-      /* Jeu de démonstration : les entreprises portent un total de saison qui couvre
-         plus de missions que celles détaillées ici. On complète la ventilation au prorata
-         du mélange observé, pour que le tableau de bord et le classement racontent la
-         même histoire. En production, `brut` vient uniquement des missions. */
-      const totalSaison = (api.entreprise(eid) || {}).points || 0;
-      if (totalSaison > brut){
-        const manque = totalSaison - brut;
-        const mix = brut > 0
-          ? Object.fromEntries(Object.entries(parType).map(([k, v]) => [k, v / brut]))
-          : { benevolat_demi_journee: 0.62, don_materiel: 0.26, don_financier: 0.12 };
-        Object.entries(mix).forEach(([k, part]) => {
-          parType[k] = (parType[k] || 0) + Math.round(manque * part);
-        });
-        brut = Object.values(parType).reduce((x, y) => x + y, 0);
-      }
-      const plafond = Math.round(brut * PLAFOND_PAR_FORMAT);
+      /* Le plafond porte sur le total RETENU, pas sur le brut. Écrire
+         `min(v, brut / 2)` laisse passer un score où un format pèse 82 % :
+         il suffit qu'il domine assez pour que la moitié du brut reste
+         au-dessus des autres. La forme juste est `min(v, brut - v)` — la
+         part d'un format ne peut pas dépasser la somme de toutes les autres,
+         ce qui revient exactement à la moitié du retenu. */
       const retenuParType = {};
       let retenu = 0, ecrete = 0;
       Object.entries(parType).forEach(([k, v]) => {
-        const r = Math.min(v, plafond);
+        const r = Math.max(0, Math.min(v, brut - v));
         retenuParType[k] = r; retenu += r; ecrete += v - r;
       });
+      const plafond = Math.round(retenu * PLAFOND_PAR_FORMAT);
       return { brut, retenu, ecrete, parType, retenuParType, plafond };
     },
 
@@ -584,13 +590,16 @@ function creerMock(){
       let l = clone(s.entreprises).map(e => {
         const p = api.pointsDe(e.id);
         const sal = api.salaries(e.id).filter(u => !u.anonyme);
-        const engages = sal.filter(u => (u.points || 0) > 0).length;
+        /* Un salarié « engagé » est un salarié dont une mission a été validée.
+           Aucun compteur dénormalisé : le chiffre se relit dans les missions,
+           sinon un total oublié survit à la correction qui l'a rendu faux. */
+        const engages = sal.filter(u => api.pointsVisiblesEmployeur(u.id) > 0).length;
         const base = Math.max(e.effectif || sal.length || 1, 1);
         return { ...e,
-          points: p.retenu || e.points || 0,
-          brut: p.brut || e.points || 0,
+          points: p.retenu,
+          brut: p.brut,
           ecrete: p.ecrete,
-          parSalarie: Math.round(((p.retenu || e.points || 0) / base) * 10) / 10,
+          parSalarie: Math.round((p.retenu / base) * 10) / 10,
           participation: sal.length ? Math.round((engages / sal.length) * 100) : 0,
           categorie: categorieDe(e.effectif || 0)
         };
@@ -681,11 +690,20 @@ function creerMock(){
       ids.forEach(id => { if (api.validerMission(id, ok, realises[id])) n++; });
       return n;
     },
+    /* Le délai court à partir de la déclaration, jamais à partir de la date prévue
+       de la mission. Sinon une mission déclarée treize jours en retard serait
+       validée d'office le lendemain, sans que l'association ait eu le temps de
+       lire le message. Une seule définition, ici et en SQL. */
+    echeanceAuto(m){
+      const depart = m.declaree_le || m.date;
+      const limite = new Date(depart);
+      limite.setDate(limite.getDate() + DELAI_VALIDATION_JOURS);
+      return limite;
+    },
     /* Jours restants avant la validation automatique. */
     joursAvantAuto(m){
       if (m.etat !== "a_valider") return null;
-      const limite = new Date(m.date); limite.setDate(limite.getDate() + 14);
-      return Math.max(0, Math.ceil((limite - new Date(2026, 7, 20)) / 864e5));
+      return Math.max(0, Math.ceil((api.echeanceAuto(m) - new Date(2026, 7, 20)) / 864e5));
     },
     /* Deuxième administrateur : un seul compte admin par entreprise est trop fragile. */
     promouvoirAdmin(uid){
@@ -704,15 +722,16 @@ function creerMock(){
     administrateurs: (eid) => s.utilisateurs.filter(u => u.org === eid
       && u.role === "entreprise_admin" && u.actif),
 
+    /* Une seule écriture : l'état de la mission, et le chiffre que l'association
+       a corrigé. Pas de compteur additionné au passage sur l'entreprise ni sur le
+       salarié — les totaux se relisent dans les missions, sinon une correction
+       laisse un score faux derrière elle. */
     validerMission(mid, ok, realise){
       const m = s.missions.find(x => x.id === mid); if (!m) return null;
       m.etat = ok ? "validee" : "refusee";
+      m.tranchee_le = new Date(2026, 7, 20).toISOString().slice(0, 10);
       if (ok){
         if (realise !== undefined && realise !== null) m.realise = Math.max(0, Number(realise) || 0);
-        const e = s.entreprises.find(x => x.id === m.entreprise);
-        if (e) e.points += m.points;
-        const u = s.utilisateurs.find(x => x.id === m.salarie);
-        if (u) u.points = (u.points || 0) + m.points;
       } else { m.points = 0; m.realise = 0; }
       return m;
     },
@@ -942,19 +961,31 @@ function creerMock(){
        1. seules les missions validées comptent, jamais une réservation ;
        2. le nombre déclaré par l'association fait foi, pas l'estimation de l'annonce.
        Riseva additionne, elle n'audite pas, et l'interface le dit. */
+    /* Confirmé et estimé ne se mélangent pas. Une association qui répond donne un
+       chiffre : c'est du confirmé. Une association qui ne répond pas laisse la
+       mission se valider toute seule au bout de quatorze jours : l'entreprise
+       marque ses points, mais personne n'a compté les arbres, donc le chiffre
+       reste une estimation et se dit comme telle. Additionner les deux
+       transformerait un silence en résultat. */
     realiseDe(m){
       const a = api.annonceDe(m);
       if (!a || !a.impact || !a.impact.unite) return null;
       if (!["validee", "validee_auto"].includes(m.etat)) return null;
       const attendu = Math.round((Number(m.quantite) || 0) * (Number(a.impact.par_unite) || 0));
-      const reel = m.realise === undefined || m.realise === null ? attendu : Number(m.realise);
-      return { unite: a.impact.unite, quantite: Math.max(0, reel), attendu, declare: m.realise != null };
+      const declare = m.realise !== undefined && m.realise !== null;
+      const confirme = declare && m.etat === "validee";
+      return {
+        unite: a.impact.unite,
+        quantite: confirme ? Math.max(0, Number(m.realise)) : 0,
+        estime: confirme ? 0 : attendu,
+        attendu, declare, confirme
+      };
     },
 
     /* Cumul par unité. Filtres possibles : entreprise, association, salarié, période. */
     realisations({ entreprise, asso, salarie, depuis, jusqua } = {}){
-      const total = {};
-      let missions = 0;
+      const total = {}, estime = {};
+      let missions = 0, sansReponse = 0;
       s.missions.forEach(m => {
         if (entreprise && m.entreprise !== entreprise) return;
         if (salarie && m.salarie !== salarie) return;
@@ -963,15 +994,17 @@ function creerMock(){
         const a = api.annonceDe(m);
         if (asso && (!a || a.asso !== asso)) return;
         const r = api.realiseDe(m);
-        if (!r || !r.quantite) return;
-        total[r.unite] = (total[r.unite] || 0) + r.quantite;
-        missions++;
+        if (!r) return;
+        if (r.quantite){ total[r.unite] = (total[r.unite] || 0) + r.quantite; missions++; }
+        if (r.estime){ estime[r.unite] = (estime[r.unite] || 0) + r.estime; sansReponse++; }
       });
       return {
         parUnite: total,
-        missions,
+        estimeParUnite: estime,
+        missions, sansReponse,
         liste: Object.entries(total)
-          .map(([unite, quantite]) => ({ unite, quantite, ...(UNITES[unite] || { un:unite, pl:unite }) }))
+          .map(([unite, quantite]) => ({ unite, quantite, estime: estime[unite] || 0,
+            ...(UNITES[unite] || { un:unite, pl:unite }) }))
           .sort((x, y) => y.quantite - x.quantite)
       };
     },
@@ -1073,6 +1106,10 @@ function creerMock(){
     declarerRealise(mid, quantite){
       const m = s.missions.find(x => x.id === mid);
       if (!m) return null;
+      /* On ne déclare un chiffre que sur une mission qu'on est en train de trancher :
+         corriger après coup une mission déjà validée d'office rouvrirait un compteur
+         que le rapport a peut-être déjà scellé. */
+      if (m.etat !== "a_valider" && m.etat !== "validee") return null;
       m.realise = Math.max(0, Number(quantite) || 0);
       return m;
     },
@@ -1447,14 +1484,12 @@ function creerMock(){
       /* 1. Une association qui ne répond pas ne doit pas bloquer le client.
             Quatorze jours après la déclaration, la mission est comptée. */
       s.missions.filter(m => m.etat === "a_valider").forEach(m => {
-        const limite = new Date(m.date);
-        limite.setDate(limite.getDate() + 14);
-        if (limite.toISOString().slice(0, 10) <= aujourdhui){
+        if (api.echeanceAuto(m).toISOString().slice(0, 10) <= aujourdhui){
           m.etat = "validee_auto";
-          const e = s.entreprises.find(x => x.id === m.entreprise);
-          if (e) e.points += m.points;
-          const u = s.utilisateurs.find(x => x.id === m.salarie);
-          if (u) u.points = (u.points || 0) + m.points;
+          m.tranchee_le = aujourdhui;
+          /* Aucun compteur à incrémenter : les totaux se relisent dans les missions.
+             Un compteur qu'on additionne ici est un compteur qu'on oublie de
+             décrémenter là, et le score dérive sans que personne s'en aperçoive. */
           fait.validations_auto++;
         }
       });
@@ -1655,9 +1690,9 @@ function creerMock(){
       const salaries = api.salaries(eid);
       return {
         portee, entreprise: e, saison: s.saison,
-        points: e.points, rang: api.rangDe(eid), total: s.entreprises.length,
+        points: api.pointsDe(eid).retenu, rang: api.rangDe(eid), total: s.entreprises.length,
         missions: ms.length, parType, euros,
-        salariesEngages: salaries.filter(u => (u.points || 0) > 0).length,
+        salariesEngages: salaries.filter(u => api.pointsVisiblesEmployeur(u.id) > 0).length,
         salariesTotal: salaries.length,
         trimestres: s.trimestres,
         demiJournees: ms.filter(m => (api.annonceDe(m)||{}).type === "benevolat_demi_journee")
