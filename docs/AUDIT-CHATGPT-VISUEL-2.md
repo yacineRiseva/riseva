@@ -128,3 +128,54 @@ Tout est appliqué.
   chevron et un vrai état.
 - **Classement.** Sous dix entreprises, le titre devient « Votre score de saison »
   et le badge « Classement à venir ».
+
+
+---
+
+# Troisième passe — verdict
+
+> « Oui. Visuellement et ergonomiquement, Riseva est prête à être montrée à un
+> client. Je ne retarderais pas les démonstrations pour refaire la forêt, la carte,
+> les cartes d'annonces ou la jauge : elles sont désormais au niveau d'un SaaS
+> vendu. Il reste trois ambiguïtés importantes et quelques finitions. »
+>
+> Forêt : réussie et distinctive, ne plus la retravailler. Carte : crédible,
+> lisible, non générique. Vignettes : cohérentes et secondaires par rapport au
+> besoin. Jauge : claire, devenue une vraie signature. Palette, typographie,
+> densité, contrastes : prêts.
+
+## Les trois ambiguïtés — corrigées
+
+- [x] **« 199 missions réalisées » contredisait les 32 sans confirmation.** Une
+  auto-validation établit un statut, pas une réalisation. → « 199 missions validées,
+  dont 32 clôturées automatiquement sans confirmation ». Et « Estimés, en plus »
+  devient « Résultats estimés — non confirmés » : « en plus » invitait à additionner.
+- [x] **« Vos 960 points, après application du plafond »** était faux au premier
+  regard — après plafond le score est 120. → « Votre score : 120 points retenus sur
+  960 bruts ».
+- [x] **« Vérifiées par Riseva »** dans l'annuaire. La correction était déjà en
+  place au moment de la capture ; le libellé affiché est « Existence juridique et
+  coordonnées contrôlées », et le détail s'ouvre au clic.
+
+## Le reste
+
+- [x] Navigation : « Classement » devient « Score et classement ». Le produit donne
+  un score dès le premier jour ; la comparaison publique s'ouvre à dix entreprises.
+  Un bouton « Classement » qui mène à une page sans classement était une promesse
+  non tenue au moment même où le produit explique pourquoi il ne la tient pas.
+- [x] Badge « 3 missions » → « 3 résultats confirmés ».
+- [x] Note du bandeau de résultats : cinq phrases défensives réduites à deux, plus
+  un lien « Voir la méthode » vers une nouvelle section du règlement qui explique
+  confirmé et estimé.
+- [x] Cohorte expliquée une seule fois, à droite.
+- [x] « Points rapportés » retiré des cartes d'associations : il entretenait un
+  palmarès implicite.
+- [x] Unités alignées entre titre et objectif : « Sortie de 42 animaux », « Dix kits
+  de terrain ». L'aperçu du formulaire compare désormais **le mot autant que le
+  nombre**.
+- [x] « +1 pt / 10 € » au singulier.
+- [x] « Heures consacrées aux missions », avec la ventilation entre temps personnel
+  et temps de travail valorisable.
+- [x] « À valider » dans les missions en cours devient « En attente de l'association ».
+- [x] Les trois associations les plus proches ont un chevron et un état de survol.
+- [x] « Les données sont agrégées : aucune entreprise ni aucun salarié n'est nommé. »
