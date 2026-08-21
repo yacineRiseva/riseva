@@ -244,8 +244,8 @@ def main():
         verifie("ce qui attend une action passe en premier", "Ce qui vous attend" in t)
         verifie("le premier chiffre est la participation", "salariés qui ont agi" in t.lower())
         verifie("le coût par mission est donné", "coût par mission validée" in t.lower())
-        i_attend = t.find("Ce qui vous attend"); i_rang = t.find("Rang,")
-        verifie("le rang passe après", i_attend >= 0 and (i_rang == -1 or i_rang > i_attend))
+        i_attend = t.find("Ce qui vous attend"); i_rang = t.find("Votre rang")
+        verifie("le rang est toujours là, mais après", i_rang > i_attend >= 0)
 
         print("\nCloisonnement des dons personnels")
         connecte(p, "u2", "#/missions")

@@ -396,7 +396,18 @@ function tableauEntreprise(u){
 
       <div class="stack" style="--gap:var(--s5)">
         <section class="card">
-          <h3>Objectif du trimestre</h3>
+          <div class="between" style="margin-bottom:var(--s5)">
+            <div><h3>Votre rang</h3>
+              <p class="muted" style="font-size:var(--t-sm);margin-top:4px">${
+                esc(moiCl.categorie ? moiCl.categorie.label : "")}</p></div>
+            <span class="row" style="gap:var(--s3)">
+              <strong style="font-family:var(--font-display);font-size:1.6rem;
+                letter-spacing:-.02em;color:var(--ink)">${rangFR(rang)}</strong>
+              <span class="muted" style="font-size:var(--t-sm)">sur ${total}</span>
+            </span>
+          </div>
+          <hr class="sep" style="margin:0 0 var(--s5)">
+          <h3 style="font-size:var(--t-lg)">Objectif du trimestre</h3>
           <p class="muted" style="font-size:var(--t-sm);margin-top:6px">
             ${total < 10
               ? `Votre catégorie ne compte que ${total} entreprise${total > 1 ? "s" : ""} cette saison :
