@@ -39,6 +39,7 @@ const MENUS = {
       ["rapports",   "Rapports",     "report"],
       ["mecenat",    "Mécénat",      "coins"],
       ["materiel",   "Dons de matériel", "box"],
+      ["dossier",    "Réponses clients", "hands"],
       ["abonnement", "Abonnement",   "card"],
       ["parametres", "Paramètres",   "settings"]
     ]}
@@ -5369,6 +5370,155 @@ function formValeurMateriel(x){
   ]);
 }
 
+/* ------------------------------------------------------------------ */
+/* Réponses aux questionnaires clients                                 */
+/* ------------------------------------------------------------------ */
+/* Le vrai déclencheur d'achat en PME : un client important envoie un
+   questionnaire, il faut répondre en huit jours, et personne ne sait où sont les
+   chiffres. Riseva ne prétend pas couvrir toute la RSE — elle range ce qu'elle
+   sait, avec sa provenance, et **écrit noir sur blanc ce qu'elle ne sait pas**.
+   Une matrice qui ne montrerait que les cases remplies serait un piège : c'est
+   sur les cases vides qu'on se fait prendre en rendez-vous. */
+function vueDossier(u){
+  const e = DB.entreprise(u.org);
+  const res = DB.realisations({ entreprise: u.org });
+  const ms = DB.missions({ entreprise: u.org })
+    .filter(m => ["validee", "validee_auto"].includes(m.etat));
+  const confirmees = ms.filter(m => m.etat === "validee").length;
+  const assos = new Set(ms.map(m => (DB.annonceDe(m) || {}).asso).filter(Boolean)).size;
+  const mob = new Set(ms.map(m => m.salarie)).size;
+  const heures = ms.filter(m => (DB.annonceDe(m) || {}).type === "benevolat_demi_journee")
+    .reduce((n, m) => n + m.quantite * FISCAL.heures_demi_journee, 0);
+  const mat = DB.registreMateriel(u.org);
+  const v = DB.valorisationMecenat(u.org);
+  const gid = e.groupe || null;
+  const camps = DB.campagnes(gid || undefined)
+    .filter(c => c.etat === "close").sort((a, b) => b.debut.localeCompare(a.debut));
+  const camp = camps[0] || null;
+  const ind = camp ? DB.indicateursDe({ campagne: camp.id,
+    groupe: gid || undefined, societe: gid ? undefined : u.org }) : null;
+  const vi = (cle) => ind && ind.somme[cle] !== undefined ? ind.somme[cle] : null;
+  const vc = (cle) => ind && ind.calcules[cle] !== null && ind.calcules[cle] !== undefined
+    ? ind.calcules[cle] : null;
+
+  const RISEVA = "Riseva — dérivé des missions";
+  const SITE   = camp ? `Déclaré par les sites — ${camp.libelle}` : "Déclaré par les sites";
+  const VOUS   = "Vous, dans Paramètres";
+
+  const lignes = [
+    ["Effectif", [
+      ["Effectif total déclaré", e.effectif ? nb(e.effectif) : null, VOUS],
+      ["Effectif à la clôture de la période", vi("effectif_fin") ? nb(vi("effectif_fin")) : null, SITE],
+      ["Entrées sur la période", vi("entrees") !== null ? nb(vi("entrees")) : null, SITE],
+      ["Sorties sur la période", vi("sorties") !== null ? nb(vi("sorties")) : null, SITE],
+      ["Rotation du personnel", vc("turnover") !== null ? nb2(vc("turnover")) + " %" : null, SITE]
+    ]],
+    ["Santé et sécurité au travail", [
+      ["Heures travaillées", vi("heures_travaillees") ? nb(vi("heures_travaillees")) : null, SITE],
+      ["Accidents du travail avec arrêt", vi("at_avec_arret") !== null ? nb(vi("at_avec_arret")) : null, SITE],
+      ["Journées perdues pour accident", vi("jours_arret") !== null ? nb(vi("jours_arret")) : null, SITE],
+      ["Taux de fréquence (avec arrêt)", vc("tf1") !== null ? nb2(vc("tf1")) : null, SITE],
+      ["Taux de gravité", vc("tg") !== null ? nb2(vc("tg")) : null, SITE],
+      ["Nombre de maladies professionnelles reconnues", null, null],
+      ["Document unique à jour", null, null]
+    ]],
+    ["Égalité et inclusion", [
+      ["Part des femmes dans l'effectif", vc("part_femmes") !== null ? nb2(vc("part_femmes")) + " %" : null, SITE],
+      ["Taux d'emploi direct de travailleurs handicapés", vc("taux_boeth") !== null ? nb2(vc("taux_boeth")) + " %" : null, SITE],
+      ["Index d'égalité professionnelle", null, null],
+      ["Écart de rémunération femmes-hommes", null, null]
+    ]],
+    ["Formation", [
+      ["Heures de formation", vi("formation_heures") ? nb(vi("formation_heures")) : null, SITE],
+      ["Salariés formés", vi("formation_benef") ? nb(vi("formation_benef")) : null, SITE]
+    ]],
+    ["Engagement territorial et associatif", [
+      ["Associations soutenues", assos ? nb(assos) : null, RISEVA],
+      ["Salariés mobilisés", mob ? nb(mob) : null, RISEVA],
+      ["Missions réalisées", ms.length ? nb(ms.length) : null, RISEVA],
+      ["dont confirmées par l'association", ms.length ? nb(confirmees) : null, RISEVA],
+      ["Heures de bénévolat", heures ? nb(heures) : null, RISEVA],
+      ["Dons de matériel", mat.total ? nb(mat.total) : null, RISEVA],
+      ["Valeur nette comptable des dons de matériel", mat.valeur ? eur(mat.valeur) : null, VOUS],
+      ["Mécénat de compétences valorisé", v.competencesRetenu ? eur(v.competencesRetenu) : null, "Riseva — au coût déclaré"]
+    ]],
+    ["Environnement", [
+      ["Émissions de gaz à effet de serre", null, null],
+      ["Consommation d'énergie", null, null],
+      ["Volume de déchets", null, null]
+    ]]
+  ];
+
+  const total = lignes.flatMap(x => x[1]).length;
+  const remplies = lignes.flatMap(x => x[1]).filter(x => x[1] !== null).length;
+
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <section class="card">
+      <div class="between" style="flex-wrap:wrap;gap:var(--s4);align-items:flex-start">
+        <div><h3>Ce que vous pouvez répondre, et ce que vous ne pouvez pas</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px;max-width:78ch">
+          Un client important vous envoie un questionnaire et attend une réponse sous huit
+          jours. Voici ce que Riseva sait, avec sa provenance — et surtout ce qu'elle ne sait
+          pas, parce que c'est sur ces lignes-là qu'on se fait reprendre en rendez-vous.</p></div>
+        <button class="btn btn--ghost btn--sm" id="csvD">Exporter</button>
+      </div>
+      <hr class="sep">
+      <div class="kpis">
+        ${kpi("Lignes renseignées", `${nb(remplies)} / ${nb(total)}`,
+              "le reste vit ailleurs que dans Riseva", "", "kpi--tete grain")}
+        ${kpi("Période des indicateurs", camp ? esc(camp.libelle) : "aucune",
+              camp ? "dernière période close" : "aucune campagne close")}
+        ${kpi("Périmètre", ind ? `${ind.sites} / ${ind.attendus} sites` : "—",
+              ind && !ind.complet ? "incomplet, et le document le dit" : "complet")}
+        ${kpi("Arrêté au", dateCourte(new Date().toISOString()), "à régénérer avant chaque envoi")}
+      </div>
+    </section>
+
+    <section class="card">
+      <table class="table"><thead><tr>
+        <th>Donnée</th><th style="text-align:right">Valeur</th><th>Provenance</th>
+      </tr></thead><tbody></tbody></table>
+    </section>
+
+    <section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
+      <h3 style="font-size:var(--t-lg)">Ce document n'est pas une conformité</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);max-width:78ch;color:var(--ink-600)">
+        Riseva ne se déclare ni auditeur, ni organisme de contrôle, et n'écrit nulle part
+        « conforme ». Ce tableau rassemble des données <strong style="color:var(--ink)">déclarées</strong>
+        — par vos salariés, par les associations, par vos sites — horodatées et sourcées ligne
+        à ligne. Ce qui n'y figure pas n'est pas un oubli : c'est ce que Riseva ne collecte
+        pas, et le dire vous protège mieux qu'une case remplie au jugé.
+      </p>
+    </section>
+  </div>`);
+
+  const tb = el.querySelector("tbody");
+  lignes.forEach(([theme, items]) => {
+    tb.appendChild(h(`<tr><td colspan="3" style="padding-top:var(--s5)">
+      <strong>${esc(theme)}</strong></td></tr>`));
+    items.forEach(([nom, valeur, source]) => {
+      tb.appendChild(h(`<tr>
+        <td class="muted" style="padding-left:var(--s5)">${esc(nom)}</td>
+        <td class="tnum" style="text-align:right">${valeur === null
+          ? `<span class="badge badge--warn">non disponible</span>` : `<strong>${valeur}</strong>`}</td>
+        <td class="muted" style="font-size:var(--t-xs)">${source ? esc(source)
+          : "Riseva ne collecte pas cette donnée"}</td>
+      </tr>`));
+    });
+  });
+
+  el.querySelector("#csvD").onclick = () => {
+    versCSV("riseva-reponses-client.csv",
+      ["Thème", "Donnée", "Valeur", "Provenance", "Arrêté au"],
+      lignes.flatMap(([theme, items]) => items.map(([nom, valeur, source]) =>
+        [theme, nom, valeur === null ? "non disponible" : String(valeur).replace(/\u00a0/g, " "),
+         source || "Riseva ne collecte pas cette donnée",
+         new Date().toISOString().slice(0, 10)])));
+    toast("Export téléchargé.");
+  };
+  return el;
+}
+
 const ROUTES = {
   entreprise_admin: {
     tableau:   [tableauEntreprise, "Tableau de bord"],
@@ -5381,6 +5531,7 @@ const ROUTES = {
     rapports:  [vueRapports,       "Rapports"],
     mecenat:   [vueMecenat,        "Mécénat"],
     materiel:  [vueMateriel,       "Dons de matériel"],
+    dossier:   [vueDossier,        "Réponses aux questionnaires clients"],
     abonnement:[vueAbonnement,     "Abonnement"],
     parametres:[vueParametres,     "Paramètres"],
     groupe:    [vueGroupe,         "Vue consolidée du groupe"],

@@ -862,6 +862,19 @@ def main():
         verifie("chaque don porte l'état de sa confirmation",
                 "Confirmation" in m and "En attente de l'association" in m)
 
+        print("\nRéponses aux questionnaires clients")
+        connecte(p, "u2", "#/dossier")
+        dd = norm(p.inner_text(".content"))
+        verifie("le dossier montre ce qui manque autant que ce qui est là",
+                "non disponible" in dd and "Lignes renseignées" in dd)
+        verifie("chaque ligne porte sa provenance",
+                "Déclaré par les sites" in dd and "dérivé des missions" in dd)
+        verifie("il ne se déclare pas conforme",
+                "n'est pas une conformité" in dd and "ni auditeur" in dd)
+        verifie("le carbone est annoncé comme non collecté, pas estimé",
+                "gaz à effet de serre" in dd
+                and "Riseva ne collecte pas cette donnée" in dd)
+
         print("\nRapport consolidé de groupe")
         connecte(p, "u2", "#/groupe")
         with p.context.expect_page() as onglet:
