@@ -327,6 +327,21 @@ def main():
         verifie("et on lui dit pourquoi", "suspendu" in p.inner_text("body").lower())
         p.evaluate("()=>localStorage.removeItem('riseva.etat')")
 
+        print("\nChacun chez soi")
+        connecte(p, "u4")
+        t4 = p.inner_text(".content")
+        # Un salarié n'a pas à recevoir les tâches de son administrateur.
+        verifie("le salarié ne voit pas les tâches d'administration",
+                "second administrateur" not in t4)
+        verifie("il ne voit pas l'écrêtage de l'entreprise", "écrêtés" not in t4)
+        verifie("il voit ses propres points", "Mes points" in t4)
+        verifie("il voit ce qui l'attend", "Mes missions en cours" in t4)
+        verifie("il voit le réseau, comme tout le monde", "Tous ensemble" in t4)
+        connecte(p, "u7")
+        t7 = p.inner_text(".content")
+        verifie("l'association voit ce que les entreprises ont produit chez elle",
+                "produit chez vous" in t7 or "Vos annonces" in t7)
+
         print("\nCe qu'on promet")
         connecte(p, "u2", "#/annuaire")
         a = p.inner_text(".content")

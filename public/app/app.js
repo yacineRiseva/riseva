@@ -2319,6 +2319,19 @@ function tableauAsso(u){
   const annonces = DB.annonces({ asso: aid });
   const ms = DB.missions({ asso: aid });
   const aValider = ms.filter(m => m.etat === "a_valider");
+
+  /* Ce qui attend vraiment une action de l'association, et rien d'autre. */
+  const rappels = [];
+  if (aValider.length) rappels.push({ ton:"alerte", vers:"#/avalider", texte:
+    `${aValider.length} mission${aValider.length > 1 ? "s" : ""} à confirmer — sans réponse sous quatorze jours, elle${aValider.length > 1 ? "s seront comptées" : " sera comptée"} comme réalisée${aValider.length > 1 ? "s" : ""}` });
+  if (asso.a_reverifier_le && asso.a_reverifier_le <= new Date(2026, 7, 20).toISOString().slice(0, 10))
+    rappels.push({ ton:"alerte", vers:"#/page", texte:
+      "Votre vérification annuelle est échue : Riseva va vous recontacter" });
+  if (!asso.recus || !asso.recus.actif) rappels.push({ ton:"info", vers:"#/recus", texte:
+    "Les reçus fiscaux ne sont pas activés : les entreprises ne peuvent pas déduire leurs dons" });
+  if (!annonces.some(a => a.etat === "ouverte")) rappels.push({ ton:"info", vers:"#/mesannonces", texte:
+    "Aucune annonce ouverte : personne ne peut se positionner" });
+
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <div class="kpis">
       ${kpi("Annonces ouvertes", nb(annonces.filter(a => a.etat === "ouverte").length), "publiées par vous", "", "kpi--tete grain")}
@@ -2327,6 +2340,21 @@ function tableauAsso(u){
             aValider.length ? "down" : "")}
       ${kpi("Entreprises mobilisées", nb(new Set(ms.map(m => m.entreprise)).size))}
     </div>
+    ${rappels.length ? `<section class="aFaire">
+      <div class="aFaire__col">
+        <span class="aFaire__titre">Action requise
+          <span class="badge ${rappels.some(x => x.ton === "alerte") ? "badge--warn" : ""}"
+            style="height:20px;margin-left:6px">${rappels.length}</span></span>
+        <div class="aFaire__liste">
+          ${rappels.map(x => `<a class="rappel rappel--dense" href="${x.vers}">
+            <span class="notif__point notif__point--${x.ton}"></span>
+            <span>${esc(x.texte)}</span>
+            <span class="rappel__go">${ICONS.arrow || "→"}</span></a>`).join("")}
+        </div></div>
+    </section>` : ""}
+
+    <div id="produit"></div>
+
     <div class="two">
       <section class="card">
         <div class="between" style="margin-bottom:var(--s5)">
@@ -2352,6 +2380,14 @@ function tableauAsso(u){
   </div>`);
   el.querySelector("#l").appendChild(tableAnnoncesAsso(annonces, u));
   el.querySelector("#new").onclick = () => formAnnonce(u);
+
+  /* Ce que l'association vient chercher ici : ce que les entreprises ont
+     réellement produit chez elle, et ce qui l'attend côté reçus. Le tableau de
+     bord ne montrait que ses propres annonces — une liste qu'elle connaît déjà. */
+  const rea = bandeauRealisations(DB.realisations({ asso: aid }), {
+    titre: "Ce que les entreprises ont produit chez vous", sombre: true,
+    note: "Ces chiffres sont ceux que vous avez confirmés en validant les missions." });
+  if (rea) el.querySelector("#produit").appendChild(rea);
   return el;
 }
 
@@ -2362,7 +2398,8 @@ function tableAnnoncesAsso(annonces, u){
   if (!annonces.length)
     tb.appendChild(h(`<tr><td colspan="5" class="empty">Aucune annonce publiée.</td></tr>`));
   annonces.forEach(a => {
-    const engagees = DB.missions({}).filter(m => m.annonce === a.id && m.etat !== "refusee").length;
+    const engagees = DB.missions({}).filter(m =>
+      m.annonce === a.id && m.etat !== "refusee" && DB.deLaSaison(m)).length;
     const tr = h(`<tr>
       <td><strong>${esc(a.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${dateFR(a.date)} · ${esc(a.lieu || "")}${
         engagees ? ` · ${engagees} engagement${engagees > 1 ? "s" : ""}` : ""}</span></td>
@@ -3002,6 +3039,126 @@ function vueAdminSaison(){
     el.querySelectorAll("[data-bareme]").forEach(i => DB.majBareme(i.dataset.bareme, i.value));
     toast("Barème enregistré pour la saison suivante."); rendre();
   };
+  return el;
+}
+
+/* Le tableau de bord d'un salarié.
+   Il voyait exactement celui de son administrateur : « nommez un second
+   administrateur », l'écrêtage de l'entreprise, le rang de la société, les
+   missions de tout le monde. Rien de tout cela ne lui demande quoi que ce soit
+   et rien ne lui appartient. Ici, on lui montre ce qu'il a fait, ce qui l'attend,
+   et où son entreprise en est — dans cet ordre. */
+function tableauSalarie(u){
+  const mes = DB.missions({ salarie: u.id });
+  const validees = mes.filter(m => ["validee", "validee_auto"].includes(m.etat));
+  const aDeclarer = mes.filter(m => m.etat === "engagee"
+    && m.date < new Date(2026, 7, 20).toISOString().slice(0, 10));
+  const aVenir = mes.filter(m => m.etat === "engagee"
+    && m.date >= new Date(2026, 7, 20).toISOString().slice(0, 10));
+  const enAttente = mes.filter(m => m.etat === "a_valider");
+  const mesPoints = DB.pointsVisiblesEmployeur(u.id);
+  const res = DB.reseau();
+  const monEnt = DB.entreprise(u.org);
+  const proches = u.org ? DB.associationsProches(u.org, { avecAnnonces: true }) : [];
+
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    ${aDeclarer.length ? `<section class="aFaire">
+      <div class="aFaire__col">
+        <span class="aFaire__titre">Action requise
+          <span class="badge badge--warn" style="height:20px;margin-left:6px">${aDeclarer.length}</span></span>
+        <div class="aFaire__liste">
+          <a class="rappel rappel--dense" href="#/missions">
+            <span class="notif__point notif__point--alerte"></span>
+            <span>${aDeclarer.length} mission${aDeclarer.length > 1 ? "s" : ""} passée${
+              aDeclarer.length > 1 ? "s" : ""} que vous n'avez pas encore déclarée${
+              aDeclarer.length > 1 ? "s" : ""} — sans déclaration, elle${
+              aDeclarer.length > 1 ? "s ne comptent" : " ne compte"} pas</span>
+            <span class="rappel__go">${ICONS.arrow || "→"}</span></a>
+        </div></div>
+      ${enAttente.length ? `<div class="aFaire__col">
+        <span class="aFaire__titre">En attente d'un tiers</span>
+        <div class="aFaire__liste">
+          <a class="rappel rappel--dense" href="#/missions">
+            <span class="notif__point notif__point--info"></span>
+            <span>${enAttente.length} mission${enAttente.length > 1 ? "s" : ""} en attente
+              de confirmation par l'association</span>
+            <span class="rappel__go">${ICONS.arrow || "→"}</span></a>
+        </div></div>` : ""}
+    </section>` : ""}
+
+    <div class="kpis">
+      ${kpi("Mes points", nb(mesPoints), `${nb(validees.length)} mission${
+        validees.length > 1 ? "s" : ""} validée${validees.length > 1 ? "s" : ""}`, "", "kpi--tete grain")}
+      ${kpi("Demi-journées de bénévolat", nb(validees
+        .filter(m => (DB.annonceDe(m) || {}).type === "benevolat_demi_journee")
+        .reduce((n, m) => n + m.quantite, 0)))}
+      ${kpi("Associations soutenues", nb(new Set(validees
+        .map(m => (DB.annonceDe(m) || {}).asso).filter(Boolean)).size))}
+      ${kpi("Missions à venir", nb(aVenir.length),
+        aVenir.length ? "prochaine le " + dateCourte(aVenir.map(m => m.date).sort()[0]) : "rien de prévu")}
+    </div>
+
+    <div id="realisMoi"></div>
+
+    <div class="two">
+      <section class="card">
+        <div class="between" style="margin-bottom:var(--s5)">
+          <div><h3>Des besoins près de chez vous</h3>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+            ${nb(DB.annonces({ ouvertes:true }).length)} annonces ouvertes${
+              proches.length && proches[0].distance != null
+                ? `, la plus proche à ${nb(proches[0].distance)} km` : ""}.</p></div>
+          <a class="btn btn--ghost btn--sm" href="#/annonces">Voir les annonces</a>
+        </div>
+        <div id="reco"></div>
+      </section>
+
+      <div class="stack" style="--gap:var(--s5)">
+        <section class="card">
+          <div class="between" style="margin-bottom:var(--s4)">
+            <h3>Mes missions en cours</h3>
+            <a class="btn btn--quiet btn--sm" href="#/missions">Tout voir</a></div>
+          <div class="stack" style="--gap:var(--s3)" id="todo"></div>
+        </section>
+        <section class="card card--dark grain">
+          <div class="between" style="margin-bottom:var(--s5)">
+            <div><h3 style="color:var(--paper)">Tous ensemble</h3>
+            <p style="color:var(--forest-100);opacity:.78;font-size:var(--t-sm);margin-top:4px">
+              Ce que tout le réseau a fait, ${esc(monEnt ? monEnt.nom : "votre entreprise")} comprise.</p></div>
+            <a class="btn btn--lime btn--sm" href="#/ensemble">Voir la forêt</a>
+          </div>
+          <div class="three">
+            ${kpi("Missions du réseau", nb(res.missions), "", "", "kpi--nu")}
+            ${kpi("Arbres plantés", nb(res.arbres), "", "", "kpi--nu")}
+            ${kpi("Associations", nb(res.associations), "", "", "kpi--nu")}
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>`);
+
+  const rea = bandeauRealisations(DB.realisations({ salarie: u.id }),
+    { titre: "Ce que vous avez produit", sombre: true,
+      note: "Chiffres confirmés par les associations bénéficiaires, qui étaient sur place." });
+  if (rea) el.querySelector("#realisMoi").appendChild(rea);
+
+  const todo = el.querySelector("#todo");
+  const enCours = mes.filter(m => ["engagee", "a_valider"].includes(m.etat));
+  if (!enCours.length)
+    todo.appendChild(h(`<p class="muted" style="font-size:var(--t-sm)">
+      Rien en cours. Les annonces à côté n'attendent que vous.</p>`));
+  enCours.slice(0, 5).forEach(m => {
+    const a = DB.annonceDe(m);
+    todo.appendChild(h(`<div class="between" style="font-size:var(--t-sm)">
+      <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.titre)}</span>
+      <span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].label}</span></div>`));
+  });
+
+  el.querySelector("#reco").appendChild(listeAnnonces(
+    DB.annonces({ ouvertes: true })
+      .map(a => ({ a, d: DB.distanceAnnonce(u.org, a) }))
+      .sort((x, y) => (x.d == null ? 1e9 : x.d) - (y.d == null ? 1e9 : y.d))
+      .slice(0, 2).map(x => x.a), u));
   return el;
 }
 
@@ -4073,7 +4230,7 @@ const ROUTES = {
     preferences:[vuePreferences,   "Préférences"]
   },
   salarie: {
-    tableau:   [tableauEntreprise, "Tableau de bord"],
+    tableau:   [tableauSalarie,    "Tableau de bord"],
     annonces:  [vueAnnonces,       "Annonces"],
     missions:  [vueMissions,       "Mes missions"],
     classement:[vueClassement,     "Classement"],

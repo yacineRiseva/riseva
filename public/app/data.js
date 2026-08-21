@@ -1026,6 +1026,15 @@ function creerMock(){
       };
     },
 
+    /* Une mission appartient à la saison dans laquelle elle a été réalisée. Les
+       compteurs affichés sur une annonce ouverte doivent s'y tenir : la
+       plateforme a un passé, et compter les engagements des saisons précédentes
+       sur une annonce de cette année donne « 7 engagements » en face de
+       « 4 places sur 6 », ce qui ne veut rien dire. */
+    deLaSaison(m, sa = s.saison){
+      return !!m && !!m.date && m.date >= sa.debut && m.date <= sa.fin;
+    },
+
     /* Cumul par unité. Filtres possibles : entreprise, association, salarié, période. */
     realisations({ entreprise, asso, salarie, depuis, jusqua } = {}){
       const total = {}, estime = {};
