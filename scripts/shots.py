@@ -26,7 +26,12 @@ pages=[("accueil","/",None,True),
        ("admin-assos","/app/#/assos","u1",False),
        ("admin-moteur","/app/#/moteur","u1",False),
        ("app-activite","/app/#/activite","u4",False),
-       ("app-ensemble","/app/#/ensemble","u2",True)]
+       ("app-ensemble","/app/#/ensemble","u2",True),
+       ("app-groupe","/app/#/groupe","u2",True),
+       ("app-sites","/app/#/sites","u2",True),
+       ("app-indicateurs","/app/#/indicateurs","u2",True),
+       ("app-materiel","/app/#/materiel","u2",True),
+       ("site-tableau","/app/#/tableau","u10",True)]
 out=pathlib.Path("/root/riseva/shots"); out.mkdir(exist_ok=True)
 errs=[]
 with sync_playwright() as pw:

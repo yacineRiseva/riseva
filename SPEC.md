@@ -20,9 +20,76 @@ Les associations ne paient rien. Elles publient et valident. C'est leur seul tra
 | `admin` | Riseva | Tout. Gère les saisons, valide les associations, ajuste le barème. |
 | `entreprise_admin` | RH / RSE / dirigeant | Gère les salariés, voit les rapports, paie l'abonnement. |
 | `salarie` | Employé de l'entreprise abonnée | Répond aux annonces, déclare ses missions, voit le classement. |
+| `site_referent` | RH ou RSE d'un établissement | Invite les salariés de **son** site dans la limite de son quota, voit ses missions et son score, saisit ses indicateurs. |
 | `association` | Référent de l'asso | Publie des annonces, valide les missions réalisées. |
 
-Un compte = un email. Un utilisateur appartient à une seule organisation (entreprise ou association).
+Un compte = un email. Un utilisateur appartient à une seule organisation (entreprise ou
+association), et — quand l'entreprise en a plusieurs — à un seul établissement.
+
+Un `entreprise_admin` dont le périmètre porte un **groupe** ouvre en plus la vue consolidée :
+des agrégats par société et par site, jamais l'identité d'un salarié d'une société dont il
+n'est pas lui-même salarié.
+
+## 2 ter. Groupe, société, établissement
+
+Trois niveaux, parce que le droit français en compte trois, et parce que les écraser en un
+seul casse quatre choses vérifiables.
+
+```
+groupe                      le payeur, le périmètre de consolidation volontaire
+  └── société  (SIREN)      la personne morale : contrat, facture, impôt, employeur
+        └── établissement   le lieu : effectif, quota de comptes, score, accidentologie
+              └── salarié
+```
+
+- Le **plafond de mécénat** (20 000 € ou 5 ‰ du chiffre d'affaires) s'applique par redevable
+  de l'impôt, donc **par société**. Jamais par groupe. Le rapport de groupe additionne des
+  réductions plafonnées séparément, et refuse de donner un total si l'une n'est pas calculable.
+- La **convention de mise à disposition** lie l'association, le salarié et son **employeur** :
+  la société. Un établissement n'est pas un employeur et ne signe rien.
+- Deux sociétés d'un même groupe sont **deux responsables de traitement distincts**. Le lien
+  capitalistique ne crée aucun droit d'accès : le payeur reçoit les factures, rien d'autre.
+- Un **consolidé est un rapport de sommes**, jamais une moyenne de ratios. Le score du groupe,
+  c'est Σ points ÷ Σ effectifs. Idem pour un taux de fréquence d'accidents.
+
+### Deux liens, jamais un seul
+
+1. La société **alloue un quota** de comptes à un établissement — borné par les places du
+   contrat, et jamais en dessous des comptes déjà ouverts sur ce site.
+2. Elle envoie un **lien nominatif** au référent de ce site. Le lien porte son nom et son
+   adresse, expire en trente jours, n'ouvre qu'un compte, et **refuse toute autre adresse**.
+3. Le référent produit ensuite le **lien d'inscription de ses salariés**, dans la limite de
+   son quota. Un lien de salarié ne confère jamais de droit d'administration.
+
+### L'affectation est datée, l'attribution est figée
+
+Chaque mission enregistre l'établissement qui reçoit les points **au moment de l'engagement**,
+et ne le recalcule jamais. Sans ce gel, un salarié muté de Lyon à Marseille emporterait son
+passé avec lui et le classement de la saison précédente changerait tout seul.
+
+### Le classement entre sites
+
+Il compare des établissements d'un même périmètre, **normalisé par l'effectif du site**. Il
+fonctionne dès le premier client, contrairement au classement entre entreprises qui attend
+dix participantes dans une catégorie. Il compare des sites, jamais des personnes.
+
+**Jamais de classement sur la sécurité** : un classement entre sites sur les accidents crée
+une incitation à sous-déclarer. Comparaison dans le temps uniquement.
+
+## 2 quater. Les indicateurs sociaux et sécurité
+
+Une **campagne** ouvre une période et une échéance ; chaque établissement a un état, et un
+seul, parmi : `attendu`, `declare`, `approuve`, `clos_sans_reponse`.
+
+- Le **contributeur** saisit, l'**approbateur** verrouille. La personne qui a saisi ne peut
+  pas approuver sa propre saisie.
+- Corriger une valeur approuvée produit une **version**, jamais un écrasement silencieux.
+- Une campagne arrivée à échéance se referme : les sites qui n'ont pas répondu sont marqués
+  `clos_sans_reponse`. On ne recopie jamais la période précédente à leur place.
+- Douze valeurs saisies, sept indicateurs calculés, chacun avec sa **formule publiée**.
+- Aucune donnée de santé : ni diagnostic, ni nature de lésion, ni identité de victime. On
+  compte des accidents et des journées, pas des personnes.
+- Riseva **calcule**, Riseva ne **certifie** pas, et ne dépose rien à la place du client.
 
 ## 2 bis. Comptes, places et départs
 
