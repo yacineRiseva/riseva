@@ -326,3 +326,142 @@ première saison, puisqu'il fonctionne avec un seul client.
   le plus à un groupe industriel, et c'est aussi celui qui demande le plus de rigueur.
 - **Faut-il un accès en lecture pour le CSE ?** C'est un argument de vente fort auprès
   d'une direction, et une contrainte de plus sur le cloisonnement.
+
+---
+
+## 10. Deuxième confrontation : ce qui n'aurait pas survécu à la première réunion
+
+Écrans en main, j'ai redemandé à ChatGPT ce qui casserait devant un directeur RSE de
+groupe ou un préventeur HSE. Son verdict : *« crédible pour vendre un pilote
+d'engagement associatif multi-sites ; pas encore vendable comme plateforme RSE/HSE de
+groupe. »* Il avait raison sur six points, dont trois qui étaient des **erreurs de ma
+part**, pas des manques.
+
+### Ce que j'avais faux
+
+1. **Ma règle de valorisation des dons en nature était fausse.** J'avais écrit « la
+   valeur nette comptable », comme s'il n'y avait qu'une méthode. Il y en a au moins
+   deux — un bien en stock se valorise à son coût de revient, une immobilisation à la
+   valeur de cession retenue pour la plus ou moins-value de sortie — et la
+   valorisation relève de toute façon du donateur. Riseva demande donc la **catégorie
+   comptable**, rappelle la méthode qui s'y applique, et enregistre une *valeur
+   déclarée par l'entreprise*. Elle ne choisit plus à la place du comptable.
+
+2. **Le « taux d'emploi de travailleurs handicapés » ne se calcule pas comme je le
+   faisais.** Diviser les bénéficiaires d'un site par l'effectif de ce site n'a pas de
+   sens : l'obligation d'emploi est annuelle, s'apprécie au niveau de la société, sur
+   des effectifs moyens annuels, avec ses propres règles de décompte. L'indicateur est
+   **retiré**. Reste un comptage interne, nommé comme tel.
+
+3. **Mes taux de fréquence et de gravité portaient un nom réglementaire sans en
+   reprendre le numérateur.** Les indicateurs de l'assurance maladie reposent sur les
+   accidents *en premier règlement*. Les miens reposent sur ce que le site déclare.
+   Ils s'appellent maintenant **fréquence interne** et **gravité interne**, et chaque
+   ligne dit qu'ils ne se comparent pas aux taux publiés.
+
+### Ce qui manquait
+
+4. **Un consolidé s'affichait alors que rien n'était approuvé.** Le compteur disait
+   « 0 approuvé » et les taux étaient là. Corrigé : deux colonnes, *approuvé* et
+   *provisoire*, la seconde annoncée comme telle et exclue des rapports. Et le bouton
+   « Approuver » ne s'affiche plus à celui qui a saisi — le serveur le refusait déjà,
+   mais l'écran affirmait le contraire.
+
+5. **La couverture se disait en sites, pas en effectifs.** « Deux sites sur quatre »
+   peut vouloir dire vingt pour cent du groupe comme quatre-vingt-quinze. Partout
+   maintenant : *« 210 salariés sur 255 »*.
+
+6. **Un lien de site n'établit pas l'appartenance à ce site.** Avec un domaine de
+   messagerie commun à tout le groupe, n'importe qui peut utiliser le lien de Lyon ; le
+   quota empêche de dépasser cent dix comptes, pas de mal affecter quelqu'un — et une
+   mauvaise affectation fausse ensuite le score, les rapports et les droits. Un compte
+   créé par un lien de site attend désormais **un clic du référent** avant de pouvoir
+   s'engager.
+
+7. **Les compteurs de quota étaient trompeurs.** « 0 libres » alors que deux cent
+   quarante-huit comptes restaient activables dans les quotas déjà répartis. Cinq
+   compteurs distincts désormais : capacité achetée, répartie, comptes ouverts, encore
+   activables.
+
+8. **Une période se clôturait avant sa fin.** On ne demande pas le second semestre au
+   mois d'août. Une campagne dont la période n'est pas terminée s'appelle un *point
+   d'étape*, et la clôture est refusée avant la date de fin.
+
+### Le classement entre sites : il avait raison, j'allais trop vite
+
+Je le présentais comme ce qui débloque la première saison. C'est vrai comme mécanisme
+de lancement, et faux comme réglage par défaut. Dans la démonstration, **trois salariés
+mobilisés** suffisaient à placer Marseille à 16,25 points par salarié et Paris à 2,5 :
+on mesurait la volatilité des petits nombres et la date de démarrage, pas l'engagement.
+Et Nantes se retrouvait dernier alors que son référent n'était même pas nommé — puni
+avant d'avoir commencé.
+
+Les effets pervers qu'il liste sont réels : pression managériale sur une participation
+censée être volontaire, rattachements opportunistes, préférence pour les formats qui
+rapportent vite, usage du résultat dans l'évaluation d'un directeur de site, honte
+publique d'un site à zéro.
+
+Ce qui est en place maintenant :
+
+- le classement ordinal est **désactivé par défaut**, activé par le groupe, et
+  l'activation est journalisée ;
+- aucun rang tant qu'un site n'a pas **cinq salariés mobilisés et cinq missions** ;
+- un site sans activité est **« en lancement »**, jamais dernier ;
+- le nombre de mobilisés et de missions s'affiche **à côté** du score, pour qu'on voie
+  sur quoi il repose ;
+- c'est nommé **challenge d'engagement associatif**, jamais performance RSE d'un site,
+  et il est écrit que cela n'a aucune incidence sur l'évaluation de qui que ce soit.
+
+### La tarification qu'il propose, et ce que j'en pense
+
+Sa règle : **ne pas facturer à la fois un socle, chaque site et chaque compte.** Trois
+compteurs variables rendent la proposition illisible et pénalisent l'adoption. Trois
+unités contractuelles suffisent : **tranche d'effectif, sites actifs, sociétés
+bénéficiaires.**
+
+| Composant | Prix HT |
+|---|---|
+| Engagement Groupe — jusqu'à 250 salariés, 3 sites actifs, 2 SIREN | 6 900 €/an |
+| Module Données sociales et sécurité | + 2 000 €/an |
+| Paramétrage initial : structure, rôles, dictionnaire, lancement | 1 500 € une fois |
+| Site actif supplémentaire | + 750 €/an |
+| SIREN bénéficiaire supplémentaire | + 1 000 €/an |
+| Tranche 251 – 500 salariés | + 1 500 €/an |
+
+Pour le groupe de démonstration — deux sociétés, trois sites, 250 salariés :
+**8 900 € HT par an**, soit 10 400 € la première année avec le paramétrage. Avec une
+remise pilote de 20 % limitée à une saison : environ 7 100 € plus le paramétrage.
+
+Son conseil, que je partage : **ne vendre d'abord que l'offre Engagement Groupe**, à
+6 900 – 7 500 €. Les 2 000 € du module social ne deviennent défendables qu'une fois les
+niveaux, les sources et les approbations corrigés — ce qui vient d'être fait, mais qui
+demande d'être éprouvé sur un vrai client avant d'être facturé.
+
+Trois définitions doivent figurer au contrat, sinon la grille devient ingérable au bout
+de deux ans :
+
+- **site actif** : une unité à laquelle un quota ou une collecte est réellement ouvert,
+  pas tout SIRET administratif ;
+- **effectif éligible** : arrêté à la signature puis au renouvellement, sans ajustement
+  mensuel ;
+- **société bénéficiaire** : personne morale incluse au périmètre, qu'elle paie ou non.
+
+### Une nuance juridique que j'avais durcie à tort
+
+J'écrivais « deux sociétés d'un même groupe sont deux responsables de traitement
+distincts ». C'est vrai la plupart du temps, mais c'est trop absolu : la qualification
+dépend de qui détermine les finalités et les moyens, et une responsabilité conjointe
+reste possible. La formulation retenue est désormais : *« chaque entité reste
+responsable des données de son périmètre ; les accès consolidés et les responsabilités
+sont documentés contractuellement. »*
+
+### Ce qui reste ouvert
+
+- Séparer davantage les rôles : coordinateur engagement, gestionnaire RH des comptes,
+  contributeur et approbateur, valideur finance, lecteur groupe, suppléant temporaire.
+  Aujourd'hui le référent de site les cumule, et cela ne tiendra pas dans une vraie
+  organisation.
+- Le tableau de bord de site reste léger : il lui manque les échéances à venir, les
+  associations proches et un export.
+- Un dictionnaire d'indicateurs versionné, avec inclusions et exclusions écrites,
+  numérateur et dénominateur bruts, et pièce justificative éventuelle.

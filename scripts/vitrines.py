@@ -514,9 +514,9 @@ KIT_ENT = f"""<section id="kit">
 GROUPE_ENT = f"""<section id="groupe" class="band-moss">
   <div class="layer">
 {entete("Pour un groupe", "Un abonnement,<br><span class='it'>plusieurs sites.</span>",
-        "La maison mère paie, chaque site joue sa propre partie. Et surtout : "
-        "<strong>le classement entre vos sites fonctionne dès le premier jour</strong>, sans "
-        "attendre que d'autres entreprises nous rejoignent.")}
+        "La maison mère paie, chaque site joue sa propre partie. Et la comparaison entre "
+        "vos sites ne dépend d'aucune autre entreprise : <strong>elle fonctionne avec vous "
+        "seuls</strong>.")}
 {formats([
   ("Le périmètre", "Trois niveaux, parce que le droit en compte <span class='n'>trois</span>.",
    "Un groupe contient des <b>sociétés</b> — chacune son SIREN, son contrat, son plafond de "
@@ -534,11 +534,15 @@ GROUPE_ENT = f"""<section id="groupe" class="band-moss">
    "et par site — jamais l'identité d'un salarié d'une filiale dont elle n'est pas l'employeur. "
    "Ce n'est pas un filtre d'affichage : c'est une frontière écrite dans la base, et vérifiée à "
    "chaque mise en production."),
-  ("La comparaison", "Marseille contre Lyon, <span class='n'>normalisé</span> par l'effectif.",
+  ("La comparaison", "Marseille contre Lyon, mais avec des <span class='n'>garde-fous</span>.",
    "Un classement entre entreprises n'ouvre qu'à dix participantes dans une catégorie, et nous ne "
-   "garantissons aucune date. Entre vos sites, il fonctionne tout de suite — et il parle à des "
-   "gens qui se connaissent. Rapporté à l'effectif de chaque site, sinon le siège de quatre cents "
-   "personnes écrase l'agence de douze."),
+   "garantissons aucune date. Entre vos sites, la comparaison fonctionne tout de suite — et elle "
+   "parle à des gens qui se connaissent. Mais un rang fabrique un dernier : le classement ordinal "
+   "est donc <b>désactivé par défaut</b>, un site reste hors classement tant qu'il n'a pas cinq "
+   "salariés mobilisés et cinq missions, et un site qui n'a pas commencé est « en lancement », "
+   "pas dernier. Le score est rapporté à l'effectif, sinon le siège de quatre cents personnes "
+   "écrase l'agence de douze. C'est un challenge d'engagement associatif, jamais une mesure de "
+   "performance d'un site, et sans incidence sur l'évaluation de qui que ce soit."),
 ])}
     <p class="s-note rv" style="margin-top:clamp(28px,3.4vw,44px)">
       <strong>L'offre groupe est sur devis</strong>, parce qu'elle dépend du nombre de sociétés,
@@ -557,12 +561,14 @@ SERVICES_ENT = f"""<section id="services">
         "déjà demander une réponse courte, rappeler, et clore honnêtement quand personne ne "
         "répond. <strong>C'est le même mécanisme que pour les missions.</strong>")}
 {retombees([
-  ("Indicateurs sociaux et <span class='it'>sécurité.</span>",
+  ("Données sociales et <span class='it'>sécurité.</span>",
    "Douze valeurs saisies par établissement — effectif, entrées, sorties, heures travaillées, "
-   "accidents avec et sans arrêt, journées perdues, formation, répartition femmes-hommes, "
-   "bénéficiaires de l'obligation d'emploi — et sept indicateurs calculés, avec leur formule "
-   "écrite à côté du chiffre. Le contributeur saisit, l'approbateur verrouille : celui qui "
-   "saisit ne peut pas approuver sa propre saisie.",
+   "accidents avec et sans arrêt, journées perdues, formation, répartition femmes-hommes — et "
+   "six indicateurs calculés, avec leur formule écrite à côté du chiffre. Ce sont des "
+   "<b>indicateurs internes</b> : ils ne reprennent pas les définitions de l'assurance maladie et "
+   "ne se comparent qu'à eux-mêmes dans le temps. Le contributeur saisit, l'approbateur "
+   "verrouille — celui qui saisit ne peut pas approuver sa propre saisie — et seules les valeurs "
+   "approuvées entrent dans un rapport.",
    "0 tableur",
    "Les sites répondent par un lien, sans se connecter. Une période sans réponse est close comme telle, jamais comblée avec la précédente."),
   ("Registre des dons de matériel, au titre de la loi <span class='it'>anti-gaspillage.</span>",
@@ -570,8 +576,8 @@ SERVICES_ENT = f"""<section id="services">
    "réemployés, réutilisés ou recyclés, et le don à une association est la voie prévue par le "
    "texte. Riseva en garde la trace : quoi, combien, à qui, quand, avec la déclaration de "
    "réception de l'association.",
-   "VNC",
-   "Un don en nature se valorise à sa valeur nette comptable, jamais au prix neuf. Ce que vous ne déclarez pas reste vide : nous n'inventons pas de valeur."),
+   "Méthode",
+   "La valorisation dépend de la catégorie comptable du bien et relève de votre responsabilité. Riseva rappelle la méthode applicable, n'en choisit aucune à votre place, et n'invente aucune valeur."),
   ("Un rapport consolidé qui dit ce qu'il ne <span class='it'>sait pas.</span>",
    "Missions par site, mécénat société par société, indicateurs sociaux, qui a déclaré quoi et "
    "qui l'a approuvé. Le périmètre est écrit en haut : combien de sites ont répondu, et lesquels "
@@ -597,6 +603,7 @@ SERVICES_ENT = f"""<section id="services">
           <li><i></i>Donner une note RSE : on serait juge et partie</li>
           <li><i></i>Déclarer à votre place : vous déposez, pas nous</li>
           <li><i></i>Classer vos sites sur les accidents : ça pousse à sous-déclarer</li>
+          <li><i></i>Calculer l'index d'égalité ni le taux d'emploi OETH : autres règles, autres périmètres</li>
           <li><i></i>Collecter la moindre donnée de santé nominative</li>
         </ul>
       </div>

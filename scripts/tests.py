@@ -143,8 +143,8 @@ def main():
         verifie("la base légale n'est pas le consentement",
                 "consentement n'est pas la base légale" in t)
         verifie("le cloisonnement entre sociétés d'un groupe est écrit",
-                "deux responsables distincts" in t and "aucun accès aux personnes" in t.replace(
-                    "aucun accès\naux personnes", "aucun accès aux personnes"))
+                "responsable des données de son périmètre" in t
+                and "responsabilité conjointe" in t)
         verifie("aucune donnée de santé n'est traitée, et c'est écrit",
                 "Aucune donnée de santé n'est traitée" in t)
         p.goto(BASE + "/engagements.html", wait_until="networkidle")
