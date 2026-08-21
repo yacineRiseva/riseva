@@ -191,7 +191,7 @@ def main():
         p.wait_for_timeout(300)
         verifie("le nom de l'entreprise s'affiche", "Lafarge" in p.inner_text("h1"))
         p.fill("#nom", "Test Automatique"); p.fill("#mail", "test.auto@lafarge-ciments.fr")
-        p.check("input[type=checkbox]"); p.click("button[type=submit]"); p.wait_for_timeout(400)
+        p.click("button[type=submit]"); p.wait_for_timeout(400)
         verifie("le compte est créé", "Bienvenue" in p.inner_text("h1"))
         p.goto(f"{BASE}/rejoindre.html?code=INEXISTANT-0000", wait_until="networkidle")
         p.wait_for_timeout(300)
@@ -200,8 +200,15 @@ def main():
         p.goto(f"{BASE}/rejoindre.html?code=LAFARGE-7QK2", wait_until="networkidle")
         p.wait_for_timeout(300)
         verifie("le domaine autorisé est annoncé", "lafarge-ciments.fr" in p.inner_text("body"))
+        # La base légale est l'intérêt légitime : pas de case « j'accepte » qu'on ne
+        # peut pas décocher sans perdre l'accès, mais une information avant l'entrée.
+        corps = p.inner_text("body")
+        verifie("on informe au lieu de faire semblant de demander un consentement",
+                "J'accepte que mon nom" not in corps and "Ce que votre entreprise verra" in corps)
+        verifie("le cloisonnement des dons personnels est dit dès l'inscription",
+                "de votre poche" in corps)
         p.fill("#nom", "Intrus Extérieur"); p.fill("#mail", "intrus@gmail.com")
-        p.check("input[type=checkbox]"); p.click("button[type=submit]"); p.wait_for_timeout(400)
+        p.click("button[type=submit]"); p.wait_for_timeout(400)
         verifie("une adresse hors domaine est refusée",
                 "n'accepte que" in p.inner_text(".toast"))
 

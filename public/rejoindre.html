@@ -81,9 +81,21 @@ else {
         ${DB.domaines(inv.entreprise).length
           ? `<p class="hint">Ce lien n'accepte que les adresses en @${DB.domaines(inv.entreprise).join(", @")}.</p>`
           : ""}</div>
-      <label class="checkline"><input type="checkbox" required>
-        <span>J'accepte que mon nom et mes actions soient visibles par mon entreprise sur la
-        plateforme. Si je quitte l'entreprise, mon compte est anonymisé.</span></label>
+      <!-- Pas de case « j'accepte » : la base légale retenue est l'intérêt légitime,
+           pas le consentement. Un consentement qu'on ne peut pas refuser sans perdre
+           l'accès n'est pas un consentement libre — le demander quand même, c'est se
+           donner l'apparence de la conformité en la vidant. On informe, clairement,
+           avant l'inscription, et on rappelle le droit d'opposition. -->
+      <div class="card card--flat" style="background:var(--paper-sunk);border-color:transparent">
+        <p style="font-size:var(--t-sm);color:var(--ink-700)">
+          <strong>Ce que votre entreprise verra.</strong> Votre nom, les missions auxquelles vous
+          participez et les points qu'elles rapportent. Elle ne verra jamais un don que vous faites
+          de votre poche : ni le montant, ni l'association, ni votre nom en face.</p>
+        <p style="font-size:var(--t-sm);color:var(--ink-600);margin-top:var(--s3)">
+          Si vous quittez l'entreprise, votre compte est retiré et votre nom disparaît de la liste.
+          Vous pouvez demander l'effacement complet à tout moment, et vous opposer au traitement :
+          <a href="/confidentialite.html" target="_blank" style="color:var(--forest-800)">vos droits, en détail</a>.</p>
+      </div>
       <button class="btn btn--primary btn--lg btn--block" type="submit">Créer mon compte</button>
       <p class="hint center">Aucun mot de passe ici : vous recevrez un lien de connexion par mail.</p>
     </form>
