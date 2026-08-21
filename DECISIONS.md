@@ -58,6 +58,10 @@ pas les conversations. Toute nouvelle décision s'ajoute en haut de la section c
 
 | Date | Décision | Remplace |
 |---|---|---|
+| 21/08/2026 | Les dons personnels des salariés sortent de l'assiette de l'entreprise et sont comptés à part, avec leur propre réduction à 66 % à l'IR. | Une assiette qui additionnait dons des salariés et mécénat de compétences. C'était une réduction d'impôt indue que le client aurait déclarée de bonne foi. Erreur relevée à la relecture externe du 21/08. |
+| 21/08/2026 | Le plafond par salarié est présenté avec sa règle et son incertitude : le BOFiP ne dit pas si le plafond de L. 241-3 est mensuel ou annuel. Lecture basse retenue, valeur paramétrable. | Un chiffre affirmé sans réserve. |
+| 21/08/2026 | Le décile n'est affiché qu'au-dessus de dix entreprises dans la catégorie. En dessous, le rang est donné tel quel. | « Top 10 % » sur une cohorte de deux, indéfendable devant un acheteur. |
+| 21/08/2026 | Le tableau de bord dit « points retenus au classement, sur X réalisés, Y écrêtés ». | « Points de la saison », qu'on pouvait lire comme le total avant écrêtage. |
 | 20/08/2026 | Le reçu fiscal est émis par l'association, Riseva le prépare et l'envoie. Sans signataire, qualité, éligibilité déclarée et numérotation, la plateforme n'émet rien. | « Riseva génère et envoie le reçu fiscal au nom de l'association. » Formulation juridiquement fausse : seul l'organisme bénéficiaire peut délivrer un reçu, et il porte seul la responsabilité (art. 1740 A du CGI). Corrigée sur tout le site. |
 | 20/08/2026 | Riseva fournit à l'association le récapitulatif de sa déclaration annuelle des dons, obligatoire depuis 2021. | Rien, c'est un ajout. |
 | 20/08/2026 | Distinction entre mission sur le temps de travail (mécénat de compétences, déductible) et sur le temps personnel (bénévolat, non déductible). Portée par l'annonce. | Un format de bénévolat unique, qui aurait laissé croire que tout est valorisable. |

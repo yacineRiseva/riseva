@@ -248,13 +248,20 @@ La convention doit contenir les cinq mentions de l'article R. 8241-2, et il faut
 et écrit du salarié ainsi que l'information du CSE. La plateforme génère la convention préremplie
 avec ces mentions.
 
-### Les deux formes qui ouvrent droit à réduction
+### Qui donne détermine tout
 
-| | Déductible | Pourquoi |
-|---|---|---|
-| Don financier de l'entreprise | oui | Mécénat classique, article 238 bis du CGI |
-| Mission **sur le temps de travail** | oui | Mécénat de compétences : mise à disposition de personnel |
-| Mission sur le **temps personnel** | non | C'est du bénévolat, à l'initiative du salarié |
+| Qui verse | Entre dans l'assiette de l'entreprise | Reçu | Réduction |
+|---|---|---|---|
+| L'entreprise, don financier | **oui** | Cerfa 16216*03 au nom de l'entreprise | 60 % à l'IS |
+| L'entreprise, mise à disposition sur le temps de travail | **oui** | Cerfa 16216*03 | 60 % à l'IS |
+| **Un salarié, de sa poche** | **non** | Cerfa 11580*05 à son nom | 66 % à l'IR, pour lui |
+| Une mission sur le temps personnel | non | — | aucune |
+
+C'est le point où l'on se trompe le plus, et l'erreur coûte cher : **les dons personnels des
+salariés ne peuvent pas entrer dans l'assiette de l'entreprise.** L'article 238 bis vise les
+versements effectués par l'entreprise elle-même. Les additionner fabriquerait une réduction
+d'impôt indue, au détriment du client qui la déclarerait. La plateforme les compte séparément
+et le dit à l'écran.
 
 La distinction est portée par l'annonce : l'association coche « sur le temps de travail » quand
 la mission est proposée pendant les heures ouvrées. Elle se propage à la mission et au calcul.
@@ -266,8 +273,12 @@ la mission est proposée pendant les heures ouvrées. Elle se propage à la miss
 - **Plafond annuel** : le plus élevé entre **20 000 €** et **5 ‰ du chiffre d'affaires HT**.
   L'excédent est reportable sur les **cinq exercices** suivants.
 - **Mécénat de compétences** : valorisation au **coût de revient** (rémunération brute chargée,
-  au prorata du temps mis à disposition), plafonnée à **trois fois le plafond mensuel de la
-  Sécurité sociale par salarié et par an**. PMSS 2026 = 4 005 €, soit **12 015 €**.
+  au prorata du temps mis à disposition), plafonnée à « trois fois le montant du plafond mentionné
+  à l'article L. 241-3 du code de la Sécurité sociale » (BOI-BIC-RICI-20-30-10-20).
+  **Le BOFiP ne précise pas si ce plafond est mensuel ou annuel, et les sources divergent.**
+  Nous retenons la lecture basse, mensuelle : 3 × 4 005 € = **12 015 €** par salarié et par an.
+  Elle sous-estime plutôt qu'elle ne promet trop, et la valeur est paramétrable pour que
+  l'expert-comptable du client tranche.
 
 Ces valeurs vivent dans un objet `FISCAL` et non dans le code des écrans : elles changent chaque
 année, le produit ne doit pas être redéployé pour ça.

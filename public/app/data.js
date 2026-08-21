@@ -841,11 +841,19 @@ function creerMock(){
       const coutDemiJournee = (e.cout_jour_moyen || 300) / 2;
 
       const parSalarie = {};
-      let dons = 0, demiJourneesTT = 0, demiJourneesPerso = 0;
+      let donsSalaries = 0, donsEntreprise = 0, demiJourneesTT = 0, demiJourneesPerso = 0;
 
       ms.forEach(m => {
         const a = api.annonceDe(m); if (!a) return;
-        if (a.type === "don_financier"){ dons += Number(m.quantite) || 0; return; }
+        if (a.type === "don_financier"){
+          /* Un salarié qui donne de sa poche donne en son nom. Le reçu est établi à son
+             nom, au modèle des particuliers, et le montant n'entre PAS dans l'assiette de
+             l'entreprise : l'article 238 bis vise les versements effectués par l'entreprise.
+             Confondre les deux fabriquerait une réduction d'impôt indue. */
+          if (m.pour_le_compte_de === "entreprise") donsEntreprise += Number(m.quantite) || 0;
+          else donsSalaries += Number(m.quantite) || 0;
+          return;
+        }
         if (a.type !== "benevolat_demi_journee") return;
         if (!a.temps_travail || !api.eligibleMecenat(a.asso)){
           demiJourneesPerso += m.quantite; return;
@@ -861,7 +869,8 @@ function creerMock(){
         competencesRetenu += Math.min(v, plafondSal);
       });
 
-      const assiette = dons + competencesRetenu;
+      /* L'assiette de l'entreprise, et rien d'autre. */
+      const assiette = donsEntreprise + competencesRetenu;
       const plafondEntreprise = Math.max(FISCAL.plafond_plancher,
         Math.round((e.ca || 0) * FISCAL.plafond_taux_ca));
       const assietteRetenue = Math.min(assiette, plafondEntreprise);
@@ -869,21 +878,18 @@ function creerMock(){
       const reduction = Math.round(assietteRetenue * FISCAL.taux_reduction);
 
       return {
-        dons, demiJourneesTT, demiJourneesPerso,
+        donsSalaries, donsEntreprise, demiJourneesTT, demiJourneesPerso,
         coutDemiJournee, competencesBrut, competencesRetenu,
         ecreteParSalarie: competencesBrut - competencesRetenu,
         plafondSalarie: plafondSal,
         assiette, plafondEntreprise, assietteRetenue, reportable, reduction,
-        salariesConcernes: Object.keys(parSalarie).length
+        salariesConcernes: Object.keys(parSalarie).length,
+        /* Ce que les salariés peuvent déduire eux-mêmes, à titre personnel : 66 % du don
+           dans la limite de 20 % du revenu imposable (article 200 du CGI). */
+        reductionSalaries: Math.round(donsSalaries * 0.66)
       };
     },
 
-    /* ------------------------------------------------------------------ */
-    /* Reçus fiscaux                                                      */
-    /* ------------------------------------------------------------------ */
-    /* Riseva prépare et envoie. L'émetteur reste l'association : c'est elle qui porte
-       le numéro d'ordre, la signature et la responsabilité (art. 1740 A du CGI).
-       Sans réglages complets, la plateforme refuse d'émettre. */
     /* Une association non éligible au mécénat ne peut pas proposer de mission
        sur le temps de travail : il n'y aurait rien à valoriser, et laisser croire
        le contraire serait la faute la plus coûteuse du produit. */

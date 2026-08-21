@@ -240,8 +240,11 @@ def main():
         connecte(p, "u2", "#/parametres")
         p.fill("#cout", "400"); p.click("#save"); p.wait_for_timeout(400)
         p.evaluate("()=>location.hash='#/mecenat'"); p.wait_for_timeout(400)
-        verifie("le coût saisi alimente le mécénat", "720 €" in norm(p.inner_text(".content")),
-                "la réduction doit passer à 720 € avec 400 €/jour")
+        t = norm(p.inner_text(".content"))
+        verifie("le coût saisi alimente le mécénat", "360 €" in t,
+                "60 % de 600 € de mécénat de compétences")
+        verifie("les dons des salariés restent hors assiette",
+                "hors assiette de l'entreprise" in t and "réduction d'impôt indue" in t)
         verifie("une association non éligible ne se valorise pas",
                 "3 demi-journées" in norm(p.inner_text(".content")),
                 "la mission de Rivière Propre 42, non éligible, doit être exclue")

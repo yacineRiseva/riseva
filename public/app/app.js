@@ -318,9 +318,9 @@ function tableauEntreprise(u){
 
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <div class="kpis">
-      ${kpi("Points de la saison", nb(pts.retenu), pts.ecrete
-            ? nb(pts.ecrete) + " points écrêtés" : "+2 480 cette semaine",
-            pts.ecrete ? "" : "up", "kpi--tete grain")}
+      ${kpi("Points retenus au classement", nb(pts.retenu), pts.ecrete
+            ? `sur ${nb(pts.brut)} réalisés, ${nb(pts.ecrete)} écrêtés`
+            : "+2 480 cette semaine", pts.ecrete ? "" : "up", "kpi--tete grain")}
       ${kpi("Rang", rangFR(rang),
             "sur " + total + " · " + (moiCl.categorie ? moiCl.categorie.label.toLowerCase() : ""))}
       ${kpi("Missions validées", nb(validees.length), enCours.length + " en cours")}
@@ -353,13 +353,17 @@ function tableauEntreprise(u){
         <section class="card">
           <h3>Objectif du trimestre</h3>
           <p class="muted" style="font-size:var(--t-sm);margin-top:6px">
-            ${monParSalarie >= seuilTop
-              ? "Vous êtes dans les 10 % les plus actifs de votre catégorie."
-              : `Il vous manque ${Math.max(0, Math.round((seuilTop - monParSalarie) * 10) / 10)} points par salarié pour entrer dans les 10 % de votre catégorie.`}</p>
+            ${total < 10
+              ? `Votre catégorie ne compte que ${total} entreprise${total > 1 ? "s" : ""} cette saison :
+                 trop peu pour parler de décile. Le rang est affiché tel quel, sans pourcentage.`
+              : monParSalarie >= seuilTop
+                ? "Vous êtes dans les 10 % les plus actifs de votre catégorie."
+                : `Il vous manque ${Math.max(0, Math.round((seuilTop - monParSalarie) * 10) / 10)} points par salarié pour entrer dans les 10 % de votre catégorie.`}</p>
           <div class="bar" style="margin-top:var(--s5)">
             <i style="width:${Math.min(100, (monParSalarie / Math.max(seuilTop, 0.1)) * 100)}%"></i></div>
           <div class="between" style="margin-top:var(--s3);font-size:var(--t-xs);color:var(--ink-400)">
-            <span>${monParSalarie} pts/salarié</span><span>${seuilTop}</span></div>
+            <span>${monParSalarie} pts par salarié</span>
+            <span>${total < 10 ? "—" : seuilTop + " pour le top 10 %"}</span></div>
           ${pts.ecrete ? `<p class="hint" style="margin-top:var(--s4)">
             ${nb(pts.ecrete)} points ne comptent pas au classement : un format ne peut pas
             peser plus de la moitié de votre total.</p>` : ""}
@@ -792,12 +796,17 @@ function vueClassement(u){
 
   const dessine = () => {
     const cl = DB.classement({ mode, categorie: categorie || null });
-    const seuil = Math.max(1, Math.ceil(cl.length * 0.1));
+    /* Un décile n'a de sens qu'au-dessus d'une certaine cohorte. Afficher « top 10 % »
+       quand deux entreprises sont classées est indéfendable. */
+    const COHORTE_MIN = 10;
+    const decile = cl.length >= COHORTE_MIN;
+    const seuil = decile ? Math.max(1, Math.ceil(cl.length * 0.1)) : 0;
     const cle = mode === "brut" ? "points" : "parSalarie";
     const max = Math.max(...cl.map(e => e[cle]), 1);
-    el.querySelector("#sousTitre").textContent = mode === "brut"
+    el.querySelector("#sousTitre").textContent = (mode === "brut"
       ? "Total des points retenus, toutes tailles confondues si aucun filtre"
-      : "Points retenus rapportés à l'effectif, recalculé chaque lundi";
+      : "Points retenus rapportés à l'effectif, recalculé chaque lundi")
+      + (decile ? "" : ` · cohorte de ${cl.length}, trop petite pour parler de décile`);
     const tb = el.querySelector("tbody");
     tb.innerHTML = "";
     if (!cl.length){ tb.appendChild(h(`<tr><td colspan="4" class="empty">Aucune entreprise dans cette catégorie.</td></tr>`)); return; }
@@ -806,7 +815,7 @@ function vueClassement(u){
       tb.appendChild(h(`<tr style="${moiOrg ? "background:var(--forest-050)" : ""}">
         <td>${e.rang}</td>
         <td><strong>${esc(e.nom)}</strong>${moiOrg ? ` <span class="muted">(vous)</span>` : ""}${
-          e.rang <= seuil ? ` <span class="badge badge--brand" style="height:20px;margin-left:6px">top 10 %</span>` : ""}
+          decile && e.rang <= seuil ? ` <span class="badge badge--brand" style="height:20px;margin-left:6px">top 10 %</span>` : ""}
           <br><span class="muted" style="font-size:var(--t-xs)">${esc(e.categorie.label)} · ${e.participation} % de participation${
             e.ecrete ? ` · ${nb(e.ecrete)} points écrêtés` : ""}</span></td>
         <td style="width:30%"><div class="bar"><i style="width:${(e[cle] / max) * 100}%"></i></div></td>
@@ -1134,12 +1143,14 @@ function vueRapports(u){
           <hr class="sep">
           <h3>Valorisation fiscale</h3>
           <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
-            <div class="between"><span class="muted">Assiette mécénat</span>
+            <div class="between"><span class="muted">Assiette de l'entreprise</span>
               <span class="tnum">${eur(v.assietteRetenue)}</span></div>
             <div class="between"><span class="muted">Réduction d'impôt estimée</span>
               <strong class="tnum" style="color:var(--forest-800)">${eur(v.reduction)}</strong></div>
             <div class="between"><span class="muted">Dont mécénat de compétences</span>
               <span class="tnum">${eur(v.competencesRetenu)}</span></div>
+            <div class="between"><span class="muted">Dons des salariés, hors assiette</span>
+              <span class="tnum">${eur(v.donsSalaries)}</span></div>
           </div>
         </div>
         <div>
@@ -2366,11 +2377,11 @@ function vueMecenat(u){
   const e = DB.entreprise(u.org);
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <div class="kpis">
-      ${kpi("Réduction d'impôt estimée", eur(v.reduction),
+      ${kpi("Réduction d'impôt de l'entreprise", eur(v.reduction),
             `${Math.round(FISCAL.taux_reduction * 100)} % de ${eur(v.assietteRetenue)}`, "", "kpi--tete grain")}
-      ${kpi("Dons financiers", eur(v.dons), "versés par vos salariés")}
       ${kpi("Mécénat de compétences", eur(v.competencesRetenu),
-            `${v.demiJourneesTT} demi-journées sur le temps de travail`)}
+            `${v.demiJourneesTT} demi-journée${v.demiJourneesTT > 1 ? "s" : ""} sur le temps de travail`)}
+      ${kpi("Dons des salariés", eur(v.donsSalaries), "hors assiette de l'entreprise")}
       ${kpi("Reportable", eur(v.reportable),
             v.reportable ? `sur ${FISCAL.report_annees} exercices` : "rien au-dessus du plafond")}
     </div>
@@ -2379,8 +2390,8 @@ function vueMecenat(u){
       <section class="card" style="padding:var(--s8)">
         <h3>Le calcul, ligne par ligne</h3>
         <table class="table" style="margin-top:var(--s5)"><tbody>
-          <tr><td>Dons financiers de la saison</td>
-              <td class="tnum" style="text-align:right">${eur(v.dons)}</td></tr>
+          <tr><td>Dons versés par l'entreprise elle-même</td>
+              <td class="tnum" style="text-align:right">${eur(v.donsEntreprise)}</td></tr>
           <tr><td>Mécénat de compétences, au coût de revient<br>
               <span class="muted" style="font-size:var(--t-xs)">${v.demiJourneesTT} demi-journées ×
               ${eur(v.coutDemiJournee)}, ${v.salariesConcernes} salarié${v.salariesConcernes > 1 ? "s" : ""} concerné${v.salariesConcernes > 1 ? "s" : ""}</span></td>
@@ -2391,13 +2402,26 @@ function vueMecenat(u){
               <td class="tnum" style="text-align:right"><strong>${eur(v.assiette)}</strong></td></tr>
           <tr><td class="muted">Plafond de l'entreprise<br>
               <span style="font-size:var(--t-xs)">le plus élevé entre ${eur(FISCAL.plafond_plancher)}
-              et ${(FISCAL.plafond_taux_ca * 1000)} ‰ du chiffre d'affaires</span></td>
+              et ${(FISCAL.plafond_taux_ca * 1000)} pour mille du chiffre d'affaires,
+              soit ${(FISCAL.plafond_taux_ca * 100).toFixed(1)} %</span></td>
               <td class="tnum" style="text-align:right">${eur(v.plafondEntreprise)}</td></tr>
           ${v.reportable ? `<tr><td class="muted">Excédent reporté sur les exercices suivants</td>
               <td class="tnum" style="text-align:right">${eur(v.reportable)}</td></tr>` : ""}
-          <tr><td><strong>Réduction d'impôt, ${Math.round(FISCAL.taux_reduction * 100)} %</strong></td>
+          <tr><td><strong>Réduction d'impôt de l'entreprise, ${Math.round(FISCAL.taux_reduction * 100)} %</strong></td>
               <td class="tnum" style="text-align:right"><strong style="color:var(--forest-800)">${eur(v.reduction)}</strong></td></tr>
         </tbody></table>
+
+        <hr class="sep">
+        <h3 style="font-size:var(--t-lg)">Les dons de vos salariés, à part</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+          ${eur(v.donsSalaries)} ont été versés par vos salariés <strong style="color:var(--ink)">en
+          leur nom propre</strong>. Ces montants n'entrent pas dans l'assiette de l'entreprise :
+          l'article 238 bis vise les versements effectués par l'entreprise elle-même. Les faire
+          entrer dans votre calcul fabriquerait une réduction d'impôt indue.</p>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+          Chaque salarié reçoit son propre reçu, au modèle ${esc(FISCAL.cerfa_particulier)}, et
+          peut déduire 66 % de son don de son impôt sur le revenu, dans la limite de 20 % de son
+          revenu imposable. Soit environ ${eur(v.reductionSalaries)} au total, pour eux, pas pour vous.</p>
         <div class="row" style="gap:var(--s2);margin-top:var(--s6);flex-wrap:wrap">
           <button class="btn btn--primary btn--sm" id="conv">Éditer une convention</button>
           <button class="btn btn--ghost btn--sm" id="att">Attestation annuelle</button>
@@ -2420,8 +2444,12 @@ function vueMecenat(u){
               dans ce cas cette saison.</p></div>
           </div>
           <hr class="sep">
-          <p class="hint">Chiffres ${FISCAL.annee}. Plafond par salarié : trois fois le plafond
-            mensuel de la Sécurité sociale, soit ${eur(FISCAL.plafond_mecenat_par_salarie)}.</p>
+          <p class="hint">Chiffres ${FISCAL.annee}. Le plafond par salarié est « trois fois le
+            montant du plafond mentionné à l'article L. 241-3 du code de la Sécurité sociale ».
+            Le BOFiP ne dit pas si ce plafond est mensuel ou annuel, et les sources divergent :
+            nous retenons la lecture basse, mensuelle, soit ${eur(FISCAL.plafond_mecenat_par_salarie)}.
+            Elle sous-estime plutôt que de promettre trop. Votre expert-comptable tranchera,
+            la valeur est paramétrable.</p>
         </section>
 
         <section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
