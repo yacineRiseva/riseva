@@ -39,6 +39,8 @@ supabase/05_taches.sql  ce qui tourne tout seul : validation auto, fraîcheur,
                         rapports, classement (pg_cron)
 supabase/emails/        gabarits des messages transactionnels
 docs/DOSSIER-FOURNISSEUR.md   ce qu'un acheteur demande, et où le trouver
+docs/DPA.md             accord de sous-traitance, article 28 du RGPD
+docs/INFORMATION-SALARIES.md  note aux salariés et trame de consultation du CSE
 docs/modeles/           convention de mécénat de compétences, feuille d'émargement
 scripts/shots.py        captures d'écran automatiques (Playwright)
 scripts/tests.py        tests de bout en bout (49 vérifications)

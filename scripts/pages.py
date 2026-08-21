@@ -47,6 +47,7 @@ GABARIT = """<!DOCTYPE html>
         <li><a href="/confidentialite.html">Données personnelles</a></li>
         <li><a href="/engagements.html">Engagements de service</a></li>
         <li><a href="/cgv.html">Conditions de vente</a></li>
+        <li><a href="/moderation.html">Modération des annonces</a></li>
         <li><a href="/mentions.html">Mentions légales</a></li>
       </ul>
       <hr class="sep">
@@ -290,7 +291,9 @@ La liste datée des sous-traitants figure sur la page <a href="/confidentialite.
 
 <h2>Incident</h2>
 <ul>
-  <li>Détection, qualification et information du client concerné sous <strong>48 heures</strong>.</li>
+  <li>Information du client concerné <strong>sous 24 heures</strong> après détection, même si
+      l'analyse n'est pas terminée, puis mises à jour continues jusqu'à la clôture. Le texte
+      dit « dans les meilleurs délais » : nous préférons un chiffre contractuel.</li>
   <li>Notification à la CNIL sous 72 heures en cas de violation de données à caractère personnel,
       conformément à l'article 33 du RGPD.</li>
   <li>Compte rendu écrit sous quinze jours : ce qui s'est passé, ce qui a été touché, ce qui a été
@@ -440,12 +443,25 @@ le réseau, pas seulement sur le logiciel.</p>
 </ul>
 
 <h2>Réversibilité</h2>
+<p>Depuis le 12 septembre 2025, le règlement européen sur les données couvre expressément les
+services d'informatique en nuage. La réversibilité n'est plus une politesse contractuelle, c'est
+une obligation (articles 25 à 30).</p>
 <ul>
   <li>Export complet au format CSV, à tout moment, sans frais, depuis l'espace client.</li>
   <li>À la fin du contrat, les données restent accessibles en lecture <strong>trente jours</strong>.</li>
   <li>Suppression définitive sur demande, avec certificat, sous trente jours.</li>
-  <li>Aucun format propriétaire, aucune donnée retenue en otage, y compris en cas d'impayé.</li>
+  <li>Aucun format propriétaire, aucun frais de sortie, aucune donnée retenue en otage,
+      y compris en cas d'impayé.</li>
+  <li>Assistance au transfert vers un autre prestataire, sans facturation supplémentaire.</li>
 </ul>
+
+<h2>Facturation électronique</h2>
+<p>Depuis le <strong>1<sup>er</sup> septembre 2026</strong>, toute entreprise établie en France
+doit être en mesure de <strong>recevoir</strong> ses factures par une plateforme agréée. Un PDF
+envoyé par courriel ne suffit plus. Les PME et microentreprises devront <strong>émettre</strong>
+sous ce format à partir du 1<sup>er</sup> septembre 2027.</p>
+<p>Concrètement : dites-nous votre plateforme de réception et votre identifiant d'annuaire au
+moment de la signature, le champ est prévu dans votre espace. Nos factures y sont adressées.</p>
 
 <h2>Impayé</h2>
 <p>Une facture en retard suspend la publication de nouvelles missions. Elle ne coupe jamais l'accès
@@ -542,4 +558,72 @@ ajoutées en cours de saison, au prorata.</p>
 
 <h2>9. Droit applicable</h2>
 <p>Droit français. À défaut d'accord amiable, compétence des tribunaux du ressort du siège de Riseva.</p>
+""")
+
+
+# ---------------------------------------------------------------- modération
+ecrire("moderation.html",
+  surtitre="Le dossier achats",
+  titre="Modération des annonces",
+  description="Comment Riseva traite un signalement, dans quels délais, et selon quelles règles.",
+  chapo="Riseva héberge et diffuse des annonces écrites par des associations. Cela fait d'elle "
+        "un hébergeur, avec les obligations qui vont avec, quelle que soit sa taille.",
+  corps="""
+<h2>Ce que nous sommes</h2>
+<p>Riseva stocke et rend publiques des annonces fournies par des tiers, les associations
+partenaires. Cette activité relève du <strong>service d'hébergement</strong> au sens du règlement
+sur les services numériques. L'article 16, qui impose un mécanisme de signalement, s'applique
+<strong>quelle que soit la taille de l'hébergeur</strong>. Certaines obligations de publication
+sont allégées pour les micro et petites entreprises, mais pas celle-là.</p>
+<p>Riseva n'écrit pas les annonces, ne les commande pas et n'en garantit pas le contenu. Elle
+les vérifie à l'entrée de l'association dans le réseau, selon la
+<a href="/charte-associations.html">charte</a>, et les modère ensuite sur signalement.</p>
+
+<h2>Signaler une annonce</h2>
+<p>Un bouton <strong>Signaler</strong> figure sur chaque annonce, dans tous les espaces, sans
+avoir à chercher. Le formulaire demande un motif et des précisions factuelles.</p>
+<table>
+  <thead><tr><th>Motif</th><th>Ce qu'il couvre</th></tr></thead>
+  <tbody>
+    <tr><td>Hors objet</td><td>L'annonce n'a pas de rapport avec l'objet déclaré de l'association</td></tr>
+    <tr><td>Trompeur</td><td>La description ne correspond pas à ce qui est réellement demandé</td></tr>
+    <tr><td>Illicite</td><td>Contenu contraire à la loi</td></tr>
+    <tr><td>Dangereux</td><td>Mission présentant un risque sans encadrement adapté</td></tr>
+    <tr><td>Données personnelles</td><td>Informations personnelles exposées dans l'annonce</td></tr>
+  </tbody>
+</table>
+
+<h2>Ce qui se passe ensuite</h2>
+<ul>
+  <li><strong>Accusé de réception immédiat</strong>, à l'écran et par mail.</li>
+  <li><strong>Décision sous cinq jours ouvrés</strong>, et sous vingt-quatre heures si le
+      signalement porte sur un danger ou un contenu manifestement illicite.</li>
+  <li><strong>Décision motivée</strong>, notifiée à l'auteur du signalement et à l'association.
+      Une décision sans motivation n'est pas acceptée par la plateforme : le champ est obligatoire,
+      techniquement.</li>
+  <li>Si l'annonce est retirée, elle est fermée immédiatement et les entreprises engagées
+      sont prévenues.</li>
+  <li>L'association peut contester par écrit. Le réexamen est fait par une autre personne
+      que celle qui a décidé.</li>
+</ul>
+
+<h2>Mesures d'urgence</h2>
+<p>En cas de danger pour des personnes, l'annonce est retirée d'abord et la motivation vient
+ensuite, dans les vingt-quatre heures. C'est le seul cas où nous agissons avant d'expliquer.</p>
+
+<h2>Ce que nous conservons</h2>
+<ul>
+  <li>Les signalements, leur motif, la décision et sa motivation : douze mois.</li>
+  <li>Le nombre de signalements reçus, traités et le délai moyen : publiés une fois par an
+      dans le rapport de saison.</li>
+</ul>
+
+<h2>Abus</h2>
+<p>Un signalement manifestement infondé, répété, peut entraîner la suspension du compte qui
+l'émet. Nous prévenons avant de suspendre.</p>
+
+<h2>Nous écrire</h2>
+<p>Pour tout ce que le formulaire ne couvre pas :
+<a href="mailto:contact@riseva.fr" style="color:var(--forest-800)">contact@riseva.fr</a>.
+Réponse sous deux jours ouvrés.</p>
 """)

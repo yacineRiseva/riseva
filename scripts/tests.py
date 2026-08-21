@@ -62,7 +62,7 @@ def main():
         for page in ["inscription.html", "associations.html", "asso.html?id=a1",
                      "mentions.html", "cgu.html", "cgv.html", "reglement.html",
                      "charte-associations.html", "securite.html", "confidentialite.html",
-                     "engagements.html"]:
+                     "engagements.html", "moderation.html"]:
             p.goto(f"{BASE}/{page}", wait_until="networkidle")
             verifie(f"la page {page} se charge", len(p.inner_text("body")) > 400)
 
@@ -83,6 +83,16 @@ def main():
         t = norm(p.inner_text(".doc__corps"))
         verifie("la disponibilité est chiffrée", "99,5 %" in t)
         verifie("l'impayé ne coupe pas les données", "en otage" in t)
+        p.goto(BASE + "/moderation.html", wait_until="networkidle")
+        t = p.inner_text(".doc__corps")
+        verifie("la politique de modération existe", "service d'hébergement" in t)
+        verifie("les délais de décision sont donnés", "cinq jours ouvrés" in t)
+        p.goto(BASE + "/engagements.html", wait_until="networkidle")
+        t = p.inner_text(".doc__corps")
+        verifie("la facturation électronique est traitée", "plateforme agréée" in t)
+        verifie("la réversibilité cite le règlement sur les données", "articles 25 à 30" in t)
+        p.goto(BASE + "/securite.html", wait_until="networkidle")
+        verifie("l'incident est chiffré à 24 heures", "sous 24 heures" in p.inner_text(".doc__corps"))
         p.goto(BASE + "/404.html", wait_until="networkidle")
         verifie("la page d'erreur existe", "rivière s'arrête" in p.inner_text("body"))
         p.goto(BASE + "/robots.txt", wait_until="domcontentloaded")

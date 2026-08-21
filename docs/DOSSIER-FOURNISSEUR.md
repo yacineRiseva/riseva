@@ -14,11 +14,15 @@ promis pour plus tard vaut moins qu'un document imparfait mais disponible tout d
 | Disponibilité, support, réversibilité | [riseva.fr/engagements.html](https://riseva.fr/engagements.html) |
 | Conditions de vente | [riseva.fr/cgv.html](https://riseva.fr/cgv.html) |
 | Conditions d'utilisation | [riseva.fr/cgu.html](https://riseva.fr/cgu.html) |
+| Modération des annonces et signalement | [riseva.fr/moderation.html](https://riseva.fr/moderation.html) |
 
 ## Ce qui est fourni avec le devis
 
 - [ ] Devis nominatif : périmètre, nombre de places, prix ferme, échéances, durée
-- [ ] Accord de sous-traitance (article 28 du RGPD), annexé au devis
+- [ ] Accord de sous-traitance (article 28 du RGPD), annexé au devis — `docs/DPA.md`
+- [ ] Kit de déploiement salariés : note d'information et trame de consultation du CSE —
+      `docs/INFORMATION-SALARIES.md`
+- [ ] Plateforme de réception des factures du client et identifiant d'annuaire
 - [ ] Extrait RNE ou Kbis, RIB au même nom
 - [ ] Attestation de responsabilité civile professionnelle
 - [ ] Attestation de vigilance URSSAF
