@@ -26,7 +26,7 @@
 </div></footer>
 
 <script type="module">
-import { DB, BAREME } from "/app/data.js";
+import { DB, BAREME, UNITES } from "/app/data.js";
 import { h, esc, nb, eur, dateFR, toast } from "/app/ui.js";
 
 const id = new URLSearchParams(location.search).get("id") || "a1";
@@ -39,6 +39,25 @@ root.appendChild(h(`<section class="assoHero"><div class="wrap">
   <h1 class="display" style="margin-top:var(--s5);max-width:18ch">${esc(a.nom)}</h1>
   <p class="lede" style="margin-top:var(--s6)">${esc(a.resume)}</p>
 </div></section>`));
+
+/* Ce que cette association a déjà obtenu grâce au réseau : c'est ce qui donne envie
+   de donner, bien plus qu'un discours. */
+const rea = DB.realisations({ asso: a.id });
+if (rea.liste.length){
+  root.appendChild(h(`<section class="section section--dark grain" style="padding-block:var(--s16)">
+    <div class="wrap">
+      <p class="eyebrow">Déjà fait, grâce au réseau Riseva</p>
+      <div class="realis__grid" style="margin-top:var(--s8)">
+        ${rea.liste.map(x => `<div class="realis__c">
+          <span class="realis__n">${nb(Math.round(x.quantite))}</span>
+          <span class="realis__l">${esc(x.pl)}</span></div>`).join("")}
+      </div>
+      <p class="hint" style="margin-top:var(--s8);color:rgba(223,230,208,.5)">
+        Chiffres déclarés par ${esc(a.nom)}, sur ${rea.missions} mission${rea.missions > 1 ? "s" : ""}
+        réalisée${rea.missions > 1 ? "s" : ""} et validée${rea.missions > 1 ? "s" : ""}.</p>
+    </div>
+  </section>`));
+}
 
 const corps = h(`<section class="section"><div class="wrap assoGrid">
   <div>
@@ -67,10 +86,12 @@ const liste = corps.querySelector("#liste");
 if (!annonces.length) liste.appendChild(h(`<p class="empty">Aucun besoin publié pour le moment.</p>`));
 annonces.forEach(an => {
   const b = BAREME[an.type];
+  const imp = an.impact && UNITES[an.impact.unite] ? an.impact : null;
   liste.appendChild(h(`<article class="offer">
     <div>
-      <div class="row" style="gap:var(--s3)">
+      <div class="row" style="gap:var(--s3);flex-wrap:wrap">
         <span class="badge badge--brand">${esc(b.label)}</span>
+        ${imp ? `<span class="badge">${nb(imp.par_unite)} ${esc(UNITES[imp.unite].pl)}</span>` : ""}
         <span class="muted" style="font-size:var(--t-sm)">${dateFR(an.date)}</span>
       </div>
       <h4 style="margin-top:var(--s3)">${esc(an.titre)}</h4>

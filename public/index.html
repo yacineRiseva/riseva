@@ -194,6 +194,15 @@
 </section>
 
 <!-- ============ BAREME ============ -->
+<section class="section section--dark grain" id="reseauReal" style="display:none">
+  <div class="wrap">
+    <p class="eyebrow">Ce que le réseau a produit</p>
+    <h2 style="margin-top:var(--s4);max-width:20ch">Des chiffres, pas des intentions</h2>
+    <div class="realis__grid" style="margin-top:var(--s10)" id="reseauGrid"></div>
+    <p class="hint" style="margin-top:var(--s8);color:rgba(223,230,208,.5)" id="reseauNote"></p>
+  </div>
+</section>
+
 <section class="section" id="bareme">
   <div class="wrap">
     <div class="between" style="align-items:flex-end">
@@ -485,5 +494,29 @@
   </div>
 </footer>
 
+<script type="module">
+  /* Le compteur du réseau se remplit tout seul à partir des données réelles.
+     Aucun chiffre n'est saisi à la main dans cette page. */
+  import { DB } from "/app/data.js";
+  import { nb } from "/app/ui.js";
+  const r = DB.impactReseau();
+  const grille = document.getElementById("reseauGrid");
+  const bloc = document.getElementById("reseauReal");
+  const cases = [
+    ...r.realisations.map(x => [Math.round(x.quantite), x.pl]),
+    [r.heures, "heures de bénévolat"],
+    [r.associations, "associations soutenues"]
+  ].filter(([n]) => n > 0);
+  if (cases.length){
+    bloc.style.display = "";
+    grille.innerHTML = cases.map(([n, l]) =>
+      `<div class="realis__c"><span class="realis__n">${nb(n)}</span>
+       <span class="realis__l">${l}</span></div>`).join("");
+    document.getElementById("reseauNote").textContent =
+      `Cumul de ${nb(r.missions)} missions validées par les associations bénéficiaires depuis `
+      + `l'ouverture. Riseva additionne ce que les associations déclarent, elle ne l'audite pas, `
+      + `et ne présente jamais ces chiffres comme une mesure d'impact environnemental.`;
+  }
+</script>
 </body>
 </html>

@@ -36,7 +36,10 @@ def serveur():
         finally: srv.shutdown()
 
 def connecte(p, uid, route="#/tableau"):
+    """Repart d'un état neuf : les tests ne doivent jamais dépendre de ce qu'a fait
+    le test précédent."""
     p.goto(f"{BASE}/app/", wait_until="domcontentloaded")
+    p.evaluate("()=>localStorage.removeItem('riseva.etat')")
     p.evaluate("u=>localStorage.setItem('riseva.session',JSON.stringify({uid:u}))", uid)
     p.goto(f"{BASE}/app/?t=1{route}", wait_until="networkidle")
     p.wait_for_timeout(350)
@@ -179,6 +182,37 @@ def main():
         p.evaluate("()=>{const b=[...document.querySelectorAll('tbody button')].find(x=>x.textContent==='Confirmer'); if(b)b.click()}")
         p.wait_for_timeout(400)
         verifie("une mission peut être confirmée", "créditée" in p.inner_text(".toast") or "crédités" in p.inner_text(".toast"))
+
+        print("\nRéalisations et automatismes")
+        connecte(p, "u2")
+        t = p.inner_text(".content")
+        verifie("le décompte des réalisations s'affiche", "arbres plantés" in t)
+        verifie("la provenance du chiffre est dite", "elle n'audite pas" in t)
+        connecte(p, "u1", "#/moteur")
+        t = p.inner_text(".content")
+        verifie("les automatismes sont listés", "Validation sans retour" in t
+                and "Fermeture des annonces périmées" in t)
+        avant = p.eval_on_selector_all("#hj tbody tr", "r=>r.length")
+        p.click("#run"); p.wait_for_timeout(500)
+        verifie("le moteur peut être relancé",
+                p.eval_on_selector_all("#hj tbody tr", "r=>r.length") == avant + 1)
+        p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(600)
+        verifie("le site public affiche le compteur du réseau", p.is_visible("#reseauReal"))
+        verifie("le compteur est alimenté par les données",
+                "arbres plantés" in p.inner_text("#reseauGrid"))
+
+        print("\nEnregistrement automatique")
+        connecte(p, "u7", "#/mesannonces")
+        avant = p.eval_on_selector_all("tbody tr", "r=>r.length")
+        p.evaluate("()=>document.querySelector('#np').click()"); p.wait_for_timeout(250)
+        p.fill(".modal #titre", "Annonce de persistance")
+        p.fill(".modal #desc", "Doit survivre au rechargement de la page.")
+        p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Publier/.test(b.textContent)).click()")
+        p.wait_for_timeout(400)
+        p.reload(); p.wait_for_timeout(600)
+        apres = p.eval_on_selector_all("tbody tr", "r=>r.length")
+        verifie("ce qui est fait est enregistré", apres == avant + 1, f"{avant} -> {apres}")
+        verifie("l'état est bien en mémoire", p.evaluate("()=>!!localStorage.getItem('riseva.etat')"))
 
         print("\nNotifications")
         connecte(p, "u2")

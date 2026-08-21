@@ -35,6 +35,8 @@ supabase/
   04_seed.sql           saison et barème de départ
   functions/            fonctions Edge : validation, rapports, reçus fiscaux
   404.html              page d'erreur
+supabase/05_taches.sql  ce qui tourne tout seul : validation auto, fraîcheur,
+                        rapports, classement (pg_cron)
 supabase/emails/        gabarits des messages transactionnels
 docs/DOSSIER-FOURNISSEUR.md   ce qu'un acheteur demande, et où le trouver
 docs/modeles/           convention de mécénat de compétences, feuille d'émargement

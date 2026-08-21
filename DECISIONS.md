@@ -44,6 +44,16 @@ pas les conversations. Toute nouvelle décision s'ajoute en haut de la section c
 | 30/07/2026 | Demande d'accès partenaire à l'API HelloAsso déposée. **Statut : sans réponse.** Aucun SIREN à cette date. | — |
 | 30/07/2026 | L'argent des dons ne transite jamais par Riseva. | — |
 
+## Automatisation et décompte
+
+| Date | Décision | Remplace |
+|---|---|---|
+| 21/08/2026 | Les annonces portent une unité de réalisation à catalogue fermé et un rendement par unité. Les totaux se cumulent seuls partout. | Rien. C'est ce qui rend le rapport annuel concret : « 280 arbres plantés » plutôt que « 12 480 points ». |
+| 21/08/2026 | Le chiffre déclaré par l'association au moment de valider l'emporte sur l'estimation de l'annonce. | Une estimation figée, qui aurait fini par mentir. |
+| 21/08/2026 | Les réalisations ne sont jamais appelées « impact » et portent toujours leur provenance. | — |
+| 21/08/2026 | Quatre tâches planifiées côté base : validation sans retour, fraîcheur, rapports, classement. Journal auditable de chaque passage. | Des règles qui ne s'appliquaient qu'à l'ouverture d'une page. |
+| 21/08/2026 | Tout ce qui est fait est enregistré automatiquement et retrouvé au retour, avec une remise à zéro offerte. | Un état perdu à chaque rechargement, qui faisait « démo » et non « produit ». |
+
 ## Fiscalité et conformité
 
 | Date | Décision | Remplace |

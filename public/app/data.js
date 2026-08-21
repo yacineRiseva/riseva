@@ -53,6 +53,22 @@ export const FISCAL = {
   duree_max_mise_a_disposition_ans: 3   // article L. 8241-3 du code du travail
 };
 
+/* Unités de réalisation. Ce que la mission produit dans le monde réel, déclaré par
+   l'association qui en est témoin. C'est volontairement séparé des points : les points
+   sont une mécanique de classement, les réalisations sont un décompte de choses faites. */
+export const UNITES = {
+  arbre:      { un:"arbre planté",        pl:"arbres plantés",           icone:"leaf" },
+  haie:       { un:"mètre de haie",       pl:"mètres de haie plantés",   icone:"leaf" },
+  dechet_kg:  { un:"kilo ramassé",        pl:"kilos de déchets ramassés",icone:"box" },
+  repas:      { un:"repas distribué",     pl:"repas distribués",         icone:"heart" },
+  colis:      { un:"colis préparé",       pl:"colis préparés",           icone:"box" },
+  animal:     { un:"animal pris en charge", pl:"animaux pris en charge", icone:"heart" },
+  maraude:    { un:"maraude",             pl:"maraudes réalisées",       icone:"users" },
+  kit:        { un:"kit distribué",       pl:"kits distribués",          icone:"box" },
+  eleve:      { un:"élève sensibilisé",   pl:"élèves sensibilisés",      icone:"users" },
+  metre_berge:{ un:"mètre de berge",      pl:"mètres de berge nettoyés", icone:"leaf" }
+};
+
 export const ETATS_MISSION = {
   engagee:      { label: "Engagée",            badge: "badge--info"   },
   a_valider:    { label: "À valider",          badge: "badge--warn"   },
@@ -114,10 +130,12 @@ const seed = {
       site:"", valide:false }
   ],
   annonces: [
-    { id:"an1", asso:"a1", type:"benevolat_demi_journee", temps_travail:false, titre:"Sortie des chiens et entretien des box",
+    { id:"an1", asso:"a1", type:"benevolat_demi_journee", temps_travail:false,
+      impact:{ unite:"animal", par_unite:12 }, titre:"Sortie des chiens et entretien des box",
       description:"Nous manquons de bras le samedi matin. Six personnes suffisent pour sortir 40 chiens et remettre les box en état.",
       quantite:6, restant:4, date:J(9), lieu:"Saint-Étienne", etat:"ouverte" },
-    { id:"an2", asso:"a2", type:"benevolat_demi_journee", temps_travail:true, titre:"Plantation de 400 arbres à Beaumont",
+    { id:"an2", asso:"a2", type:"benevolat_demi_journee", temps_travail:true,
+      impact:{ unite:"arbre", par_unite:40 }, titre:"Plantation de 400 arbres à Beaumont",
       description:"Chantier de plantation sur une parcelle de deux hectares. Aucune compétence particulière requise, on fournit le matériel.",
       quantite:12, restant:9, date:J(16), lieu:"Beaumont (63)", etat:"ouverte" },
     { id:"an3", asso:"a3", type:"don_materiel", titre:"Waders et gants de protection",
@@ -132,7 +150,8 @@ const seed = {
     { id:"an6", asso:"a2", type:"don_financier", titre:"Achat de 1 200 plants de charme",
       description:"Un plant coûte 2,10 € livré. Objectif : sécuriser la campagne de plantation d'automne.",
       quantite:2520, restant:2520, date:J(52), lieu:"Clermont-Ferrand", etat:"ouverte" },
-    { id:"an7", asso:"a3", type:"benevolat_demi_journee", temps_travail:true, titre:"Nettoyage des berges, secteur amont",
+    { id:"an7", asso:"a3", type:"benevolat_demi_journee", temps_travail:true,
+      impact:{ unite:"metre_berge", par_unite:250 }, titre:"Nettoyage des berges, secteur amont",
       description:"Ramassage sur trois kilomètres de berges. Prévoir des bottes.",
       quantite:15, restant:0, date:J(-4), lieu:"Roanne", etat:"close" }
   ],
@@ -176,7 +195,10 @@ const seed = {
     { nom:"T1", points:6100 }, { nom:"T2", points:9800 },
     { nom:"T3", points:14600 }, { nom:"T4", points:17620 }
   ],
-  semaines: [820,1140,960,1480,1310,1720,1560,2040,1880,2260,2110,2480]
+  semaines: [820,1140,960,1480,1310,1720,1560,2040,1880,2260,2110,2480],
+  rapports_generes: [],
+  moteur_journal: [],
+  classement_recalcule_le: null
 };
 
 /* ------------------------------------------------------------------ */
@@ -184,10 +206,41 @@ const seed = {
 /* ------------------------------------------------------------------ */
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
+/* Persistance. La démonstration se comporte comme le produit : tout ce qui est fait
+   est enregistré, et retrouvé au retour. Une clé de version évite de restaurer un
+   état écrit par une version antérieure du modèle. */
+const CLE_ETAT = "riseva.etat";
+const VERSION_ETAT = 3;
+
+function lireEtat(){
+  try {
+    const brut = localStorage.getItem(CLE_ETAT);
+    if (!brut) return null;
+    const o = JSON.parse(brut);
+    if (!o || o.version !== VERSION_ETAT) return null;
+    return o;
+  } catch { return null; }
+}
+
 function creerMock(){
-  const s = clone(seed);
-  let seq = 100;
+  const sauvegarde = lireEtat();
+  const s = sauvegarde ? sauvegarde.etat : clone(seed);
+  if (sauvegarde && sauvegarde.bareme)
+    Object.entries(sauvegarde.bareme).forEach(([k, v]) => { if (BAREME[k]) BAREME[k].points = v; });
+  let seq = sauvegarde ? sauvegarde.seq : 100;
   const id = (p) => p + (++seq);
+
+  let minuteur = null;
+  const ecrire = () => {
+    try {
+      localStorage.setItem(CLE_ETAT, JSON.stringify({
+        version: VERSION_ETAT, seq, etat: s,
+        bareme: Object.fromEntries(Object.entries(BAREME).map(([k, v]) => [k, v.points])),
+        enregistre_le: new Date().toISOString()
+      }));
+    } catch { /* navigation privée, quota plein : la démo continue sans mémoire */ }
+  };
+  const planifier = () => { clearTimeout(minuteur); minuteur = setTimeout(ecrire, 120); };
 
   const api = {
     mode: "demo",
@@ -349,9 +402,9 @@ function creerMock(){
     },
     /* Validation en masse : la lenteur d'une association bloque les points de plusieurs
        entreprises à la fois. On lui donne de quoi trancher d'un coup. */
-    validerLot(ids, ok){
+    validerLot(ids, ok, realises = {}){
       let n = 0;
-      ids.forEach(id => { if (api.validerMission(id, ok)) n++; });
+      ids.forEach(id => { if (api.validerMission(id, ok, realises[id])) n++; });
       return n;
     },
     /* Jours restants avant la validation automatique. */
@@ -377,15 +430,16 @@ function creerMock(){
     administrateurs: (eid) => s.utilisateurs.filter(u => u.org === eid
       && u.role === "entreprise_admin" && u.actif),
 
-    validerMission(mid, ok){
+    validerMission(mid, ok, realise){
       const m = s.missions.find(x => x.id === mid); if (!m) return null;
       m.etat = ok ? "validee" : "refusee";
       if (ok){
+        if (realise !== undefined && realise !== null) m.realise = Math.max(0, Number(realise) || 0);
         const e = s.entreprises.find(x => x.id === m.entreprise);
         if (e) e.points += m.points;
         const u = s.utilisateurs.find(x => x.id === m.salarie);
         if (u) u.points = (u.points || 0) + m.points;
-      } else { m.points = 0; }
+      } else { m.points = 0; m.realise = 0; }
       return m;
     },
     /* Les administrateurs occupent aussi une place : ce sont des comptes de l'entreprise. */
@@ -589,6 +643,56 @@ function creerMock(){
       if (jrs <= 60) s.entreprises.forEach(e => j.push({ date:s.saison.fin, type:"fin_saison",
         vers:e.nom, sujet:`Votre saison Riseva se termine dans ${jrs} jours`, etat:"programmé" }));
       return j.sort((x, y) => String(y.date).localeCompare(String(x.date)));
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* Réalisations                                                       */
+    /* ------------------------------------------------------------------ */
+    /* Ce que les missions ont produit dans le monde réel. Deux règles tiennent
+       l'honnêteté du chiffre :
+       1. seules les missions validées comptent, jamais une réservation ;
+       2. le nombre déclaré par l'association fait foi, pas l'estimation de l'annonce.
+       Riseva additionne, elle n'audite pas, et l'interface le dit. */
+    realiseDe(m){
+      const a = api.annonceDe(m);
+      if (!a || !a.impact || !a.impact.unite) return null;
+      if (!["validee", "validee_auto"].includes(m.etat)) return null;
+      const attendu = Math.round((Number(m.quantite) || 0) * (Number(a.impact.par_unite) || 0));
+      const reel = m.realise === undefined || m.realise === null ? attendu : Number(m.realise);
+      return { unite: a.impact.unite, quantite: Math.max(0, reel), attendu, declare: m.realise != null };
+    },
+
+    /* Cumul par unité. Filtres possibles : entreprise, association, salarié, période. */
+    realisations({ entreprise, asso, salarie, depuis, jusqua } = {}){
+      const total = {};
+      let missions = 0;
+      s.missions.forEach(m => {
+        if (entreprise && m.entreprise !== entreprise) return;
+        if (salarie && m.salarie !== salarie) return;
+        if (depuis && m.date < depuis) return;
+        if (jusqua && m.date > jusqua) return;
+        const a = api.annonceDe(m);
+        if (asso && (!a || a.asso !== asso)) return;
+        const r = api.realiseDe(m);
+        if (!r || !r.quantite) return;
+        total[r.unite] = (total[r.unite] || 0) + r.quantite;
+        missions++;
+      });
+      return {
+        parUnite: total,
+        missions,
+        liste: Object.entries(total)
+          .map(([unite, quantite]) => ({ unite, quantite, ...(UNITES[unite] || { un:unite, pl:unite }) }))
+          .sort((x, y) => y.quantite - x.quantite)
+      };
+    },
+
+    /* L'association corrige le chiffre au moment de valider : c'est elle qui était là. */
+    declarerRealise(mid, quantite){
+      const m = s.missions.find(x => x.id === mid);
+      if (!m) return null;
+      m.realise = Math.max(0, Number(quantite) || 0);
+      return m;
     },
 
     /* ------------------------------------------------------------------ */
@@ -802,6 +906,64 @@ function creerMock(){
     },
 
     /* ------------------------------------------------------------------ */
+    /* Moteur : ce qui se fait tout seul                                  */
+    /* ------------------------------------------------------------------ */
+    /* Quatre automatismes tournent sans que personne les déclenche. En production
+       ce sont des tâches planifiées côté base (voir supabase/05_taches.sql) ;
+       ici elles s'exécutent au chargement, ce qui donne exactement le même résultat.
+       Chaque passage est daté et consigné : une automatisation qu'on ne peut pas
+       auditer inquiète plus qu'elle ne rassure. */
+    moteur(aujourdhui = new Date().toISOString().slice(0, 10)){
+      const fait = { validations_auto:0, annonces_fermees:0, rapports:0, classement:false,
+                     le: aujourdhui };
+
+      /* 1. Une association qui ne répond pas ne doit pas bloquer le client.
+            Quatorze jours après la déclaration, la mission est comptée. */
+      s.missions.filter(m => m.etat === "a_valider").forEach(m => {
+        const limite = new Date(m.date);
+        limite.setDate(limite.getDate() + 14);
+        if (limite.toISOString().slice(0, 10) <= aujourdhui){
+          m.etat = "validee_auto";
+          const e = s.entreprises.find(x => x.id === m.entreprise);
+          if (e) e.points += m.points;
+          const u = s.utilisateurs.find(x => x.id === m.salarie);
+          if (u) u.points = (u.points || 0) + m.points;
+          fait.validations_auto++;
+        }
+      });
+
+      /* 2. Une annonce dont la date est passée depuis plus de sept jours ne doit plus
+            apparaître : c'est l'engagement de fraîcheur pris envers les clients. */
+      s.annonces.filter(a => a.etat === "ouverte").forEach(a => {
+        const limite = new Date(a.date);
+        limite.setDate(limite.getDate() + 7);
+        if (limite.toISOString().slice(0, 10) < aujourdhui){
+          a.etat = "close"; a.fermeture_auto = true; fait.annonces_fermees++;
+        }
+      });
+
+      /* 3. Les rapports de période close se génèrent seuls, une fois. */
+      s.entreprises.forEach(e => {
+        api.rapports(e.id).filter(r => r.etat === "genere").forEach(r => {
+          const cle = e.id + ":" + r.id;
+          if (!s.rapports_generes.includes(cle)){
+            s.rapports_generes.push(cle); fait.rapports++;
+          }
+        });
+      });
+
+      /* 4. Le classement est recalculé chaque lundi. On ne stocke pas de rang :
+            il se déduit des points, ce qui évite tout écart entre l'affiché et le réel. */
+      s.classement_recalcule_le = aujourdhui;
+      fait.classement = true;
+
+      s.moteur_journal.unshift(fait);
+      s.moteur_journal = s.moteur_journal.slice(0, 30);
+      return fait;
+    },
+    journalMoteur: () => s.moteur_journal,
+
+    /* ------------------------------------------------------------------ */
     /* Indicateurs de pilote                                              */
     /* ------------------------------------------------------------------ */
     /* Protocole de mesure, figé avant le lancement d'un pilote. Un indicateur dont on
@@ -920,7 +1082,8 @@ function creerMock(){
         missions: ms.length,
         demiJournees, euros, materiel,
         salaries: s.utilisateurs.filter(u => u.role === "salarie" && !u.anonyme).length,
-        heures: demiJournees * 4
+        heures: demiJournees * 4,
+        realisations: api.realisations().liste
       };
     },
 
@@ -976,7 +1139,23 @@ function creerMock(){
       };
     }
   };
-  return api;
+  /* Remise à zéro, offerte dans l'interface : une démonstration qu'on ne peut pas
+     remettre à neuf finit par ne plus rien démontrer. */
+  api.reinitialiser = () => {
+    try { localStorage.removeItem(CLE_ETAT); } catch {}
+    return true;
+  };
+  api.enregistreLe = () => (lireEtat() || {}).enregistre_le || null;
+
+  /* Toute méthode appelée déclenche une sauvegarde différée. Écrire après une lecture
+     ne coûte rien et garantit qu'aucune mutation ne passe à travers les mailles. */
+  return new Proxy(api, {
+    get(cible, prop){
+      const v = cible[prop];
+      if (typeof v !== "function") return v;
+      return (...args) => { const r = v.apply(cible, args); planifier(); return r; };
+    }
+  });
 }
 
 /* ------------------------------------------------------------------ */

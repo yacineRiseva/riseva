@@ -124,3 +124,16 @@
   margin-top:var(--s5);font-size:var(--t-sm);color:var(--ink-600)}
 .encadreMini p{margin-top:var(--s2)}
 .encadreMini p:first-child{margin-top:0}
+
+/* ============ Réalisations ============ */
+.realis__grid{display:grid;gap:var(--s5);
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.realis__c{display:flex;flex-direction:column;gap:5px;padding-left:var(--s4);
+  border-left:2px solid var(--brand)}
+.realis__n{font-family:var(--font-display);font-size:2.1rem;font-weight:600;
+  letter-spacing:-.03em;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+.realis__l{font-size:var(--t-sm);color:var(--ink-500);line-height:1.35}
+.card--dark .realis__c{border-left-color:var(--lime)}
+.card--dark .realis__n{color:var(--lime)}
+.card--dark .realis__l{color:rgba(223,230,208,.7)}
+.card--dark .hint{color:rgba(223,230,208,.5)}

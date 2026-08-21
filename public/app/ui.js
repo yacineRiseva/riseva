@@ -42,7 +42,8 @@ export const ICONS = {
   hands:     P(`<path d="M8 13V6.5a1.5 1.5 0 0 1 3 0V12"/><path d="M11 12V5.5a1.5 1.5 0 0 1 3 0V12"/><path d="M14 12V7.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6v-3a1.5 1.5 0 0 1 3 0"/>`),
   box:       P(`<path d="M21 8.5 12 4 3 8.5v7L12 20l9-4.5v-7Z"/><path d="M3 8.5 12 13l9-4.5M12 13v7"/>`),
   clock:     P(`<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>`),
-  cloche:    P(`<path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M13.7 20a2 2 0 0 1-3.4 0"/>`)
+  cloche:    P(`<path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M13.7 20a2 2 0 0 1-3.4 0"/>`),
+  leaf:      P(`<path d="M20 4C10 4 4 10 4 20c8 0 16-6 16-16Z"/><path d="M4 20C8 16 12 13 17 11"/>`)
 };
 
 export function toast(message){
@@ -164,5 +165,26 @@ export function vide({ titre, texte, action }){
     b.onclick = action.onClick;
     el.appendChild(b);
   }
+  return el;
+}
+
+/* Bandeau de réalisations : ce que les missions ont produit dans le monde réel.
+   Toujours accompagné de sa provenance, jamais présenté comme un impact mesuré. */
+export function bandeauRealisations(r, { titre = "Ce que ça a produit", sombre = false,
+  note = "Chiffres déclarés par les associations bénéficiaires, qui étaient sur place. Riseva additionne, elle n'audite pas." } = {}){
+  if (!r || !r.liste || !r.liste.length) return null;
+  const el = h(`<section class="card ${sombre ? "card--dark grain" : ""} realis">
+    <div class="between" style="margin-bottom:var(--s6)">
+      <h3>${esc(titre)}</h3>
+      <span class="badge ${sombre ? "badge--lime" : "badge--brand"}">${nb(r.missions)} mission${r.missions > 1 ? "s" : ""}</span>
+    </div>
+    <div class="realis__grid">
+      ${r.liste.map(x => `<div class="realis__c">
+        <span class="realis__n">${nb(Math.round(x.quantite))}</span>
+        <span class="realis__l">${esc(x.pl)}</span>
+      </div>`).join("")}
+    </div>
+    <p class="hint" style="margin-top:var(--s6)">${esc(note)}</p>
+  </section>`);
   return el;
 }

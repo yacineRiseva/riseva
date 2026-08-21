@@ -155,3 +155,92 @@ begin
   returning * into v;
   return v;
 end $$;
+
+
+-- ---------------------------------------------------------------- réalisations
+-- Deux règles tiennent l'honnêteté du chiffre :
+--   1. seules les missions validées comptent, jamais une réservation ;
+--   2. le nombre déclaré par l'association l'emporte sur l'estimation de l'annonce.
+-- Riseva additionne, elle n'audite pas, et l'interface le dit.
+create or replace function realise_de(p_mission uuid)
+returns numeric language sql stable as $$
+  select case
+    when m.etat not in ('validee','validee_auto') then 0
+    when a.impact_unite is null then 0
+    else coalesce(m.realise, round(m.quantite * a.impact_par_unite))
+  end
+  from mission m join annonce a on a.id = m.annonce
+ where m.id = p_mission
+$$;
+
+create or replace function realisations_entreprise(
+  p_entreprise uuid, p_debut date default null, p_fin date default null)
+returns jsonb language sql stable as $$
+  select coalesce(jsonb_object_agg(unite, total), '{}'::jsonb)
+    from (
+      select a.impact_unite::text as unite,
+             sum(coalesce(m.realise, round(m.quantite * a.impact_par_unite))) as total
+        from mission m join annonce a on a.id = m.annonce
+       where m.entreprise = p_entreprise
+         and m.etat in ('validee','validee_auto')
+         and a.impact_unite is not null
+         and (p_debut is null or m.date_mission >= p_debut)
+         and (p_fin   is null or m.date_mission <= p_fin)
+       group by a.impact_unite
+    ) x
+$$;
+
+create or replace function realisations_reseau()
+returns jsonb language sql stable as $$
+  select coalesce(jsonb_object_agg(unite, total), '{}'::jsonb)
+    from (
+      select a.impact_unite::text as unite,
+             sum(coalesce(m.realise, round(m.quantite * a.impact_par_unite))) as total
+        from mission m join annonce a on a.id = m.annonce
+       where m.etat in ('validee','validee_auto') and a.impact_unite is not null
+       group by a.impact_unite
+    ) x
+$$;
+
+-- ---------------------------------------------------------------- points
+-- Le plafond par format vit dans la base, pas seulement dans l'interface : un client
+-- qui interroge ses données directement doit trouver le même chiffre que son écran.
+create or replace function points_bruts(
+  p_entreprise uuid, p_debut date default null, p_fin date default null)
+returns integer language sql stable as $$
+  select coalesce(sum(m.points), 0)::integer
+    from mission m
+   where m.entreprise = p_entreprise
+     and m.etat in ('validee','validee_auto')
+     and (p_debut is null or m.date_mission >= p_debut)
+     and (p_fin   is null or m.date_mission <= p_fin)
+$$;
+
+create or replace function points_retenus(
+  p_entreprise uuid, p_debut date default null, p_fin date default null)
+returns integer language sql stable as $$
+  with par_type as (
+    select a.type, sum(m.points) as pts
+      from mission m join annonce a on a.id = m.annonce
+     where m.entreprise = p_entreprise
+       and m.etat in ('validee','validee_auto')
+       and (p_debut is null or m.date_mission >= p_debut)
+       and (p_fin   is null or m.date_mission <= p_fin)
+     group by a.type
+  ), total as (select coalesce(sum(pts), 0) as brut from par_type)
+  select coalesce(sum(least(pts, floor(brut * 0.5))), 0)::integer
+    from par_type, total
+$$;
+
+-- Découpage d'une saison en quatre trimestres plus le bilan annuel.
+create or replace function periodes_de(p_saison uuid)
+returns table (portee text, periode text, debut date, fin date)
+language sql stable as $$
+  select 'trimestriel', 'T' || i,
+         (s.debut + ((i - 1) * interval '3 months'))::date,
+         (s.debut + (i * interval '3 months') - interval '1 day')::date
+    from saison s, generate_series(1, 4) i
+   where s.id = p_saison
+  union all
+  select 'annuel', s.nom, s.debut, s.fin from saison s where s.id = p_saison
+$$;

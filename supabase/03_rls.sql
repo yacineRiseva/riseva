@@ -13,6 +13,8 @@ alter table saison          enable row level security;
 alter table bareme          enable row level security;
 alter table invitation      enable row level security;
 alter table acces           enable row level security;
+alter table rapport         enable row level security;
+alter table moteur_journal  enable row level security;
 
 -- Helpers
 create or replace function mon_role() returns role_utilisateur
@@ -138,4 +140,34 @@ begin
     raise exception 'Non autorisé';
   end if;
   perform anonymiser_salarie(p_profil);
+end $$;
+
+
+-- ---------------------------------------------------------------- rapports
+-- Une entreprise lit ses rapports, personne d'autre. Ils sont écrits par la tâche
+-- planifiée, jamais par un utilisateur : aucune politique d'insertion.
+create policy p_rapport_lecture on rapport for select using (
+  mon_role() = 'admin' or entreprise = mon_entreprise()
+);
+
+-- ---------------------------------------------------------------- journal du moteur
+-- Lisible par Riseva seule. Personne ne peut l'effacer, pas même l'administration :
+-- un journal d'automatismes effaçable ne prouve rien.
+create policy p_moteur_lecture on moteur_journal for select using (mon_role() = 'admin');
+
+-- ---------------------------------------------------------------- réalisations
+-- Seule l'association bénéficiaire peut déclarer ce qui a réellement été fait, et
+-- seulement au moment où elle valide. L'entreprise ne peut pas corriger son propre score.
+create or replace function declarer_realise(p_mission uuid, p_quantite numeric)
+returns void language plpgsql security definer as $$
+begin
+  if not exists (
+    select 1 from mission m join annonce a on a.id = m.annonce
+     where m.id = p_mission
+       and (mon_role() = 'admin' or a.association = mon_association())
+  ) then
+    raise exception 'Non autorisé';
+  end if;
+  if p_quantite < 0 then raise exception 'Quantité négative'; end if;
+  update mission set realise = p_quantite where id = p_mission;
 end $$;

@@ -22,18 +22,22 @@ def inline(html, sheets):
         html = html.replace(k, v)
     return html
 
-# ---- site vitrine -----------------------------------------------------
-site = inline((R/"index.html").read_text(encoding="utf-8"),
-              ["tokens.css","base.css","components.css","marketing.css"])
-(OUT/"riseva-site.html").write_text(site, encoding="utf-8")
-
-# ---- application ------------------------------------------------------
 def strip_modules(src):
     src = re.sub(r'^\s*import[^;]+;\s*$', "", src, flags=re.M)
     src = re.sub(r'^\s*export\s+(const|function|async function|let)\s', r'\1 ', src, flags=re.M)
     src = re.sub(r'^\s*export\s+', "", src, flags=re.M)
     return src
 
+# ---- site vitrine -----------------------------------------------------
+site = (R/"index.html").read_text(encoding="utf-8")
+# le compteur du réseau lit les vraies données : on embarque data.js et ui.js
+site = site.replace('  import { DB } from "/app/data.js";\n  import { nb } from "/app/ui.js";',
+                    "\n".join(strip_modules((R/"app"/f).read_text(encoding="utf-8"))
+                              for f in ["data.js","ui.js"]))
+site = inline(site, ["tokens.css","base.css","components.css","marketing.css"])
+(OUT/"riseva-site.html").write_text(site, encoding="utf-8")
+
+# ---- application ------------------------------------------------------
 bundle = "\n".join(strip_modules((R/"app"/f).read_text(encoding="utf-8"))
                    for f in ["data.js","ui.js","app.js"])
 app = (R/"app"/"index.html").read_text(encoding="utf-8")

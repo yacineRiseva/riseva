@@ -111,6 +111,14 @@ create table profil (
   )
 );
 
+-- ---------------------------------------------------------------- unités de réalisation
+-- Le catalogue est fermé : laisser saisir une unité libre produirait « arbres », « arbre »,
+-- « Arbres plantés » et trois totaux qu'on ne peut plus additionner.
+create type unite_realisation as enum (
+  'arbre', 'haie', 'dechet_kg', 'repas', 'colis',
+  'animal', 'maraude', 'kit', 'eleve', 'metre_berge'
+);
+
 -- ---------------------------------------------------------------- invitations
 -- Un lien unique par entreprise. Les salariés créent leur compte eux-mêmes,
 -- l'entreprise n'a aucune liste à saisir.
@@ -137,6 +145,11 @@ create table annonce (
   type         type_annonce not null,
   -- Mission proposée sur le temps de travail : conditionne le mécénat de compétences.
   temps_travail boolean not null default false,
+  -- Ce que produit une unité de la mission, dans le monde réel. Facultatif.
+  -- Séparé des points à dessein : les points classent, les réalisations décomptent.
+  impact_unite   unite_realisation,
+  impact_par_unite numeric check (impact_par_unite > 0),
+  fermeture_auto boolean not null default false,
   titre        text not null,
   description  text not null,
   quantite     numeric not null check (quantite > 0),   -- euros, ou nombre de demi-journées, ou nombre de dons

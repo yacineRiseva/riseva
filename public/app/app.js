@@ -1,5 +1,5 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, connecterSupabase } from "./data.js";
-import { h, esc, nb, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, versCSV, vide } from "./ui.js";
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, UNITES, connecterSupabase } from "./data.js";
+import { h, esc, nb, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
 /* Session                                                             */
@@ -72,7 +72,8 @@ const MENUS = {
     ]},
     { groupe: "Paramètres", items: [
       ["saison",  "Saison et barème", "settings"],
-      ["journal", "Journal des envois", "report"]
+      ["journal", "Journal des envois", "report"],
+      ["moteur",  "Automatismes",        "settings"]
     ]}
   ]
 };
@@ -372,6 +373,8 @@ function tableauEntreprise(u){
       </div>
     </div>
 
+    <div id="realis"></div>
+
     <section class="card" id="demarrage" style="display:none">
       <div class="between" style="margin-bottom:var(--s5)">
         <div><h3>Mise en route</h3>
@@ -402,6 +405,10 @@ function tableauEntreprise(u){
   });
 
   el.querySelector("#reco").appendChild(listeAnnonces(DB.annonces({ ouvertes:true }).slice(0, 3), u));
+
+  const rea = bandeauRealisations(DB.realisations({ entreprise: eid }),
+    { titre: "Ce que vos équipes ont produit", sombre: true });
+  if (rea) el.querySelector("#realis").appendChild(rea);
 
   if (u.role === "entreprise_admin"){
     const inv = DB.invitationActive(eid);
@@ -470,6 +477,7 @@ function listeAnnonces(annonces, u){
         <div class="row" style="gap:var(--s3)">
           <span class="badge badge--brand">${esc(b.label)}</span>
           ${a.temps_travail ? `<span class="badge badge--info" title="Mécénat de compétences, valorisable fiscalement">Sur le temps de travail</span>` : ""}
+          ${a.impact && UNITES[a.impact.unite] ? `<span class="badge badge--lime">${nb(a.impact.par_unite)} ${esc(UNITES[a.impact.unite].pl)}</span>` : ""}
           <span class="muted" style="font-size:var(--t-sm)">${esc(asso.nom)}</span>
         </div>
         <h4 style="margin-top:var(--s3)">${esc(a.titre)}</h4>
@@ -1128,6 +1136,7 @@ function vueRapports(u){
         </div>
       </div>
       <hr class="sep">
+      <div id="reaEnt"></div>
       <h3>Impact du réseau</h3>
       <p class="muted" style="margin-top:var(--s3);max-width:70ch;font-size:var(--t-sm)">
         Ce volet est commun à toutes les entreprises de la saison. Il rend compte de ce que le
@@ -1139,8 +1148,19 @@ function vueRapports(u){
         ${kpi("Heures de bénévolat", nb(res.heures), nb(res.demiJournees) + " demi-journées")}
         ${kpi("Dons versés", eur(res.euros), nb(res.materiel) + " dons de matériel")}
       </div>
+      ${res.realisations && res.realisations.length ? `<div class="realis__grid" style="margin-top:var(--s8)">
+        ${res.realisations.map(x => `<div class="realis__c">
+          <span class="realis__n">${nb(Math.round(x.quantite))}</span>
+          <span class="realis__l">${esc(x.pl)}</span></div>`).join("")}
+      </div>` : ""}
     </section>
   </div>`);
+
+  const reaE = bandeauRealisations(DB.realisations({ entreprise: u.org }),
+    { titre: "Vos réalisations de la saison" });
+  if (reaE){ reaE.classList.add("card--flat"); reaE.style.padding = "0";
+             reaE.style.background = "transparent"; reaE.style.border = "0";
+             el.querySelector("#reaEnt").appendChild(reaE); }
 
   const tb = el.querySelector("tbody");
   liste.forEach(x => {
@@ -1499,6 +1519,13 @@ function tableAnnoncesAsso(annonces, u){
   return t;
 }
 
+/* Lit l'unité de réalisation du formulaire. Sans unité ou sans quantité, on n'invente rien. */
+function lireImpact(corps){
+  const unite = corps.querySelector("#unite").value;
+  const par = Number(corps.querySelector("#parUnite").value);
+  return unite && par > 0 ? { unite, par_unite: par } : null;
+}
+
 function formAnnonce(u, existante = null){
   const corps = h(`<div class="stack" style="--gap:var(--s4)">
     <div class="field"><label>Format</label>
@@ -1515,6 +1542,17 @@ function formAnnonce(u, existante = null){
       <div class="field" style="flex:1"><label>Date</label><input class="input" id="d" type="date"></div>
     </div>
     <div class="field"><label>Lieu</label><input class="input" id="lieu" placeholder="Ville ou adresse"></div>
+    <div class="field"><label>Ce que produit une unité <span class="muted">(facultatif)</span></label>
+      <div class="row" style="gap:var(--s3);align-items:stretch">
+        <select class="select" id="unite" style="flex:1">
+          <option value="">Aucun décompte</option>
+          ${Object.entries(UNITES).map(([k, v]) => `<option value="${k}">${esc(v.pl)}</option>`).join("")}
+        </select>
+        <input class="input" type="number" min="0" step="0.1" id="parUnite" style="width:120px" placeholder="40">
+      </div>
+      <p class="hint">Exemple : 40 arbres par demi-journée. La plateforme comptera automatiquement,
+        et vous corrigerez le chiffre réel au moment de valider la mission.</p>
+    </div>
     <label class="checkline" id="ttWrap"><input type="checkbox" id="tt">
       <span>Mission proposée sur le temps de travail des salariés.
       <span class="muted">Dans ce cas elle relève du mécénat de compétences et l'entreprise peut
@@ -1540,6 +1578,10 @@ function formAnnonce(u, existante = null){
   corps.querySelector("#type").addEventListener("change", majTT);
   if (existante){
     corps.querySelector("#tt").checked = !!existante.temps_travail;
+    if (existante.impact){
+      corps.querySelector("#unite").value = existante.impact.unite || "";
+      corps.querySelector("#parUnite").value = existante.impact.par_unite || "";
+    }
     corps.querySelector("#type").value = existante.type;
     corps.querySelector("#type").disabled = true;
     corps.querySelector("#titre").value = existante.titre;
@@ -1559,13 +1601,15 @@ function formAnnonce(u, existante = null){
           if (q < pris){ toast("Déjà " + pris + " engagement(s), la quantité ne peut pas descendre en dessous."); return false; }
           DB.modifierAnnonce(existante.id, { titre:v("titre"), description:v("desc"),
             quantite:q, restant:q - pris, date:v("d"), lieu:v("lieu"),
-            temps_travail: corps.querySelector("#tt").checked });
+            temps_travail: corps.querySelector("#tt").checked,
+            impact: lireImpact(corps) });
           toast("Annonce mise à jour.");
         } else {
           try {
             DB.creerAnnonce({ asso: u.org, type: v("type"), titre: v("titre"), description: v("desc"),
               quantite: Number(v("q")) || 1, date: v("d"), lieu: v("lieu") || DB.association(u.org).ville,
-              temps_travail: corps.querySelector("#tt").checked });
+              temps_travail: corps.querySelector("#tt").checked,
+              impact: lireImpact(corps) });
           } catch (err){ toast(err.message); return false; }
           toast("Annonce publiée.");
         }
@@ -1640,7 +1684,30 @@ function vueAValider(u){
     if (m.etat === "a_valider"){
       const ok = h(`<button class="btn btn--forest btn--sm">Confirmer</button>`);
       const no = h(`<button class="btn btn--quiet btn--sm">Refuser</button>`);
-      ok.onclick = () => { DB.validerMission(m.id, true);  toast("Mission confirmée, points crédités."); rendre(); };
+      ok.onclick = () => {
+        const imp = a.impact && UNITES[a.impact.unite] ? a.impact : null;
+        if (!imp){
+          DB.validerMission(m.id, true);
+          toast("Mission confirmée, points crédités."); rendre(); return;
+        }
+        const attendu = Math.round(m.quantite * imp.par_unite);
+        const corps = h(`<div>
+          <p class="muted">Vous étiez là, vous seule savez ce qui a réellement été fait.
+          Ce chiffre alimente le décompte de l'entreprise et celui du réseau.</p>
+          <div class="field" style="margin-top:var(--s5)">
+            <label>${esc(UNITES[imp.unite].pl.charAt(0).toUpperCase() + UNITES[imp.unite].pl.slice(1))}</label>
+            <input class="input" type="number" min="0" id="re" value="${attendu}">
+            <p class="hint">Estimation d'après l'annonce : ${nb(attendu)}.
+              Corrigez librement, c'est votre chiffre qui fait foi.</p>
+          </div>
+        </div>`);
+        modal("Confirmer « " + a.titre + " »", corps, [
+          { label:"Annuler" },
+          { label:"Confirmer", classe:"btn--primary", onClick: () => {
+              DB.validerMission(m.id, true, Number(corps.querySelector("#re").value));
+              toast("Mission confirmée, points crédités."); rendre(); }}
+        ]);
+      };
       no.onclick = () => modal("Refuser cette mission",
         `<p class="muted">La mission sera marquée comme non réalisée et l'entreprise ne marquera
          aucun point. Le besoin redevient disponible sur votre annonce.</p>
@@ -1664,7 +1731,9 @@ function vueAValider(u){
     modal(`Confirmer ${n} mission${n > 1 ? "s" : ""}`,
       `<p class="muted">Vous attestez que ${n > 1 ? "ces missions ont" : "cette mission a"}
        bien été réalisée${n > 1 ? "s" : ""}. Les points seront crédités immédiatement aux
-       entreprises concernées.</p>`,
+       entreprises concernées.</p>
+       <p class="hint" style="margin-top:var(--s4)">Les décomptes de réalisation retiendront
+       l'estimation annoncée. Pour corriger un chiffre, confirmez cette mission-là séparément.</p>`,
       [{ label:"Annuler" },
        { label:"Tout confirmer", classe:"btn--primary", onClick: () => {
            const faits = DB.validerLot([...selection], true);
@@ -2022,6 +2091,8 @@ function vueActivite(u){
         .reduce((n, m) => n + m.quantite, 0)), "de bénévolat")}
     </div>
 
+    <div id="realisMoi"></div>
+
     <div class="two">
       <section class="card">
         <div class="between" style="margin-bottom:var(--s5)">
@@ -2061,6 +2132,11 @@ function vueActivite(u){
     </div>
   </div>`);
 
+  const reaMoi = bandeauRealisations(DB.realisations({ salarie: u.id }),
+    { titre: "Ce que vous avez produit", sombre: true,
+      note: "Chiffres déclarés par les associations chez qui vous êtes allé." });
+  if (reaMoi) el.querySelector("#realisMoi").appendChild(reaMoi);
+
   const hist = el.querySelector("#hist");
   if (!ms.length){
     hist.appendChild(vide({
@@ -2094,6 +2170,81 @@ function vueActivite(u){
         return [a.titre, (DB.association(a.asso) || {}).nom, BAREME[a.type].label,
                 m.date, m.points, ETATS_MISSION[m.etat].label];
       }));
+    toast("Export téléchargé.");
+  };
+  return el;
+}
+
+function vueMoteur(){
+  const j = DB.journalMoteur();
+  const dernier = j[0] || {};
+  const regles = [
+    ["Validation sans retour", "Quatorze jours après la déclaration du salarié, une mission sans réponse de l'association est comptée comme réalisée. L'inaction d'un partenaire non payant ne doit pas pénaliser le client.", dernier.validations_auto],
+    ["Fermeture des annonces périmées", "Une annonce dont la date est dépassée depuis plus de sept jours est fermée. C'est l'engagement de fraîcheur pris envers les clients.", dernier.annonces_fermees],
+    ["Génération des rapports", "Chaque période close produit son rapport, sans que personne le demande.", dernier.rapports],
+    ["Recalcul du classement", "Refait chaque lundi. Aucun rang n'est stocké : il se déduit des points, ce qui interdit tout écart entre l'affiché et le réel.", dernier.classement ? "à jour" : "—"]
+  ];
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <section class="card card--dark grain">
+      <div class="between" style="flex-wrap:wrap;gap:var(--s4)">
+        <div>
+          <h3>Dernier passage</h3>
+          <p class="muted" style="margin-top:6px;font-size:var(--t-sm)">
+            ${dernier.le ? dateFR(dernier.le) : "jamais"} · ${nb(dernier.validations_auto || 0)} validation${(dernier.validations_auto || 0) > 1 ? "s" : ""} automatique${(dernier.validations_auto || 0) > 1 ? "s" : ""},
+            ${nb(dernier.annonces_fermees || 0)} annonce${(dernier.annonces_fermees || 0) > 1 ? "s" : ""} fermée${(dernier.annonces_fermees || 0) > 1 ? "s" : ""},
+            ${nb(dernier.rapports || 0)} rapport${(dernier.rapports || 0) > 1 ? "s" : ""} généré${(dernier.rapports || 0) > 1 ? "s" : ""}.</p>
+        </div>
+        <button class="btn btn--onDark btn--sm" id="run">Relancer maintenant</button>
+      </div>
+    </section>
+
+    <div class="two">
+      <section class="card">
+        <h3>Ce qui tourne sans personne</h3>
+        <table class="table" style="margin-top:var(--s5)"><tbody>
+          ${regles.map(([t, d, v]) => `<tr>
+            <td style="width:36%"><strong>${esc(t)}</strong><br>
+              <span class="tnum" style="color:var(--forest-800);font-weight:600">${
+                v === undefined ? "—" : (typeof v === "number" ? nb(v) : esc(v))}</span></td>
+            <td class="muted">${esc(d)}</td></tr>`).join("")}
+        </tbody></table>
+        <hr class="sep">
+        <p class="hint">En production ces règles sont des tâches planifiées dans la base
+          (<span style="font-family:var(--font-mono)">supabase/05_taches.sql</span>), pas du code
+          d'interface : elles s'exécutent même si personne n'ouvre la plateforme.</p>
+      </section>
+
+      <section class="card">
+        <div class="between" style="margin-bottom:var(--s5)">
+          <h3>Historique</h3>
+          <button class="btn btn--ghost btn--sm" id="csvM">Exporter</button>
+        </div>
+        <div id="hj"></div>
+      </section>
+    </div>
+  </div>`);
+
+  const hj = el.querySelector("#hj");
+  if (!j.length) hj.appendChild(vide({ titre:"Aucun passage", texte:"Le moteur n'a pas encore tourné." }));
+  else {
+    const t = h(`<table class="table"><thead><tr>
+      <th>Date</th><th>Validations</th><th>Fermetures</th><th>Rapports</th></tr></thead><tbody></tbody></table>`);
+    j.forEach(x => t.querySelector("tbody").appendChild(h(`<tr>
+      <td class="muted tnum">${dateCourte(x.le)}</td>
+      <td class="tnum">${nb(x.validations_auto)}</td>
+      <td class="tnum">${nb(x.annonces_fermees)}</td>
+      <td class="tnum">${nb(x.rapports)}</td></tr>`)));
+    hj.appendChild(t);
+  }
+  el.querySelector("#run").onclick = () => {
+    const f = DB.moteur();
+    toast(`Passage terminé : ${f.validations_auto} validation(s), ${f.annonces_fermees} fermeture(s).`);
+    rendre();
+  };
+  el.querySelector("#csvM").onclick = () => {
+    versCSV("riseva-automatismes.csv",
+      ["Date", "Validations automatiques", "Annonces fermées", "Rapports générés"],
+      j.map(x => [x.le, x.validations_auto, x.annonces_fermees, x.rapports]));
     toast("Export téléchargé.");
   };
   return el;
@@ -2742,11 +2893,16 @@ const ROUTES = {
     pilotes:        [vuePilotes,               "Indicateurs"],
     saison:         [vueAdminSaison,           "Saison et barème"],
     journal:        [vueJournal,               "Journal des envois"],
+    moteur:         [vueMoteur,                "Automatismes"],
     preferences:    [vuePreferences,           "Préférences"]
   }
 };
 
+/* Le moteur passe une fois par ouverture de session, comme une tâche planifiée le
+   ferait côté serveur. Rien à cliquer pour que la plateforme se tienne à jour. */
+let moteurPasse = false;
 function rendre(){
+  if (!moteurPasse){ moteurPasse = true; try { DB.moteur(); } catch {} }
   const root = document.getElementById("root");
   root.innerHTML = "";
   const u = moi();

@@ -193,6 +193,46 @@ proscrire, sur le site comme en démarchage.
   Tant qu'elle n'a pas abouti, le code passe par une couche `PaiementProvider` avec deux implémentations
   possibles (`helloasso`, `stripe`) et une implémentation `mock` pour le développement.
 
+## 5 quinquies. Les réalisations, et ce qui se compte tout seul
+
+Les points classent, les réalisations décomptent. Ce sont deux choses différentes et elles ne
+doivent jamais être mélangées.
+
+Une annonce peut porter une **unité de réalisation** et un rendement : « 40 arbres par
+demi-journée », « 90 colis par demi-journée », « 0,4 repas par euro ». Le catalogue d'unités est
+**fermé** : laisser saisir du texte libre produirait « arbres », « arbre » et « Arbres plantés »,
+soit trois totaux qu'on ne peut plus additionner.
+
+Deux règles tiennent l'honnêteté du chiffre :
+
+1. **Seules les missions validées comptent.** Une réservation ne produit rien.
+2. **Le chiffre déclaré par l'association l'emporte** sur l'estimation de l'annonce. Elle était
+   sur place, pas nous. Au moment de valider, elle corrige librement.
+
+Les totaux remontent automatiquement : tableau de bord de l'entreprise, activité du salarié,
+rapport de saison, page publique de l'association, et compteur du réseau sur le site. Nulle part
+un chiffre n'est saisi à la main.
+
+Partout où ils s'affichent, ils portent leur provenance : *chiffres déclarés par les associations
+bénéficiaires, Riseva additionne, elle n'audite pas*. Et jamais le mot « impact ».
+
+## 5 sexies. Ce qui se fait sans personne
+
+Quatre automatismes, définis dans `supabase/05_taches.sql` et exécutés par la base, pas par
+l'interface : ils doivent tourner même si personne n'ouvre la plateforme de la semaine.
+
+| Tâche | Quand | Règle |
+|---|---|---|
+| Validation sans retour | tous les jours à 3 h | Quatorze jours après la déclaration, une mission sans réponse est comptée comme réalisée |
+| Fraîcheur des annonces | tous les jours à 3 h 30 | Une annonce dépassée depuis plus de sept jours est fermée |
+| Rapports de période | tous les jours à 4 h | Chaque période close produit son rapport, une seule fois |
+| Classement | le lundi à 6 h | Vue rafraîchie. Aucun rang n'est stocké : il se déduit des points |
+| Relances de validation | tous les jours à 13 h | Un mail à 3 h du matin se lit mal |
+
+Chaque passage est consigné avec sa date, son nombre de lignes touchées et sa durée, et
+l'administration Riseva le consulte. Une automatisation qu'on ne peut pas auditer inquiète plus
+qu'elle ne rassure.
+
 ## 6 bis. Le mécénat, et ce qu'il rapporte au client
 
 C'est l'argument économique du produit, et il doit être exact.
