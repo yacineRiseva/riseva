@@ -801,6 +801,38 @@ def main():
         verifie("la personne qui saisit ne peut pas approuver sa propre saisie",
                 "ne peut pas approuver" in seul, seul)
 
+        print("\nRegistre des dons de matériel")
+        connecte(p, "u2", "#/materiel")
+        m = norm(p.inner_text(".content"))
+        verifie("le registre existe et cite la loi anti-gaspillage",
+                "gaspillage" in m and "ne peuvent plus être éliminés" in m)
+        verifie("la valeur retenue est la valeur nette comptable, pas le prix neuf",
+                "valeur nette comptable" in m and "prix catalogue" in m
+                and "réduction d'impôt indue" in m)
+        verifie("un don non valorisé est signalé, pas estimé",
+                "à valoriser" in m)
+        verifie("chaque don porte l'état de sa confirmation",
+                "Confirmation" in m and "En attente de l'association" in m)
+
+        print("\nRapport consolidé de groupe")
+        connecte(p, "u2", "#/groupe")
+        with p.context.expect_page() as onglet:
+            p.click("#rapG")
+        rg = onglet.value; rg.wait_for_timeout(500)
+        d = norm(rg.inner_text("body"))
+        verifie("le rapport de groupe s'édite", "Rapport consolidé" in d)
+        verifie("il porte une empreinte et une date d'arrêté",
+                "empreinte" in d and "arrêté au" in d)
+        verifie("il refuse d'additionner des réductions non plafonnées",
+                "non calculée" in d and "produirait un chiffre faux" in d)
+        verifie("il dit combien de sites n'ont pas répondu",
+                "n'a pas répondu" in d or "n'ont pas répondu" in d)
+        verifie("il ne se présente pas comme un audit",
+                "n'est pas un rapport d'audit" in d and "non auditées par Riseva" in d)
+        verifie("le consolidé est présenté comme un rapport de sommes",
+                "rapport de sommes" in d)
+        rg.close()
+
         print("\nRien ne sort du domaine")
         # Une police chargée depuis fonts.googleapis.com transmet l'IP du visiteur à un
         # tiers avant qu'il ait cliqué. La page Confidentialité promet le contraire :

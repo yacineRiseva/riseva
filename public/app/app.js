@@ -38,6 +38,7 @@ const MENUS = {
       ["equipe",     "Équipe",       "users"],
       ["rapports",   "Rapports",     "report"],
       ["mecenat",    "Mécénat",      "coins"],
+      ["materiel",   "Dons de matériel", "box"],
       ["abonnement", "Abonnement",   "card"],
       ["parametres", "Paramètres",   "settings"]
     ]}
@@ -4584,7 +4585,10 @@ function vueGroupe(u){
           Le groupe consolide, il ne fusionne pas. Chaque société garde son SIREN, son
           contrat, son plafond de mécénat et ses salariés — deux sociétés d'un même
           groupe sont deux responsables de traitement distincts.</p></div>
-        <button class="btn btn--ghost btn--sm" id="csvG">Exporter</button>
+        <div class="row" style="gap:var(--s2)">
+          <button class="btn btn--primary btn--sm" id="rapG">Rapport consolidé</button>
+          <button class="btn btn--ghost btn--sm" id="csvG">Exporter</button>
+        </div>
       </div>
       <table class="table"><thead><tr>
         <th>Société / site</th><th>SIREN</th><th style="text-align:right">Effectif</th>
@@ -4662,6 +4666,7 @@ function vueGroupe(u){
     <div class="bar"><i style="width:${Math.max(2, (x.parSalarie / max) * 100)}%"></i></div>
   </div>`)));
 
+  el.querySelector("#rapG").onclick = () => ouvrirRapportGroupe(u);
   el.querySelector("#csvG").onclick = () => {
     versCSV("riseva-groupe.csv",
       ["Société", "SIREN", "Établissement", "Ville", "Effectif", "Comptes", "Quota",
@@ -4675,6 +4680,190 @@ function vueGroupe(u){
 }
 
 const nb2 = (v) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(v);
+
+/* La feuille de style des documents imprimables, écrite une fois. */
+const STYLE_DOC = `
+  body{font:13.5px/1.6 -apple-system,Segoe UI,Inter,sans-serif;color:#2C3026;background:#F2F0E9;
+    margin:0;padding:40px 20px}
+  .p{max-width:900px;margin:0 auto;background:#FAF9F5;padding:48px;border-radius:12px;
+    box-shadow:0 24px 48px -20px rgba(11,38,32,.18)}
+  h1{font-size:23px;letter-spacing:-.02em;color:#131510;margin:0 0 4px}
+  .st{color:#63675C;margin:0}
+  h2{font-size:15px;color:#131510;margin:30px 0 6px;padding-top:18px;border-top:1px solid #E5E2D9}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th{text-align:left;font-size:12px;color:#63675C;font-weight:600;
+    padding:0 10px 7px 0;border-bottom:1px solid #E5E2D9}
+  td{padding:9px 10px 9px 0;border-bottom:1px solid #EFEDE6;vertical-align:top}
+  td.v{font-variant-numeric:tabular-nums;font-weight:600;color:#131510;text-align:right}
+  td.m{color:#63675C;font-size:12.5px}
+  .note{background:#DFE6D0;border-radius:8px;padding:14px;font-size:12.5px;margin-top:14px}
+  .alerte{background:#F6EAD5}
+  .manque{color:#8A6A2F}
+  .pied{margin-top:28px;font-size:11.5px;color:#8A8F82;line-height:1.55}
+  @media print{body{background:#fff;padding:0}.p{box-shadow:none;padding:0;background:#fff}
+    .noprint{display:none}h2{page-break-after:avoid}tr{break-inside:avoid}}
+  .noprint{text-align:center;margin-bottom:20px}
+  .noprint button{font:inherit;background:#131510;color:#F2F0E9;border:0;border-radius:12px;
+    padding:11px 22px;cursor:pointer}`;
+
+function ouvrirDoc(titre, corps){
+  const w = window.open("", "_blank");
+  if (!w){ toast("Autorisez les fenêtres pour ouvrir le document."); return null; }
+  w.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
+<title>${titre}</title><style>${STYLE_DOC}</style></head><body>
+<div class="noprint"><button onclick="window.print()">Imprimer ou enregistrer en PDF</button></div>
+<div class="p">${corps}</div></body></html>`);
+  w.document.close();
+  return w;
+}
+
+/* Le rapport de groupe. Il assemble ce que Riseva sait déjà — les missions, le
+   mécénat société par société — et ce que les sites ont déclaré — les indicateurs
+   sociaux et de sécurité. Chaque ligne porte sa provenance et son état, et le
+   périmètre est écrit en haut : combien de sites ont répondu, et lesquels n'ont
+   rien dit. Un rapport qui tait ses trous ne vaut rien. */
+function ouvrirRapportGroupe(u){
+  const gid = u.groupe;
+  const c = DB.consolideGroupe(gid);
+  const camps = DB.campagnes(gid).slice().sort((a, b) => b.debut.localeCompare(a.debut));
+  const camp = camps.find(x => x.etat === "close") || camps[0];
+  const e = camp ? DB.etatCampagne(camp.id) : null;
+  const ind = camp ? DB.indicateursDe({ campagne: camp.id, groupe: gid }) : null;
+  const sa = DB.saison();
+  const missions = c.societes.flatMap(soc =>
+    DB.missions({ entreprise: soc.id }).filter(m => ["validee", "validee_auto"].includes(m.etat)));
+  const ETIQ = { attendu:"attendu", declare:"déclaré, non approuvé",
+                 approuve:"approuvé", clos_sans_reponse:"clos sans réponse" };
+
+  const l = (cle, valeur, methode) =>
+    `<tr><td>${cle}</td><td class="v">${valeur}</td><td class="m">${methode}</td></tr>`;
+
+  const corps = `
+  <h1>Rapport consolidé — ${esc(c.groupe.nom)}</h1>
+  <p class="st">${esc(sa.nom)} — arrêté au ${dateFR(new Date().toISOString())}
+     — empreinte ${empreinte(missions)}</p>
+  <div class="note alerte">
+    <strong>Ce document n'est pas un rapport d'audit.</strong> Il rassemble des données
+    <strong>déclarées</strong> — par les salariés, par les associations, par les sites — que
+    Riseva horodate, recoupe et met en forme, mais <strong>n'audite pas</strong>. Le périmètre
+    de consolidation est celui du groupe : il n'a pas d'existence fiscale, et les réductions
+    d'impôt ci-dessous sont calculées <strong>société par société</strong>, jamais sur un
+    total de groupe.
+  </div>
+
+  <h2>1. Périmètre</h2>
+  <table><tbody>
+    ${l("Sociétés consolidées", nb(c.societes.length),
+        c.societes.map(x => x.nom + (x.siren ? ` (SIREN ${x.siren})` : "")).join(" · "))}
+    ${l("Établissements", nb(c.sites.length), "Sites opérationnels raccordés à la plateforme.")}
+    ${l("Effectif du périmètre", nb(c.effectif),
+        "Somme des effectifs déclarés par société. Sert de dénominateur, jamais de résultat.")}
+    ${l("Comptes ouverts", nb(c.sites.reduce((n, x) => n + x.comptes, 0)),
+        "Un compte occupe une place du contrat ; un salarié retiré rend la sienne à son site.")}
+  </tbody></table>
+
+  <h2>2. Engagement, par site</h2>
+  <table>
+    <thead><tr><th>Société / site</th><th>Effectif</th><th>Missions</th>
+      <th>dont confirmées</th><th>Points</th><th>Points / salarié</th></tr></thead>
+    <tbody>
+      ${c.societes.map(soc => `
+        <tr><td colspan="6"><strong>${esc(soc.nom)}</strong></td></tr>
+        ${soc.etablissements.map(x => `<tr>
+          <td class="m" style="padding-left:18px">${esc(x.nom)} — ${esc(x.ville)}</td>
+          <td class="v">${nb(x.effectif)}</td>
+          <td class="v">${nb(x.missions)}</td>
+          <td class="v">${nb(x.confirmees)}</td>
+          <td class="v">${nb(x.points)}</td>
+          <td class="v">${x.effectif ? nb2(Math.round(x.parSalarie * 100) / 100) : "—"}</td>
+        </tr>`).join("")}`).join("")}
+      <tr><td><strong>Consolidé</strong></td>
+        <td class="v">${nb(c.effectif)}</td>
+        <td class="v">${nb(c.missions)}</td>
+        <td class="v">${nb(c.confirmees)}</td>
+        <td class="v">${nb(c.points)}</td>
+        <td class="v">${nb2(Math.round(c.parSalarie * 100) / 100)}</td></tr>
+    </tbody>
+  </table>
+  <div class="note">
+    Le consolidé est un <strong>rapport de sommes</strong> : total des points divisé par total
+    des effectifs. Ce n'est pas la moyenne des ratios des sites, et l'écart entre les deux est
+    réel. Les ${nb(c.missions - c.confirmees)} mission${c.missions - c.confirmees > 1 ? "s" : ""}
+    non confirmée${c.missions - c.confirmees > 1 ? "s" : ""} ${c.missions - c.confirmees > 1 ? "ont" : "a"}
+    été clôturée${c.missions - c.confirmees > 1 ? "s" : ""} automatiquement sans réponse de
+    l'association : les points sont crédités selon le barème, le résultat reste estimé.
+  </div>
+
+  <h2>3. Fiscalité, société par société</h2>
+  <table>
+    <thead><tr><th>Société</th><th>Assiette connue de Riseva</th><th>Réduction estimée</th></tr></thead>
+    <tbody>
+      ${c.societes.map(soc => `<tr>
+        <td>${esc(soc.nom)}</td>
+        <td class="v">${eur(soc.assiette)}</td>
+        <td class="v">${soc.plafondCalculable ? eur(soc.reduction)
+          : `<span class="manque">non calculée</span>`}</td>
+      </tr>`).join("")}
+    </tbody>
+  </table>
+  <div class="note ${c.reduction === null ? "alerte" : ""}">
+    ${c.reduction === null
+      ? `Le total n'est pas donné : au moins une société n'a pas renseigné son chiffre
+         d'affaires, ses dons faits hors Riseva ou ses reports antérieurs. Le plafond de
+         20 000 € ou 5 ‰ porte sur <strong>tous</strong> les versements de l'exercice, pas
+         seulement sur ceux que Riseva connaît. Additionner des estimations non plafonnées
+         produirait un chiffre faux, et c'est celui qui finirait dans une liasse.`
+      : `Total : <strong>${eur(c.reduction)}</strong>, somme de réductions plafonnées
+         séparément. Estimation, non déclaration : votre expert-comptable arrête le chiffre.`}
+  </div>
+
+  <h2>4. Indicateurs sociaux et sécurité</h2>
+  ${!ind ? `<p class="m">Aucune campagne de collecte.</p>` : `
+  <p class="st">${esc(camp.libelle)} — ${ind.sites} site${ind.sites > 1 ? "s" : ""} sur
+     ${ind.attendus} ${ind.sites > 1 ? "ont" : "a"} répondu,
+     ${ind.approuves} approuvé${ind.approuves > 1 ? "s" : ""}.</p>
+  <table>
+    <thead><tr><th>Indicateur</th><th>Valeur</th><th>Méthode</th></tr></thead>
+    <tbody>
+      ${INDICATEURS.saisis.map(d => l(d.libelle, nb(ind.somme[d.cle] || 0),
+          "Somme des valeurs déclarées par les sites qui ont répondu.")).join("")}
+      ${INDICATEURS.calcules.map(d => l(d.libelle,
+          ind.calcules[d.cle] === null ? `<span class="manque">non calculé</span>`
+            : nb2(ind.calcules[d.cle]) + (d.unite ? " " + d.unite : ""),
+          d.formule + " — rapport de sommes sur le périmètre, jamais moyenne des taux.")).join("")}
+    </tbody>
+  </table>
+  <h2>5. Qui a déclaré quoi</h2>
+  <table>
+    <thead><tr><th>Établissement</th><th>État</th><th>Saisi par</th><th>Approuvé par</th></tr></thead>
+    <tbody>
+      ${e.sites.map(x => `<tr>
+        <td>${esc(x.etablissement.nom)} — ${esc(x.etablissement.ville)}</td>
+        <td class="m ${x.etat === "clos_sans_reponse" || x.etat === "attendu" ? "manque" : ""}">${ETIQ[x.etat]}</td>
+        <td class="m">${x.saisiPar ? esc(x.saisiPar.nom) : "—"}</td>
+        <td class="m">${x.approuvePar ? esc(x.approuvePar.nom) : "—"}</td>
+      </tr>`).join("")}
+    </tbody>
+  </table>
+  ${e.clos + e.attendus ? `<div class="note alerte">
+    ${nb(e.clos + e.attendus)} site${e.clos + e.attendus > 1 ? "s n'ont" : " n'a"} pas répondu.
+    Les taux ci-dessus ne portent donc <strong>pas</strong> sur l'ensemble du périmètre. Nous ne
+    comblons pas les trous avec la période précédente : un chiffre absent reste absent.
+  </div>` : ""}
+  <div class="note">
+    ${INDICATEURS_LIMITES.map(x => `${esc(x)}<br>`).join("")}
+  </div>`}
+
+  <p class="pied">
+    Le score mesure un engagement, pas un impact environnemental ou social, et ne doit pas être
+    présenté comme tel. Données déclarées, non auditées par Riseva. Les règles de calcul sont
+    publiques sur riseva.fr/reglement.html. L'empreinte en tête identifie le jeu d'opérations
+    arrêté : deux éditions qui portent la même empreinte contiennent les mêmes faits.
+  </p>`;
+
+  ouvrirDoc(`Rapport consolidé — ${esc(c.groupe.nom)}`, corps);
+  toast("Rapport de groupe ouvert dans un nouvel onglet.");
+}
 
 /* Allocation des quotas et liens de référent. Deux liens et pas un : le groupe
    nomme un référent par site, le référent invite ses salariés. */
@@ -5005,6 +5194,125 @@ function tableauSite(u){
   return el;
 }
 
+/* ------------------------------------------------------------------ */
+/* Registre des dons de matériel — loi AGEC                            */
+/* ------------------------------------------------------------------ */
+/* Le service le plus proche de l'axe associatif, et le seul qui réponde à une
+   interdiction : les invendus non alimentaires ne peuvent plus être éliminés.
+   Riseva ne fait rien de plus que ce qu'elle fait déjà — elle met en face du don
+   la structure qui l'a reçu et sa déclaration de réception — mais elle le range
+   là où un contrôle le cherchera. */
+function vueMateriel(u){
+  const r = DB.registreMateriel(u.org);
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <div class="kpis">
+      ${kpi("Dons de matériel", nb(r.total),
+            `dont ${nb(r.confirmes)} confirmés par l'association`, "", "kpi--tete grain")}
+      ${kpi("Valorisés", `${nb(r.valorisees)} / ${nb(r.total)}`,
+            r.sansValeur ? `${nb(r.sansValeur)} sans valeur déclarée` : "tous valorisés")}
+      ${kpi("Valeur nette comptable", eur(r.valeur),
+            "somme des valeurs que vous avez déclarées")}
+      ${kpi("Réduction correspondante", eur(Math.round(r.valeur * FISCAL.taux_reduction)),
+            `${Math.round(FISCAL.taux_reduction * 100)} % — avant plafond, à confirmer par votre expert-comptable`)}
+    </div>
+
+    <section class="card">
+      <div class="between" style="margin-bottom:var(--s5);align-items:flex-start">
+        <div><h3>Registre des dons de matériel</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px;max-width:78ch">
+          Depuis la loi relative à la lutte contre le gaspillage, les invendus non
+          alimentaires ne peuvent plus être éliminés : ils doivent être réemployés,
+          réutilisés ou recyclés, et le don à une association est la voie prévue par le
+          texte. Ce registre est la trace de ces dons — quoi, combien, à qui, quand, et
+          qui l'a confirmé.</p></div>
+        <button class="btn btn--ghost btn--sm" id="csvM">Exporter</button>
+      </div>
+      <table class="table"><thead><tr>
+        <th>Date</th><th>Nature</th><th style="text-align:right">Quantité</th>
+        <th>Association</th><th>Site</th><th style="text-align:right">Valeur nette</th>
+        <th>Confirmation</th><th></th>
+      </tr></thead><tbody></tbody></table>
+    </section>
+
+    <section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
+      <h3 style="font-size:var(--t-lg)">La valeur à déclarer n'est pas le prix neuf</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);max-width:78ch;color:var(--ink-600)">
+        Un don en nature se valorise à sa <strong style="color:var(--ink)">valeur nette
+        comptable</strong> — ce qu'il vaut encore dans vos comptes après amortissement —
+        et non au prix catalogue. Retenir la valeur neuve fabriquerait une réduction
+        d'impôt indue, et c'est exactement ce qu'un contrôle vérifie en premier.
+        Riseva n'invente aucune valeur : ce que vous ne déclarez pas reste vide, et le
+        registre l'écrit.
+      </p>
+    </section>
+  </div>`);
+
+  const tb = el.querySelector("tbody");
+  if (!r.lignes.length){
+    tb.appendChild(h(`<tr><td colspan="8"></td></tr>`));
+    tb.querySelector("td").appendChild(vide({
+      titre: "Aucun don de matériel",
+      texte: "Les dons de matériel de vos équipes apparaîtront ici, avec la structure qui les a reçus."
+    }));
+  }
+  r.lignes.forEach(x => {
+    const tr = h(`<tr>
+      <td class="muted tnum">${dateCourte(x.date)}</td>
+      <td><strong>${esc(x.nature)}</strong></td>
+      <td class="tnum" style="text-align:right">${nb(x.quantite)} ${esc(x.unite)}</td>
+      <td class="muted">${esc(x.association)}${x.ville ? `<br><span style="font-size:var(--t-xs)">${esc(x.ville)}</span>` : ""}</td>
+      <td class="muted">${esc(x.etablissement)}</td>
+      <td class="tnum" style="text-align:right">${x.valeurNette === null
+        ? `<span class="badge badge--warn">à valoriser</span>` : eur(x.valeurNette)}</td>
+      <td>${x.confirme ? `<span class="badge badge--ok">association</span>`
+        : x.etat === "validee_auto" ? `<span class="badge badge--neutre">clôture d'office</span>`
+        : `<span class="badge ${ETATS_MISSION[x.etat].badge}">${ETATS_MISSION[x.etat].label}</span>`}</td>
+      <td style="text-align:right"></td>
+    </tr>`);
+    const b2 = h(`<button class="btn btn--quiet btn--sm">${x.valeurNette === null ? "Valoriser" : "Corriger"}</button>`);
+    b2.onclick = () => formValeurMateriel(x);
+    tr.querySelector("td:last-child").appendChild(b2);
+    tb.appendChild(tr);
+  });
+
+  el.querySelector("#csvM").onclick = () => {
+    versCSV("riseva-dons-materiel.csv",
+      ["Date", "Nature", "Quantité", "Unité", "Association", "Ville", "Site", "Salarié",
+       "Valeur nette comptable", "Confirmé par l'association"],
+      r.lignes.map(x => [x.date, x.nature, x.quantite, x.unite, x.association, x.ville,
+        x.etablissement, x.salarie, x.valeurNette ?? "", x.confirme ? "oui" : "non"]));
+    toast("Export téléchargé.");
+  };
+  return el;
+}
+
+function formValeurMateriel(x){
+  const corps = h(`<div class="stack" style="--gap:var(--s4)">
+    <p class="muted" style="font-size:var(--t-sm)">
+      La valeur retenue est la <strong style="color:var(--ink)">valeur nette comptable</strong> :
+      ce que le bien vaut encore dans vos comptes, après amortissement. Pas le prix d'achat,
+      pas le prix neuf. Si vous ne la connaissez pas, laissez vide : le registre écrira
+      « à valoriser » plutôt qu'un chiffre inventé.
+    </p>
+    <div class="field"><label for="vm-nat">Nature du bien</label>
+      <input class="input" id="vm-nat" value="${esc(x.nature)}"></div>
+    <div class="field"><label for="vm-val">Valeur nette comptable, en euros</label>
+      <input class="input" id="vm-val" type="number" min="0" step="0.01"
+        value="${x.valeurNette ?? ""}"></div>
+  </div>`);
+  modal("Valoriser un don de matériel", corps, [
+    { texte: "Annuler", classe: "btn--ghost" },
+    { texte: "Enregistrer", classe: "btn--primary", action: () => {
+        try {
+          DB.declarerValeurMateriel(x.mission,
+            corps.querySelector("#vm-val").value,
+            corps.querySelector("#vm-nat").value);
+          toast("Registre mis à jour."); rendre();
+        } catch (e){ toast(e.message); }
+      } }
+  ]);
+}
+
 const ROUTES = {
   entreprise_admin: {
     tableau:   [tableauEntreprise, "Tableau de bord"],
@@ -5016,6 +5324,7 @@ const ROUTES = {
     equipe:    [vueEquipe,         "Équipe"],
     rapports:  [vueRapports,       "Rapports"],
     mecenat:   [vueMecenat,        "Mécénat"],
+    materiel:  [vueMateriel,       "Dons de matériel"],
     abonnement:[vueAbonnement,     "Abonnement"],
     parametres:[vueParametres,     "Paramètres"],
     groupe:    [vueGroupe,         "Vue consolidée du groupe"],

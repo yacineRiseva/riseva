@@ -539,11 +539,16 @@ const seed = {
     { id:"m1", annonce:"an1", entreprise:"e1", salarie:"u3", etablissement:"et2", etat:"validee",     quantite:2, points:300,  date:J(-12), declaree_le:J(-11), tranchee_le:J(-10), realise:22 },
     { id:"m2", annonce:"an2", entreprise:"e1", salarie:"u4", etablissement:"et3", etat:"validee",     quantite:3, points:450,  date:J(-9), declaree_le:J(-8), tranchee_le:J(-7), realise:118 },
     { id:"m3", annonce:"an4", entreprise:"e1", salarie:"u3", etablissement:"et2", etat:"validee",     quantite:600, points:60, date:J(-7), declaree_le:J(-7), tranchee_le:J(-6), realise:68 },
-    { id:"m4", annonce:"an5", entreprise:"e1", salarie:"u5", etablissement:"et1", etat:"a_valider",   quantite:3, points:300,  date:J(-2), declaree_le:J(-2) },
+    { id:"m4", annonce:"an5", entreprise:"e1", salarie:"u5", etablissement:"et1", etat:"a_valider",   quantite:3, points:300,  date:J(-2), declaree_le:J(-2), valeur_nette:840, nature:"Trois ordinateurs portables renouvelés" },
     { id:"m5", annonce:"an1", entreprise:"e1", salarie:"u4", etablissement:"et3", etat:"engagee",     quantite:2, points:300,  date:J(9)  },
     { id:"m6", annonce:"an7", entreprise:"e1", salarie:"u5", etablissement:"et1", etat:"validee_auto",quantite:1, points:150,  date:J(-4), declaree_le:J(-20), tranchee_le:J(-6) },
     { id:"m7", annonce:"an3", entreprise:"e1", salarie:"u3", etablissement:"et2", etat:"refusee",     quantite:1, points:0,    date:J(-6) },
-    { id:"m8", annonce:"an2", entreprise:"e2", salarie:"u9", etat:"validee",     quantite:4, points:600,  date:J(-5), declaree_le:J(-4), tranchee_le:J(-3), realise:155 }
+    { id:"m8", annonce:"an2", entreprise:"e2", salarie:"u9", etat:"validee",     quantite:4, points:600,  date:J(-5), declaree_le:J(-4), tranchee_le:J(-3), realise:155 },
+    /* Un don de matériel confirmé mais pas encore valorisé : le registre doit le
+       montrer comme tel, pas lui inventer une valeur. */
+    { id:"m9", annonce:"an3", entreprise:"e1", salarie:"u4", etablissement:"et3", etat:"validee",
+      quantite:2, points:200, date:J(-16), declaree_le:J(-15), tranchee_le:J(-14), realise:2,
+      nature:"Deux lots de mobilier de bureau" }
   ],
   utilisateurs: [
     { id:"u1", nom:"Yacine Bounoua",  email:"contact@riseva.fr",        role:"admin",            org:null },
@@ -1120,6 +1125,64 @@ function creerMock(){
         .map(x => ({ ...x, score: Math.round(x.parSalarie * 100) / 100 }))
         .sort((a, b) => b.parSalarie - a.parSalarie)
         .map((x, i) => ({ ...x, rang: i + 1 }));
+    },
+
+    /* ---- Registre des dons de matériel, au titre de la loi AGEC ----
+       Les invendus et équipements non alimentaires ne peuvent plus être éliminés :
+       ils doivent être réemployés, réutilisés ou recyclés, et le don à une
+       association est la voie prévue par le texte. Riseva devient la preuve de ce
+       don — quoi, combien, à qui, quand — sans demander une ligne de plus à
+       l'association : elle déclare « reçu », comme pour n'importe quelle mission.
+
+       Un piège à ne pas rater : un don en nature se valorise à sa *valeur nette
+       comptable*, pas au prix catalogue. Afficher la valeur neuve fabriquerait une
+       réduction d'impôt indue, exactement comme valoriser une demi-journée
+       conventionnelle en heures. La valeur est donc déclarée par l'entreprise, et
+       une valeur absente reste absente. */
+    registreMateriel(eid){
+      const lignes = api.missions({ entreprise: eid })
+        .filter(m => (api.annonceDe(m) || {}).type === "don_materiel")
+        .filter(m => m.etat !== "refusee")
+        .map(m => {
+          const a = api.annonceDe(m) || {};
+          const asso = api.association(a.asso) || {};
+          const sal = api.utilisateur(m.salarie) || {};
+          const et = m.etablissement ? api.etablissement(m.etablissement) : null;
+          return {
+            mission: m.id, date: m.date, nature: m.nature || a.titre,
+            quantite: m.quantite, unite: (a.impact || {}).unite || "don",
+            association: asso.nom || "—", ville: asso.ville || "",
+            etablissement: et ? `${et.nom} — ${et.ville}` : "—",
+            salarie: sal.nom || "—",
+            valeurNette: m.valeur_nette ?? null,
+            confirme: m.etat === "validee",
+            etat: m.etat,
+            recu: m.recu_le || null
+          };
+        })
+        .sort((x, y) => (y.date || "").localeCompare(x.date || ""));
+      const valorisees = lignes.filter(x => x.valeurNette !== null);
+      return {
+        lignes,
+        total: lignes.length,
+        confirmes: lignes.filter(x => x.confirme).length,
+        valorisees: valorisees.length,
+        valeur: valorisees.reduce((n, x) => n + x.valeurNette, 0),
+        /* Ce qu'on ne sait pas valoriser, on ne l'invente pas. */
+        sansValeur: lignes.length - valorisees.length
+      };
+    },
+    declarerValeurMateriel(mid, valeurNette, nature){
+      const m = s.missions.find(x => x.id === mid);
+      if (!m) throw new Error("Mission inconnue");
+      const a = api.annonceDe(m);
+      if (!a || a.type !== "don_materiel")
+        throw new Error("Cette mission n'est pas un don de matériel");
+      const v = valeurNette === "" || valeurNette === null || valeurNette === undefined
+        ? null : Math.max(0, Number(valeurNette) || 0);
+      m.valeur_nette = v;
+      if (nature !== undefined) m.nature = String(nature || "").slice(0, 200) || undefined;
+      return m;
     },
 
     /* ---- Indicateurs sociaux et sécurité ----
