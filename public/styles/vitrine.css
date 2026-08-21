@@ -1,0 +1,1795 @@
+
+/* ══════════════════════════════════════════════════════════
+   RISEVA · feuille de style
+   1. Jetons     2. Base     3. Type     4. Nav
+   5. Boutons    6. Curseur  7. Reveals  8. Ticker
+   ══════════════════════════════════════════════════════════ */
+
+/* ── 1. JETONS ────────────────────────────────────────── */
+:root{
+  /* papier & encre */
+  --paper:#FCFBF8;
+  --paper-2:#F5F3EE;
+  --paper-3:#EBE8E0;
+  --ink:#131510;
+  --ink-soft:#2C2F26;
+  --stone:#5E6259;
+  --faint:#63675C;
+
+  /* signal */
+  --lime:#C9F24B;
+  --lime-dim:#B4DC3E;
+  --moss:#DFE6D0;
+  --water:#3D82AD;
+  --water-soft:#7FB4D4;
+
+  /* traits */
+  --line:rgba(19,21,16,.13);
+  --line-soft:rgba(19,21,16,.07);
+  --line-hard:rgba(19,21,16,.28);
+
+  /* courbes */
+  --e:cubic-bezier(.16,1,.3,1);
+  --e2:cubic-bezier(.65,0,.35,1);
+  --e3:cubic-bezier(.34,1.3,.36,1);
+
+  /* trame */
+  --maxw:1300px;
+  --gut:max(clamp(20px,4.6vw,48px), calc((100% - var(--maxw)) / 2));
+  --gutv:max(clamp(20px,4.6vw,48px), calc((100vw - var(--maxw)) / 2));
+  --sp:clamp(72px,8.4vw,132px);
+
+  /* familles */
+  --f-disp:'Bricolage Grotesque','Poppins',system-ui,-apple-system,sans-serif;
+  --f-body:'Instrument Sans','Poppins',system-ui,-apple-system,sans-serif;
+  --f-serif:'Fraunces','Lora',Georgia,serif;
+  --f-mono:'IBM Plex Mono','Liberation Mono',ui-monospace,'DejaVu Sans Mono',monospace;
+}
+
+/* ── 2. BASE ──────────────────────────────────────────── */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;}
+section,header{scroll-margin-top:84px;}
+
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:16.5px;
+  font-weight:400;
+  line-height:1.62;
+  letter-spacing:-.005em;
+  overflow-x:clip;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;
+}
+@media (pointer:fine){ body{cursor:none;} }
+
+a{color:inherit;text-decoration:none;}
+svg{display:block;}
+img{max-width:100%;display:block;}
+::selection{background:var(--lime);color:var(--ink);}
+
+/* grain : une seule couche, en pseudo-element fixe, très léger */
+body::after{
+  content:'';position:fixed;inset:-50%;z-index:2;pointer-events:none;
+  opacity:.028;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.sr-only{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;
+}
+
+/* focus clavier : toujours visible, jamais au clic souris */
+:focus-visible{
+  outline:2.5px solid var(--ink);
+  outline-offset:3px;
+  border-radius:2px;
+}
+
+/* ── 3. TYPE ──────────────────────────────────────────── */
+h1,h2,h3,h4{
+  font-family:var(--f-disp);
+  font-weight:600;
+  line-height:1;
+  letter-spacing:-.035em;
+  text-wrap:balance;
+}
+h1{
+  font-size:clamp(44px,6.9vw,101px);
+  font-weight:600;
+  line-height:.93;
+  letter-spacing:-.045em;
+}
+h2{
+  font-size:clamp(33px,4.35vw,61px);
+  line-height:.97;
+  letter-spacing:-.042em;
+}
+h3{font-size:clamp(19px,1.62vw,26px);line-height:1.14;letter-spacing:-.03em;}
+h4{font-size:clamp(16px,1.15vw,18.5px);line-height:1.2;letter-spacing:-.02em;}
+
+/* le mot en italique serif : la respiration de chaque titre */
+.it{
+  font-family:var(--f-serif);
+  font-style:italic;
+  font-weight:400;
+  letter-spacing:-.028em;
+  font-variation-settings:'SOFT' 30,'WONK' 1;
+}
+
+.mono{
+  font-family:var(--f-mono);
+  font-size:10.5px;
+  font-weight:400;
+  letter-spacing:.155em;
+  text-transform:uppercase;
+  line-height:1.4;
+}
+
+p{text-wrap:pretty;}
+
+/* l'oeil de section : filet + label, toujours au meme endroit */
+.eyebrow{
+  display:flex;align-items:center;gap:11px;
+  color:var(--stone);
+  margin-bottom:26px;
+}
+.eyebrow::before{
+  content:'';width:26px;height:1px;background:var(--ink);
+  opacity:.42;flex:none;
+}
+
+/* chapeau de section : titre a gauche, note a droite */
+.s-head{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,.82fr);
+  gap:clamp(28px,5vw,80px);
+  align-items:end;
+  margin-bottom:clamp(44px,5.2vw,76px);
+}
+.s-note{
+  font-size:clamp(15.5px,1.12vw,17.5px);
+  line-height:1.66;
+  color:var(--ink-soft);
+  max-width:47ch;
+}
+.s-note strong{font-weight:600;color:var(--ink);}
+@media (max-width:900px){
+  .s-head{grid-template-columns:1fr;gap:24px;align-items:start;}
+}
+
+/* ── 4. NAV ───────────────────────────────────────────── */
+.nav{
+  position:fixed;top:0;left:0;right:0;z-index:400;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:24px;
+  padding:0 var(--gutv);
+  height:64px;
+  background:rgba(252,251,248,0);
+  border-bottom:1px solid transparent;
+  transition:background .45s var(--e),border-color .45s var(--e),height .45s var(--e);
+}
+.nav.on{
+  background:rgba(252,251,248,.9);
+  backdrop-filter:blur(14px) saturate(1.4);
+  -webkit-backdrop-filter:blur(14px) saturate(1.4);
+  border-bottom-color:var(--line);
+}
+.nav-brand{
+  display:flex;align-items:center;gap:9px;
+  font-family:var(--f-disp);
+  font-size:17.5px;font-weight:700;letter-spacing:-.045em;
+  flex:none;
+}
+.nav-brand svg{width:17px;height:17px;overflow:visible;}
+.nav-brand .lf{fill:var(--lime);stroke:var(--ink);stroke-width:1.4;}
+
+.nav-links{
+  display:flex;align-items:center;gap:clamp(14px,1.9vw,30px);
+  font-size:13.5px;font-weight:500;letter-spacing:-.012em;
+}
+.nav-links a{position:relative;padding:3px 0;color:var(--ink-soft);transition:color .3s;}
+.nav-links a::after{
+  content:'';position:absolute;left:0;right:0;bottom:-1px;height:1.5px;
+  background:var(--ink);transform:scaleX(0);transform-origin:left;
+  transition:transform .42s var(--e);
+}
+.nav-links a:hover{color:var(--ink);}
+.nav-links a:hover::after,
+.nav-links a[aria-current="true"]::after{transform:scaleX(1);}
+.nav-links a[aria-current="true"]{color:var(--ink);}
+@media (max-width:1000px){ .nav-links{display:none;} }
+
+/* ── 5. BOUTONS ───────────────────────────────────────── */
+.btn{
+  --bg:var(--ink); --fg:var(--paper);
+  position:relative;display:inline-flex;align-items:center;gap:10px;
+  padding:13px 22px 13px 24px;
+  border:0;border-radius:999px;
+  background:var(--bg);color:var(--fg);
+  font-family:var(--f-body);
+  font-size:13.5px;font-weight:600;letter-spacing:-.012em;
+  overflow:hidden;isolation:isolate;
+  transition:color .38s var(--e),transform .38s var(--e);
+}
+@media (pointer:fine){ .btn{cursor:none;} }
+.btn::before{
+  content:'';position:absolute;inset:0;z-index:-1;
+  background:var(--lime);
+  transform:translateY(101%);
+  transition:transform .5s var(--e);
+}
+.btn:hover{color:var(--ink);}
+.btn:hover::before{transform:translateY(0);}
+.btn:active{transform:scale(.975);}
+.btn .dot{
+  width:6px;height:6px;border-radius:50%;background:var(--lime);
+  flex:none;transition:background .38s var(--e),transform .5s var(--e);
+}
+.btn:hover .dot{background:var(--ink);transform:scale(1.5);}
+
+.btn-lg{
+  padding:17px 28px 17px 30px;
+  font-size:15px;
+}
+.btn-ghost{
+  --bg:transparent; --fg:var(--ink);
+  border:1px solid var(--line-hard);
+  padding:12px 21px 12px 23px;
+}
+.btn-ghost .dot{background:var(--ink);}
+.btn-ghost:hover .dot{background:var(--ink);}
+
+/* lien texte souligne a l'arrivee */
+.tlink{
+  position:relative;font-weight:600;font-size:14px;
+  display:inline-flex;align-items:center;gap:7px;
+}
+.tlink::after{
+  content:'';position:absolute;left:0;bottom:-3px;width:100%;height:1.5px;
+  background:currentColor;transform-origin:right;transform:scaleX(1);
+  transition:transform .4s var(--e);
+}
+.tlink:hover::after{transform:scaleX(0);transform-origin:left;}
+.tlink i{
+  display:block;width:9px;height:9px;border-right:1.6px solid currentColor;
+  border-top:1.6px solid currentColor;transform:rotate(45deg);
+  transition:transform .4s var(--e);
+}
+.tlink:hover i{transform:rotate(45deg) translate(2.5px,-2.5px);}
+
+/* ── 6. CURSEUR ───────────────────────────────────────── */
+#cur{
+  position:fixed;top:0;left:0;z-index:9999;pointer-events:none;
+  width:9px;height:9px;border-radius:50%;
+  background:var(--ink);
+  transform:translate3d(-50%,-50%,0);
+  transition:width .34s var(--e),height .34s var(--e),
+             background-color .34s var(--e),opacity .3s;
+  will-change:transform;
+  mix-blend-mode:normal;
+}
+#cur.big{width:52px;height:52px;background:var(--lime);}
+#cur.light{background:var(--paper);}
+#cur.hide{opacity:0;}
+@media (pointer:coarse),(hover:none){ #cur{display:none;} }
+@media (pointer:fine){ a,button,input,label,summary,[data-hov]{cursor:none;} }
+
+/* ── 7. REVEALS ───────────────────────────────────────── */
+.rv{
+  opacity:0;
+  transform:translate3d(0,15px,0);
+  transition:opacity .82s var(--e),transform .82s var(--e);
+}
+.rv.in{opacity:1;transform:none;}
+.d1{transition-delay:.07s;}
+.d2{transition-delay:.14s;}
+.d3{transition-delay:.21s;}
+.d4{transition-delay:.28s;}
+
+/* variante : le trait qui se tire */
+.rl{transform:scaleX(0);transform-origin:left;transition:transform .95s var(--e);}
+.rl.in{transform:scaleX(1);}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto;}
+  .rv,.rl{opacity:1;transform:none;transition:none;}
+  *,*::before,*::after{
+    animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important;
+  }
+}
+
+/* ── 8. TICKER ────────────────────────────────────────────
+   Boucle sans couture. Chaque groupe fait AU MOINS la largeur
+   du conteneur (min-width:100%), donc la bande est toujours
+   couverte : aucun trou, aucun mot qui apparait. Le groupe se
+   deplace de exactement sa propre largeur (-100%), l'instant
+   ou il sort est l'instant ou son jumeau prend sa place.
+   ──────────────────────────────────────────────────────── */
+.tick{
+  display:flex;
+  overflow:hidden;
+  background:var(--lime);
+  color:var(--ink);
+  border-top:1px solid var(--ink);
+  border-bottom:1px solid var(--ink);
+  user-select:none;
+  -webkit-user-select:none;
+  contain:content;
+}
+.tick-g{
+  flex:0 0 auto;
+  min-width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-around;
+  animation:tick-run 44s linear infinite;
+  will-change:transform;
+}
+.tick:hover .tick-g{animation-play-state:paused;}
+@keyframes tick-run{ to{ transform:translate3d(-100%,0,0); } }
+
+.tick-i{
+  display:flex;align-items:center;gap:0;
+  padding:14px 0;
+  white-space:nowrap;
+  font-family:var(--f-disp);
+  font-size:13.5px;font-weight:600;letter-spacing:-.018em;
+}
+.tick-i::after{
+  content:'';flex:none;
+  width:5px;height:5px;border-radius:50%;
+  background:var(--ink);opacity:.42;
+  margin:0 clamp(22px,2.4vw,34px);
+}
+.tick-i svg{width:14px;height:14px;flex:none;opacity:.72;}
+
+@media (prefers-reduced-motion:reduce){
+  .tick-g{animation:none;}
+  .tick{overflow-x:auto;}
+}
+
+/* ══════════════════════════════════════════════════════════
+   NAVIGATION MOBILE
+   Sous 1000 px les liens de la barre disparaissent : sans ce
+   panneau, il ne restait plus qu'a faire defiler 18 metres de
+   page. Deux traits qui se croisent, un panneau papier plein
+   ecran, les sections numerotees comme un sommaire.
+   ══════════════════════════════════════════════════════════ */
+.nav-burger{
+  display:none;
+  width:44px;height:44px;margin-left:14px;
+  background:none;border:0;padding:0;
+  position:relative;flex:none;
+}
+.nav-burger span{
+  position:absolute;left:11px;right:11px;height:1.5px;
+  background:var(--ink);border-radius:2px;
+  transition:transform .4s var(--e),opacity .3s var(--e);
+}
+.nav-burger span:first-child{top:18px;}
+.nav-burger span:last-child{top:25px;}
+.nav-burger[aria-expanded="true"] span:first-child{transform:translateY(3.5px) rotate(45deg);}
+.nav-burger[aria-expanded="true"] span:last-child{transform:translateY(-3.5px) rotate(-45deg);}
+
+.nav-sheet{
+  position:fixed;inset:0;z-index:880;
+  background:var(--paper);
+  padding:104px var(--gut) 40px;
+  display:flex;flex-direction:column;justify-content:center;gap:26px;
+  opacity:0;transform:translateY(-8px);
+  transition:opacity .34s var(--e),transform .34s var(--e);
+}
+.nav-sheet[hidden]{display:none;}
+.nav-sheet.on{opacity:1;transform:none;}
+.nav-sheet nav{display:flex;flex-direction:column;border-top:1px solid var(--line);}
+.nav-sheet nav a{
+  display:flex;align-items:baseline;gap:16px;
+  padding:17px 0;border-bottom:1px solid var(--line);
+  font-family:var(--f-disp);
+  font-size:clamp(22px,6.4vw,30px);font-weight:600;letter-spacing:-.03em;
+  color:var(--ink);text-decoration:none;
+}
+.nav-sheet nav a span{font-size:10.5px;color:var(--stone);}
+.nav-sheet .btn{align-self:flex-start;}
+.nav-sheet > p{color:var(--stone);}
+@media (prefers-reduced-motion:reduce){
+  .nav-sheet,.nav-burger span{transition:none;}
+}
+@media (max-width:1000px){
+  .nav-burger{display:block;}
+}
+@media (min-width:1001px){
+  .nav-sheet{display:none!important;}
+}
+/* la barre ne doit pas etre trop serree quand le bouton apparait */
+@media (max-width:560px){
+  .nav .btn{padding:10px 15px;font-size:12.5px;}
+}
+
+/* ══════════════════════════════════════════════════════════
+   9. Coquille de section   10. Liane   11. Hero
+   12. Classement           13. Faits   14. Saison
+   15. Clé en main          16. Retombées
+   ══════════════════════════════════════════════════════════ */
+
+/* ── 9. COQUILLE ──────────────────────────────────────── */
+section{
+  padding:var(--sp) var(--gut);
+  position:relative;
+  z-index:1;
+}
+/* pas de selecteur fourre-tout sur les enfants : chaque bloc
+   de contenu porte lui-meme son empilement. */
+.layer{position:relative;z-index:2;}
+.behind{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+
+.band{background:var(--paper-2);}
+.band-moss{background:var(--moss);}
+.rule{height:1px;background:var(--line);border:0;}
+
+/* ── 10. RUBANS ───────────────────────────────────────────
+   Des lianes qui entrent hors cadre, plongent dans la page et
+   ressortent du meme cote. Un segment de taille fixe parcourt
+   chaque trajectoire au scroll : jamais un trait qui traverse
+   tout le site, seulement des passages.
+   ──────────────────────────────────────────────────────── */
+.ribbons{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  z-index:0;pointer-events:none;
+}
+/* Un calque par liane, place exactement sur sa zone de page.
+   Chacun glisse un peu pendant sa traversee de l'ecran : les lianes
+   entrent et sortent du cadre au lieu d'y stagner, et l'ecart avec le
+   contenu creuse un plan d'arriere-fond. C'est le navigateur qui
+   anime (animation-timeline), donc rien n'est calcule par image, et
+   les calques sont assez petits pour que ce soit gratuit. */
+.rib{
+  position:absolute;left:0;width:100%;
+  overflow:visible;
+}
+.rib svg{display:block;width:100%;height:100%;overflow:visible;}
+@supports (animation-timeline: view()){
+  @media (prefers-reduced-motion:no-preference){
+    .rib{
+      animation:rib-float linear both;
+      animation-timeline:view();
+      animation-range:cover 0% cover 100%;
+    }
+  }
+}
+/* sens du glissement : la liane entre decalee vers le haut et sort
+   decalee vers le bas, donc elle remonte un peu moins vite que la
+   page. C'est le comportement d'un arriere-plan ; l'inverse donnerait
+   l'impression qu'elle double le contenu. */
+@keyframes rib-float{
+  from{ transform:translate3d(0,calc(var(--amp,40px) * -1),0); }
+  to  { transform:translate3d(0,var(--amp,40px),0); }
+}
+.ribbon{
+  fill:none;stroke-width:6;
+  stroke-linecap:round;stroke-linejoin:round;
+  vector-effect:non-scaling-stroke;
+  stroke-opacity:.34;
+  /* pathLength="1" : le trace fait 1 unite quelle que soit sa vraie
+     longueur, donc un seul reglage suffit pour toutes les lianes.
+     Elles se tracent a leur arrivee dans l'ecran. */
+  stroke-dasharray:1;
+  stroke-dashoffset:1;
+  transition:stroke-dashoffset 1.6s cubic-bezier(.16,1,.3,1);
+}
+.ribbon.in,.rib.in .ribbon{stroke-dashoffset:0;}
+@media (prefers-reduced-motion:reduce){
+  .ribbon{transition:none;stroke-dashoffset:0;}
+}
+.ribbon.sec{stroke-width:3.5;stroke-opacity:.17;transition-duration:2.1s;}
+@media (max-width:820px){ .ribbons{display:none;} }
+
+/* ── 11. HERO ─────────────────────────────────────────── */
+.hero{
+  padding:clamp(112px,13.5vh,168px) var(--gut) clamp(40px,5vw,64px);
+  position:relative;
+  overflow:hidden;
+}
+.h1{
+  position:relative;z-index:2;
+  margin-bottom:clamp(34px,4.2vw,58px);
+}
+/* la ligne pivot decalee : la phrase bascule, le regard suit */
+.h1 .turn{
+  display:block;
+  margin-left:clamp(0px,15.5vw,224px);
+  color:var(--ink);
+}
+.h1 .turn .it{color:var(--ink);}
+/* le mot qui porte tout : souligne d'un trait lime epais */
+.h1 .hit{position:relative;display:inline-block;}
+.h1 .hit::after{
+  content:'';position:absolute;left:-.04em;right:-.04em;bottom:.055em;
+  height:.115em;background:var(--lime);z-index:-1;
+  transform:scaleX(0);transform-origin:left;
+  transition:transform 1.05s var(--e) .55s;
+}
+.h1.in .hit::after{transform:scaleX(1);}
+
+/* apparition du titre, ligne par ligne, sans qu'on voie le mecanisme */
+.h1 .ln{display:block;overflow:hidden;}
+.h1 .ln > span{
+  display:block;
+  transform:translate3d(0,102%,0);
+  transition:transform 1.02s var(--e);
+}
+.h1.in .ln > span{transform:none;}
+.h1 .ln:nth-child(2) > span{transition-delay:.09s;}
+.h1 .ln:nth-child(3) > span{transition-delay:.18s;}
+
+.hero-grid{
+  position:relative;z-index:2;
+  display:grid;
+  grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr);
+  gap:clamp(32px,4.6vw,72px);
+  align-items:start;
+}
+@media (max-width:1040px){ .hero-grid{grid-template-columns:1fr;gap:44px;} }
+
+.hero-pitch p{
+  font-size:clamp(16px,1.22vw,19px);
+  line-height:1.6;
+  color:var(--ink-soft);
+  max-width:40ch;
+  margin-bottom:26px;
+}
+.hero-pitch p b{font-weight:600;color:var(--ink);}
+.hero-cta{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-bottom:26px;}
+.hero-assure{
+  display:flex;flex-wrap:wrap;gap:7px 18px;
+  color:var(--stone);
+}
+.hero-assure li{list-style:none;display:flex;align-items:center;gap:7px;}
+.hero-assure li::before{
+  content:'';width:4px;height:4px;border-radius:50%;
+  background:var(--lime-dim);flex:none;
+}
+
+/* ── 12. CLASSEMENT ───────────────────────────────────────
+   La piece maitresse : un vrai tableau de rang, qui bouge.
+   ──────────────────────────────────────────────────────── */
+.rank{
+  background:var(--paper);
+  border:1px solid var(--line-hard);
+  border-radius:3px;
+  box-shadow:0 1px 0 rgba(19,21,16,.05),
+             0 18px 44px -30px rgba(19,21,16,.42);
+  overflow:hidden;
+}
+.rank-top{
+  display:flex;align-items:baseline;justify-content:space-between;
+  gap:16px;flex-wrap:wrap;
+  padding:15px 18px 13px;
+  border-bottom:1px solid var(--ink);
+  background:var(--ink);color:var(--paper);
+}
+.rank-top b{
+  font-family:var(--f-disp);font-size:13px;font-weight:600;
+  letter-spacing:-.02em;text-transform:none;
+}
+.rank-top .mono{color:rgba(252,251,248,.62);font-size:9.5px;}
+
+.rank-week{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 18px;
+  border-bottom:1px solid var(--line);
+  background:var(--paper-2);
+}
+.rank-week .mono{color:var(--stone);}
+.rank-dot{
+  width:6px;height:6px;border-radius:50%;background:var(--lime-dim);
+  flex:none;
+  animation:rank-pulse 2.6s var(--e2) infinite;
+}
+@keyframes rank-pulse{
+  0%,100%{transform:scale(1);opacity:1;}
+  50%{transform:scale(1.55);opacity:.42;}
+}
+
+.rank-list{list-style:none;position:relative;}
+.rank-row{
+  display:grid;
+  grid-template-columns:30px 26px minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  padding:11px 18px;
+  border-bottom:1px solid var(--line-soft);
+  transition:transform .78s var(--e),background-color .5s var(--e);
+  will-change:transform;
+}
+.rank-row:last-child{border-bottom:0;}
+.rank-pos{
+  font-family:var(--f-mono);font-size:12px;
+  color:var(--faint);letter-spacing:.02em;
+  transition:color .5s;
+}
+.rank-mv{
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--f-mono);font-size:9.5px;font-weight:500;
+  letter-spacing:.02em;
+  color:var(--stone);
+  gap:1px;
+}
+.rank-mv.up{color:#4C7A2E;}
+.rank-mv.dn{color:#A4655A;}
+.rank-mv svg{width:7px;height:7px;}
+.rank-name{
+  font-size:14.5px;font-weight:500;letter-spacing:-.015em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.rank-pts{
+  font-family:var(--f-mono);font-size:12.5px;
+  letter-spacing:.01em;color:var(--ink-soft);
+  font-variant-numeric:tabular-nums;
+}
+.rank-row.you{
+  background:var(--lime);
+}
+.rank-row.you .rank-pos,
+.rank-row.you .rank-pts{color:var(--ink);}
+.rank-row.you .rank-name{
+  font-weight:700;font-family:var(--f-disp);letter-spacing:-.03em;
+}
+.rank-row.you .rank-mv.up{color:var(--ink);}
+
+.rank-foot{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:14px;flex-wrap:wrap;
+  padding:12px 18px;
+  border-top:1px solid var(--line);
+  background:var(--paper-2);
+  color:var(--stone);
+}
+.rank-foot .mono{font-size:9.5px;}
+.rank-caption{
+  margin-top:11px;
+  font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--faint);
+  text-align:right;
+}
+
+/* ── 13. FAITS ────────────────────────────────────────────
+   Un releve de dates. Le chiffre vit dans la phrase, pas
+   dans une vignette.
+   ──────────────────────────────────────────────────────── */
+.facts-list{list-style:none;border-top:1px solid var(--ink);}
+.fact{
+  display:grid;
+  grid-template-columns:clamp(96px,13vw,190px) minmax(0,1fr);
+  gap:clamp(18px,3.4vw,54px);
+  padding:clamp(26px,3.1vw,42px) 0;
+  border-bottom:1px solid var(--line);
+  position:relative;
+}
+.fact-when{
+  font-family:var(--f-mono);font-size:10.5px;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--ink);
+  padding-top:.55em;
+}
+.fact-when em{
+  display:block;font-style:normal;color:var(--faint);margin-top:5px;
+}
+.fact-lead{
+  font-family:var(--f-disp);
+  font-size:clamp(20px,2.05vw,30px);
+  font-weight:500;
+  line-height:1.2;
+  letter-spacing:-.032em;
+  max-width:26ch;
+}
+.fact-lead .n{
+  font-weight:700;
+  background:linear-gradient(transparent 62%,var(--lime) 62%,var(--lime) 92%,transparent 92%);
+  padding:0 .05em;
+}
+.fact-lead .it{font-size:1.02em;}
+.fact-more{
+  margin-top:13px;
+  font-size:15px;line-height:1.6;color:var(--ink-soft);max-width:52ch;
+}
+.fact-src{
+  margin-top:13px;
+  font-family:var(--f-mono);font-size:9.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--faint);
+}
+@media (max-width:760px){
+  .fact{grid-template-columns:1fr;gap:12px;}
+  .fact-when{padding-top:0;}
+}
+
+/* ── 13 bis. SE RENDRE UTILE ──────────────────────────────
+   Deux colonnes décalées plutôt qu'une longue liste : 01/03/05
+   à gauche, 02/04 à droite, la colonne droite démarre plus bas
+   pour que les filets ne s'alignent jamais d'un bord à l'autre.
+   ──────────────────────────────────────────────────────── */
+.fx{
+  list-style:none;
+  display:grid;
+  grid-template-columns:1.07fr .93fr;
+  column-gap:clamp(32px,4.4vw,78px);
+  margin-top:clamp(24px,3vw,40px);
+}
+.fx-i{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:clamp(11px,1.3vw,19px);
+  padding:clamp(17px,1.9vw,25px) 0;
+  border-top:1px solid var(--ink);
+}
+.fx-i:nth-child(n+2){border-top-color:var(--line);}
+.fx-i:nth-child(odd){grid-column:1;}
+.fx-i:nth-child(even){grid-column:2;}
+.fx-i:nth-child(2){margin-top:clamp(38px,4.6vw,74px);border-top-color:var(--ink);}
+.fx-i:nth-child(4){margin-top:clamp(24px,2.8vw,44px);}
+.fx-n{
+  font-family:var(--f-mono);font-size:10.5px;letter-spacing:.15em;
+  color:var(--faint);padding-top:.75em;
+}
+.fx-k{
+  font-family:var(--f-mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--ink);margin-bottom:8px;
+}
+.fx-h{
+  font-family:var(--f-disp);font-weight:500;
+  font-size:clamp(19px,1.6vw,25px);
+  line-height:1.19;letter-spacing:-.032em;
+}
+.fx-h .n{
+  font-weight:700;
+  background:linear-gradient(transparent 62%,var(--lime) 62%,var(--lime) 92%,transparent 92%);
+  padding:0 .05em;
+}
+.fx-p{margin-top:9px;font-size:14.5px;line-height:1.55;color:var(--ink-soft);}
+.fx-s{
+  margin-top:9px;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--faint);
+}
+@media (max-width:900px){
+  .fx{grid-template-columns:1fr;column-gap:0;}
+  .fx-i:nth-child(odd),.fx-i:nth-child(even){grid-column:1;}
+  .fx-i:nth-child(2){margin-top:0;border-top-color:var(--line);}
+  .fx-i:nth-child(4){margin-top:0;}
+}
+
+/* ── 14. LA SAISON ────────────────────────────────────────
+   Quatre temps poses sur une ligne d'eau qui se dessine a
+   l'arrivee de la section. Les colonnes sont decalees deux a
+   deux : la grille reste lisible sans se lire comme un tableau.
+   ──────────────────────────────────────────────────────── */
+.sais{position:relative;margin-top:clamp(36px,4.6vw,60px);}
+.sais-line{
+  position:absolute;left:0;right:0;top:0;width:100%;
+  height:clamp(74px,8vw,110px);pointer-events:none;
+}
+.sais-line path{
+  fill:none;stroke:var(--water-soft);stroke-width:2.4;stroke-linecap:round;
+  vector-effect:non-scaling-stroke;
+  stroke-dasharray:1;stroke-dashoffset:1;
+  transition:stroke-dashoffset 2.2s cubic-bezier(.16,1,.3,1);
+}
+.sais-line circle{
+  fill:none;stroke:var(--lime-dim);stroke-width:9;vector-effect:non-scaling-stroke;
+  opacity:0;transition:opacity .45s var(--e);
+}
+.sais.on .sais-line path{stroke-dashoffset:0;}
+.sais.on .sais-line circle{opacity:1;}
+.sais-line circle:nth-of-type(1){transition-delay:.2s}
+.sais-line circle:nth-of-type(2){transition-delay:.8s}
+.sais-line circle:nth-of-type(3){transition-delay:1.4s}
+.sais-line circle:nth-of-type(4){transition-delay:2s}
+@media (prefers-reduced-motion:reduce){
+  .sais-line path{stroke-dashoffset:0;transition:none;}
+  .sais-line circle{opacity:1;transition:none;}
+}
+.sais-steps{
+  list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:clamp(18px,2.6vw,40px);
+  padding-top:clamp(46px,5.2vw,72px);
+}
+.sais-steps li:nth-child(2){margin-top:clamp(18px,2.4vw,34px);}
+.sais-steps li:nth-child(4){margin-top:clamp(12px,1.8vw,26px);}
+.sais-steps b{display:block;color:var(--faint);margin-bottom:12px;font-weight:400;}
+.sais-steps h3{
+  font-family:var(--f-disp);
+  font-size:clamp(19px,1.85vw,25px);font-weight:600;
+  letter-spacing:-.03em;margin-bottom:9px;
+}
+.sais-steps p{font-size:14px;line-height:1.7;color:var(--ink-soft);max-width:21em;}
+@media (max-width:960px){
+  .sais-steps{grid-template-columns:repeat(2,minmax(0,1fr));gap:30px 24px;}
+  .sais-steps li{margin-top:0!important;}
+  .sais-line{display:none;}
+}
+@media (max-width:560px){ .sais-steps{grid-template-columns:minmax(0,1fr);} }
+
+/* ── 15. CLÉ EN MAIN ──────────────────────────────────────
+   Accordeon d'images plein cadre : le panneau survole s'ouvre,
+   les autres se resserrent en libelle vertical. Sur les photos
+   portrait (data-pan="y"), le curseur fait defiler la hauteur
+   reelle de l'image au lieu d'en montrer une tranche fixe.
+   ──────────────────────────────────────────────────────── */
+.expand-row{
+  margin-top:clamp(34px,4.4vw,56px);
+  display:flex;gap:10px;
+  height:clamp(400px,50vh,540px);
+}
+.xcard{
+  position:relative;overflow:hidden;border-radius:4px;cursor:pointer;
+  flex:.62 1 0%;min-width:0;
+  transition:flex-grow .68s cubic-bezier(.19,1,.22,1);
+  background:var(--ink);outline:none;
+}
+.xcard.is-open{flex:4 1 0%;}
+.xcard:focus-visible{outline:2px solid var(--lime);outline-offset:3px;}
+.xcard .kit-shot{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;object-position:top center;
+  transition:transform .9s var(--e),filter .5s var(--e),object-position .25s linear;
+  filter:saturate(.86) brightness(.82);
+}
+.xcard.is-open .kit-shot{filter:none;transform:scale(1);}
+.xcard:not(.is-open) .kit-shot{transform:scale(1.08);}
+/* voile degrade : c'est lui qui porte le texte du panneau. Deux
+   des quatre visuels sont des captures a fond clair, le voile doit
+   donc descendre assez bas pour que le blanc reste lisible dessus.
+   Regle au contraste mesure, pas a l'oeil. */
+.xcard::after{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(0deg,
+    rgba(9,11,7,.95) 0%,
+    rgba(9,11,7,.88) 24%,
+    rgba(9,11,7,.62) 44%,
+    rgba(9,11,7,.24) 66%,
+    rgba(9,11,7,0)   86%);
+  transition:opacity .5s var(--e);
+}
+.xcard.is-open::after{opacity:1;}
+.xc-mini{
+  position:absolute;left:0;right:0;bottom:0;height:100%;z-index:2;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+  gap:10px;padding-bottom:24px;color:var(--paper);
+  opacity:1;transition:opacity .3s var(--e);
+}
+.xcard.is-open .xc-mini{opacity:0;pointer-events:none;}
+.xc-mini span:first-child{color:var(--lime);font-size:11px;}
+.xc-mini span:last-child{
+  writing-mode:vertical-rl;transform:rotate(180deg);
+  letter-spacing:.12em;font-size:10.5px;color:#D7DACE;white-space:nowrap;
+}
+.xc-full{
+  position:absolute;left:0;right:0;bottom:0;z-index:2;
+  padding:clamp(20px,2.6vw,34px);color:var(--paper);
+  opacity:0;transform:translateY(10px);
+  transition:opacity .4s var(--e),transform .4s var(--e);
+  width:min(100%,560px);
+}
+.xcard.is-open .xc-full{opacity:1;transform:none;transition-delay:.22s;}
+.xc-tag{
+  display:inline-block;margin-bottom:12px;padding:5px 12px;border-radius:100px;
+  font-size:10px;background:rgba(201,242,75,.16);color:var(--lime);white-space:nowrap;
+}
+.xcard h3{
+  font-family:var(--f-disp);
+  font-size:clamp(18px,2vw,26px);font-weight:600;
+  letter-spacing:-.03em;line-height:1.15;margin-bottom:9px;
+}
+.xcard p{font-size:13.5px;line-height:1.62;color:#D7DACE;max-width:36em;}
+.xcard p em{font-style:normal;background:var(--lime);color:var(--ink);padding:0 .28em .04em;}
+@media (max-width:900px){
+  .expand-row{flex-direction:column;height:auto;gap:14px;}
+  .xcard{flex:none!important;height:120px;}
+  .xcard.is-open{height:340px;}
+  .xc-mini{flex-direction:row;justify-content:flex-start;align-items:center;padding:0 20px;gap:12px;}
+  .xc-mini span:last-child{writing-mode:horizontal-tb;transform:none;}
+}
+
+
+/* ── 16. RETOMBÉES ─────────────────────────────────────────
+   Photo en colonne, qui reste au niveau des yeux pendant que
+   les trois gains defilent a cote. Chaque gain porte son
+   chiffre a droite, surligne : la preuve se lit avant meme
+   le paragraphe.
+   ──────────────────────────────────────────────────────── */
+.ret-wrap{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);
+  gap:clamp(28px,3.4vw,48px);
+  margin-top:clamp(38px,4.6vw,60px);
+  align-items:stretch;
+}
+/* ── la mosaique ──────────────────────────────────────────
+   Un seul bloc de photos qui monte a vitesse constante. Les
+   photos sont posees en absolu, chacune avec sa largeur, son
+   decalage lateral et son propre decalage vertical : certaines
+   depassent du cadre, aucune ne s'aligne sur une autre. Le
+   filet clair entre elles est le fond du cadre qui transparait.
+
+   Le cadre, lui, ne bouge pas : il defile avec la page comme
+   n'importe quel bloc. Seul le contenu recoit la parallaxe.
+   ──────────────────────────────────────────────────────── */
+.ret-mosaic{
+  position:relative;margin:0;align-self:stretch;
+  min-height:520px;
+  border:1px solid var(--line);border-radius:4px;
+  overflow:hidden;
+  background:var(--paper-2);
+  isolation:isolate;
+}
+.mos-view{position:absolute;inset:0;overflow:hidden;}
+/* la couche que le scroll decale : plus haute que le cadre des
+   deux cotes, pour qu'aucun bord ne se decouvre */
+.mos-shift{
+  position:absolute;left:0;right:0;top:-16%;bottom:-16%;
+  will-change:transform;
+}
+.mos-run{
+  position:absolute;left:0;right:0;top:0;
+  animation:mos-run 96s linear infinite;
+  will-change:transform;
+}
+@keyframes mos-run{ to{ transform:translate3d(0,-50%,0); } }
+@media (prefers-reduced-motion:reduce){ .mos-run{animation:none;} }
+.mos-band{position:relative;width:100%;}
+.mos-cell{
+  position:absolute;display:block;overflow:hidden;
+  border-radius:2px;
+  background:var(--paper-2);
+}
+.mos-cell img{
+  width:100%;height:100%;object-fit:cover;display:block;
+}
+
+/* le dévoilement : un panneau papier se retire vers le haut a
+   l'arrivee de la section, son arete portant une fine ligne
+   d'eau. La mosaique apparait dessous, deja en mouvement. */
+.mos-curtain{
+  position:absolute;inset:-1px;z-index:3;
+  background:var(--paper-2);
+  border-bottom:1px solid var(--water-soft);
+  transform:translateY(0);
+  transition:transform 1.25s cubic-bezier(.76,0,.24,1);
+  will-change:transform;
+}
+.ret-mosaic.in .mos-curtain{transform:translateY(-101%);}
+@media (prefers-reduced-motion:reduce){
+  .mos-curtain{transform:translateY(-101%);transition:none;}
+}
+
+/* haut et bas fondus vers le papier : la bande n'est pas coupee
+   net, elle sort du cadre */
+.ret-mosaic::before,.ret-mosaic::after{
+  content:'';position:absolute;left:0;right:0;height:9%;
+  z-index:2;pointer-events:none;
+}
+.ret-mosaic::before{
+  top:0;background:linear-gradient(var(--paper-2),rgba(245,243,238,0));
+}
+.ret-mosaic::after{
+  bottom:0;background:linear-gradient(rgba(245,243,238,0),var(--paper-2));
+}
+.ret-mosaic figcaption{
+  position:absolute;left:15px;bottom:13px;z-index:4;
+  display:flex;align-items:center;gap:8px;
+  padding:6px 12px;border-radius:100px;
+  background:rgba(252,251,248,.92);
+  color:var(--ink-soft);font-size:10px;letter-spacing:.12em;
+  font-family:var(--f-mono);text-transform:uppercase;
+}
+.ret-mosaic figcaption::before{
+  content:'';width:6px;height:6px;border-radius:50%;
+  background:var(--lime-dim);flex:none;
+}
+
+.ret{list-style:none;border-top:1px solid var(--ink);margin-top:0;}
+.ret li{
+  display:grid;grid-template-columns:52px minmax(0,1.35fr) minmax(0,.75fr);
+  gap:clamp(18px,3vw,46px);align-items:start;
+  padding:clamp(26px,3.2vw,44px) 0;border-bottom:1px solid var(--line);
+}
+.ret-n{color:var(--stone);padding-top:7px;transition:color .35s var(--e);}
+.ret li:hover .ret-n{color:var(--ink);}
+.ret h3{
+  font-family:var(--f-disp);
+  font-size:clamp(20px,2.1vw,29px);font-weight:600;
+  letter-spacing:-.035em;margin-bottom:10px;
+}
+.ret-body p{font-size:14.5px;line-height:1.72;color:var(--ink-soft);max-width:33em;}
+.ret-fact{
+  justify-self:end;align-self:center;text-align:right;
+  display:flex;flex-direction:column;gap:7px;max-width:16em;
+}
+.ret-fact b{
+  font-family:var(--f-disp);
+  font-size:clamp(24px,2.5vw,36px);font-weight:600;
+  letter-spacing:-.045em;line-height:1.05;color:var(--ink);
+}
+/* surlignage legerement de travers : trace a la main, pas genere */
+.ret-fact b i{
+  font-style:normal;background:var(--lime);
+  padding:0 .14em .04em;display:inline-block;transform:rotate(-1.2deg);
+}
+.ret-fact em{font-style:normal;font-size:12px;line-height:1.55;color:var(--stone);}
+@media (max-width:980px){
+  .ret-wrap{grid-template-columns:minmax(0,1fr);}
+  .ret-mosaic{min-height:0;aspect-ratio:16/11;}
+  .ret li{grid-template-columns:40px minmax(0,1fr);}
+  .ret-fact{grid-column:2;justify-self:start;text-align:left;margin-top:14px;}
+}
+
+/* ── 17. CE QUE VOUS FAITES / CE QUE VOUS NE FAITES PAS ────
+   Deux colonnes sous un filet plein. A gauche des points
+   lime, a droite des cercles vides et du texte barre : la
+   charge qui ne vous revient pas se lit d'un coup d'oeil.
+   ──────────────────────────────────────────────────────── */
+.roles{
+  margin-top:clamp(40px,5vw,64px);
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:clamp(24px,3.2vw,46px);
+  border-top:1px solid var(--ink);
+  padding-top:clamp(28px,3.4vw,40px);
+}
+.role h3{
+  font-family:var(--f-disp);
+  font-size:clamp(15px,1.4vw,18px);font-weight:600;letter-spacing:-.02em;
+  margin-bottom:clamp(16px,2vw,22px);
+}
+.role ul{list-style:none;}
+.role li{
+  position:relative;
+  display:flex;align-items:baseline;gap:0;
+  padding:11px 0 11px 26px;
+  font-size:14px;line-height:1.5;color:var(--ink-soft);
+  border-bottom:1px solid var(--line-soft);
+}
+.role li:last-child{border-bottom:0;}
+.role li i{
+  position:absolute;left:2px;top:17px;
+  width:8px;height:8px;border-radius:50%;
+  background:var(--lime);
+}
+.role-dont li{
+  color:var(--faint);
+  text-decoration:line-through;
+  text-decoration-color:rgba(168,171,159,.55);
+  text-decoration-thickness:1px;
+}
+.role-dont li i{background:none;border:1.4px solid var(--faint);}
+@media (max-width:760px){
+  .roles{grid-template-columns:minmax(0,1fr);gap:26px;}
+}
+
+/* ══════════════════════════════════════════════════════════
+   CADRE VIDEO : l'emplacement du film dans le hero.
+   Meme encombrement que l'ancien bloc classement : le hero garde
+   son equilibre le jour ou la vraie video arrive.
+   ══════════════════════════════════════════════════════════ */
+.vframe{margin:0;}
+.vframe-in{
+  position:relative;
+  aspect-ratio:16/10;
+  border:1px solid var(--ink);
+  border-radius:4px;
+  background:
+    repeating-linear-gradient(-45deg,
+      rgba(19,21,16,.032) 0 12px, transparent 12px 24px),
+    var(--paper-2);
+  box-shadow:0 22px 50px -38px rgba(19,21,16,.55);
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.vframe-play{
+  width:clamp(54px,5vw,68px);aspect-ratio:1;border-radius:50%;
+  background:var(--lime);border:1px solid var(--ink);
+  position:relative;
+}
+.vframe-play::after{
+  content:'';position:absolute;top:50%;left:53%;
+  transform:translate(-50%,-50%);
+  border-left:15px solid var(--ink);
+  border-top:10px solid transparent;
+  border-bottom:10px solid transparent;
+}
+.vframe-note{
+  position:absolute;left:14px;bottom:12px;
+  color:var(--stone);
+}
+/* quatre coins de repere : le cadre se lit comme un emplacement
+   reserve, pas comme un bloc casse */
+.vframe-c{
+  position:absolute;width:13px;height:13px;
+  border:1px solid var(--ink);opacity:.5;
+}
+.vframe-c.tl{top:9px;left:9px;border-right:0;border-bottom:0;}
+.vframe-c.tr{top:9px;right:9px;border-left:0;border-bottom:0;}
+.vframe-c.bl{bottom:9px;left:9px;border-right:0;border-top:0;}
+.vframe-c.br{bottom:9px;right:9px;border-left:0;border-top:0;}
+.vframe figcaption{
+  margin-top:11px;color:var(--stone);
+  font-family:var(--f-mono);font-size:10.5px;
+  letter-spacing:.13em;text-transform:uppercase;
+}
+/* la vraie video, le jour ou elle arrive */
+.vfilm{width:100%;aspect-ratio:16/10;object-fit:cover;display:block;
+  border:1px solid var(--ink);border-radius:4px;}
+
+/* ══════════════════════════════════════════════════════════
+   17. Réseau    18. Constat   19. Confluent
+   20. Rejoindre 21. FAQ       22. Pied de page
+   ══════════════════════════════════════════════════════════ */
+
+/* ── 17. RÉSEAU ───────────────────────────────────────── */
+.net{
+  display:grid;
+  grid-template-columns:minmax(0,.55fr) minmax(0,1.45fr);
+  gap:clamp(28px,3.8vw,64px);
+  align-items:start;
+}
+@media (max-width:1000px){ .net{grid-template-columns:1fr;gap:38px;} }
+
+.net-side{position:sticky;top:104px;}
+@media (max-width:1000px){ .net-side{position:static;} }
+.net-toc{list-style:none;margin:26px 0 22px;border-top:1px solid var(--line);}
+.net-toc li{
+  display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:baseline;
+  padding:11px 0;border-bottom:1px solid var(--line);
+  transition:padding-left .42s var(--e),color .35s;
+  color:var(--stone);
+}
+@media (pointer:fine){ .net-toc li{cursor:none;} }
+.net-toc li span{font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;color:var(--faint);}
+.net-toc li b{font-size:14.5px;font-weight:500;letter-spacing:-.015em;}
+.net-toc li:hover,.net-toc li.on{padding-left:9px;color:var(--ink);}
+.net-toc li.on span{color:var(--lime-dim);}
+.net-tail{color:var(--faint);line-height:1.85;}
+
+.net-main{display:grid;gap:clamp(30px,3.6vw,58px);}
+.entry{
+  display:grid;
+  grid-template-columns:minmax(0,1.06fr) minmax(0,.94fr);
+  gap:clamp(18px,2.4vw,34px);
+  align-items:start;
+  padding-bottom:clamp(30px,3.6vw,52px);
+  border-bottom:1px solid var(--line);
+}
+.net-main .entry:last-child{border-bottom:0;padding-bottom:0;}
+@media (max-width:680px){ .entry{grid-template-columns:1fr;} }
+
+.fig{
+  position:relative;
+  aspect-ratio:5/4;
+  border:1px solid var(--line-hard);
+  border-radius:3px;
+  overflow:hidden;
+  background:var(--moss);
+}
+.fig svg{width:100%;height:100%;}
+.fig-tag{
+  position:absolute;left:10px;top:10px;
+  background:var(--paper);padding:5px 10px;border-radius:999px;
+  font-size:9px;letter-spacing:.12em;
+}
+.fig-no{
+  position:absolute;right:10px;bottom:10px;
+  font-size:9px;letter-spacing:.12em;color:var(--ink);
+  background:rgba(252,251,248,.8);padding:4px 8px;border-radius:999px;
+}
+.entry-head{margin-bottom:12px;}
+.entry-head h3{margin-bottom:5px;}
+.where{color:var(--stone);font-size:10px;}
+.entry > div > p{font-size:15px;line-height:1.64;color:var(--ink-soft);}
+
+.facts-dl{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:1px;margin-top:18px;
+  background:var(--line);border:1px solid var(--line);
+}
+.facts-dl > div{background:var(--paper);padding:10px 12px;}
+.facts-dl dt{
+  font-family:var(--f-mono);font-size:9px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--stone);margin-bottom:4px;
+}
+.facts-dl dd{
+  font-family:var(--f-mono);font-size:12.5px;letter-spacing:.01em;
+  color:var(--ink);font-variant-numeric:tabular-nums;
+}
+
+/* ── 18. CONSTAT ──────────────────────────────────────── */
+.stakes{
+  display:grid;
+  grid-template-columns:minmax(0,1.18fr) minmax(0,1fr);
+  gap:clamp(26px,3.2vw,52px);
+  align-items:stretch;
+}
+@media (max-width:900px){ .stakes{grid-template-columns:1fr;} }
+
+.stakes-photo{
+  position:relative;
+  border-radius:3px;overflow:hidden;
+  min-height:clamp(340px,48vw,620px);
+  background:var(--paper-3);
+}
+/* ombre portee vers l'interieur : l'image parait encastree derriere la
+   page, vue au travers d'une decoupe plutot que posee dessus */
+.stakes-photo::after{
+  content:'';position:absolute;inset:0;z-index:3;pointer-events:none;
+  box-shadow:
+    inset 0 0 46px rgba(19,21,16,.46),
+    inset 0 0 14px rgba(19,21,16,.34),
+    inset 0 2px 3px rgba(19,21,16,.30);
+}
+.sp-layer{
+  position:absolute;left:0;right:0;top:-30%;height:160%;
+  background-size:cover;background-position:center 29%;
+  will-change:transform;
+}
+/* le voile se retire une fois la section atteinte : la photo se
+   decouvre au lieu d'etre simplement la */
+.sp-veil{
+  position:absolute;inset:0;z-index:2;
+  background:#8CAE38;
+  transform:translateX(0);
+  transition:transform 1.35s var(--e);
+  will-change:transform;
+}
+.stakes-photo.in .sp-veil{transform:translateX(-101%);}
+.sp-veil-tex{
+  position:absolute;inset:-6px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(19,21,16,.34) 0 26%, transparent 60%) 0 0/7px 7px,
+    linear-gradient(120deg, rgba(19,21,16,.18), rgba(19,21,16,0) 60%);
+  opacity:.6;
+}
+@media (prefers-reduced-motion:reduce){
+  .sp-layer{transform:none!important;}
+  .sp-veil{transform:translateX(-101%);transition:none;}
+}
+.stakes-photo figcaption{
+  position:absolute;left:14px;bottom:13px;z-index:2;
+  display:inline-flex;align-items:center;gap:8px;
+  padding:7px 13px;border-radius:100px;
+  /* la photo est claire par endroits : un degrade ne suffisait pas
+     (3,3:1 mesure), la pastille garantit le fond sous le texte */
+  background:rgba(19,21,16,.82);
+  backdrop-filter:blur(3px);
+  color:rgba(252,251,248,.98);
+  font-family:var(--f-mono);font-size:9.5px;letter-spacing:.11em;
+  text-transform:uppercase;
+}
+.stakes-photo figcaption::before{
+  content:'';width:6px;height:6px;border-radius:50%;
+  background:var(--lime-dim);flex:none;
+}
+
+.stakes-list{list-style:none;display:flex;flex-direction:column;}
+.stake{
+  flex:1;
+  padding:clamp(18px,2.3vw,30px) 0;
+  border-top:1px solid var(--line);
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:clamp(14px,2vw,28px);
+  align-items:start;
+}
+.stakes-list .stake:first-child{border-top:1px solid var(--ink);}
+.stake-n{
+  font-family:var(--f-disp);
+  font-size:clamp(27px,3vw,44px);font-weight:700;
+  letter-spacing:-.05em;line-height:.9;
+  white-space:nowrap;
+}
+.stake-n em{font-family:var(--f-serif);font-style:italic;font-weight:400;font-size:.5em;}
+.stake h3{
+  font-size:clamp(15.5px,1.2vw,18.5px);font-weight:600;
+  line-height:1.28;margin-bottom:7px;letter-spacing:-.022em;
+}
+.stake p{font-size:14.5px;line-height:1.58;color:var(--ink-soft);}
+.stake cite{
+  display:block;margin-top:9px;font-style:normal;
+  font-family:var(--f-mono);font-size:9px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--stone);
+}
+
+/* ── 19. CONFLUENT ────────────────────────────────────── */
+.conf{
+  position:relative;
+  background:var(--ink);
+  --conf-above:var(--moss);   /* fond de la section qui precede */
+  --conf-below:var(--paper);  /* fond de la section qui suit    */
+  color:var(--paper);
+  overflow:hidden;
+  padding:clamp(78px,9vw,132px) var(--gut);
+  isolation:isolate;
+}
+/* les deux liseres qui remplissent le creux des vagues */
+.conf::before,.conf::after{
+  content:'';position:absolute;left:0;right:0;z-index:0;
+  height:11%;pointer-events:none;
+}
+.conf::before{top:0;background:var(--conf-above);}
+.conf::after{bottom:0;background:var(--conf-below);}
+.conf-photo{
+  position:absolute;inset:0;z-index:1;
+  /* la photo est decoupee par une vague en haut et une en bas :
+     le motif fait 1440px de large et se repete, l'animation le fait
+     deriver lentement, si bien que la ligne d'eau vit sans qu'aucune
+     geometrie ne soit recalculee (mask-position = compositeur seul) */
+  -webkit-mask-repeat:repeat-x;mask-repeat:repeat-x;
+  -webkit-mask-size:1440px 100%;mask-size:1440px 100%;
+  -webkit-mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%221440%22%20height%3D%221000%22%20viewBox%3D%220%200%201440%201000%22%20preserveAspectRatio%3D%22none%22%3E%3Cpath%20d%3D%22M%200.0%2C50.0%20L%2032.7%2C56.1%20L%2065.5%2C62.1%20L%2098.2%2C67.9%20L%20130.9%2C73.2%20L%20163.6%2C78.2%20L%20196.4%2C82.5%20L%20229.1%2C86.2%20L%20261.8%2C89.1%20L%20294.5%2C91.3%20L%20327.3%2C92.6%20L%20360.0%2C93.0%20L%20392.7%2C92.6%20L%20425.5%2C91.3%20L%20458.2%2C89.1%20L%20490.9%2C86.2%20L%20523.6%2C82.5%20L%20556.4%2C78.2%20L%20589.1%2C73.2%20L%20621.8%2C67.9%20L%20654.5%2C62.1%20L%20687.3%2C56.1%20L%20720.0%2C50.0%20L%20752.7%2C43.9%20L%20785.5%2C37.9%20L%20818.2%2C32.1%20L%20850.9%2C26.8%20L%20883.6%2C21.8%20L%20916.4%2C17.5%20L%20949.1%2C13.8%20L%20981.8%2C10.9%20L%201014.5%2C8.7%20L%201047.3%2C7.4%20L%201080.0%2C7.0%20L%201112.7%2C7.4%20L%201145.5%2C8.7%20L%201178.2%2C10.9%20L%201210.9%2C13.8%20L%201243.6%2C17.5%20L%201276.4%2C21.8%20L%201309.1%2C26.8%20L%201341.8%2C32.1%20L%201374.5%2C37.9%20L%201407.3%2C43.9%20L%201440.0%2C50.0%20L%201440.0%2C950.0%20L%201407.3%2C956.1%20L%201374.5%2C962.1%20L%201341.8%2C967.9%20L%201309.1%2C973.2%20L%201276.4%2C978.2%20L%201243.6%2C982.5%20L%201210.9%2C986.2%20L%201178.2%2C989.1%20L%201145.5%2C991.3%20L%201112.7%2C992.6%20L%201080.0%2C993.0%20L%201047.3%2C992.6%20L%201014.5%2C991.3%20L%20981.8%2C989.1%20L%20949.1%2C986.2%20L%20916.4%2C982.5%20L%20883.6%2C978.2%20L%20850.9%2C973.2%20L%20818.2%2C967.9%20L%20785.5%2C962.1%20L%20752.7%2C956.1%20L%20720.0%2C950.0%20L%20687.3%2C943.9%20L%20654.5%2C937.9%20L%20621.8%2C932.1%20L%20589.1%2C926.8%20L%20556.4%2C921.8%20L%20523.6%2C917.5%20L%20490.9%2C913.8%20L%20458.2%2C910.9%20L%20425.5%2C908.7%20L%20392.7%2C907.4%20L%20360.0%2C907.0%20L%20327.3%2C907.4%20L%20294.5%2C908.7%20L%20261.8%2C910.9%20L%20229.1%2C913.8%20L%20196.4%2C917.5%20L%20163.6%2C921.8%20L%20130.9%2C926.8%20L%2098.2%2C932.1%20L%2065.5%2C937.9%20L%2032.7%2C943.9%20L%200.0%2C950.0%20Z%22%20fill%3D%22white%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%221440%22%20height%3D%221000%22%20viewBox%3D%220%200%201440%201000%22%20preserveAspectRatio%3D%22none%22%3E%3Cpath%20d%3D%22M%200.0%2C50.0%20L%2032.7%2C56.1%20L%2065.5%2C62.1%20L%2098.2%2C67.9%20L%20130.9%2C73.2%20L%20163.6%2C78.2%20L%20196.4%2C82.5%20L%20229.1%2C86.2%20L%20261.8%2C89.1%20L%20294.5%2C91.3%20L%20327.3%2C92.6%20L%20360.0%2C93.0%20L%20392.7%2C92.6%20L%20425.5%2C91.3%20L%20458.2%2C89.1%20L%20490.9%2C86.2%20L%20523.6%2C82.5%20L%20556.4%2C78.2%20L%20589.1%2C73.2%20L%20621.8%2C67.9%20L%20654.5%2C62.1%20L%20687.3%2C56.1%20L%20720.0%2C50.0%20L%20752.7%2C43.9%20L%20785.5%2C37.9%20L%20818.2%2C32.1%20L%20850.9%2C26.8%20L%20883.6%2C21.8%20L%20916.4%2C17.5%20L%20949.1%2C13.8%20L%20981.8%2C10.9%20L%201014.5%2C8.7%20L%201047.3%2C7.4%20L%201080.0%2C7.0%20L%201112.7%2C7.4%20L%201145.5%2C8.7%20L%201178.2%2C10.9%20L%201210.9%2C13.8%20L%201243.6%2C17.5%20L%201276.4%2C21.8%20L%201309.1%2C26.8%20L%201341.8%2C32.1%20L%201374.5%2C37.9%20L%201407.3%2C43.9%20L%201440.0%2C50.0%20L%201440.0%2C950.0%20L%201407.3%2C956.1%20L%201374.5%2C962.1%20L%201341.8%2C967.9%20L%201309.1%2C973.2%20L%201276.4%2C978.2%20L%201243.6%2C982.5%20L%201210.9%2C986.2%20L%201178.2%2C989.1%20L%201145.5%2C991.3%20L%201112.7%2C992.6%20L%201080.0%2C993.0%20L%201047.3%2C992.6%20L%201014.5%2C991.3%20L%20981.8%2C989.1%20L%20949.1%2C986.2%20L%20916.4%2C982.5%20L%20883.6%2C978.2%20L%20850.9%2C973.2%20L%20818.2%2C967.9%20L%20785.5%2C962.1%20L%20752.7%2C956.1%20L%20720.0%2C950.0%20L%20687.3%2C943.9%20L%20654.5%2C937.9%20L%20621.8%2C932.1%20L%20589.1%2C926.8%20L%20556.4%2C921.8%20L%20523.6%2C917.5%20L%20490.9%2C913.8%20L%20458.2%2C910.9%20L%20425.5%2C908.7%20L%20392.7%2C907.4%20L%20360.0%2C907.0%20L%20327.3%2C907.4%20L%20294.5%2C908.7%20L%20261.8%2C910.9%20L%20229.1%2C913.8%20L%20196.4%2C917.5%20L%20163.6%2C921.8%20L%20130.9%2C926.8%20L%2098.2%2C932.1%20L%2065.5%2C937.9%20L%2032.7%2C943.9%20L%200.0%2C950.0%20Z%22%20fill%3D%22white%22/%3E%3C/svg%3E");
+  animation:waveDrift 26s linear infinite;
+}
+@keyframes waveDrift{
+  from{-webkit-mask-position:0 0;mask-position:0 0;}
+  to{-webkit-mask-position:-1440px 0;mask-position:-1440px 0;}
+}
+@media (prefers-reduced-motion:reduce){ .conf-photo{animation:none;} }
+.conf-photo img{
+  width:100%;height:100%;object-fit:cover;
+  filter:blur(5px) saturate(.94) brightness(1.02);
+  transform:scale(1.09);
+}
+.conf-veil{
+  position:absolute;inset:0;z-index:2;
+  -webkit-mask-repeat:repeat-x;mask-repeat:repeat-x;
+  -webkit-mask-size:1440px 100%;mask-size:1440px 100%;
+  -webkit-mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%221440%22%20height%3D%221000%22%20viewBox%3D%220%200%201440%201000%22%20preserveAspectRatio%3D%22none%22%3E%3Cpath%20d%3D%22M%200.0%2C50.0%20L%2032.7%2C56.1%20L%2065.5%2C62.1%20L%2098.2%2C67.9%20L%20130.9%2C73.2%20L%20163.6%2C78.2%20L%20196.4%2C82.5%20L%20229.1%2C86.2%20L%20261.8%2C89.1%20L%20294.5%2C91.3%20L%20327.3%2C92.6%20L%20360.0%2C93.0%20L%20392.7%2C92.6%20L%20425.5%2C91.3%20L%20458.2%2C89.1%20L%20490.9%2C86.2%20L%20523.6%2C82.5%20L%20556.4%2C78.2%20L%20589.1%2C73.2%20L%20621.8%2C67.9%20L%20654.5%2C62.1%20L%20687.3%2C56.1%20L%20720.0%2C50.0%20L%20752.7%2C43.9%20L%20785.5%2C37.9%20L%20818.2%2C32.1%20L%20850.9%2C26.8%20L%20883.6%2C21.8%20L%20916.4%2C17.5%20L%20949.1%2C13.8%20L%20981.8%2C10.9%20L%201014.5%2C8.7%20L%201047.3%2C7.4%20L%201080.0%2C7.0%20L%201112.7%2C7.4%20L%201145.5%2C8.7%20L%201178.2%2C10.9%20L%201210.9%2C13.8%20L%201243.6%2C17.5%20L%201276.4%2C21.8%20L%201309.1%2C26.8%20L%201341.8%2C32.1%20L%201374.5%2C37.9%20L%201407.3%2C43.9%20L%201440.0%2C50.0%20L%201440.0%2C950.0%20L%201407.3%2C956.1%20L%201374.5%2C962.1%20L%201341.8%2C967.9%20L%201309.1%2C973.2%20L%201276.4%2C978.2%20L%201243.6%2C982.5%20L%201210.9%2C986.2%20L%201178.2%2C989.1%20L%201145.5%2C991.3%20L%201112.7%2C992.6%20L%201080.0%2C993.0%20L%201047.3%2C992.6%20L%201014.5%2C991.3%20L%20981.8%2C989.1%20L%20949.1%2C986.2%20L%20916.4%2C982.5%20L%20883.6%2C978.2%20L%20850.9%2C973.2%20L%20818.2%2C967.9%20L%20785.5%2C962.1%20L%20752.7%2C956.1%20L%20720.0%2C950.0%20L%20687.3%2C943.9%20L%20654.5%2C937.9%20L%20621.8%2C932.1%20L%20589.1%2C926.8%20L%20556.4%2C921.8%20L%20523.6%2C917.5%20L%20490.9%2C913.8%20L%20458.2%2C910.9%20L%20425.5%2C908.7%20L%20392.7%2C907.4%20L%20360.0%2C907.0%20L%20327.3%2C907.4%20L%20294.5%2C908.7%20L%20261.8%2C910.9%20L%20229.1%2C913.8%20L%20196.4%2C917.5%20L%20163.6%2C921.8%20L%20130.9%2C926.8%20L%2098.2%2C932.1%20L%2065.5%2C937.9%20L%2032.7%2C943.9%20L%200.0%2C950.0%20Z%22%20fill%3D%22white%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%221440%22%20height%3D%221000%22%20viewBox%3D%220%200%201440%201000%22%20preserveAspectRatio%3D%22none%22%3E%3Cpath%20d%3D%22M%200.0%2C50.0%20L%2032.7%2C56.1%20L%2065.5%2C62.1%20L%2098.2%2C67.9%20L%20130.9%2C73.2%20L%20163.6%2C78.2%20L%20196.4%2C82.5%20L%20229.1%2C86.2%20L%20261.8%2C89.1%20L%20294.5%2C91.3%20L%20327.3%2C92.6%20L%20360.0%2C93.0%20L%20392.7%2C92.6%20L%20425.5%2C91.3%20L%20458.2%2C89.1%20L%20490.9%2C86.2%20L%20523.6%2C82.5%20L%20556.4%2C78.2%20L%20589.1%2C73.2%20L%20621.8%2C67.9%20L%20654.5%2C62.1%20L%20687.3%2C56.1%20L%20720.0%2C50.0%20L%20752.7%2C43.9%20L%20785.5%2C37.9%20L%20818.2%2C32.1%20L%20850.9%2C26.8%20L%20883.6%2C21.8%20L%20916.4%2C17.5%20L%20949.1%2C13.8%20L%20981.8%2C10.9%20L%201014.5%2C8.7%20L%201047.3%2C7.4%20L%201080.0%2C7.0%20L%201112.7%2C7.4%20L%201145.5%2C8.7%20L%201178.2%2C10.9%20L%201210.9%2C13.8%20L%201243.6%2C17.5%20L%201276.4%2C21.8%20L%201309.1%2C26.8%20L%201341.8%2C32.1%20L%201374.5%2C37.9%20L%201407.3%2C43.9%20L%201440.0%2C50.0%20L%201440.0%2C950.0%20L%201407.3%2C956.1%20L%201374.5%2C962.1%20L%201341.8%2C967.9%20L%201309.1%2C973.2%20L%201276.4%2C978.2%20L%201243.6%2C982.5%20L%201210.9%2C986.2%20L%201178.2%2C989.1%20L%201145.5%2C991.3%20L%201112.7%2C992.6%20L%201080.0%2C993.0%20L%201047.3%2C992.6%20L%201014.5%2C991.3%20L%20981.8%2C989.1%20L%20949.1%2C986.2%20L%20916.4%2C982.5%20L%20883.6%2C978.2%20L%20850.9%2C973.2%20L%20818.2%2C967.9%20L%20785.5%2C962.1%20L%20752.7%2C956.1%20L%20720.0%2C950.0%20L%20687.3%2C943.9%20L%20654.5%2C937.9%20L%20621.8%2C932.1%20L%20589.1%2C926.8%20L%20556.4%2C921.8%20L%20523.6%2C917.5%20L%20490.9%2C913.8%20L%20458.2%2C910.9%20L%20425.5%2C908.7%20L%20392.7%2C907.4%20L%20360.0%2C907.0%20L%20327.3%2C907.4%20L%20294.5%2C908.7%20L%20261.8%2C910.9%20L%20229.1%2C913.8%20L%20196.4%2C917.5%20L%20163.6%2C921.8%20L%20130.9%2C926.8%20L%2098.2%2C932.1%20L%2065.5%2C937.9%20L%2032.7%2C943.9%20L%200.0%2C950.0%20Z%22%20fill%3D%22white%22/%3E%3C/svg%3E");
+  animation:waveDrift 26s linear infinite;
+  background:linear-gradient(101deg,
+    rgba(19,21,16,.985) 0%,
+    rgba(19,21,16,.94) 26%,
+    rgba(19,21,16,.62) 52%,
+    rgba(19,21,16,.34) 78%,
+    rgba(19,21,16,.26) 100%);
+}
+.conf-line{
+  position:absolute;inset:0;z-index:2;pointer-events:none;
+  width:100%;height:100%;
+}
+.conf-line path{
+  fill:none;stroke:var(--lime);stroke-width:1.6;
+  vector-effect:non-scaling-stroke;opacity:.72;
+}
+.conf-line .glow{stroke-width:7;opacity:.15;}
+.conf-in{position:relative;z-index:3;}
+
+.conf .eyebrow{color:rgba(252,251,248,.62);}
+.conf .eyebrow::before{background:var(--paper);opacity:.5;}
+
+.conf-h{
+  font-family:var(--f-disp);
+  font-size:clamp(31px,4.15vw,58px);
+  font-weight:600;line-height:1.02;letter-spacing:-.042em;
+  max-width:17ch;
+  margin-bottom:clamp(26px,3vw,40px);
+}
+.conf-h .w{
+  display:inline-block;
+  opacity:0;filter:blur(9px);transform:translateY(.18em);
+  transition:opacity .8s var(--e),filter .8s var(--e),transform .8s var(--e);
+}
+.conf-h.in .w{opacity:1;filter:blur(0);transform:none;}
+.conf-h .it{color:var(--lime);}
+
+.conf-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,.88fr);
+  gap:clamp(26px,4vw,68px);
+  align-items:start;
+}
+@media (max-width:900px){ .conf-grid{grid-template-columns:1fr;gap:32px;} }
+.conf-lede{
+  font-size:clamp(15.5px,1.16vw,18px);
+  line-height:1.66;
+  color:rgba(252,251,248,.8);
+  max-width:44ch;
+}
+.conf-lede b{color:var(--paper);font-weight:600;}
+.conf-lede + .conf-lede{margin-top:14px;}
+
+.conf-perks{
+  list-style:none;
+  border:1px solid rgba(252,251,248,.22);
+  border-radius:3px;
+  padding:2px 18px;
+  background:rgba(19,21,16,.42);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.conf-perks li{
+  display:grid;grid-template-columns:26px minmax(0,1fr);
+  gap:14px;align-items:baseline;
+  padding:14px 0;
+  border-bottom:1px solid rgba(252,251,248,.14);
+  font-size:15px;line-height:1.5;
+  color:rgba(252,251,248,.94);
+}
+.conf-perks li:last-child{border-bottom:0;}
+.conf-perks li span{
+  font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;
+  color:var(--lime);
+}
+.conf-cta{margin-top:clamp(26px,3vw,40px);display:flex;flex-wrap:wrap;gap:14px;align-items:center;}
+.conf .btn{--bg:var(--lime);--fg:var(--ink);}
+.conf .btn::before{background:var(--paper);}
+.conf .btn .dot{background:var(--ink);}
+.conf-note{
+  font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:rgba(252,251,248,.5);
+}
+
+/* ── 20. REJOINDRE ────────────────────────────────────── */
+.join-grid{
+  display:grid;
+  grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);
+  gap:clamp(32px,4.4vw,66px);
+  align-items:start;
+}
+@media (max-width:960px){ .join-grid{grid-template-columns:1fr;gap:40px;} }
+
+.j-step{
+  display:flex;align-items:center;gap:10px;
+  color:var(--stone);margin-bottom:20px;
+}
+.j-step::after{
+  content:'';flex:1;height:1px;background:var(--line);
+}
+
+/* la phrase a trous : formulaire court, donc format gagnant */
+.j-sentence{
+  font-family:var(--f-disp);
+  font-size:clamp(20px,2.15vw,31px);
+  font-weight:500;
+  line-height:1.58;
+  letter-spacing:-.028em;
+  color:var(--ink);
+}
+.blank{position:relative;display:inline-block;}
+.bk{
+  font:inherit;color:var(--ink);
+  background:transparent;border:0;
+  border-bottom:2px solid var(--line-hard);
+  padding:0 .16em 1px;
+  width:var(--w,7ch);
+  min-width:3ch;
+  transition:border-color .35s var(--e),background-color .35s var(--e),width .28s var(--e);
+  outline:0;
+}
+@media (pointer:fine){ .bk{cursor:none;} }
+.bk::placeholder{color:var(--faint);opacity:1;font-weight:400;}
+.bk:hover{border-bottom-color:var(--ink);}
+.bk:focus{
+  border-bottom-color:var(--lime-dim);
+  background:rgba(201,242,75,.16);
+}
+.bk.ok{border-bottom-color:var(--lime-dim);}
+.bk.bad{border-bottom-color:#B4564A;background:rgba(180,86,74,.07);}
+.ghost{
+  position:absolute;left:0;top:0;visibility:hidden;white-space:pre;
+  padding:0 .16em;font:inherit;pointer-events:none;
+}
+/* le message d'aide vit sous le champ, la ou l'erreur apparaitra */
+.j-hint{
+  margin-top:16px;min-height:1.5em;
+  font-size:13.5px;color:var(--stone);
+  transition:color .3s;
+}
+.j-hint.bad{color:#9E4B40;}
+
+.j-consent{
+  display:flex;gap:11px;align-items:flex-start;
+  margin-top:22px;font-size:13.5px;line-height:1.5;color:var(--ink-soft);
+  max-width:56ch;
+}
+@media (pointer:fine){ .j-consent{cursor:none;} }
+.j-consent input{
+  appearance:none;-webkit-appearance:none;
+  width:17px;height:17px;flex:none;margin-top:2px;
+  border:1.4px solid var(--line-hard);border-radius:3px;
+  background:var(--paper);
+  transition:background-color .3s var(--e),border-color .3s var(--e);
+  position:relative;
+}
+@media (pointer:fine){ .j-consent input{cursor:none;} }
+.j-consent input:checked{background:var(--lime);border-color:var(--lime-dim);}
+.j-consent input:checked::after{
+  content:'';position:absolute;left:5px;top:2.5px;
+  width:5px;height:9px;
+  border-right:2px solid var(--ink);border-bottom:2px solid var(--ink);
+  transform:rotate(42deg);
+}
+.j-cta{display:flex;flex-wrap:wrap;align-items:center;gap:15px;margin-top:24px;}
+.j-cta .mono{color:var(--stone);}
+.j-msg{margin-top:14px;font-size:14px;min-height:1.4em;}
+.j-msg.ok{color:#3F6B26;font-weight:600;}
+.j-msg.bad{color:#9E4B40;font-weight:600;}
+
+/* le bulletin qui se remplit */
+.bulletin{
+  position:relative;
+  border:1px solid var(--line);border-radius:5px;
+  overflow:hidden;background:var(--paper-2);
+  /* posee legerement de travers : un bulletin qu'on vient de remplir,
+     pas un encart genere */
+  transform:rotate(-.7deg);
+  box-shadow:0 20px 46px -34px rgba(19,21,16,.55);
+}
+.bl-photo{aspect-ratio:16/4.4;overflow:hidden;background:var(--paper-3);}
+.bl-photo img{width:100%;height:100%;object-fit:cover;object-position:center 42%;}
+.bl-body{padding:clamp(17px,2vw,24px) clamp(17px,2.2vw,26px) clamp(20px,2.4vw,28px);}
+.bl-top{
+  display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  padding-bottom:11px;margin-bottom:4px;border-bottom:1px solid var(--line);
+}
+.bl-top .mono{font-size:9.5px;}
+.bl-ref{color:var(--faint);}
+.bl-rows{list-style:none;}
+.bl-rows li{
+  display:flex;align-items:baseline;gap:12px;
+  padding:11px 0;border-bottom:1px dashed rgba(19,21,16,.20);
+  font-size:13.5px;
+}
+.bl-k{flex:none;width:6.6em;}
+.bl-v{flex:1;}
+.bl-tick{
+  width:15px;height:15px;border-radius:50%;
+  border:1.3px solid var(--line-hard);
+  display:grid;place-items:center;
+  transition:background-color .42s var(--e),border-color .42s var(--e);
+}
+.bl-tick::before{
+  content:'';width:5px;height:8px;
+  border-right:1.7px solid var(--ink);border-bottom:1.7px solid var(--ink);
+  transform:rotate(42deg) scale(0);
+  transition:transform .42s var(--e3);
+}
+.bl-rows li.done .bl-tick{background:var(--lime);border-color:var(--lime-dim);}
+.bl-rows li.done .bl-tick::before{transform:rotate(42deg) scale(1);}
+.bl-k{
+  font-family:var(--f-mono);font-size:9px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--faint);
+}
+.bl-v{
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  color:var(--faint);font-size:13px;transition:color .35s;
+}
+.bl-rows li.done .bl-v{color:var(--ink);font-weight:500;}
+.bl-prog{
+  display:flex;align-items:center;gap:14px;
+  margin-top:clamp(16px,2vw,22px);
+}
+.bl-prog svg{flex:1;height:22px;width:100%;}
+.bl-track{
+  fill:none;stroke:rgba(19,21,16,.16);stroke-width:2;
+  stroke-linecap:round;vector-effect:non-scaling-stroke;
+}
+.bl-fill{
+  fill:none;stroke:var(--lime-dim);stroke-width:3;stroke-linecap:round;
+  vector-effect:non-scaling-stroke;
+  stroke-dasharray:1;stroke-dashoffset:1;
+  transition:stroke-dashoffset .7s var(--e);
+}
+
+.bl-count{color:var(--faint);font-size:9.5px;}
+.bl-stamp{
+  padding:10px 17px;border-top:1px solid var(--line);
+  background:var(--paper-2);color:var(--faint);
+  font-size:9.5px;letter-spacing:.13em;
+  transition:background-color .5s var(--e),color .5s var(--e);
+}
+.bulletin.ready .bl-stamp{background:var(--lime);color:var(--ink);}
+
+.j-assure{
+  list-style:none;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:clamp(14px,2vw,30px);
+  margin-top:clamp(36px,4vw,58px);
+  padding-top:clamp(22px,2.6vw,34px);
+  border-top:1px solid var(--line);
+}
+@media (max-width:760px){ .j-assure{grid-template-columns:1fr;gap:16px;} }
+.j-assure li{
+  display:grid;grid-template-columns:auto minmax(0,1fr);gap:11px;
+  font-size:13.5px;line-height:1.55;color:var(--ink-soft);
+}
+.j-assure b{
+  font-family:var(--f-mono);font-size:9px;letter-spacing:.1em;
+  color:var(--ink);background:var(--lime);
+  width:19px;height:19px;border-radius:50%;
+  display:grid;place-items:center;
+}
+
+/* ── 21. FAQ ──────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   FAQ : un sommaire a gauche, la reponse a cote. On voit les
+   dix questions d'un coup d'oeil au lieu de les deplier une a
+   une, et la reponse s'installe dans un panneau qui reste au
+   niveau des yeux.
+   ══════════════════════════════════════════════════════════ */
+.qa-split{
+  display:grid;
+  grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);
+  gap:clamp(30px,4.4vw,72px);
+  align-items:start;
+  margin-top:clamp(30px,3.6vw,48px);
+}
+.qa-index{list-style:none;border-top:1px solid var(--ink);}
+.qa-index li{border-bottom:1px solid var(--line);}
+.qa-link{
+  width:100%;display:grid;
+  grid-template-columns:34px minmax(0,1fr);
+  gap:12px;align-items:baseline;
+  padding:15px 0;
+  background:none;border:0;text-align:left;
+  color:var(--stone);
+  font:inherit;font-size:15.5px;line-height:1.42;
+  transition:color .3s var(--e),padding-left .45s var(--e);
+}
+@media (pointer:fine){ .qa-link{cursor:none;} }
+.qa-n{color:var(--faint);transition:color .3s var(--e);}
+/* le trait qui marque la question ouverte : il se tire depuis
+   la gauche au lieu d'apparaitre d'un bloc */
+.qa-t{position:relative;display:inline-block;}
+.qa-t::after{
+  content:'';position:absolute;left:0;right:0;bottom:-3px;
+  height:1px;background:var(--ink);
+  transform:scaleX(0);transform-origin:left;
+  transition:transform .5s var(--e);
+}
+.qa-link:hover{color:var(--ink-soft);}
+.qa-link:hover .qa-n{color:var(--stone);}
+.qa-link.is-on{color:var(--ink);padding-left:14px;}
+.qa-link.is-on .qa-n{color:var(--ink);}
+.qa-link.is-on .qa-t{font-weight:500;}
+.qa-link.is-on .qa-t::after{transform:scaleX(1);}
+.qa-link:focus-visible{outline:2px solid var(--lime);outline-offset:3px;}
+
+/* les fiches sont empilees sur la meme case de grille : le
+   panneau garde la hauteur de la plus longue, donc rien ne
+   saute quand on passe d'une question a l'autre */
+.qa-panel{
+  position:sticky;top:104px;
+  display:grid;
+  border:1px solid var(--line-hard);border-radius:4px;
+  background:var(--paper);
+  padding:clamp(24px,2.8vw,38px);
+}
+.qa-card{
+  grid-area:1/1;
+  opacity:0;transform:translateY(10px);
+  transition:opacity .42s var(--e),transform .42s var(--e);
+  pointer-events:none;
+}
+.qa-card.is-on{opacity:1;transform:none;pointer-events:auto;}
+.qa-card[hidden]{display:block;}
+.qa-meta{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding-bottom:12px;margin-bottom:clamp(16px,2vw,22px);
+  border-bottom:1px solid var(--line);
+  color:var(--stone);
+}
+.qa-card h3{
+  font-family:var(--f-disp);
+  font-size:clamp(21px,2.3vw,31px);font-weight:600;
+  letter-spacing:-.035em;line-height:1.16;
+  margin-bottom:clamp(12px,1.5vw,18px);
+}
+.qa-card p{
+  font-size:15.5px;line-height:1.74;color:var(--ink-soft);
+  max-width:34em;
+}
+@media (prefers-reduced-motion:reduce){
+  .qa-card{transition:none;}
+  .qa-t::after{transition:none;}
+}
+@media (max-width:1000px){
+  .qa-split{grid-template-columns:minmax(0,1fr);gap:26px;}
+  .qa-panel{position:static;}
+  .qa-link.is-on{padding-left:8px;}
+}
+
+.foot-cta{
+  background:var(--ink);color:var(--paper);
+  padding:clamp(56px,6.4vw,96px) var(--gut);
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:clamp(24px,4vw,60px);
+  align-items:center;
+}
+@media (max-width:820px){ .foot-cta{grid-template-columns:1fr;} }
+.foot-cta h2{font-size:clamp(28px,3.6vw,52px);max-width:20ch;}
+.foot-cta h2 .it{color:var(--lime);}
+.foot-cta .btn{--bg:var(--lime);--fg:var(--ink);}
+.foot-cta .btn::before{background:var(--paper);}
+.foot-cta .btn .dot{background:var(--ink);}
+
+.foot{
+  background:var(--ink);color:rgba(252,251,248,.62);
+  padding:clamp(38px,4.4vw,62px) var(--gut) 26px;
+  border-top:1px solid rgba(252,251,248,.14);
+}
+.foot-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1.5fr) repeat(3,minmax(0,1fr));
+  gap:clamp(22px,3vw,46px);
+}
+@media (max-width:860px){ .foot-grid{grid-template-columns:repeat(2,1fr);gap:30px 22px;} }
+@media (max-width:520px){ .foot-grid{grid-template-columns:1fr;} }
+.foot .foot-h{
+  font-family:var(--f-mono);font-size:9.5px;letter-spacing:.15em;
+  text-transform:uppercase;color:rgba(252,251,248,.74);
+  font-weight:400;margin-bottom:14px;
+}
+.foot-brand{
+  font-family:var(--f-disp);font-size:21px;font-weight:700;
+  letter-spacing:-.045em;color:var(--paper);
+  display:flex;align-items:center;gap:9px;margin-bottom:13px;
+}
+.foot-brand svg{width:19px;height:19px;overflow:visible;}
+.foot-brand .lf{fill:var(--lime);stroke:var(--paper);stroke-width:1.4;}
+.foot p{font-size:14px;line-height:1.62;max-width:34ch;}
+.foot ul{list-style:none;display:grid;gap:8px;font-size:14px;}
+.foot a{transition:color .3s;}
+.foot a:hover{color:var(--lime);}
+.foot-bar{
+  display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;
+  margin-top:clamp(30px,3.6vw,50px);padding-top:18px;
+  border-top:1px solid rgba(252,251,248,.14);
+  font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:rgba(252,251,248,.6);
+}
+
+/* zone tactile des liens du pied de page : 20 px au doigt, c'est trop peu */
+@media (max-width:900px){
+  .foot li a{display:inline-block;padding:7px 0;}
+  .foot-bar{line-height:2;}
+}
+
+
+/* ── Vitrines : le prix dans le héros, et le barème ──────────────────────
+   Un acheteur qui doit chercher le prix se méfie, et il a raison. */
+.hero-prix{
+  margin-top:22px;padding-top:18px;
+  border-top:1px solid var(--line);
+  font-size:14px;line-height:1.65;color:var(--stone);max-width:46ch;
+}
+.hero-prix b{color:var(--ink);font-weight:600;}
+.hero-prix a{color:var(--ink-soft);text-decoration:underline;text-underline-offset:3px;
+  text-decoration-thickness:1px;text-decoration-color:var(--line-hard);}
+.hero-prix a:hover{text-decoration-color:var(--ink);}
+
+.bareme{
+  margin-top:clamp(34px,4.4vw,58px);
+  border:1px solid var(--line);border-radius:4px;
+  padding:clamp(22px,2.6vw,34px);
+  background:var(--paper-2);
+}
+.bareme-h span{display:block;color:var(--stone);margin-bottom:10px;}
+.bareme-h p{font-size:15px;line-height:1.65;color:var(--ink-soft);max-width:70ch;}
+.bareme-h p a{text-decoration:underline;text-underline-offset:3px;
+  text-decoration-color:var(--line-hard);}
+.bareme-l{
+  list-style:none;display:grid;gap:14px;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  margin-top:clamp(20px,2.4vw,30px);
+}
+@media (max-width:800px){ .bareme-l{grid-template-columns:1fr;} }
+.bareme-l li{
+  border-top:1px solid var(--ink);padding-top:12px;
+  display:grid;gap:6px;align-content:start;
+}
+.bareme-l b{
+  font-family:var(--f-disp);font-size:clamp(24px,2.6vw,34px);font-weight:600;
+  letter-spacing:-.035em;color:var(--ink);
+}
+.bareme-l span{font-size:14px;line-height:1.6;color:var(--stone);}
+.bareme-n{margin-top:18px;color:var(--stone);}

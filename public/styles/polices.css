@@ -1,16 +1,23 @@
 /* Polices servies par Riseva, jamais par un tiers.
 
-   Une feuille de style chargée depuis fonts.googleapis.com transmet l'adresse IP du
-   visiteur à Google avant qu'il ait cliqué quoi que ce soit. Nous écrivons sur la page
-   Confidentialité qu'aucune requête n'est faite à un tiers : cette page doit donc être
-   vraie, y compris pour les polices.
+   Une feuille de style chargée depuis une fonderie extérieure transmet l'adresse IP
+   du visiteur avant qu'il ait cliqué quoi que ce soit. Nous écrivons sur la page
+   Confidentialité qu'aucune requête n'est faite à un tiers : cette page doit donc
+   être vraie, y compris pour les polices.
 
-   Les fichiers .woff2 se déposent dans /brand/polices/ — `scripts/polices.sh` les
-   télécharge une fois, depuis un poste qui a accès au réseau, et ils sont versionnés
-   avec le reste du site. S'ils sont absents, la famille ne se résout pas et la pile
-   système prend le relais : la page reste lisible, et toujours sans requête externe. */
+   Les fichiers .woff2 se déposent dans /brand/polices/ — `scripts/polices.sh`, ou
+   `scripts/polices.bat` sous Windows, les télécharge une fois, depuis un poste qui a
+   accès au réseau, et ils sont versionnés avec le reste du site. S'ils sont absents,
+   la famille ne se résout pas et la pile système prend le relais : la page reste
+   lisible, et toujours sans requête externe. */
 
+@font-face{font-family:'Bricolage Grotesque';font-style:normal;font-weight:400 800;font-display:swap;
+  src:local('Bricolage Grotesque'),url('/brand/polices/bricolage-grotesque.woff2') format('woff2')}
 @font-face{font-family:'Instrument Sans';font-style:normal;font-weight:400 700;font-display:swap;
   src:local('Instrument Sans'),url('/brand/polices/instrument-sans.woff2') format('woff2')}
+@font-face{font-family:'Fraunces';font-style:italic;font-weight:400 700;font-display:swap;
+  src:local('Fraunces'),url('/brand/polices/fraunces.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400 500;font-display:swap;
+  src:local('IBM Plex Mono'),url('/brand/polices/ibm-plex-mono.woff2') format('woff2')}
 @font-face{font-family:'Inter';font-style:normal;font-weight:400 600;font-display:swap;
   src:local('Inter'),url('/brand/polices/inter.woff2') format('woff2')}

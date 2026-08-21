@@ -84,13 +84,28 @@ def main():
 
         print("\nSite public")
         p.goto(BASE + "/", wait_until="networkidle")
-        verifie("l'accueil affiche le titre", "résultats documentés" in p.inner_text("h1"))
+        verifie("l'accueil affiche le titre", "besoin d'un outil de plus" in p.inner_text("h1"))
         t = norm(p.inner_text(".hero"))
         verifie("le prix est visible dès l'accueil", "3 500" in t and "500 €" in t)
         verifie("le dossier est annoncé avant la signature",
                 "règlement de la saison" in t and "conditions de vente" in t)
         verifie("le barème annoncé est celui du code",
                 "150 pts" in p.inner_text("#bareme") and "100 pts" in p.inner_text("#bareme"))
+        corps = norm(p.inner_text("body"))
+        # La vitrine ne vend que ce qui fonctionne, et ne montre aucun résultat.
+        verifie("l'accueil annonce deux formats ouverts, pas trois",
+                "Deux formats ouverts" in corps and "attend son prestataire" not in corps)
+        verifie("le don financier est marqué fermé",
+                "pas encore ouvert" in corps.lower() and "pas au contrat" in corps
+                and "Deux formats" in corps)
+        verifie("l'accueil dit qu'il n'y a encore aucun résultat",
+                "Rien encore" in corps and "mission confirmée à ce jour" in corps)
+        verifie("les écrans montrés sont annoncés comme une démonstration",
+                "jeu de démonstration" in corps)
+        verifie("les photos sont annoncées comme des illustrations",
+                "illustration" in corps.lower())
+        verifie("le seuil du classement est dit sur la vitrine",
+                "dix entreprises" in corps)
         verifie("aucune promesse de tarif figé",
                 "tarif restera" not in p.inner_text("body").lower())
         for page in ["inscription.html", "associations.html", "asso.html?id=a1",
@@ -420,16 +435,20 @@ def main():
 
         print("\nLes formulaires publics")
         # Un formulaire qui dit « envoyé » sans rien envoyer est un mensonge poli.
-        p.goto(f"{BASE}/associations.html#rejoindre", wait_until="networkidle")
-        p.fill("input[name=asso]", "Les Amis du Bocage"); p.fill("input[name=ville]", "Rennes")
-        p.fill("input[name=mail]", "contact@bocage.org")
-        p.fill("textarea[name=mot]", "Nous plantons des haies bocagères.")
-        p.click("#fa [type=submit]"); p.wait_for_timeout(500)
-        corps = p.inner_text("#rejoindre")
+        p.goto(f"{BASE}/associations.html#yacine", wait_until="networkidle")
+        p.fill("#fa-asso", "Les Amis du Bocage"); p.fill("#fa-ville", "Rennes")
+        p.fill("#fa-mot", "des bras un samedi matin")
+        p.fill("#fa-mail", "contact@bocage.org")
+        p.click("#formAsso [type=submit]"); p.wait_for_timeout(600)
+        corps = norm(p.inner_text("#yacine")).replace("\u2019", "'")
         verifie("sans base configurée, le formulaire ne prétend pas avoir envoyé",
-                "envoyé" not in corps.lower() or "reste une étape" in corps.lower())
+                "n'est pas encore relié" in corps and "enregistré" not in corps)
         verifie("il propose un envoi réel par courriel",
-                p.get_attribute("#rejoindre a.btn", "href").startswith("mailto:"))
+                (p.get_attribute("#jMsg a", "href") or "").startswith("mailto:"))
+        # Et le bulletin se remplit pendant la frappe : c'est ce qui donne envie d'aller
+        # au bout d'un formulaire.
+        verifie("le bulletin se remplit à mesure",
+                "4 / 4" in norm(p.inner_text("#bulletin")))
 
         print("\nChacun chez soi")
         connecte(p, "u4")
@@ -518,10 +537,12 @@ def main():
         # vraie base. En démonstration, l'accueil doit dire qu'il n'y a rien, pas
         # afficher des totaux inventés qu'un acheteur lira comme des références.
         p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(600)
+        acc = norm(p.inner_text("body"))
         verifie("aucun total de démonstration sur la page d'accueil",
-                p.eval_on_selector_all("#reseauReal", "l=>l.length") == 0)
+                "199 missions" not in acc and "3 042" not in acc and "31 400" not in acc)
         verifie("l'accueil dit qu'il n'y a encore rien à montrer",
-                "Rien encore" in p.inner_text("#reseauVide"))
+                "Rien encore" in p.inner_text("#preuve")
+                and "0" == norm(p.inner_text("#preuve .stake-n")).strip())
         cumul = p.evaluate("""async()=>{const m=await import('/app/data.js');
                     const r=m.DB.impactReseau();
                     return [r.confirmees, r.closesSansReponse, r.missions]}""")

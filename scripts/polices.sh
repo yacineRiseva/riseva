@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
-# Télécharge les deux polices une bonne fois et les range dans public/brand/polices/.
+# Télécharge les polices une bonne fois et les range dans public/brand/polices/.
 # À lancer depuis un poste qui a accès au réseau ; les fichiers sont ensuite versionnés,
-# et le site n'appelle plus jamais Google.
+# et le site n'appelle plus jamais une fonderie extérieure.
 set -eu
 cd "$(dirname "$0")/.."
 mkdir -p public/brand/polices
@@ -16,6 +16,10 @@ recuperer() {
   echo "$nom.woff2  $(wc -c < "public/brand/polices/$nom.woff2") octets"
 }
 
-recuperer instrument-sans 'Instrument+Sans:wght@400..700'
-recuperer inter            'Inter:wght@400..600'
+recuperer bricolage-grotesque    'Bricolage+Grotesque:wght@400..800'
+recuperer instrument-sans        'Instrument+Sans:wght@400..700'
+recuperer fraunces               'Fraunces:ital,wght@1,400..700'
+recuperer ibm-plex-mono          'IBM+Plex+Mono:wght@400;500'
+recuperer inter                  'Inter:wght@400..600'
+
 echo "Fait. Vérifier avec : python3 scripts/verifier.py"

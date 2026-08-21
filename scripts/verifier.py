@@ -48,7 +48,8 @@ def main():
     # Rien ici ne fait échouer la recette : le site reste lisible avec la pile système.
     # Mais il faut que ce soit dit fort, parce qu'un déploiement sans les fichiers est
     # un déploiement au mauvais rendu, et ça ne se voit pas dans les tests.
-    manquantes = [n for n in ("instrument-sans", "inter")
+    manquantes = [n for n in ("bricolage-grotesque", "instrument-sans", "fraunces",
+                              "ibm-plex-mono", "inter")
                   if not (RACINE / "public" / "brand" / "polices" / f"{n}.woff2").exists()]
     if manquantes:
         print("  À FAIRE  " + ", ".join(f"{n}.woff2" for n in manquantes) + " manquent.")
@@ -56,7 +57,7 @@ def main():
         print("           versionner les fichiers. En attendant, la pile système prend")
         print("           le relais : aucune requête externe, mais le rendu n'est pas celui prévu.")
     else:
-        print("  ok   les deux polices sont servies par Riseva")
+        print("  ok   les cinq polices sont servies par Riseva")
 
     titre("Base de données")
     code, sortie = lancer("service postgresql status")

@@ -28,14 +28,26 @@ def strip_modules(src):
     src = re.sub(r'^\s*export\s+', "", src, flags=re.M)
     return src
 
-# ---- site vitrine -----------------------------------------------------
-site = (R/"index.html").read_text(encoding="utf-8")
-# le compteur du réseau lit les vraies données : on embarque data.js et ui.js
-site = site.replace('  import { DB } from "/app/data.js";\n  import { nb } from "/app/ui.js";',
-                    "\n".join(strip_modules((R/"app"/f).read_text(encoding="utf-8"))
-                              for f in ["data.js","ui.js"]))
-site = inline(site, ["polices.css","tokens.css","base.css","components.css","marketing.css"])
-(OUT/"riseva-site.html").write_text(site, encoding="utf-8")
+# ---- les deux vitrines ------------------------------------------------
+# Un fichier autonome par vitrine : styles, script et photos embarqués, pour
+# qu'un double-clic suffise à montrer le site sans serveur.
+def photos(html):
+    for f in sorted((R/"photos").glob("*.jpg")):
+        cle = "/photos/" + f.name
+        if cle in html:
+            html = html.replace(cle, "data:image/jpeg;base64,"
+                                + base64.b64encode(f.read_bytes()).decode())
+    return html
+
+for source, cible in [("index.html", "riseva-site.html"),
+                      ("associations.html", "riseva-associations.html")]:
+    v = (R/source).read_text(encoding="utf-8")
+    v = re.sub(r'\s*<script src="/app/config.js"[^>]*></script>', "", v)
+    v = v.replace('<script src="/vitrine.js" defer></script>',
+                  "<script>\n" + (R/"vitrine.js").read_text(encoding="utf-8") + "\n</script>")
+    v = inline(v, ["polices.css", "vitrine.css"])
+    v = photos(v)
+    (OUT/cible).write_text(v, encoding="utf-8")
 
 # ---- application ------------------------------------------------------
 bundle = "\n".join(strip_modules((R/"app"/f).read_text(encoding="utf-8"))
