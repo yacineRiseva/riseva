@@ -47,7 +47,7 @@
 .badge--ok{background:var(--ok-bg);color:var(--forest-800)}
 .badge--warn{background:var(--warn-bg);color:var(--amber)}
 .badge--danger{background:var(--danger-bg);color:var(--danger)}
-.badge--info{background:var(--info-bg);color:var(--water)}
+.badge--info{background:var(--info-bg);color:var(--water-texte)}
 .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
 
 /* ============ Formulaires ============ */
@@ -72,8 +72,8 @@
 
 /* ============ Tables ============ */
 .table{font-size:var(--t-sm)}
-.table th{text-align:left;font-weight:600;color:var(--ink-500);font-size:var(--t-xs);
-  letter-spacing:.05em;text-transform:uppercase;padding:0 var(--s4) var(--s3);white-space:nowrap}
+.table th{text-align:left;font-weight:600;color:var(--ink-500);font-size:var(--t-sm);
+  letter-spacing:0;padding:0 var(--s4) var(--s3);white-space:nowrap}
 .table td{padding:var(--s4);border-top:var(--line-soft);vertical-align:middle}
 .table tbody tr{transition:background var(--dur) var(--ease)}
 .table tbody tr:hover{background:rgba(19,21,16,.025)}
@@ -88,8 +88,11 @@ tr.is-anonyme td{color:var(--ink-400)}
 
 /* ============ KPI ============ */
 .kpi{display:flex;flex-direction:column;gap:var(--s2)}
-.kpi__label{font-size:var(--t-xs);font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-500)}
-.kpi__value{font-family:var(--font-display);font-size:2rem;font-weight:600;letter-spacing:-.025em;
+/* Le libellé d'un chiffre se lit, il ne se déchiffre pas : casse normale, corps lisible. */
+.kpi__label{font-size:var(--t-sm);font-weight:550;letter-spacing:0;color:var(--ink-500)}
+/* Les chiffres appartiennent à la police de titre : c'est ce qui donne au produit
+   sa voix, plutôt qu'une police d'interface partout. */
+.kpi__value{font-family:var(--font-display);font-size:2.15rem;font-weight:600;letter-spacing:-.028em;
   line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
 .kpi__delta{font-size:var(--t-sm);color:var(--ink-500)}
 .kpi__delta.up{color:var(--forest-700)}
@@ -129,8 +132,8 @@ tr.is-anonyme td{color:var(--ink-400)}
 .side__brand{display:flex;align-items:center;gap:10px;padding:var(--s2) var(--s2) var(--s6)}
 .side__brand img{height:22px;width:auto;align-self:flex-start;flex:none}
 .side__group{margin-top:var(--s5)}
-.side__title{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
-  color:rgba(223,230,208,.34);padding:0 var(--s3) var(--s2)}
+.side__title{font-size:var(--t-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  color:rgba(223,230,208,.42);padding:0 var(--s3) var(--s2)}
 .side__link{display:flex;align-items:center;gap:10px;height:38px;padding:0 var(--s3);
   border-radius:var(--r-sm);font-size:var(--t-sm);font-weight:500;color:rgba(223,230,208,.68);
   transition:background var(--dur) var(--ease),color var(--dur) var(--ease);cursor:pointer}

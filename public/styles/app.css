@@ -180,3 +180,25 @@
 .rappel:hover{background:var(--paper-sunk);color:var(--ink)}
 .rappel>span:nth-child(2){flex:1}
 .rappel__go{color:var(--ink-300);font-size:var(--t-lg);line-height:1}
+
+/* ============ Jauge brut / écrêté / retenu ============ */
+/* La signature graphique : on montre le mécanisme, on ne le décore pas. */
+.jauge__barre{display:flex;height:18px;border-radius:var(--r-pill);overflow:hidden;
+  background:var(--paper-sunk)}
+.jauge__retenu{background:var(--forest-700)}
+.jauge__ecrete{background:repeating-linear-gradient(135deg,
+  var(--ink-200) 0 5px, var(--paper-sunk) 5px 10px)}
+.jauge__legende{display:flex;flex-wrap:wrap;gap:var(--s5);margin-top:var(--s4);
+  font-size:var(--t-sm);color:var(--ink-500);font-variant-numeric:tabular-nums}
+.jauge__legende strong{color:var(--ink)}
+.jauge__pastille{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:7px}
+.jauge__pastille--retenu{background:var(--forest-700)}
+.jauge__pastille--ecrete{background:repeating-linear-gradient(135deg,
+  var(--ink-200) 0 3px, var(--paper-sunk) 3px 6px);outline:1px solid var(--ink-100)}
+.jauge__calcul{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s5);
+  margin-top:var(--s5);padding-top:var(--s4);border-top:var(--line-soft);
+  font-size:var(--t-sm);color:var(--ink-500);font-variant-numeric:tabular-nums}
+.jauge__calcul strong{font-family:var(--font-display);font-size:1.25rem;color:var(--ink);
+  letter-spacing:-.02em}
+.card--dark .jauge__barre{background:rgba(223,230,208,.14)}
+.card--dark .jauge__retenu{background:var(--lime)}

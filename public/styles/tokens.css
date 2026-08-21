@@ -30,12 +30,17 @@
   --forest-050:#E8F0EA;
 
   /* ---- Accents ---- */
-  --lime:#C9F24B;           /* accent uniquement, sur fond sombre. Illisible sur clair. */
+  /* Lime : 1,1:1 sur papier. Décor et fonds sombres seulement, jamais du texte sur clair.
+     Réservé aux états réellement validés et à la marque sur fond forêt. */
+  --lime:#C9F24B;
   --lime-600:#A9D22B;
   --brand:#6DBE45;          /* le vert du logo, pont entre forêt et lime */
   --brand-700:#4F9A2E;
   --brand-800:#3B6D11;      /* seul vert lisible en texte sur papier */
-  --water:#3D82AD;          /* accent secondaire */
+  /* Bleu eau : 3,7:1 sur papier, donc jamais de texte courant avec ce couple.
+     Fonds, bordures et pastilles d'information uniquement. */
+  --water:#3D82AD;
+  --water-texte:#2A5E7E;    /* la version lisible, quand il faut vraiment écrire en bleu */
   --water-100:#DCE9F1;
   --amber:#C97F1E;
   --amber-100:#F6EAD5;
@@ -58,8 +63,8 @@
   --t-lg:1.0625rem;
   --t-read:1rem;
   --t-base:0.9375rem;
-  --t-sm:0.8125rem;
-  --t-xs:0.75rem;
+  --t-sm:0.875rem;
+  --t-xs:0.8125rem;
 
   --lead-tight:1.06;
   --lead-snug:1.25;
@@ -67,7 +72,7 @@
 
   --track-display:-0.034em;
   --track-h:-0.021em;
-  --track-wide:0.14em;
+  --track-wide:0.08em;
 
   /* ---- Espace ---- */
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px;

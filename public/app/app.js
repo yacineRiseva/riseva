@@ -1,5 +1,5 @@
 import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, lienPublic, connecterSupabase } from "./data.js";
-import { h, esc, nb, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, versCSV, vide, bandeauRealisations } from "./ui.js";
+import { h, esc, nb, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
 /* Session                                                             */
@@ -373,14 +373,19 @@ function tableauEntreprise(u){
     <div class="two">
       <section class="card">
         <div class="between" style="margin-bottom:var(--s6)">
-          <div><h3>Points par semaine</h3>
-          <p class="muted" style="font-size:var(--t-sm);margin-top:4px">Douze dernières semaines</p></div>
+          <div><h3>Ce qui compte au classement</h3>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+            Aucun format ne peut peser plus de la moitié de votre total</p></div>
+          <a class="btn btn--quiet btn--sm" href="/reglement.html" target="_blank">Le règlement</a>
+        </div>
+        <div id="jauge"></div>
+        <hr class="sep">
+        <div class="between" style="margin-bottom:var(--s5)">
+          <div><h3 style="font-size:var(--t-lg)">Points par semaine</h3>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:4px">Douze dernières semaines, en brut</p></div>
           <span class="badge badge--ok"><span class="dot"></span>En progression</span>
         </div>
-        ${riviere(DB.semaines(), { hauteur: 150, legendes: ["il y a 12 semaines", "aujourd\u2019hui"] })}
-        <p class="hint">Points bruts cumulés semaine après semaine. Le plafond par format
-          s'applique au total de la saison, pas semaine par semaine : c'est le tableau
-          ci-dessous qui montre ce qui est retenu.</p>
+        ${riviere(DB.semaines(), { hauteur: 120, legendes: ["il y a 12 semaines", "aujourd\u2019hui"] })}
         <hr class="sep">
         <div class="three">
           ${Object.entries(BAREME).map(([k, b]) => {
@@ -465,6 +470,10 @@ function tableauEntreprise(u){
   });
 
   el.querySelector("#reco").appendChild(listeAnnonces(DB.annonces({ ouvertes:true }).slice(0, 3), u));
+
+  el.querySelector("#jauge").appendChild(jauge({
+    brut: pts.brut, ecrete: pts.ecrete, retenu: pts.retenu,
+    diviseur: e.effectif, cohorte: total }));
 
   const rea = bandeauRealisations(DB.realisations({ entreprise: eid }),
     { titre: "Ce que vos équipes ont produit", sombre: true });

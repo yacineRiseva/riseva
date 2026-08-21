@@ -189,3 +189,34 @@ export function bandeauRealisations(r, { titre = "Ce que ça a produit", sombre 
   </section>`);
   return el;
 }
+
+/* Jauge brut / écrêté / retenu.
+   C'est la signature graphique de Riseva : elle montre le mécanisme au lieu de le
+   décorer. Une barre, trois portions, le dénominateur en clair, et la taille de la
+   cohorte. Tout y est vérifiable à l'œil, ce qu'une courbe sans échelle ne permet pas. */
+export function jauge({ brut, ecrete, retenu, diviseur, cohorte, unite = "points" }){
+  const total = Math.max(brut, 1);
+  const pRetenu = (retenu / total) * 100;
+  const pEcrete = (ecrete / total) * 100;
+  const parTete = diviseur ? Math.round((retenu / diviseur) * 10) / 10 : null;
+  return h(`<div class="jauge">
+    <div class="jauge__barre" role="img"
+      aria-label="${nb(retenu)} ${unite} retenus sur ${nb(brut)} réalisés, ${nb(ecrete)} écrêtés">
+      <i class="jauge__retenu" style="width:${pRetenu}%"></i>
+      <i class="jauge__ecrete" style="width:${pEcrete}%"></i>
+    </div>
+    <div class="jauge__legende">
+      <span><b class="jauge__pastille jauge__pastille--retenu"></b>
+        <strong>${nb(retenu)}</strong> retenus</span>
+      ${ecrete ? `<span><b class="jauge__pastille jauge__pastille--ecrete"></b>
+        <strong>${nb(ecrete)}</strong> écrêtés</span>` : ""}
+      <span class="muted">${nb(brut)} réalisés</span>
+    </div>
+    ${parTete !== null ? `<div class="jauge__calcul">
+      <span>${nb(retenu)} ÷ ${nb(diviseur)} salariés</span>
+      <strong>${parTete} ${unite} par salarié</strong>
+    </div>` : ""}
+    ${cohorte ? `<p class="hint">Comparé à ${cohorte} entreprise${cohorte > 1 ? "s" : ""} de la
+      même taille.${cohorte < 10 ? " Cohorte trop petite pour un percentile." : ""}</p>` : ""}
+  </div>`);
+}
