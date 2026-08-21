@@ -1725,12 +1725,95 @@ function creerMock(){
 /* ------------------------------------------------------------------ */
 let impl = creerMock();
 
+/* Domaines sur lesquels la démonstration n'a rien à faire. Un client qui ouvre
+   riseva.fr et voit des chiffres inventés ne le saura jamais : c'est la
+   confusion la plus coûteuse que ce produit puisse produire. */
+const DOMAINES_PRODUCTION = ["riseva.fr", "www.riseva.fr", "app.riseva.fr"];
+
+export function estProduction(){
+  try { return DOMAINES_PRODUCTION.includes(location.hostname); }
+  catch { return false; }
+}
+
+/* Se connecter au vrai dos, ou refuser de démarrer.
+   L'ancienne version ajoutait `client: sb` à l'objet de démonstration et
+   renvoyait la main : toutes les méthodes continuaient à lire et à écrire dans
+   le navigateur. Une configuration Supabase valide donnait donc l'illusion
+   d'être en production tout en servant des données inventées. Tant que la
+   couche Supabase n'est pas écrite méthode par méthode, il vaut mieux que ce
+   soit visible, bruyant, et bloquant. */
 export async function connecterSupabase(config){
-  if (!config || !config.url || !config.anonKey) return impl;   // reste en démo
+  if (!config || !config.url || !config.anonKey){
+    if (estProduction())
+      throw new Error("Riseva : aucune configuration Supabase. Le mode démonstration "
+        + "est interdit sur le domaine de production.");
+    return impl;                                    // développement : démo assumée
+  }
   const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-  const sb = createClient(config.url, config.anonKey);
-  impl = { ...impl, mode: "supabase", client: sb };
+  const client = createClient(config.url, config.anonKey);
+  const dos = creerSupabase(client);
+  const manquantes = Object.keys(impl).filter(k => typeof impl[k] === "function"
+    && typeof dos[k] !== "function");
+  if (manquantes.length && estProduction())
+    throw new Error("Riseva : la couche Supabase est incomplète (" + manquantes.length
+      + " méthodes manquantes). Démarrage refusé plutôt que de servir de la démonstration.");
+  impl = dos;
   return impl;
+}
+
+/* Le socle de la vraie implémentation. Chaque méthode qui existe ici parle à
+   Postgres ; celles qui n'existent pas encore n'ont pas de repli silencieux —
+   elles lèvent, et on sait exactement ce qu'il reste à écrire. */
+function creerSupabase(client){
+  const rpc = async (nom, args) => {
+    const { data, error } = await client.rpc(nom, args);
+    if (error) throw new Error(error.message);
+    return data;
+  };
+  const table = (nom) => client.from(nom);
+  return {
+    mode: "supabase", client,
+    saison: async () => (await table("saison").select("*").eq("etat", "ouverte").maybeSingle()).data,
+    bareme: async () => Object.fromEntries(
+      ((await table("bareme").select("*")).data || []).map(b => [b.type, b])),
+    associations: async () => (await table("association").select("*")).data || [],
+    annonces: async ({ asso, ouvertes } = {}) => {
+      let q = table("annonce").select("*");
+      if (asso) q = q.eq("association", asso);
+      if (ouvertes) q = q.eq("etat", "ouverte");
+      return (await q).data || [];
+    },
+    classement: async (saison) => await rpc("classement_saison", { p_saison: saison }),
+    realisations: async ({ entreprise, asso, saison } = {}) =>
+      await rpc("realisations", { p_entreprise: entreprise || null,
+        p_association: asso || null, p_saison: saison || null }),
+    pointsDe: async (eid, saison) => await rpc("points_entreprise",
+      { p_entreprise: eid, p_saison: saison }),
+    rejoindre: async (code) => await rpc("rejoindre_entreprise", { p_code: code }),
+    creerInvitation: async (places, jours) =>
+      await rpc("creer_invitation", { p_places: places, p_jours: jours }),
+    engagerMission: async (annonce, quantite, cle) =>
+      await rpc("engager_mission", { p_annonce: annonce, p_quantite: quantite, p_cle: cle || null }),
+    declarerFaite: async (mid, propose) =>
+      await rpc("declarer_mission", { p_mission: mid, p_propose: propose ?? null }),
+    validerMission: async (mid, ok, realise) =>
+      await rpc("trancher_mission", { p_mission: mid, p_ok: ok, p_realise: realise ?? null }),
+    creerAnnonce: async (a) => await rpc("publier_annonce", {
+      p_titre: a.titre, p_description: a.description, p_type: a.type,
+      p_quantite: a.quantite, p_date: a.date, p_lieu: a.lieu,
+      p_temps_travail: !!a.temps_travail,
+      p_impact_unite: a.impact ? a.impact.unite : null,
+      p_impact_par_unite: a.impact ? a.impact.par_unite : null }),
+    fermerAnnonce: async (id) => await rpc("fermer_annonce", { p_annonce: id }),
+    retirerSalarie: async (uid) => await rpc("pseudonymiser_salarie", { p_profil: uid }),
+    signaler: async (annonce, motif, precisions) =>
+      await rpc("signaler_annonce", { p_annonce: annonce, p_motif: motif, p_precisions: precisions }),
+    deciderSignalement: async (sid, decision, motivation) =>
+      await rpc("decider_signalement", { p_signalement: sid, p_decision: decision, p_motivation: motivation }),
+    donsPersonnelsAgreges: async (saison) =>
+      await rpc("dons_personnels_agreges", { p_saison: saison }),
+    emettreRecu: async (don) => await rpc("emettre_recu", { p_don: don })
+  };
 }
 
 export const DB = new Proxy({}, {

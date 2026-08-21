@@ -1,170 +1,187 @@
--- Riseva — ce qui se fait tout seul.
---
--- Quatre règles tournent sans que personne les déclenche. Elles vivent ici, dans la base,
--- et pas dans le code d'interface : elles doivent s'exécuter même si personne n'ouvre la
--- plateforme de la semaine. Chaque passage est consigné dans `moteur_journal`, parce qu'une
--- automatisation qu'on ne peut pas auditer inquiète plus qu'elle ne rassure.
+-- Riseva — traitements automatiques
+-- ---------------------------------------------------------------------------
+-- Un seul moteur. Deux fonctions concurrentes qui écrivent le même état, c'est
+-- deux vérités et aucune. Tout ce qui suit est idempotent : rejouer une journée
+-- ne double aucun chiffre.
+-- ---------------------------------------------------------------------------
 
-create extension if not exists pg_cron;
-
-create table if not exists moteur_journal (
-  id                uuid primary key default gen_random_uuid(),
-  tache             text not null,
-  lignes_touchees   integer not null default 0,
-  detail            jsonb,
-  duree_ms          integer,
-  passe_le          timestamptz not null default now()
-);
-create index if not exists moteur_journal_date on moteur_journal (passe_le desc);
-
--- ---------------------------------------------------------------- 1. validation sans retour
--- Quatorze jours après la déclaration du salarié, une mission qui n'a reçu aucune réponse
--- est comptée comme réalisée. L'inaction d'une association, qui ne paie rien, ne doit pas
--- pénaliser une entreprise qui paie.
-create or replace function tache_validation_auto() returns integer
-language plpgsql security definer as $$
-declare v_n integer; v_t0 timestamptz := clock_timestamp();
+-- ---------------------------------------------------------------- validation
+-- Quatorze jours après la DÉCLARATION, jamais après la date prévue : une mission
+-- déclarée treize jours en retard doit laisser à l'association ses quatorze
+-- jours pleins pour répondre, pas vingt-quatre heures.
+create or replace function private.tache_validation_auto()
+returns integer
+language plpgsql security definer set search_path = '' as $$
+declare v_n integer;
 begin
-  with echues as (
-    update mission set etat = 'validee_auto', decide_le = now()
-     where etat = 'a_valider'
-       and declaree_le is not null
-       and declaree_le < now() - interval '14 days'
-    returning id, entreprise, salarie, points
-  ), maj_entreprise as (
-    update entreprise e set points = e.points + x.total
-      from (select entreprise, sum(points) total from echues group by entreprise) x
-     where e.id = x.entreprise
-  ), maj_profil as (
-    update profil p set points = coalesce(p.points, 0) + x.total
-      from (select salarie, sum(points) total from echues group by salarie) x
-     where p.id = x.salarie
+  with mures as (
+    select m.id from public.mission m
+      join public.annonce a on a.id = m.annonce
+      join public.saison  s on s.id = a.saison
+     where m.etat = 'a_valider'
+       and m.declaree_le + make_interval(days => s.delai_validation_jours) < clock_timestamp()
+     for update of m skip locked
   )
-  select count(*) into v_n from echues;
-
-  insert into moteur_journal (tache, lignes_touchees, duree_ms)
-  values ('validation_auto', v_n,
-          extract(milliseconds from clock_timestamp() - v_t0)::integer);
-  return v_n;
-end $$;
-
--- ---------------------------------------------------------------- 2. fraîcheur des annonces
--- Une annonce dont la date est dépassée depuis plus de sept jours est fermée.
--- C'est l'engagement de fraîcheur pris envers les clients, tenu par la machine.
-create or replace function tache_fermeture_annonces() returns integer
-language plpgsql security definer as $$
-declare v_n integer; v_t0 timestamptz := clock_timestamp();
-begin
-  with fermees as (
-    update annonce set etat = 'close', fermeture_auto = true
-     where etat = 'ouverte' and date_prevue < current_date - interval '7 days'
-    returning id
-  )
-  select count(*) into v_n from fermees;
-
-  insert into moteur_journal (tache, lignes_touchees, duree_ms)
-  values ('fermeture_annonces', v_n,
-          extract(milliseconds from clock_timestamp() - v_t0)::integer);
-  return v_n;
-end $$;
-
--- ---------------------------------------------------------------- 3. rapports de période
--- Chaque période close produit son rapport, une seule fois, sans que personne le demande.
-create table if not exists rapport (
-  id          uuid primary key default gen_random_uuid(),
-  entreprise  uuid not null references entreprise(id) on delete cascade,
-  saison      uuid not null references saison(id) on delete cascade,
-  portee      text not null check (portee in ('trimestriel','annuel')),
-  periode     text not null,
-  debut       date not null,
-  fin         date not null,
-  donnees     jsonb not null,
-  genere_le   timestamptz not null default now(),
-  unique (entreprise, saison, portee, periode)
-);
-
-create or replace function tache_rapports() returns integer
-language plpgsql security definer as $$
-declare v_n integer := 0; v_t0 timestamptz := clock_timestamp();
-begin
-  insert into rapport (entreprise, saison, portee, periode, debut, fin, donnees)
-  select e.id, s.id, p.portee, p.periode, p.debut, p.fin,
-         jsonb_build_object(
-           'points',        points_retenus(e.id, p.debut, p.fin),
-           'points_bruts',  points_bruts(e.id, p.debut, p.fin),
-           'missions',      (select count(*) from mission m
-                              where m.entreprise = e.id
-                                and m.etat in ('validee','validee_auto')
-                                and m.date_mission between p.debut and p.fin),
-           'realisations',  realisations_entreprise(e.id, p.debut, p.fin),
-           'salaries_engages', (select count(distinct m.salarie) from mission m
-                                 where m.entreprise = e.id
-                                   and m.etat in ('validee','validee_auto')
-                                   and m.date_mission between p.debut and p.fin))
-    from entreprise e
-    cross join saison s
-    cross join lateral periodes_de(s.id) p
-   where s.etat = 'ouverte' and p.fin <= current_date
-  on conflict (entreprise, saison, portee, periode) do nothing;
-
+  update public.mission m
+     set etat = 'validee_auto', tranchee_le = clock_timestamp()
+    from mures where m.id = mures.id;
   get diagnostics v_n = row_count;
-  insert into moteur_journal (tache, lignes_touchees, duree_ms)
-  values ('rapports', v_n, extract(milliseconds from clock_timestamp() - v_t0)::integer);
   return v_n;
 end $$;
 
--- ---------------------------------------------------------------- 4. classement
--- Aucun rang n'est stocké : il se déduit des points à la lecture, ce qui interdit tout
--- écart entre ce qui est affiché et ce qui est réel. La vue est rafraîchie chaque lundi
--- uniquement pour éviter qu'un classement bouge en pleine semaine sous les yeux du client.
-create materialized view if not exists classement_saison as
-with base as (
-  select e.id, e.nom, e.secteur, e.ville, e.effectif,
-         points_retenus(e.id, null, null) as points,
-         points_bruts(e.id, null, null)   as brut,
-         greatest(e.effectif, 1)          as diviseur,
-         (select count(*) from profil p
-           where p.entreprise = e.id and p.role = 'salarie' and not p.anonyme) as comptes,
-         (select count(distinct m.salarie) from mission m
-           where m.entreprise = e.id and m.etat in ('validee','validee_auto')) as engages
-    from entreprise e
-)
-select *,
-       round(points::numeric / diviseur, 1) as par_salarie,
-       case when comptes > 0 then round(100.0 * engages / comptes) else 0 end as participation,
-       case
-         when effectif < 50  then 'tpe'
-         when effectif < 200 then 'pme'
-         when effectif < 500 then 'eti'
-         else 'ge'
-       end as categorie
-  from base;
-
-create unique index if not exists classement_saison_id on classement_saison (id);
-
-create or replace function tache_classement() returns integer
-language plpgsql security definer as $$
-declare v_t0 timestamptz := clock_timestamp();
+-- ---------------------------------------------------------------- annonces
+create or replace function private.tache_fermeture_annonces()
+returns integer
+language plpgsql security definer set search_path = '' as $$
+declare v_n integer;
 begin
-  refresh materialized view concurrently classement_saison;
-  insert into moteur_journal (tache, lignes_touchees, duree_ms)
-  values ('classement', (select count(*) from classement_saison),
-          extract(milliseconds from clock_timestamp() - v_t0)::integer);
-  return 1;
+  update public.annonce a set etat = 'close'
+   where a.etat = 'ouverte' and a.fermeture_auto
+     and a.date_prevue is not null
+     and a.date_prevue < current_date - 7;
+  get diagnostics v_n = row_count;
+  return v_n;
+end $$;
+
+-- ---------------------------------------------------------------- rapports
+-- Un rapport ne se scelle qu'une fois les validations closes. Le sceller à la
+-- fin du trimestre le fige incomplet : quatorze jours de missions manquent, et
+-- `on conflict do nothing` garantissait qu'on ne les ajouterait jamais.
+create or replace function private.tache_rapports()
+returns integer
+language plpgsql security definer set search_path = '' as $$
+declare
+  r record;
+  v_n integer := 0;
+  v_fin date;
+  v_scellable boolean;
+begin
+  for r in
+    select ab.entreprise, ab.saison, ab.effectif_reference, s.fin, s.delai_validation_jours
+      from public.abonnement ab
+      join public.saison s on s.id = ab.saison
+     where s.etat in ('ouverte','close')
+  loop
+    v_fin := r.fin;
+    v_scellable := current_date > v_fin + r.delai_validation_jours;
+
+    insert into public.rapport (entreprise, saison, periode, methode_version,
+                                bareme_gele, effectif_reference, contenu, scelle_le, maj_le)
+    select r.entreprise, r.saison, 'annuel', 'v1',
+           (select jsonb_object_agg(b.type, b.points) from public.bareme b where b.saison = r.saison),
+           r.effectif_reference,
+           jsonb_build_object(
+             'retenu', (select coalesce(sum(pe.retenu), 0)
+                          from public.points_entreprise(r.entreprise, r.saison) pe),
+             'brut',   (select coalesce(sum(pe.brut), 0)
+                          from public.points_entreprise(r.entreprise, r.saison) pe),
+             'realisations', (select coalesce(jsonb_object_agg(x.unite, x.confirme), '{}'::jsonb)
+                                from public.realisations(r.entreprise, null, r.saison) x)),
+           case when v_scellable then now() end, now()
+    on conflict (entreprise, saison, periode) do update
+       set contenu = excluded.contenu,
+           bareme_gele = excluded.bareme_gele,
+           effectif_reference = excluded.effectif_reference,
+           maj_le = now(),
+           scelle_le = coalesce(public.rapport.scelle_le, excluded.scelle_le)
+     where public.rapport.scelle_le is null;   -- un rapport scellé ne bouge plus
+    v_n := v_n + 1;
+  end loop;
+  return v_n;
+end $$;
+
+-- ---------------------------------------------------------------- rétention
+-- Une durée de conservation qui n'est pas exécutable n'est pas une durée de
+-- conservation, c'est une phrase dans une politique. Celle-ci supprime, et
+-- consigne combien de lignes — sans recopier ce qu'elle vient de supprimer.
+create or replace function private.tache_retention()
+returns integer
+language plpgsql security definer set search_path = '' as $$
+declare v_total integer := 0; v_n integer;
+begin
+  delete from public.acces a where a.purge_le < now() and not a.legal_hold;
+  get diagnostics v_n = row_count;
+  if v_n > 0 then
+    insert into private.journal_purge (ensemble, lignes, motif)
+    values ('acces', v_n, 'durée de conservation échue');
+    v_total := v_total + v_n;
+  end if;
+
+  delete from public.preinscription p where p.purge_le < now();
+  get diagnostics v_n = row_count;
+  if v_n > 0 then
+    insert into private.journal_purge (ensemble, lignes, motif)
+    values ('preinscription', v_n, 'durée de conservation échue');
+    v_total := v_total + v_n;
+  end if;
+
+  delete from public.invitation i
+   where i.expire_le < now() - interval '12 months'
+     and not exists (select 1 from public.affectation_siege s where s.invitation = i.id);
+  get diagnostics v_n = row_count;
+  if v_n > 0 then
+    insert into private.journal_purge (ensemble, lignes, motif)
+    values ('invitation', v_n, 'lien expiré et sans rattachement');
+    v_total := v_total + v_n;
+  end if;
+
+  delete from public.moteur_journal j where j.cree_le < now() - interval '12 months';
+  get diagnostics v_n = row_count;
+  if v_n > 0 then
+    insert into private.journal_purge (ensemble, lignes, motif)
+    values ('moteur_journal', v_n, 'durée de conservation échue');
+    v_total := v_total + v_n;
+  end if;
+
+  return v_total;
+end $$;
+
+-- ---------------------------------------------------------------- moteur
+create or replace function private.moteur()
+returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare v jsonb;
+begin
+  v := jsonb_build_object(
+    'validations_auto', private.tache_validation_auto(),
+    'annonces_fermees', private.tache_fermeture_annonces(),
+    'rapports',         private.tache_rapports(),
+    'purges',           private.tache_retention());
+  insert into public.moteur_journal (tache, fait) values ('moteur', v);
+  return v;
 end $$;
 
 -- ---------------------------------------------------------------- planification
--- Heures creuses, et le classement le lundi matin avant l'arrivée au bureau.
-select cron.schedule('riseva-validation-auto',  '0 3 * * *',   $$select tache_validation_auto()$$);
-select cron.schedule('riseva-fraicheur',        '30 3 * * *',  $$select tache_fermeture_annonces()$$);
-select cron.schedule('riseva-rapports',         '0 4 * * *',   $$select tache_rapports()$$);
-select cron.schedule('riseva-classement',       '0 6 * * 1',   $$select tache_classement()$$);
+-- pg_cron n'existe pas partout : sur un poste de développement, on installe le
+-- schéma sans le planificateur plutôt que de faire échouer la migration.
+do $$
+begin
+  if exists (select 1 from pg_available_extensions where name = 'pg_cron') then
+    create extension if not exists pg_cron;
+    perform cron.schedule('riseva-moteur', '17 3 * * *', 'select private.moteur()');
+  else
+    raise notice 'pg_cron absent : le moteur devra être appelé par un ordonnanceur externe.';
+  end if;
+end $$;
 
--- Les relances de validation, elles, partent en milieu de journée : un mail à 3 h du matin
--- se lit mal.
-select cron.schedule('riseva-relances', '0 13 * * *', $$
-  select net.http_post(
-    url     := current_setting('app.edge_url') || '/relance-validation',
-    headers := jsonb_build_object('Authorization', 'Bearer ' || current_setting('app.edge_key'))
-  )
-$$);
+revoke all on function
+  private.tache_validation_auto(), private.tache_fermeture_annonces(),
+  private.tache_rapports(), private.tache_retention(), private.moteur()
+from public, anon, authenticated;
+
+-- Les fonctions créées ici sont elles aussi SECURITY DEFINER : elles doivent
+-- passer sous le même propriétaire dédié que celles de 02. Le faire seulement
+-- dans 03 laissait les tâches planifiées tourner au nom de `postgres`, c'est-à-dire
+-- avec tous les droits, pour un travail qui n'en demande presque aucun.
+do $$
+declare f record;
+begin
+  for f in
+    select p.oid::regprocedure as sig
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      join pg_roles r on r.oid = p.proowner
+     where n.nspname in ('public','private') and p.prosecdef and r.rolname <> 'riseva_definer'
+  loop
+    execute format('alter function %s owner to riseva_definer', f.sig);
+  end loop;
+end $$;

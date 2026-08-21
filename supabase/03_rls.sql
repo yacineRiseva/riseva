@@ -1,173 +1,263 @@
--- Riseva — politiques de sécurité au niveau ligne.
--- Principe : le client n'a aucun droit qu'une politique ne lui donne explicitement.
+-- Riseva — droits et politiques de ligne
+-- ---------------------------------------------------------------------------
+-- On part de zéro. Sur Supabase, les tables du schéma `public` reçoivent par
+-- défaut les droits CRUD pour `anon` et `authenticated`, et les fonctions le
+-- droit EXECUTE : écrire des policies sans avoir d'abord tout retiré, c'est
+-- verrouiller la porte en laissant la fenêtre ouverte.
+--
+-- Ensuite seulement, on rend, colonne par colonne et fonction par fonction. Un
+-- objet oublié reste donc inaccessible — le bon sens d'un pare-feu : ce qui
+-- n'est pas explicitement autorisé est refusé.
+-- ---------------------------------------------------------------------------
 
-alter table profil          enable row level security;
-alter table entreprise      enable row level security;
-alter table association     enable row level security;
-alter table annonce         enable row level security;
-alter table mission         enable row level security;
-alter table don             enable row level security;
-alter table abonnement      enable row level security;
-alter table preinscription  enable row level security;
-alter table saison          enable row level security;
-alter table bareme          enable row level security;
-alter table invitation      enable row level security;
-alter table acces           enable row level security;
-alter table rapport         enable row level security;
-alter table moteur_journal  enable row level security;
+-- ---------------------------------------------------------------- table rase
+revoke all on all tables    in schema public from public, anon, authenticated;
+revoke all on all functions in schema public from public, anon, authenticated;
+revoke all on all sequences in schema public from public, anon, authenticated;
+revoke all on all functions in schema private from public, anon, authenticated;
+revoke all on all tables    in schema private from public, anon, authenticated;
 
--- Helpers
-create or replace function mon_role() returns role_utilisateur
-language sql stable security definer as $$ select role from profil where id = auth.uid() $$;
-create or replace function mon_entreprise() returns uuid
-language sql stable security definer as $$ select entreprise from profil where id = auth.uid() $$;
-create or replace function mon_association() returns uuid
-language sql stable security definer as $$ select association from profil where id = auth.uid() $$;
+-- Et pour tout ce qui sera créé demain, par la prochaine migration.
+alter default privileges in schema public
+  revoke all on tables from public, anon, authenticated;
+alter default privileges in schema public
+  revoke all on functions from public, anon, authenticated;
+alter default privileges in schema public
+  revoke all on sequences from public, anon, authenticated;
 
--- Lecture publique du catalogue
-create policy p_saison_lecture      on saison      for select using (true);
-create policy p_bareme_lecture      on bareme      for select using (true);
-create policy p_asso_lecture        on association for select using (valide or mon_role() = 'admin');
-create policy p_annonce_lecture     on annonce     for select using (etat <> 'brouillon' or association = mon_association());
+grant usage on schema public to anon, authenticated;
 
--- Profils : chacun se voit, et voit les membres de son organisation
-create policy p_profil_lecture on profil for select using (
-  id = auth.uid()
-  or mon_role() = 'admin'
-  or (entreprise is not null and entreprise = mon_entreprise())
-);
-create policy p_profil_maj on profil for update using (
-  id = auth.uid() or mon_role() = 'admin'
-  or (mon_role() = 'entreprise_admin' and entreprise = mon_entreprise())
-);
-
--- Entreprises : visibles de tous pour le classement, modifiables par leur admin
-create policy p_entreprise_lecture on entreprise for select using (true);
-create policy p_entreprise_maj on entreprise for update using (
-  mon_role() = 'admin' or (mon_role() = 'entreprise_admin' and id = mon_entreprise())
-);
-
--- Annonces : l'association gère les siennes
-create policy p_annonce_ecriture on annonce for insert with check (association = mon_association());
-create policy p_annonce_maj      on annonce for update using (association = mon_association() or mon_role() = 'admin');
-
--- Missions : le salarié crée la sienne, l'entreprise voit les siennes,
--- l'association voit celles qui portent sur ses annonces
-create policy p_mission_lecture on mission for select using (
-  mon_role() = 'admin'
-  or entreprise = mon_entreprise()
-  or exists (select 1 from annonce a where a.id = mission.annonce and a.association = mon_association())
-);
-create policy p_mission_creation on mission for insert with check (
-  salarie = auth.uid() and entreprise = mon_entreprise()
-);
--- L'association tranche, le salarié ne peut que déclarer sa mission faite.
-create policy p_mission_maj on mission for update using (
-  mon_role() = 'admin'
-  or salarie = auth.uid()
-  or exists (select 1 from annonce a where a.id = mission.annonce and a.association = mon_association())
-);
-
--- Dons : lecture par l'association bénéficiaire et l'entreprise donatrice
-create policy p_don_lecture on don for select using (
-  mon_role() = 'admin' or association = mon_association() or entreprise = mon_entreprise()
-);
-
--- Abonnements : uniquement l'entreprise concernée
-create policy p_abo_lecture on abonnement for select using (
-  mon_role() = 'admin' or entreprise = mon_entreprise()
-);
-
--- Préinscriptions : écriture ouverte au public (formulaire), lecture réservée à Riseva
-create policy p_prein_ecriture on preinscription for insert with check (true);
-create policy p_prein_lecture  on preinscription for select using (mon_role() = 'admin');
-
-
--- ---------------------------------------------------------------- invitations
--- Seul l'administrateur de l'entreprise voit et gère ses liens.
-create policy p_invit_lecture on invitation for select using (
-  mon_role() = 'admin' or entreprise = mon_entreprise()
-);
-create policy p_invit_ecriture on invitation for insert with check (
-  mon_role() in ('admin','entreprise_admin') and entreprise = mon_entreprise()
-);
-create policy p_invit_maj on invitation for update using (
-  mon_role() = 'admin' or (mon_role() = 'entreprise_admin' and entreprise = mon_entreprise())
-);
-
--- La page publique de rejointe ne lit jamais la table directement : elle appelle cette
--- fonction, qui ne renvoie que ce qui est nécessaire pour afficher l'écran d'inscription.
-create or replace function invitation_publique(p_code text)
-returns table (entreprise_nom text, places_restantes integer, valide boolean)
-language sql stable security definer as $$
-  select e.nom,
-         least(i.places - i.utilisees, sieges_restants(e.id)),
-         (i.active and i.expire_le >= current_date
-          and i.utilisees < i.places and sieges_restants(e.id) > 0)
-    from invitation i join entreprise e on e.id = i.entreprise
-   where upper(i.code) = upper(p_code)
-$$;
-revoke all on function invitation_publique(text) from public;
-grant execute on function invitation_publique(text) to anon, authenticated;
-
--- Journal des accès : lecture réservée à l'entreprise concernée et à Riseva.
--- Personne ne peut l'effacer, pas même l'administrateur de l'entreprise.
-create policy p_acces_lecture on acces for select using (
-  mon_role() = 'admin' or entreprise = mon_entreprise()
-);
-
--- Le lien d'inscription ne peut créer un compte que sur un domaine déclaré.
-create or replace function domaine_autorise(p_entreprise uuid, p_email text)
-returns boolean language sql stable as $$
-  select case
-    when coalesce(array_length(domaines, 1), 0) = 0 then true
-    else lower(split_part(p_email, '@', 2)) = any (
-      select lower(d) from unnest(domaines) as d)
-  end
-  from entreprise where id = p_entreprise
-$$;
-
--- L'anonymisation n'est ouverte qu'à l'administrateur de l'entreprise concernée.
-create or replace function retirer_salarie(p_profil uuid)
-returns void language plpgsql security definer as $$
+-- ---------------------------------------------------------------- RLS partout
+do $$
+declare t record;
 begin
-  if not exists (
-    select 1 from profil p
-     where p.id = p_profil and p.role = 'salarie'
-       and (mon_role() = 'admin'
-            or (mon_role() = 'entreprise_admin' and p.entreprise = mon_entreprise()))
-  ) then
-    raise exception 'Non autorisé';
-  end if;
-  perform anonymiser_salarie(p_profil);
+  for t in select tablename from pg_tables where schemaname = 'public'
+  loop
+    execute format('alter table public.%I enable row level security', t.tablename);
+    execute format('alter table public.%I force row level security', t.tablename);
+  end loop;
 end $$;
 
+-- Pas de RLS dans `private` : la frontière, c'est le schéma lui-même. Personne
+-- n'a `usage` dessus à part le propriétaire des fonctions SECURITY DEFINER, et
+-- lui doit tout lire — écrire des policies ici reviendrait à en écrire une seule,
+-- « tout autorisé pour le seul rôle qui entre », c'est-à-dire rien.
 
--- ---------------------------------------------------------------- rapports
--- Une entreprise lit ses rapports, personne d'autre. Ils sont écrits par la tâche
--- planifiée, jamais par un utilisateur : aucune politique d'insertion.
-create policy p_rapport_lecture on rapport for select using (
-  mon_role() = 'admin' or entreprise = mon_entreprise()
-);
+-- ---------------------------------------------------------------- lectures
+-- Saison et barème : publics, ce sont les règles du jeu.
+grant select on public.saison, public.bareme to anon, authenticated;
+create policy saison_lecture on public.saison for select to anon, authenticated using (true);
+create policy bareme_lecture on public.bareme for select to anon, authenticated using (true);
 
--- ---------------------------------------------------------------- journal du moteur
--- Lisible par Riseva seule. Personne ne peut l'effacer, pas même l'administration :
--- un journal d'automatismes effaçable ne prouve rien.
-create policy p_moteur_lecture on moteur_journal for select using (mon_role() = 'admin');
+-- Entreprise : aucune lecture directe. Le nom et le secteur passent par la vue
+-- `entreprise_publique` ; le reste — CA, SIRET, adresse, coût journalier — ne
+-- sort que pour l'entreprise concernée.
+grant select (id, nom, secteur, ville) on public.entreprise to anon, authenticated;
+grant select on public.entreprise_publique to anon, authenticated;
+create policy entreprise_publique_lecture on public.entreprise for select
+  to anon, authenticated using (true);
+grant select (effectif, ca, cout_jour_moyen, siren, siret, adresse, lat, lon)
+  on public.entreprise to authenticated;
+-- Les colonnes sensibles restent filtrées par la policy privée ci-dessous :
+-- une colonne accordée ne devient lisible que sur les lignes que la RLS laisse voir.
+create policy entreprise_privee on public.entreprise for select to authenticated
+  using (id = private.mon_entreprise() or private.est_admin());
 
--- ---------------------------------------------------------------- réalisations
--- Seule l'association bénéficiaire peut déclarer ce qui a réellement été fait, et
--- seulement au moment où elle valide. L'entreprise ne peut pas corriger son propre score.
-create or replace function declarer_realise(p_mission uuid, p_quantite numeric)
-returns void language plpgsql security definer as $$
+-- Association : lecture publique des associations vérifiées et non suspendues.
+grant select on public.association to anon, authenticated;
+create policy association_lecture on public.association for select to anon, authenticated
+  using ((valide and not suspendue) or id = private.mon_association() or private.est_admin());
+
+-- Annonce : lecture publique des annonces ouvertes d'associations en règle.
+grant select on public.annonce to anon, authenticated;
+create policy annonce_lecture on public.annonce for select to anon, authenticated
+  using (
+    (etat <> 'brouillon' and exists (
+       select 1 from public.association a
+        where a.id = annonce.association and a.valide and not a.suspendue))
+    or association = private.mon_association()
+    or private.est_admin());
+
+-- Profil : son propre profil, et les noms des collègues — rien de plus. Un
+-- salarié n'a pas à lire la fiche de toute l'entreprise.
+grant select (id, nom) on public.profil to authenticated;
+create policy profil_lecture on public.profil for select to authenticated
+  using (
+    id = auth.uid()
+    or private.est_admin()
+    or exists (select 1 from private.appartenance a
+                where a.profil = profil.id
+                  and a.entreprise = private.mon_entreprise()
+                  and private.mon_entreprise() is not null));
+-- Une seule écriture possible, et elle ne touche que le nom. Le rôle, l'entreprise
+-- et l'état du compte ne sont même pas dans cette table.
+grant update (nom) on public.profil to authenticated;
+create policy profil_ecriture on public.profil for update to authenticated
+  using (id = auth.uid()) with check (id = auth.uid());
+
+-- Mission : le salarié voit les siennes, l'administrateur voit celles de son
+-- entreprise mais jamais les dons personnels, l'association voit celles de ses
+-- annonces. Personne n'écrit directement : tout passe par les RPC.
+grant select on public.mission to authenticated;
+create policy mission_lecture on public.mission for select to authenticated
+  using (
+    salarie = auth.uid()
+    or private.est_admin()
+    or (entreprise = private.mon_entreprise()
+        and private.mon_role() = 'entreprise_admin'
+        and origine = 'entreprise')
+    or exists (select 1 from public.annonce a
+                where a.id = mission.annonce and a.association = private.mon_association()));
+
+-- Don : jamais lisible par l'employeur, même agrégé sans seuil. L'association
+-- voit ce qui la concerne, Riseva voit tout.
+grant select on public.don to authenticated;
+create policy don_lecture on public.don for select to authenticated
+  using (association = private.mon_association() or private.est_admin());
+
+-- Reçus : l'association qui les émet, et Riseva.
+grant select on public.recu to authenticated;
+create policy recu_lecture on public.recu for select to authenticated
+  using (association = private.mon_association() or private.est_admin());
+
+-- Abonnement : l'entreprise concernée, et seulement elle. Les prix des autres
+-- ne regardent personne.
+grant select on public.abonnement to authenticated;
+create policy abonnement_lecture on public.abonnement for select to authenticated
+  using ((entreprise = private.mon_entreprise() and private.mon_role() = 'entreprise_admin')
+         or private.est_admin());
+
+-- Invitation : l'administrateur voit l'indice et le quota, jamais de quoi
+-- reconstituer un code — l'empreinte n'est pas accordée.
+grant select (id, entreprise, indice, places, active, cree_le, expire_le)
+  on public.invitation to authenticated;
+create policy invitation_lecture on public.invitation for select to authenticated
+  using ((entreprise = private.mon_entreprise() and private.mon_role() = 'entreprise_admin')
+         or private.est_admin());
+
+grant select on public.affectation_siege to authenticated;
+create policy siege_lecture on public.affectation_siege for select to authenticated
+  using (private.est_admin() or exists (
+    select 1 from public.abonnement ab
+     where ab.id = affectation_siege.abonnement
+       and ab.entreprise = private.mon_entreprise()));
+
+-- Journal d'accès : l'administrateur de l'entreprise, sans les adresses IP ni
+-- les agents — ce sont des données de sécurité, pas un outil de surveillance
+-- des salariés.
+grant select (id, entreprise, profil, quoi, indice, cree_le) on public.acces to authenticated;
+create policy acces_lecture on public.acces for select to authenticated
+  using ((entreprise = private.mon_entreprise() and private.mon_role() = 'entreprise_admin')
+         or private.est_admin());
+
+grant select on public.rapport to authenticated;
+create policy rapport_lecture on public.rapport for select to authenticated
+  using ((entreprise = private.mon_entreprise() and private.mon_role() = 'entreprise_admin')
+         or private.est_admin());
+
+-- Signalement : son auteur et Riseva. Un signalement lisible par l'association
+-- signalée dissuaderait de signaler.
+grant select on public.signalement to authenticated;
+create policy signalement_lecture on public.signalement for select to authenticated
+  using (auteur = auth.uid() or private.est_admin());
+
+-- Préinscription : dépôt public, lecture réservée à Riseva. Sans cela, la liste
+-- des prospects est un fichier client en libre accès.
+grant insert (entreprise, contact, effectif) on public.preinscription to anon, authenticated;
+create policy preinscription_depot on public.preinscription for insert
+  to anon, authenticated with check (etat = 'preinscrite');
+grant select on public.preinscription to authenticated;
+create policy preinscription_lecture on public.preinscription for select
+  to authenticated using (private.est_admin());
+
+grant select on public.moteur_journal to authenticated;
+create policy moteur_lecture on public.moteur_journal for select
+  to authenticated using (private.est_admin());
+
+-- ---------------------------------------------------------------- exécution
+-- Rien n'est exécutable par défaut ; on rend nommément.
+grant execute on function
+  public.rejoindre_entreprise(text),
+  public.creer_invitation(integer, integer),
+  public.engager_mission(uuid, numeric, text),
+  public.declarer_mission(uuid, numeric),
+  public.trancher_mission(uuid, boolean, numeric),
+  public.publier_annonce(text, text, public.type_annonce, integer, date, text,
+                         boolean, public.unite_realisation, numeric),
+  public.fermer_annonce(uuid),
+  public.pseudonymiser_salarie(uuid),
+  public.supprimer_salarie(uuid),
+  public.signaler_annonce(uuid, text, text),
+  public.decider_signalement(uuid, text, text),
+  public.emettre_recu(uuid),
+  public.dons_personnels_agreges(uuid),
+  public.points_entreprise(uuid, uuid),
+  public.classement_saison(uuid),
+  public.decile_entreprise(uuid, uuid),
+  public.realisations(uuid, uuid, uuid)
+to authenticated;
+
+-- Le classement et les réalisations du réseau sont montrés sur le site public :
+-- ce sont des agrégats, sans nom de salarié.
+grant execute on function public.classement_saison(uuid), public.realisations(uuid, uuid, uuid)
+to anon;
+
+-- Les fonctions internes ne sont appelables par personne d'autre que le moteur.
+revoke all on function
+  private.moi(), private.mon_role(), private.mon_entreprise(), private.mon_association(),
+  private.est_admin(), private.saison_ouverte(), private.points_pour(uuid, public.type_annonce, numeric),
+  private.sieges_pris(uuid)
+from public, anon, authenticated;
+revoke all on all tables in schema private from anon, authenticated;
+
+-- Les policies s'exécutent au nom de l'appelant : pour qu'elles puissent
+-- demander « qui es-tu », il faut que le rôle ait le droit de traverser le
+-- schéma privé. `usage` seul n'ouvre rien — aucune table, aucune autre
+-- fonction n'est accordée — et les cinq helpers ci-dessous sont des
+-- SECURITY DEFINER qui ne renvoient que ce que l'appelant sait déjà de
+-- lui-même. Sans cela, une policy échoue au lieu de filtrer, ce qui est pire :
+-- elle laisserait passer les lignes où PostgreSQL court-circuite le OR.
+grant usage on schema private to anon, authenticated;
+
+grant execute on function
+  private.moi(), private.mon_role(), private.mon_entreprise(),
+  private.mon_association(), private.est_admin()
+to anon, authenticated;
+
+-- ---------------------------------------------------------------- propriétaire
+-- Chaque SECURITY DEFINER appartient à un rôle dédié, sans login et sans droit
+-- superflu : si l'une d'elles est détournée, l'attaquant hérite de ces droits-là
+-- et pas de ceux de `postgres`.
+do $$
+declare f record;
 begin
-  if not exists (
-    select 1 from mission m join annonce a on a.id = m.annonce
-     where m.id = p_mission
-       and (mon_role() = 'admin' or a.association = mon_association())
-  ) then
-    raise exception 'Non autorisé';
-  end if;
-  if p_quantite < 0 then raise exception 'Quantité négative'; end if;
-  update mission set realise = p_quantite where id = p_mission;
+  for f in
+    select p.oid::regprocedure as sig
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname in ('public','private') and p.prosecdef
+  loop
+    execute format('alter function %s owner to riseva_definer', f.sig);
+  end loop;
 end $$;
+
+-- Les fonctions SECURITY DEFINER s'exécutent au nom de `riseva_definer`, qui
+-- reste soumis à la RLS comme tout le monde : sans policy, une RPC ne verrait
+-- plus rien et refuserait tout. On lui ouvre donc explicitement les tables du
+-- schéma public. Ce n'est pas un contournement : c'est le seul rôle qui écrit,
+-- il n'a pas de login, et chaque fonction fait sa propre vérification de droits
+-- avant d'écrire quoi que ce soit.
+do $$
+declare t record;
+begin
+  for t in select tablename from pg_tables where schemaname = 'public'
+  loop
+    execute format(
+      'create policy moteur_%I on public.%I to riseva_definer using (true) with check (true)',
+      t.tablename, t.tablename);
+  end loop;
+end $$;
+
+grant usage on schema private to riseva_definer;
+grant usage on schema extensions to riseva_definer;
+grant select, insert, update, delete on all tables in schema public to riseva_definer;
+grant select, insert, update, delete on all tables in schema private to riseva_definer;
