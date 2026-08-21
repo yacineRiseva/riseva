@@ -246,7 +246,9 @@ def main():
         connecte(p, "u2")
         t = p.inner_text(".content")
         verifie("ce qui attend une action passe en premier", "Ce qui vous attend" in t)
-        verifie("le premier chiffre est la participation", "salariés qui ont agi" in t.lower())
+        verifie("le premier chiffre est la participation", "participation vérifiée" in t.lower())
+        verifie("un seul taux de participation dans tout le produit",
+                t.lower().count("participation vérifiée") >= 1 and "salariés engagés" not in t)
         verifie("le coût par mission est donné", "coût par mission validée" in t.lower())
         i_attend = t.find("Ce qui vous attend"); i_rang = t.find("Votre rang")
         verifie("le rang est toujours là, mais après", i_rang > i_attend >= 0)

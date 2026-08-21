@@ -339,6 +339,11 @@ function tableauEntreprise(u){
   if (!DB.domaines(eid).length) aFaire.push({ texte:
     "Aucun domaine de messagerie déclaré : le lien accepte n'importe qui", vers:"#/equipe", ton:"alerte" });
 
+  /* Un seul taux de participation dans tout le produit, celui du protocole de mesure :
+     salariés ayant au moins une action validée, divisés par l'effectif de référence.
+     Trois définitions concurrentes sur trois écrans, c'est trois fois moins crédible. */
+  const partVerifiee = DB.indicateurs(eid).participation;
+
   const coutParAction = validees.length && fact.contrat
     ? Math.round(fact.contrat.montant_ht / validees.length) : null;
   const heuresTT = validees.reduce((n, m) => {
@@ -361,8 +366,8 @@ function tableauEntreprise(u){
     </section>` : ""}
 
     <div class="kpis">
-      ${kpi("Salariés qui ont agi", engages + " / " + salaries.length,
-            Math.round((engages / Math.max(salaries.length, 1)) * 100) + " % des comptes actifs",
+      ${kpi("Participation vérifiée", (partVerifiee.valeur ?? 0) + " %",
+            `${partVerifiee.num} salariés sur ${partVerifiee.den} de l'effectif`,
             "", "kpi--tete grain")}
       ${kpi("Missions validées", nb(validees.length), enCours.length + " en cours")}
       ${kpi("Heures sur le temps de travail", nb(heuresTT), "valorisables en mécénat")}
@@ -391,6 +396,11 @@ function tableauEntreprise(u){
           ${Object.entries(BAREME).map(([k, b]) => {
             const v = pts.parType[k] || 0;
             const r = pts.retenuParType[k] || 0;
+            if (!v) return `<div class="kpi">
+              <span class="kpi__label">${esc(b.label)}</span>
+              <span class="kpi__value" style="font-size:1.4rem;color:var(--ink-300)">0</span>
+              <a class="kpi__delta" href="#/annonces" style="color:var(--forest-800)">
+                Voir les annonces de ce format</a></div>`;
             return `<div class="kpi">
               <span class="kpi__label">${esc(b.label)}</span>
               <span class="kpi__value" style="font-size:1.4rem">${nb(r)}</span>
@@ -874,8 +884,8 @@ function vueClassement(u){
         </tr></thead><tbody></tbody></table>
       </section>
 
-      <div class="stack" style="--gap:var(--s5)">
-        <section class="card">
+      <div class="stack" style="--gap:var(--s10)">
+        <section>
           <h3>Comment le score est calculé</h3>
           <div class="stack" style="--gap:var(--s4);margin-top:var(--s5);font-size:var(--t-sm)">
             <div><strong>Points par salarié</strong>
@@ -892,7 +902,7 @@ function vueClassement(u){
           </div>
         </section>
 
-        <section class="card">
+        <section>
           <h3>Le barème</h3>
           <div class="stack" style="--gap:var(--s4);margin-top:var(--s5)">
             ${Object.entries(BAREME).map(([k, b]) => `
@@ -904,7 +914,7 @@ function vueClassement(u){
               </div>`).join("")}
           </div>
           <hr class="sep">
-          <button class="btn btn--ghost btn--block btn--sm" id="detail">Comment mon score est calculé</button>
+          <button class="btn btn--ghost btn--block btn--sm" id="detail">Voir le détail de mon score</button>
           <p class="hint">Le score mesure un engagement, pas un impact environnemental.
             Riseva ne le présente jamais comme une mesure scientifique.
             <a href="/reglement.html" target="_blank" style="color:var(--forest-800)">Le règlement complet</a>.</p>
@@ -1345,7 +1355,8 @@ function vueRapports(u){
         <div class="card kpi kpi--tete grain"><span class="kpi__label">Points retenus</span>
           <span class="kpi__value">${nb(r.points)}</span></div>
         ${kpi("Rang", rangFR(r.rang), "sur " + r.total)}
-        ${kpi("Salariés engagés", r.salariesEngages + " / " + r.salariesTotal)}
+        ${kpi("Participation vérifiée", (DB.indicateurs(u.org).participation.valeur ?? 0) + " %",
+            r.salariesEngages + " sur " + r.salariesTotal)}
         ${kpi("Associations soutenues", nb(r.associations))}
       </div>
       <hr class="sep">
