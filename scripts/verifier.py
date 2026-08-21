@@ -44,6 +44,20 @@ def main():
         if not ok: echecs.append(f); print("      " + sortie.strip()[:400])
     shutil.rmtree(tmp, ignore_errors=True)
 
+    titre("Polices")
+    # Rien ici ne fait échouer la recette : le site reste lisible avec la pile système.
+    # Mais il faut que ce soit dit fort, parce qu'un déploiement sans les fichiers est
+    # un déploiement au mauvais rendu, et ça ne se voit pas dans les tests.
+    manquantes = [n for n in ("instrument-sans", "inter")
+                  if not (RACINE / "public" / "brand" / "polices" / f"{n}.woff2").exists()]
+    if manquantes:
+        print("  À FAIRE  " + ", ".join(f"{n}.woff2" for n in manquantes) + " manquent.")
+        print("           Lancer ./scripts/polices.sh depuis un poste connecté, puis")
+        print("           versionner les fichiers. En attendant, la pile système prend")
+        print("           le relais : aucune requête externe, mais le rendu n'est pas celui prévu.")
+    else:
+        print("  ok   les deux polices sont servies par Riseva")
+
     titre("Base de données")
     code, sortie = lancer("service postgresql status")
     if "down" in sortie:

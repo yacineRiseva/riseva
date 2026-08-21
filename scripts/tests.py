@@ -666,6 +666,28 @@ def main():
         connecte(p, "u1", "#/journal")
         verifie("le journal liste des envois", p.eval_on_selector_all("tbody tr", "r=>r.length") > 3)
 
+        print("\nRien ne sort du domaine")
+        # Une police chargée depuis fonts.googleapis.com transmet l'IP du visiteur à un
+        # tiers avant qu'il ait cliqué. La page Confidentialité promet le contraire :
+        # on le vérifie plutôt que de l'écrire.
+        pages_publiques = ["/", "/inscription.html", "/associations.html", "/asso.html?id=a1",
+                           "/reglement.html", "/confidentialite.html", "/securite.html",
+                           "/charte-associations.html", "/cgv.html", "/cgu.html",
+                           "/mentions.html", "/engagements.html", "/moderation.html",
+                           "/rejoindre.html", "/404.html", "/app/"]
+        externes = []
+        ext = nav.new_page()
+        ext.on("request", lambda r: externes.append(r.url)
+               if not r.url.startswith((BASE, "data:", "blob:", "about:")) else None)
+        for chemin in pages_publiques:
+            ext.goto(BASE + chemin, wait_until="networkidle")
+        verifie("aucune page n'appelle un domaine tiers", not externes,
+                "; ".join(sorted(set(externes))[:3]))
+        feuilles = ext.eval_on_selector_all(
+            "link[rel=stylesheet]", "l=>l.map(e=>e.href).filter(h=>!h.startsWith(location.origin))")
+        verifie("aucune feuille de style distante", not feuilles, "; ".join(feuilles[:3]))
+        ext.close()
+
         print("\nAccessibilité et robustesse")
         p.goto(BASE + "/", wait_until="networkidle")
         sans_alt = p.eval_on_selector_all("img", "l=>l.filter(i=>!i.hasAttribute('alt')).length")
