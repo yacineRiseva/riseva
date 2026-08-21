@@ -150,17 +150,34 @@ def main():
         connecte(p, "u2", "#/equipe")
         avant = p.inner_text(".kpi--tete .kpi__value")
         p.evaluate("""()=>{const l=[...document.querySelectorAll('tbody tr')].find(r=>/Malik/.test(r.innerText));
-          [...l.querySelectorAll('button')].find(b=>b.textContent==='Retirer').click()}""")
+          [...l.querySelectorAll('button')].find(b=>/Retirer d/.test(b.textContent)).click()}""")
         p.wait_for_timeout(250)
         p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Retirer et/.test(b.textContent)).click()")
         p.wait_for_timeout(500)
         apres = p.inner_text(".kpi--tete .kpi__value")
         verifie("la place est rendue", avant != apres, f"{avant} -> {apres}")
         verifie("le salarié est anonymisé", "Salarié retiré" in p.inner_text("tbody"))
+        # suspendre n'efface rien, et se défait
+        p.evaluate("""()=>{const l=[...document.querySelectorAll('tbody tr')].find(r=>/Sonia/.test(r.innerText));
+          [...l.querySelectorAll('button')].find(b=>/Suspendre/.test(b.textContent)).click()}""")
+        p.wait_for_timeout(250)
+        p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Suspendre l/.test(b.textContent)).click()")
+        p.wait_for_timeout(400)
+        verifie("suspendre garde le nom et les données",
+                "Sonia Delaunay" in p.inner_text("tbody") and "Suspendu" in p.inner_text("tbody"))
+        p.evaluate("""()=>{const l=[...document.querySelectorAll('tbody tr')].find(r=>/Sonia/.test(r.innerText));
+          [...l.querySelectorAll('button')].find(b=>/Réactiver/.test(b.textContent)).click()}""")
+        p.wait_for_timeout(400)
+        verifie("la suspension se défait", "Actif" in p.inner_text("tbody"))
+        # la recherche existe au-delà de quelques lignes
+        p.fill("#q", "hugo"); p.wait_for_timeout(300)
+        verifie("l'équipe est cherchable",
+                p.eval_on_selector_all("tbody tr", "r=>r.length") == 1)
+        p.fill("#q", "")
         verifie("son email a disparu", "malik@" not in p.inner_text("tbody"))
         # le dernier administrateur ne peut pas se retirer lui-même
         etat = p.evaluate("""()=>{const l=[...document.querySelectorAll('tbody tr')].find(r=>/Claire/.test(r.innerText));
-          const b=[...l.querySelectorAll('button')].find(x=>x.textContent==='Retirer'); return !!(b&&b.disabled)}""")
+          const b=[...l.querySelectorAll('button')].find(x=>/Retirer d/.test(x.textContent)); return !!(b&&b.disabled)}""")
         verifie("le dernier administrateur est protégé", etat)
         p.evaluate("()=>location.hash='#/missions'"); p.wait_for_timeout(300)
         verifie("l'historique est anonymisé aussi", "Salarié retiré" in p.inner_text("tbody"))
@@ -355,6 +372,8 @@ def main():
         print("\nMécénat et convention")
         connecte(p, "u2", "#/mecenat")
         t = norm(p.inner_text(".content"))
+        verifie("le statut documentaire précède le montant",
+                "Justificatifs" in t and ("calculable" in t or "non calculable" in t))
         verifie("le plafond par salarié est rappelé", "12 015 €" in t)
         verifie("le non déductible est distingué", "Non déductible" in t)
         p.click("#conv"); p.wait_for_timeout(300)
@@ -392,8 +411,11 @@ def main():
         p.click("#detail"); p.wait_for_timeout(300)
         t = norm(p.inner_text(".modal"))
         verifie("le détail du score s'affiche", "Total brut" in t and "pts / salarié" in t)
+        p.evaluate("()=>document.querySelector('.overlay')?.remove()")
+        verifie("une cohorte trop petite est annoncée comme telle",
+                "non significatif" in p.inner_text(".content"))
         verifie("l'écrêtage est montré", "Plafond par format" in t)
-        p.evaluate("()=>document.querySelector('.overlay').remove()")
+        p.evaluate("()=>document.querySelector('.overlay')?.remove()")
 
         connecte(p, "u1", "#/journal")
         verifie("le journal liste des envois", p.eval_on_selector_all("tbody tr", "r=>r.length") > 3)

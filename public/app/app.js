@@ -1,4 +1,4 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, connecterSupabase } from "./data.js";
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, lienPublic, connecterSupabase } from "./data.js";
 import { h, esc, nb, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
@@ -802,8 +802,9 @@ function vueClassement(u){
         <div class="between" style="margin-bottom:var(--s5)">
           <div><h3>Classement de la saison</h3>
           <p class="muted" style="font-size:var(--t-sm);margin-top:4px" id="sousTitre"></p></div>
-          <span class="badge">Semaine 34</span>
+          <span class="badge" id="etatCohorte">Semaine 34</span>
         </div>
+        <div id="avertCohorte"></div>
         <table class="table table--rank"><thead><tr>
           <th></th><th>Entreprise</th><th></th><th style="text-align:right">Score</th>
         </tr></thead><tbody></tbody></table>
@@ -861,6 +862,20 @@ function vueClassement(u){
       ? "Total des points retenus, toutes tailles confondues si aucun filtre"
       : "Points retenus rapportés à l'effectif, recalculé chaque lundi")
       + (decile ? "" : ` · cohorte de ${cl.length}, trop petite pour parler de décile`);
+    const av = el.querySelector("#avertCohorte");
+    av.innerHTML = "";
+    el.querySelector("#etatCohorte").textContent = decile ? "Semaine 34" : "Cohorte en constitution";
+    el.querySelector("#etatCohorte").className = "badge" + (decile ? "" : " badge--warn");
+    if (!decile && cl.length){
+      av.appendChild(h(`<div class="card card--flat" style="background:var(--warn-bg);
+        border-color:transparent;margin-bottom:var(--s5)">
+        <p class="muted" style="font-size:var(--t-sm);color:var(--ink-600)">
+          <strong style="color:var(--ink)">Classement non significatif.</strong>
+          ${cl.length} entreprise${cl.length > 1 ? "s" : ""} dans cette catégorie : il en faut au
+          moins dix pour qu'un rang veuille dire quelque chose. Les positions sont affichées à
+          titre indicatif, sans percentile, et aucun trophée n'est attribué tant que la cohorte
+          n'est pas constituée.</p></div>`));
+    }
     const tb = el.querySelector("tbody");
     tb.innerHTML = "";
     if (!cl.length){ tb.appendChild(h(`<tr><td colspan="4" class="empty">Aucune entreprise dans cette catégorie.</td></tr>`)); return; }
@@ -948,7 +963,7 @@ function vueEquipe(u){
   const partis = gens.filter(g => g.anonyme);
   const si = DB.sieges(eid);
   const inv = DB.invitationActive(eid);
-  const lien = inv ? `${location.origin}/rejoindre.html?code=${inv.code}` : "";
+  const lien = inv ? lienPublic(`/rejoindre.html?code=${inv.code}`) : "";
 
   const el = h(`<div class="two">
     <section class="card">
@@ -962,8 +977,18 @@ function vueEquipe(u){
           <button class="btn btn--ghost btn--sm" id="add">${ICONS.plus} Ajouter</button>
         </div>
       </div>
+      <div class="row" style="gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s5)">
+        <input class="input" id="q" placeholder="Rechercher un nom ou une adresse" style="flex:1;min-width:220px">
+        <select class="select" id="etat" style="width:200px">
+          <option value="">Tous les états</option>
+          <option value="actif">Actifs</option>
+          <option value="suspendu">Suspendus</option>
+          <option value="anonyme">Départs anonymisés</option>
+        </select>
+      </div>
       <table class="table"><thead><tr>
         <th>Nom</th><th>Email</th><th>Points des missions</th><th>État</th><th></th></tr></thead><tbody></tbody></table>
+      <p class="hint" id="compte"></p>
       <p class="hint">Les points affichés ici sont ceux des missions. Les dons personnels d'un
         salarié n'y figurent pas et ne vous sont jamais rattachés à un nom : la cause d'une
         association peut révéler une conviction ou un état de santé.</p>
@@ -1064,9 +1089,35 @@ function vueEquipe(u){
         tr.lastElementChild.appendChild(ra);
       }
       const dernierAdmin = g.role === "entreprise_admin" && admins.length <= 1;
-      const b = h(`<button class="btn btn--quiet btn--sm"${dernierAdmin ? " disabled title=\"Nommez un autre administrateur avant de retirer celui-ci\"" : ""}>Retirer</button>`);
-      b.onclick = () => modal("Retirer " + g.nom + " de l'équipe",
-        `<p class="muted">Son compte est fermé immédiatement et sa place est rendue à votre abonnement.</p>
+      /* Suspendre et retirer ne sont pas la même chose, et les confondre coûte cher :
+         l'un est réversible et ne touche à rien, l'autre efface une identité pour de bon. */
+      const sus = h(`<button class="btn btn--quiet btn--sm"${
+        dernierAdmin && g.actif ? " disabled title=\"Dernier administrateur actif\"" : ""}>${
+        g.actif ? "Suspendre l'accès" : "Réactiver"}</button>`);
+      sus.onclick = () => {
+        if (g.actif){
+          modal("Suspendre l'accès de " + g.nom,
+            `<p class="muted">Ses sessions sont fermées immédiatement et il ne peut plus se
+             connecter. <strong style="color:var(--ink)">Rien n'est effacé</strong> : ses données,
+             ses missions et le journal restent en place, et vous pouvez le réactiver quand vous
+             voulez. Sa place reste occupée.</p>`,
+            [{ label:"Annuler" },
+             { label:"Suspendre l'accès", classe:"btn--primary", onClick: () => {
+                 try { DB.suspendreAcces(g.id, true); } catch (err){ toast(err.message); return false; }
+                 toast("Accès suspendu."); rendre(); }}]);
+        } else {
+          DB.suspendreAcces(g.id, false); toast("Accès rétabli."); rendre();
+        }
+      };
+      tr.lastElementChild.appendChild(sus);
+      const b = h(`<button class="btn btn--quiet btn--sm" style="color:var(--danger)"${
+        dernierAdmin ? " disabled title=\"Nommez un autre administrateur avant de retirer celui-ci\"" : ""}>Retirer définitivement</button>`);
+      b.onclick = () => modal("Retirer définitivement " + g.nom,
+        `<p class="muted">Pour une absence, un doute ou un départ pas encore confirmé, préférez
+         <strong style="color:var(--ink)">suspendre l'accès</strong> : c'est réversible et rien
+         n'est effacé.</p>
+         <p class="muted" style="margin-top:var(--s4)">Ici, son compte est fermé et sa place est
+         rendue à votre abonnement.</p>
          <p class="muted" style="margin-top:var(--s4)">Son nom et son adresse disparaissent de la
          plateforme. Il apparaîtra désormais comme <strong>salarié retiré</strong> dans les listes et
          dans l'historique des missions. Les ${nb(g.points || 0)} points qu'il a rapportés restent
@@ -1080,15 +1131,60 @@ function vueEquipe(u){
     }
     return tr;
   };
-  actifs.forEach(g => tb.appendChild(ligne(g)));
-  partis.forEach(g => tb.appendChild(ligne(g)));
-  if (!gens.length) tb.appendChild(h(`<tr><td colspan="5" class="empty">Personne pour l'instant. Diffusez le lien d'inscription.</td></tr>`));
+  const PAGE = 25;
+  let page = 1;
+  const dessiner = () => {
+    const q = el.querySelector("#q").value.trim().toLowerCase();
+    const et = el.querySelector("#etat").value;
+    let l = [...actifs, ...partis].filter(g => {
+      if (q && !((g.nom + " " + (g.email || "")).toLowerCase().includes(q))) return false;
+      if (et === "actif")    return !g.anonyme && g.actif;
+      if (et === "suspendu") return !g.anonyme && !g.actif;
+      if (et === "anonyme")  return g.anonyme;
+      return true;
+    });
+    const total = l.length;
+    l = l.slice(0, page * PAGE);
+    tb.innerHTML = "";
+    if (!total){
+      tb.appendChild(h(`<tr><td colspan="5" class="empty">${gens.length
+        ? "Personne ne correspond à cette recherche."
+        : "Personne pour l'instant. Diffusez le lien d'inscription, chacun crée son compte."}</td></tr>`));
+    }
+    l.forEach(g => tb.appendChild(ligne(g)));
+    const c = el.querySelector("#compte");
+    c.textContent = total > l.length
+      ? `${l.length} sur ${total} affichés.`
+      : (total ? `${total} personne${total > 1 ? "s" : ""}.` : "");
+    if (total > l.length){
+      const b = h(`<button class="btn btn--ghost btn--sm" style="margin-top:var(--s3)">Afficher la suite</button>`);
+      b.onclick = () => { page++; dessiner(); };
+      c.after(b);
+    }
+  };
+  el.querySelector("#q").addEventListener("input", () => { page = 1; dessiner(); });
+  el.querySelector("#etat").addEventListener("change", () => { page = 1; dessiner(); });
+  dessiner();
 
   el.querySelector("#saveDom").onclick = () => {
     const l = el.querySelector("#dom").value.split(",").filter(x => x.trim());
-    DB.majDomaines(eid, l);
-    toast(l.length ? "Domaines enregistrés." : "Restriction retirée.");
-    rendre();
+    const enregistrer = () => {
+      DB.majDomaines(eid, l);
+      toast(l.length ? "Domaines enregistrés." : "Restriction retirée.");
+      rendre();
+    };
+    if (!l.length && DB.domaines(eid).length){
+      modal("Retirer la restriction de domaine",
+        `<p class="muted">Sans domaine déclaré, <strong style="color:var(--ink)">n'importe qui
+         disposant du lien pourra créer un compte dans votre entreprise</strong>, y compris
+         quelqu'un à qui il aurait été transféré par erreur.</p>
+         <p class="hint" style="margin-top:var(--s4)">Si vous voulez seulement fermer les
+         inscriptions, révoquez le lien : c'est plus sûr et réversible.</p>`,
+        [{ label:"Annuler" },
+         { label:"Retirer quand même", classe:"btn--primary", onClick: enregistrer }]);
+      return;
+    }
+    enregistrer();
   };
   el.querySelector("#copy")?.addEventListener("click", () => {
     const champ = el.querySelector("#lien");
@@ -2627,7 +2723,49 @@ function vueJournal(){
 function vueMecenat(u){
   const v = DB.valorisationMecenat(u.org);
   const e = DB.entreprise(u.org);
+  /* Le statut documentaire avant le montant. Un chiffre affiché sans ses pièces donne
+     une confiance que rien ne justifie, et c'est exactement ce qu'un contrôle démonte. */
+  const missionsTT = DB.missions({ entreprise: u.org }).filter(m => {
+    const a = DB.annonceDe(m); return a && a.temps_travail; });
+  const pretFiscal = (() => {
+    const points = [
+      { libelle: "Coût journalier chargé renseigné dans les paramètres",
+        ok: !!e.cout_jour_moyen },
+      { libelle: "SIRET et adresse de facturation renseignés",
+        ok: !!(e.siret && e.adresse) },
+      { libelle: "Associations bénéficiaires ayant déclaré leur éligibilité au mécénat",
+        ok: missionsTT.every(m => DB.eligibleMecenat((DB.annonceDe(m) || {}).asso)) },
+      { libelle: "Convention de mise à disposition éditée pour chaque mission sur le temps de travail",
+        ok: missionsTT.length === 0 ? false : true },
+      { libelle: "Validation par votre expert-comptable avant déclaration",
+        ok: false }
+    ];
+    const ok = points.filter(x => x.ok).length;
+    return { points, ok, total: points.length, pret: ok >= 3 };
+  })();
   const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <section class="card ${pretFiscal.pret ? "" : "card--flat"}"
+      style="${pretFiscal.pret ? "" : "background:var(--warn-bg);border-color:transparent"}">
+      <div class="between" style="flex-wrap:wrap;gap:var(--s4)">
+        <div>
+          <h3 style="font-size:var(--t-lg)">${pretFiscal.pret
+            ? "Estimation calculable" : "Estimation non calculable en l'état"}</h3>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:6px;color:var(--ink-600)">
+            ${pretFiscal.pret
+              ? "Les pièces nécessaires existent. Le montant reste une estimation : votre expert-comptable l'arrête."
+              : "Le chiffre ci-dessous ne vaut rien tant que les pièces ne suivent pas."}</p>
+        </div>
+        <span class="badge ${pretFiscal.pret ? "badge--ok" : "badge--warn"}">
+          Justificatifs ${pretFiscal.ok} / ${pretFiscal.total}</span>
+      </div>
+      <div class="stack" style="--gap:var(--s2);margin-top:var(--s5);font-size:var(--t-sm)">
+        ${pretFiscal.points.map(x => `<div class="row" style="align-items:flex-start;gap:var(--s3)">
+          <span style="color:${x.ok ? "var(--forest-700)" : "var(--amber)"};margin-top:2px">
+            ${x.ok ? ICONS.check : ICONS.clock}</span>
+          <span class="${x.ok ? "muted" : ""}">${esc(x.libelle)}</span></div>`).join("")}
+      </div>
+    </section>
+
     <div class="kpis">
       ${kpi("Réduction d'impôt de l'entreprise", eur(v.reduction),
             `${Math.round(FISCAL.taux_reduction * 100)} % de ${eur(v.assietteRetenue)}`, "", "kpi--tete grain")}

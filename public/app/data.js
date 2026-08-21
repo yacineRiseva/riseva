@@ -16,6 +16,16 @@ export const PLAFOND_PAR_FORMAT = 0.5;
 
 /* Catégories de taille. Comparer une entreprise de 40 salariés à une de 4 000 n'a
    aucun sens : le classement principal est normalisé, et il se lit par catégorie. */
+/* Adresse publique du service. En démonstration on tourne sur un fichier local ou sur
+   127.0.0.1 ; montrer ce lien-là à un client ferait douter de tout le reste. */
+export const SITE = "https://riseva.fr";
+export const lienPublic = (chemin) => {
+  const local = typeof location === "undefined"
+    || location.protocol === "file:"
+    || /^(127\.|localhost|0\.0\.0\.0)/.test(location.hostname);
+  return (local ? SITE : location.origin) + chemin;
+};
+
 export const CATEGORIES = [
   { id:"tpe", label:"Moins de 50 salariés",  min:0,   max:49 },
   { id:"pme", label:"50 à 199 salariés",     min:50,  max:199 },
@@ -484,6 +494,21 @@ function creerMock(){
       const total = e ? (e.sieges || e.effectif || 0) : 0;
       const pris = api.salaries(eid).filter(u => !u.anonyme).length;
       return { total, pris, restants: Math.max(0, total - pris) };
+    },
+
+    /* Suspendre l'accès : réversible, et sans rien effacer. C'est ce qu'on veut dans
+       neuf cas sur dix, un congé, un doute, un départ pas encore confirmé. Toutes les
+       sessions tombent, les données et le journal restent. */
+    suspendreAcces(uid, oui){
+      const u = s.utilisateurs.find(x => x.id === uid);
+      if (!u || u.anonyme) return null;
+      if (!oui && u.role === "entreprise_admin") { u.actif = true; return u; }
+      if (oui && u.role === "entreprise_admin"
+          && api.administrateurs(u.org).length <= 1)
+        throw new Error("C'est le dernier administrateur actif. Nommez-en un autre d'abord.");
+      u.actif = !oui;
+      api.tracer(u.org, uid, oui ? "suspension" : "reactivation", null);
+      return u;
     },
 
     /* Retirer un salarié : on ne supprime pas la ligne, on la vide.
