@@ -834,7 +834,7 @@ AFFICHES_ENT = f"""<section id="affiches">
         "Un lien envoyé une fois par courriel se perd. Une affiche reste, et elle parle aux "
         "gens qui n'ouvrent jamais leurs mails.")}
 
-    <div class="duo duo--affiche">
+    <div class="duo duo--texte duo--affiche">
       {capture("affiche",
                "L'affiche A3 générée par Riseva : le nom de l'entreprise, la saison, les "
                "formats proposés, le lien d'inscription et son code QR",

@@ -2697,3 +2697,16 @@ body{
   .vd .rv,.va .rv{opacity:1;transform:none;transition:none;}
   .vd .scene .shot{animation:none;transform:none;}
 }
+
+/* ── la section des affiches ────────────────────────────────────────────────
+   L'affiche est un A4 : au format d'une demi-page elle serait illisible, et en
+   pleine largeur elle ecraserait tout le reste. Elle occupe donc un peu moins
+   de la moitie, et le texte se cale a sa hauteur plutot que de laisser un grand
+   rectangle vide sous lui. */
+.duo--affiche{grid-template-columns:minmax(0,.86fr) minmax(0,1fr);align-items:center;}
+.duo--affiche .shot--affiche{margin:0;}
+.duo--affiche .shot--affiche img{max-height:none;}
+.duo--affiche .col > h3{margin-top:clamp(22px,2.4vw,32px);}
+.duo--affiche .col > h3:first-child{margin-top:0;}
+.duo--affiche .col > h3 + p{margin-top:10px;}
+@media (max-width:900px){ .duo--affiche{grid-template-columns:1fr;align-items:start;} }
