@@ -1,5 +1,5 @@
 import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, DELAI_VALIDATION_JOURS, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, KITS_SAISON, ETATS_EXPEDITION, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
-import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
+import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, ecusson, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
 /* Session                                                             */
@@ -1314,7 +1314,9 @@ function vueClassement(u){
               <b>points retenus / effectif</b></div>
             <div class="between"><span class="muted">Plafond par format</span>
               <b>${Math.round(PLAFOND_PAR_FORMAT * 100)} % du score retenu</b></div>
-            <div class="between"><span class="muted">Cohorte minimale</span>
+            <div class="between"><span class="muted">Classement publié à partir de</span>
+              <b>3 entreprises</b></div>
+            <div class="between"><span class="muted">« Top 10 % » à partir de</span>
               <b>10 entreprises</b></div>
           </div>
           <hr class="sep">
@@ -1334,9 +1336,20 @@ function vueClassement(u){
 
   const dessine = () => {
     const cl = DB.classement({ mode, categorie: categorie || null, pour: u.org });
-    /* Un décile n'a de sens qu'au-dessus d'une certaine cohorte. Afficher « top 10 % »
-       quand deux entreprises sont classées est indéfendable. */
-    const COHORTE_MIN = 10;
+    /* Deux seuils, et il ne faut pas les confondre — c'est la confusion des deux
+       qui rendait cet écran vide pendant toute la première saison.
+
+       Un RANG est un fait : dès qu'il y a trois entreprises, il y a une première,
+       une deuxième et une troisième, et le dire n'exige aucune statistique. En
+       dessous de trois, il n'y a pas de classement, il y a un duel.
+
+       Un DÉCILE est une statistique : « top 10 % » sur onze entreprises désigne la
+       première, et le dire ainsi lui prête une avance qu'elle n'a pas. Ça, ça
+       demande une vraie cohorte.
+
+       On classe donc à partir de trois, et on ne parle de décile qu'à partir de dix. */
+    const RANG_MIN = 3, COHORTE_MIN = 10;
+    const classable = cl.length >= RANG_MIN;
     const decile = cl.length >= COHORTE_MIN;
     const seuil = decile ? Math.max(1, Math.ceil(cl.length * 0.1)) : 0;
     const cle = mode === "brut" ? "points" : "parSalarie";
@@ -1356,7 +1369,7 @@ function vueClassement(u){
        classement n'est pas significatif, c'est laisser le lecteur retenir une
        seule chose : qu'il est dernier. On montre son score, et l'avancement de
        la cohorte — le seul objectif qui existe vraiment à ce stade. */
-    if (!decile){
+    if (!classable){
       /* Un titre « Classement de la saison » qui ouvre une page sans classement
          est une promesse non tenue, et c'est la première chose qu'on lit. */
       el.querySelector("#titreClassement").textContent = "Votre score de saison";
@@ -1377,34 +1390,83 @@ function vueClassement(u){
         </div>` : ""}
         <div>
           <div class="between" style="margin-bottom:var(--s2)">
-            <span class="muted" style="font-size:var(--t-sm)">Cohorte</span>
-            <b class="tnum">${cl.length} / 10</b>
+            <span class="muted" style="font-size:var(--t-sm)">Entreprises dans votre catégorie</span>
+            <b class="tnum">${cl.length} / ${RANG_MIN}</b>
           </div>
-          <div class="bar"><i style="width:${Math.min(100, (cl.length / 10) * 100)}%"></i></div>
-          <p class="hint">${cl.length} entreprise${cl.length > 1 ? "s" : ""} sur les dix
-            nécessaires. Le classement sera publié lorsque la cohorte atteindra ce seuil.</p>
+          <div class="bar"><i style="width:${Math.min(100, (cl.length / RANG_MIN) * 100)}%"></i></div>
+          <p class="hint">À deux, il n'y a pas de classement, il y a un duel. Le classement
+            s'ouvre à ${RANG_MIN} entreprises dans votre catégorie de taille — et vous pouvez
+            déjà comparer vos sites entre eux, ce qui ne dépend de personne d'autre.</p>
         </div>
       </div>`));
       return;
     }
     tete.style.display = "";
     el.querySelector("#titreClassement").textContent = "Classement de la saison";
-    el.querySelector("#etatCohorte").textContent = "Cohorte constituée";
+    el.querySelector("#etatCohorte").textContent = decile
+      ? "Cohorte constituée" : `${cl.length} entreprises classées`;
     el.querySelector("#etatCohorte").className = "badge badge--ok";
     if (!cl.length){ tb.appendChild(h(`<tr><td colspan="4" class="empty">Aucune entreprise dans cette catégorie.</td></tr>`)); return; }
+
+    /* Son propre rang, en gros, au-dessus du tableau. C'est la première chose que
+       quelqu'un cherche en ouvrant un classement, et le faire chercher dans une
+       liste de trente lignes est une façon de le perdre. Il s'affiche même quand
+       l'entreprise est sous la médiane : elle se voit toujours elle-même, ce sont
+       les autres qui ne la voient pas. */
+    const mien = cl.find(e => e.id === u.org);
+    if (mien) av.appendChild(h(`<div class="card card--dark grain"
+      style="margin-bottom:var(--s5);padding:var(--s5) var(--s6)">
+      <div class="row" style="gap:var(--s5);align-items:center;flex-wrap:wrap">
+        ${ecusson(mien.nom, { logo: mien.logo, taille: 46 })}
+        <div style="flex:1;min-width:180px">
+          <p class="eyebrow" style="color:var(--lime)">Votre rang</p>
+          <div style="font-family:var(--font-display);font-size:2rem;line-height:1.05;
+            letter-spacing:var(--track-display);color:var(--paper)">
+            ${rangFR(mien.rang)} <span style="font-size:var(--t-md);color:#C5CDBB">
+              sur ${cl.length}</span></div>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:2px;color:#C5CDBB">
+            ${esc(mien.nom)} · ${esc(mien.categorie.label)}</p>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:var(--font-display);font-size:1.7rem;line-height:1.05;
+            color:var(--lime)">${nb(mien.points)}</div>
+          <p class="muted" style="font-size:var(--t-xs);color:#C5CDBB">points retenus</p>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:var(--font-display);font-size:1.7rem;line-height:1.05;
+            color:var(--paper)">${pct(mien.parSalarie)}</div>
+          <p class="muted" style="font-size:var(--t-xs);color:#C5CDBB">points par salarié</p>
+        </div>
+      </div>
+      ${mien.anonyme ? `<p class="muted" style="font-size:var(--t-xs);margin-top:var(--s4);
+        color:#A8B29B">Vous êtes dans la moitié basse : votre nom et votre logo n'apparaissent
+        pas pour les autres entreprises. Vous, vous vous voyez toujours.</p>` : ""}
+    </div>`));
+
     cl.forEach(e => {
       const moiOrg = e.id === u.org;
       tb.appendChild(h(`<tr style="${moiOrg ? "background:var(--forest-050)" : ""}">
-        <td>${e.rang}</td>
-        <td><strong${e.anonyme ? ` class="muted"` : ""}>${esc(e.nomAffiche)}</strong>${moiOrg ? ` <span class="muted">(vous)</span>` : ""}${
-          decile && e.rang <= seuil ? ` <span class="badge badge--brand" style="height:20px;margin-left:6px">top 10 %</span>` : ""}
-          <br><span class="muted" style="font-size:var(--t-xs)">${e.anonyme
-            ? `non nommée : moitié basse du classement`
-            : `${esc(e.categorie.label)} · ${e.engages}/${e.effectif} de l'effectif${
-                e.ecrete ? ` · ${nb(e.ecrete)} points écrêtés` : ""}`}</span></td>
-        <td style="width:30%"><div class="bar"><i style="width:${(e[cle] / max) * 100}%"></i></div></td>
+        <td class="tnum" style="font-family:var(--font-display);font-size:var(--t-lg);
+          color:${moiOrg ? "var(--forest-800)" : "var(--ink-500)"};width:52px">${e.rang}</td>
+        <td>
+          <div class="row" style="gap:var(--s3);align-items:center">
+            ${ecusson(e.nom, { logo: e.logo, anonyme: e.anonyme })}
+            <div>
+              <strong${e.anonyme ? ` class="muted"` : ""}>${esc(e.nomAffiche)}</strong>${
+                moiOrg ? ` <span class="muted">(vous)</span>` : ""}${
+                decile && e.rang <= seuil ? ` <span class="badge badge--brand" style="height:20px;margin-left:6px">top 10 %</span>` : ""}
+              <br><span class="muted" style="font-size:var(--t-xs)">${e.anonyme
+                ? `non nommée : moitié basse du classement`
+                : `${esc(e.categorie.label)} · ${e.engages}/${e.effectif} de l'effectif${
+                    e.ecrete ? ` · ${nb(e.ecrete)} points écrêtés` : ""}`}</span>
+            </div>
+          </div>
+        </td>
+        <td style="width:26%"><div class="bar"><i style="width:${(e[cle] / max) * 100}%"></i></div></td>
         <td class="tnum" style="text-align:right"><strong>${mode === "brut" ? nb(e.points) : pct(e.parSalarie)}</strong>
-          <br><span class="muted" style="font-size:var(--t-xs)">${mode === "brut" ? "points" : "pts / salarié"}</span></td>
+          <br><span class="muted" style="font-size:var(--t-xs)">${mode === "brut"
+            ? `points · ${pct(e.parSalarie)} / salarié`
+            : `pts / salarié · ${nb(e.points)} au total`}</span></td>
       </tr>`));
     });
   };
@@ -2531,6 +2593,31 @@ function vueParametres(u){
       <button class="btn btn--primary" style="margin-top:var(--s6)" id="save">Enregistrer</button>
 
       <hr class="sep">
+      <h3 style="font-size:var(--t-lg)">Votre logo</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+        Il apparaît à côté de votre nom dans le classement, sur vos rapports et sur les
+        affiches que nous vous envoyons. Sans logo, vos initiales font l'affaire — l'écran
+        n'est jamais vide.</p>
+      <div class="row" style="gap:var(--s5);align-items:center;margin-top:var(--s5)">
+        <span id="apercuLogo">${ecusson(e.nom, { logo: e.logo, taille: 56 })}</span>
+        <div class="field" style="flex:1;margin:0">
+          <label for="logo">Fichier image, ou adresse d'un logo en ligne</label>
+          <div class="row" style="gap:var(--s3)">
+            <input class="input" id="logo" value="${esc(e.logo && !String(e.logo).startsWith("data:") ? e.logo : "")}"
+              placeholder="https://…/logo.png" style="flex:1">
+            <input type="file" id="logoF" aria-label="Choisir un fichier de logo"
+              accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden>
+            <button class="btn btn--quiet btn--sm" id="logoB" type="button">Choisir un fichier</button>
+            ${e.logo ? `<button class="btn btn--ghost btn--sm" id="logoX" type="button">Retirer</button>` : ""}
+          </div>
+          <p class="hint" id="logoAide">Carré de préférence, 256 pixels suffisent. Il n'est jamais
+            étiré : s'il ne remplit pas le carré, il est centré. Une entreprise dans la moitié
+            basse du classement n'affiche ni son nom ni son logo aux autres — le logo suit le nom,
+            sinon l'anonymat annoncé n'en serait pas un.</p>
+        </div>
+      </div>
+
+      <hr class="sep">
       <h3 style="font-size:var(--t-lg)">Votre nom dans le classement</h3>
       <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
         Par défaut, seule la moitié haute du classement est nommée. Un classement qui expose
@@ -2627,6 +2714,41 @@ function vueParametres(u){
     </div>
   </div>`);
 
+  /* Le fichier est lu dans le navigateur et rangé en clair dans l'entreprise : pas
+     d'envoi vers un service tiers pour une image de 6 Ko, et pas de dépendance de
+     plus. Au-delà de 200 Ko on refuse — un logo qui pèse plus qu'une page entière
+     ralentit chaque écran où il apparaît, et il en apparaît partout. */
+  const majApercu = (logo) => {
+    el.querySelector("#apercuLogo").innerHTML = ecusson(e.nom, { logo, taille: 56 });
+  };
+  const bLogo = el.querySelector("#logoB"), fLogo = el.querySelector("#logoF");
+  if (bLogo) bLogo.onclick = () => fLogo.click();
+  if (fLogo) fLogo.onchange = () => {
+    const f = fLogo.files && fLogo.files[0];
+    if (!f) return;
+    if (f.size > 200 * 1024){
+      toast("Ce fichier dépasse 200 Ko. Un logo de 256 pixels en pèse une dizaine.");
+      fLogo.value = ""; return;
+    }
+    const lecteur = new FileReader();
+    lecteur.onload = () => {
+      try {
+        DB.reglerLogo(u.org, lecteur.result);
+        majApercu(lecteur.result);
+        el.querySelector("#logo").value = "";
+        toast("Logo enregistré.");
+      } catch (err){ toast(err.message); }
+    };
+    lecteur.readAsDataURL(f);
+  };
+  const xLogo = el.querySelector("#logoX");
+  if (xLogo) xLogo.onclick = () => {
+    DB.reglerLogo(u.org, "");
+    majApercu(null);
+    el.querySelector("#logo").value = "";
+    toast("Logo retiré. Vos initiales prennent le relais.");
+  };
+
   el.querySelector("#save").onclick = () => {
     const v = (id) => el.querySelector("#" + id).value;
     DB.majEntreprise(u.org, {
@@ -2644,6 +2766,8 @@ function vueParametres(u){
     DB.majContrat(u.org, { plateforme_reception: v("pdp").trim(), annuaire_id: v("annu").trim() });
     const vis = el.querySelector('input[name="vis"]:checked');
     if (vis) DB.reglerVisibilite(u.org, vis.value);
+    const lg = el.querySelector("#logo");
+    if (lg && lg.value.trim() !== (e.logo || "")) DB.reglerLogo(u.org, lg.value.trim());
     toast("Paramètres enregistrés."); rendre();
   };
   const libelles = { inscription:"Inscription", creation_lien:"Création du lien",

@@ -858,12 +858,28 @@ def main():
         p.evaluate("()=>document.querySelector('.overlay')?.remove()")
         # Sous dix entreprises : pas de rang, pas de barre comparative, pas de trophée.
         c = p.inner_text(".content")
-        verifie("une cohorte trop petite est annoncée comme telle",
-                "Cohorte" in c and "/ 10" in c)
-        verifie("aucun rang n'est affiché sous dix entreprises",
-                p.eval_on_selector_all("tbody tr", "r=>r.length") == 0)
+        # Un rang est un fait dès trois entreprises ; un décile est une statistique
+        # qui en demande dix. Confondre les deux vidait l'écran toute la saison.
+        verifie("le classement s'affiche dès trois entreprises",
+                p.eval_on_selector_all("tbody tr", "r=>r.length") >= 3)
+        verifie("le rang de l'entreprise est mis en avant",
+                "Votre rang" in c and "sur" in c)
+        verifie("son nom et ses points y figurent",
+                "points retenus" in c and "points par salarié" in c)
+        verifie("la cohorte reste trop petite pour parler de décile",
+                "trop petite pour parler de décile" in c and "top 10 %" not in c)
         verifie("le score de l'entreprise est montré à la place",
                 "point" in c and "par salarié" in c)
+        verifie("chaque ligne porte un écusson, logo ou initiales",
+                p.eval_on_selector_all("tbody tr img, tbody tr span[aria-hidden]",
+                                       "r=>r.length") >= 3)
+        verifie("une ligne anonyme n'affiche ni logo ni secteur",
+                p.evaluate("""()=>{
+                  const l=[...document.querySelectorAll('tbody tr')]
+                    .find(r=>/non nommée/.test(r.textContent));
+                  return !l || (!l.querySelector('img') && !/Logistique|Industrie|Conseil/.test(l.textContent));
+                }"""),
+                "un logo est un identifiant plus fort qu'un nom")
         verifie("l'écrêtage est montré", "Plafond par format" in t)
         verifie("le classement ne se confond pas avec une assiette fiscale",
                 "n'est pas non plus une assiette fiscale" in norm(c)

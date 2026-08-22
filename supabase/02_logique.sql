@@ -173,7 +173,7 @@ $$;
 -- rien du tout.
 create or replace function public.classement_saison(p_saison uuid)
 returns table (
-  entreprise uuid, nom text, anonyme boolean, categorie text,
+  entreprise uuid, nom text, logo text, anonyme boolean, categorie text,
   brut bigint, retenu bigint, effectif_reference integer,
   par_salarie numeric, rang bigint, cohorte bigint)
 language sql stable security definer set search_path = '' as $$
@@ -192,7 +192,7 @@ language sql stable security definer set search_path = '' as $$
       from par_type p join brut b on b.entreprise = p.entreprise
      group by p.entreprise
   ), base as (
-    select ab.entreprise, e.nom, e.secteur, e.visibilite, ab.effectif_reference,
+    select ab.entreprise, e.nom, e.logo, e.secteur, e.visibilite, ab.effectif_reference,
            coalesce(b.brut, 0) as brut, coalesce(r.retenu, 0) as retenu,
            case
              when ab.effectif_reference < 50   then 'TPE'
@@ -223,7 +223,13 @@ language sql stable security definer set search_path = '' as $$
     case when private.nommable(c.visibilite, c.rang + c.exaequo - 1, c.cohorte)
               or c.entreprise = private.mon_entreprise() or private.est_admin()
          then c.nom
-         else 'Entreprise · ' || c.categorie || coalesce(' · ' || c.secteur, '') end,
+         else 'Entreprise · ' || c.categorie end,
+    -- Le logo suit le nom et disparaît avec lui : c'est un identifiant plus fort
+    -- qu'une raison sociale, et le laisser sur une ligne anonymisée annulerait
+    -- l'anonymisation tout en la laissant écrite à l'écran.
+    case when private.nommable(c.visibilite, c.rang + c.exaequo - 1, c.cohorte)
+              or c.entreprise = private.mon_entreprise() or private.est_admin()
+         then c.logo end,
     not (private.nommable(c.visibilite, c.rang + c.exaequo - 1, c.cohorte)
          or c.entreprise = private.mon_entreprise() or private.est_admin()),
     c.categorie,
@@ -1957,4 +1963,19 @@ begin
      set etat = p_etat,
          destinataire = coalesce(left(p_destinataire, 240), e.destinataire)
    where e.id = p_envoi;
+end $$;
+
+-- Le logo de l'entreprise, réglé par son administrateur. La contrainte de forme est
+-- portée par la colonne ; ici on vérifie seulement qui a le droit d'écrire.
+create or replace function public.regler_logo(p_logo text)
+returns void
+language plpgsql security definer set search_path = '' as $$
+declare v_ent uuid := private.mon_entreprise();
+begin
+  if v_ent is null or private.mon_role() <> 'entreprise_admin' then
+    raise exception 'Réservé à l''administrateur de l''entreprise' using errcode = '42501';
+  end if;
+  update public.entreprise e
+     set logo = nullif(btrim(coalesce(p_logo, '')), '')
+   where e.id = v_ent;
 end $$;

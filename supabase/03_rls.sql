@@ -63,7 +63,7 @@ create policy bareme_lecture on public.bareme for select to anon, authenticated 
 -- affirmait le contraire, et la recette ne testait que `anon`.
 grant select on public.entreprise_publique to anon, authenticated;
 grant select (id, nom, secteur, ville, effectif, ca, cout_jour_moyen,
-              siren, siret, adresse, lat, lon, groupe, visibilite)
+              siren, siret, adresse, lat, lon, groupe, visibilite, logo)
   on public.entreprise to authenticated;
 create policy entreprise_privee on public.entreprise for select to authenticated
   using (id = private.mon_entreprise()
@@ -329,6 +329,7 @@ grant execute on function
   public.publier_annonce(text, text, public.type_annonce, integer, date, text,
                          boolean, public.unite_realisation, numeric),
   public.fermer_annonce(uuid),
+  public.regler_logo(text),
   public.pseudonymiser_salarie(uuid),
   public.supprimer_salarie(uuid),
   public.signaler_annonce(uuid, text, text),

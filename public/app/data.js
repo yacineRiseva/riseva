@@ -1110,15 +1110,18 @@ const seed = {
       adresse:"4 quai de la Fosse, 44000 Nantes", secteur:"Négoce", ville:"Nantes" },
     { id:"e2", lat:50.6292, lon:3.0573, nom:"Groupe Vidal",        effectif:340, sieges:350, ca:62_000_000, cout_jour_moyen:290, secteur:"Logistique", ville:"Lille" },
     { id:"e3", lat:48.8566, lon:2.3522, nom:"Cabinet Marchand",    effectif:64,  sieges:75,  ca:9_800_000,  cout_jour_moyen:520,  secteur:"Conseil",    ville:"Paris" },
-    { id:"e4", lat:47.2184, lon:-1.5536, nom:"Novaterre",           effectif:120, sieges:120, ca:21_000_000, cout_jour_moyen:310, secteur:"Agro",       ville:"Nantes" },
+    { id:"e4", lat:47.2184, lon:-1.5536, nom:"Novaterre",           effectif:120, sieges:120, ca:21_000_000, cout_jour_moyen:310, secteur:"Agro",       ville:"Nantes" ,
+      logo:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2064%2064%27%3E%3Crect%20width%3D%2764%27%20height%3D%2764%27%20rx%3D%2712%27%20fill%3D%27%231F5C4A%27%2F%3E%3Cpath%20d%3D%27M32%2014c10%206%2014%2013%2014%2021a14%2014%200%200%201-28%200c0-8%204-15%2014-21z%27%20fill%3D%27%23DCEBA8%27%2F%3E%3Cpath%20d%3D%27M32%2020v26%27%20stroke%3D%27%231F5C4A%27%20stroke-width%3D%273%27%20stroke-linecap%3D%27round%27%2F%3E%3C%2Fsvg%3E"},
     { id:"e5", lat:43.6047, lon:1.4442, nom:"Atelier Berthier",    effectif:38,  sieges:50,  ca:3_400_000,  cout_jour_moyen:280,  secteur:"Artisanat",  ville:"Toulouse" },
-    { id:"e6", lat:44.8378, lon:-0.5792, nom:"Sirius Assurances",   effectif:520, sieges:500, ca:140_000_000, cout_jour_moyen:400,  secteur:"Assurance",  ville:"Bordeaux" },
+    { id:"e6", lat:44.8378, lon:-0.5792, nom:"Sirius Assurances",   effectif:520, sieges:500, ca:140_000_000, cout_jour_moyen:400,  secteur:"Assurance",  ville:"Bordeaux" ,
+      logo:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2064%2064%27%3E%3Crect%20width%3D%2764%27%20height%3D%2764%27%20rx%3D%2712%27%20fill%3D%27%232B3A6B%27%2F%3E%3Ccircle%20cx%3D%2732%27%20cy%3D%2732%27%20r%3D%2715%27%20fill%3D%27none%27%20stroke%3D%27%23F2F0E9%27%20stroke-width%3D%273%27%2F%3E%3Cpath%20d%3D%27M32%2017l4.2%2010.6L47%2032l-10.8%204.4L32%2047l-4.2-10.6L17%2032l10.8-4.4z%27%20fill%3D%27%23F2F0E9%27%2F%3E%3C%2Fsvg%3E"},
     { id:"e7", lat:48.1173, lon:-1.6778, nom:"Delmas & Fils",       effectif:87,  sieges:100, ca:12_000_000, cout_jour_moyen:300,  secteur:"BTP",        ville:"Rennes" },
     { id:"e8", lat:48.3904, lon:-4.4861, nom:"Kervella Transport",  effectif:145, sieges:150, ca:18_000_000, cout_jour_moyen:270,  secteur:"Transport",  ville:"Brest" },
     /* Il faut dépasser dix entreprises pour que le classement ait un sens, et
        la démonstration doit montrer le produit tel qu'il tourne, pas un écran
        qui explique que la cohorte est trop petite pour être classée. */
-    { id:"e10", lat:45.7640, lon:4.8357, nom:"Verrerie du Rhône",  effectif:265, sieges:270, ca:39_000_000, cout_jour_moyen:295, secteur:"Industrie", ville:"Lyon" },
+    { id:"e10", lat:45.7640, lon:4.8357, nom:"Verrerie du Rhône",  effectif:265, sieges:270, ca:39_000_000, cout_jour_moyen:295, secteur:"Industrie", ville:"Lyon" ,
+      logo:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2064%2064%27%3E%3Crect%20width%3D%2764%27%20height%3D%2764%27%20rx%3D%2712%27%20fill%3D%27%237A4A1E%27%2F%3E%3Cpath%20d%3D%27M22%2016h20l-3%2016a7%207%200%200%201-14%200z%27%20fill%3D%27%23F2F0E9%27%2F%3E%3Cpath%20d%3D%27M32%2039v9M25%2048h14%27%20stroke%3D%27%23F2F0E9%27%20stroke-width%3D%273%27%20stroke-linecap%3D%27round%27%2F%3E%3C%2Fsvg%3E"},
     { id:"e11", lat:43.2965, lon:5.3698, nom:"Marseille Optique", effectif:64,  sieges:70,  ca:8_200_000,  cout_jour_moyen:285, secteur:"Santé",     ville:"Marseille" },
     { id:"e12", lat:49.4432, lon:1.0999, nom:"Seine Emballage",   effectif:410, sieges:420, ca:61_000_000, cout_jour_moyen:305, secteur:"Industrie", ville:"Rouen" }
   ],
@@ -1778,8 +1781,16 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         const anonyme = e.id !== pour && (
           choix === "anonyme" || (choix === "auto" && dernierRangDuGroupe(e) > mediane));
         return { ...e, anonyme, mediane,
+          /* Le logo suit le nom, et disparaît avec lui. Un logo est un identifiant
+             plus fort qu'une raison sociale — masquer le nom en laissant la marque
+             ne masque rien du tout, et l'anonymat annoncé deviendrait un mensonge. */
+          logo: anonyme ? null : (e.logo || null),
+          /* Sur une ligne anonyme, la tranche de taille et RIEN d'autre. Le secteur
+             était de trop : « 200 à 499 salariés · Logistique » dans une cohorte de
+             quatre ne masque personne, ça désigne. Deux attributs suffisent à
+             réidentifier là où un seul ne suffit pas. */
           nomAffiche: anonyme
-            ? `Entreprise · ${e.categorie.label.toLowerCase()}${e.secteur ? " · " + e.secteur : ""}`
+            ? `Entreprise · ${e.categorie.label.toLowerCase()}`
             : e.nom };
       });
     },
@@ -3400,6 +3411,26 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       nom:     { label:"Nommée quel que soit mon rang",          aide:"Vous assumez le classement dans les deux sens." },
       anonyme: { label:"Jamais nommée",                          aide:"Votre rang reste visible pour vous seule." }
     },
+    /* Le logo de l'entreprise. Deux formes acceptées et deux seulement : une adresse
+       https, ou une image encodée dans la page. Tout le reste est refusé — un
+       « javascript: » ou un « data:text/html » dans un attribut src qu'on affiche
+       sur l'écran de tous les autres clients, c'est une porte ouverte, et elle
+       s'ouvrirait sur le classement, l'écran le plus partagé du produit. */
+    reglerLogo(eid, valeur){
+      const e = api.entreprise(eid); if (!e) return null;
+      const v = String(valeur || "").trim();
+      if (!v){ e.logo = null; return e; }
+      const image = /^data:image\/(png|jpeg|webp|gif|svg\+xml);/i.test(v);
+      const distant = /^https:\/\//i.test(v);
+      if (!image && !distant)
+        throw new Error("Un logo est soit un fichier image, soit une adresse commençant "
+          + "par https. Rien d'autre n'est accepté.");
+      if (v.length > 300_000)
+        throw new Error("Ce logo est trop lourd. Un carré de 256 pixels suffit largement.");
+      e.logo = v;
+      return e;
+    },
+
     reglerVisibilite(eid, valeur){
       const e = api.entreprise(eid); if (!e) return null;
       if (!["auto", "nom", "anonyme"].includes(valeur))
@@ -4663,7 +4694,8 @@ const versEtat = {
     exercice_debut: r.exercice_debut || null, exercice_fin: r.exercice_fin || null,
     dons_hors_riseva: r.dons_hors_riseva ?? null, report_anterieur: r.report_anterieur ?? null,
     siren: r.siren, siret: r.siret, adresse: r.adresse,
-    lat: r.lat, lon: r.lon, groupe: r.groupe || null, domaines: []
+    lat: r.lat, lon: r.lon, groupe: r.groupe || null, domaines: [],
+    logo: r.logo || null
   }),
   groupe: (r) => ({ id: r.id, nom: r.nom, societe_mere: r.societe_mere, cree_le: r.cree_le }),
   etablissement: (r) => ({

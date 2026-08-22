@@ -53,6 +53,35 @@ export const rangFR = (n) => n + "<sup style='font-size:.55em'>" + (n === 1 ? "e
 
 export const initiales = (nom) => nom.split(/\s+/).slice(0,2).map(m => m[0]).join("").toUpperCase();
 
+/* L'écusson d'une entreprise dans le classement : son logo si elle en a chargé un,
+   ses initiales sur une pastille sinon. La couleur de la pastille se dérive du nom,
+   donc elle est stable — une entreprise garde la même d'une semaine à l'autre, ce
+   qui permet de la reconnaître du coin de l'œil sans lire.
+
+   Deux règles.
+   Une entreprise anonymisée n'a JAMAIS d'écusson identifiable : ni logo, ni
+   initiales, ni couleur dérivée de son nom. Un logo est un identifiant plus fort
+   qu'un nom, et masquer le nom en laissant le logo ne masque rien du tout.
+   Et le logo n'est jamais étiré : `object-fit: contain` sur fond neutre, parce
+   qu'un logo déformé fait plus mauvais effet que pas de logo. */
+export function ecusson(nom, { logo = null, anonyme = false, taille = 30 } = {}){
+  const t = `width:${taille}px;height:${taille}px;border-radius:8px;flex:0 0 auto`;
+  if (anonyme)
+    return `<span aria-hidden="true" style="${t};display:inline-flex;align-items:center;
+      justify-content:center;background:var(--ink-050);color:var(--ink-400);
+      font-size:${Math.round(taille * 0.42)}px">•••</span>`;
+  if (logo)
+    return `<img src="${esc(logo)}" alt="" style="${t};object-fit:contain;
+      background:var(--paper-high);border:1px solid var(--ink-100)">`;
+  /* Teinte stable dérivée du nom : même entreprise, même couleur, toujours. */
+  let n = 0;
+  for (const c of String(nom || "")) n = (n * 31 + c.charCodeAt(0)) % 360;
+  return `<span aria-hidden="true" style="${t};display:inline-flex;align-items:center;
+    justify-content:center;background:hsl(${n} 34% 90%);color:hsl(${n} 46% 26%);
+    font-size:${Math.round(taille * 0.38)}px;font-weight:700;letter-spacing:.02em"
+    >${esc(initiales(nom || "?"))}</span>`;
+}
+
 /* Icônes : traits fins, 1.6px, jamais de pictos pleins. */
 const P = (d) => `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
   stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;

@@ -178,6 +178,16 @@ create table entreprise (
   -- classement qui expose les derniers punit ceux qui participent et donne une
   -- raison rationnelle de ne pas s'inscrire.
   visibilite text not null default 'auto' check (visibilite in ('auto','nom','anonyme')),
+  -- Le logo affiché à côté du nom dans le classement. Deux formes, et deux
+  -- seulement : une adresse https, ou une image encodée. La contrainte est ici et
+  -- pas seulement dans l'écran, parce que cette valeur finit dans un attribut
+  -- `src` rendu chez TOUS les autres clients — un « javascript: » ou un
+  -- « data:text/html » y serait une porte ouverte sur l'écran le plus partagé du
+  -- produit. La taille est bornée pour la même raison qu'à l'écran : un logo plus
+  -- lourd qu'une page ralentit chaque écran où il apparaît, et il apparaît partout.
+  logo text check (
+    logo ~ '^https://' or logo ~ '^data:image/(png|jpeg|webp|gif|svg\+xml);'),
+  constraint entreprise_logo_borne check (logo is null or length(logo) <= 300000),
   cree_le   timestamptz not null default now()
 );
 create index entreprise_groupe on entreprise (groupe) where groupe is not null;

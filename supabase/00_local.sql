@@ -17,6 +17,15 @@ do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'service_role') then
     create role service_role nologin noinherit bypassrls;
   end if;
+  -- `riseva_definer` est créé par 01_schema.sql, qui s'exécute APRÈS ce fichier.
+  -- Sur une base neuve, le grant plus bas tombait donc sur un rôle inexistant et
+  -- toute l'installation s'arrêtait là. Le bug ne se voyait que sur un serveur
+  -- vierge : sur une machine où le rôle traînait d'une installation précédente,
+  -- tout passait. C'est précisément le genre de panne qu'on découvre le jour du
+  -- déploiement, et jamais avant.
+  if not exists (select 1 from pg_roles where rolname = 'riseva_definer') then
+    create role riseva_definer nologin noinherit;
+  end if;
 end $$;
 
 grant anon, authenticated, service_role, riseva_definer to current_user;
