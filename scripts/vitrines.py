@@ -814,8 +814,9 @@ FAQ_ENT = faq([
    f"<b>{EUR(TARIFS['paliers'][0]['prix'])[:-2]} à {EUR(TARIFS['paliers'][-1]['prix'])} HT</b> "
    f"pour douze mois, selon votre effectif, un à douze sites compris selon la tranche. "
    f"Les {TARIFS['fondateur_places']} premières entreprises signataires bénéficient de "
-   f"{int(TARIFS['fondateur_taux'] * 100)} % de remise sur leur première saison, et de son gel "
-   f"pour la deuxième.</p>"
+   f"{int(TARIFS['fondateur_taux'] * 100)} % de remise sur leur première saison, et sur elle "
+   f"seule : nous ne garantissons le prix d'aucune saison que nous n'avons pas encore "
+   f"vécue.</p>"
    "<p>Pas de facturation par salarié, pas de module en supplément, pas de commission sur les "
    "dons. Les associations, elles, ne paient jamais rien.</p>"
    "<p>Pour situer : les outils RSE français facturent couramment de 5 000 à 50 000 € par an, "
@@ -981,9 +982,10 @@ def grille_tarifaire():
         <p class="mono">Tarif fondateur</p>
         <p class="tar-fond"><b>&minus;{int(TARIFS['fondateur_taux'] * 100)} %</b> sur la première saison</p>
         <p class="tar-n">Pour les {TARIFS['fondateur_places']} premières entreprises qui signent,
-          jusqu'au 31 décembre 2026. Le tarif de votre première saison est ensuite
-          <b>gelé pour la deuxième</b>. Passé ces places, la grille s'applique telle quelle :
-          une remise sans limite n'est pas une remise, c'est le prix.</p>
+          jusqu'au 31 décembre 2026. Elle porte sur votre <b>première saison, et sur elle
+          seule</b> : nous ne garantissons le prix d'aucune saison que nous n'avons pas encore
+          vécue. Passé ces places, la grille s'applique telle quelle — une remise sans limite
+          n'est pas une remise, c'est le prix.</p>
       </div>
       <div class="tar-card rv d3">
         <p class="mono">Le règlement</p>
@@ -1175,9 +1177,15 @@ ARGENT_ASSO = f"""<section id="argent">
    "ni sur un compte de passage, ni le temps d'un reversement."),
   ("Ce que ça vous évite", "Aucune commission, aucun <span class='n'>délai</span>.",
    "Pas de prestataire à qui reverser un pourcentage, pas de virement hebdomadaire à attendre, "
-   "pas de compte qu'un tiers peut geler. Vous recevez 100 % du don le jour où votre banque le "
-   "crédite. C'est aussi pour ça que ce service reste gratuit : nous n'avons pas de frais de "
-   "paiement à répercuter."),
+   "pas de compte qu'un tiers peut geler. <b>Riseva ne prélève rien</b>, et ne peut rien "
+   "prélever : l'argent ne passe jamais par elle. C'est aussi pour ça que ce service reste "
+   "gratuit — nous n'avons aucun frais de paiement à répercuter."
+   "<br><br>Par virement, vous recevez l'intégralité du don le jour où votre banque le crédite. "
+   "Par HelloAsso, c'est le donateur qui choisit librement de laisser une contribution à la "
+   "plateforme, en plus de son don : elle ne sort pas de votre part. Ce que nous ne pouvons pas "
+   "promettre à votre place, ce sont les frais que votre propre banque applique — un virement "
+   "SEPA entrant est gratuit dans la quasi-totalité des cas, un virement venu de hors zone euro "
+   "ne l'est pas toujours."),
   ("Ce qu'on vous demande", "De <span class='n'>confirmer</span> ce que vous avez reçu.",
    "Chaque virement porte une référence. Vous la retrouvez sur votre relevé, vous confirmez le "
    "montant réellement crédité — le vôtre fait foi, pas celui qui avait été annoncé — et c'est "
@@ -1310,10 +1318,19 @@ FAQ_ASSO = faq([
    "répètent, nous vous appelons pour comprendre — un référent absent, une adresse qui ne "
    "marche plus — et pour trouver une solution.</p>"),
   ("Qui est responsable pendant une mission ?",
-   "<p>Vous et l'entreprise. Vous encadrez le chantier, sur votre terrain, avec vos règles. "
-   "L'entreprise décide qui vient et dans quel cadre : sur le temps de travail, ses salariés "
-   "restent couverts par son régime habituel ; hors temps de travail, la participation est "
-   "bénévole et relève de votre assurance.</p>"
+   "<p>Vous et l'entreprise, et les deux cas de figure ne se ressemblent pas.</p>"
+   "<p><b>Sur le temps de travail</b>, le salarié reste salarié : son contrat continue, son "
+   "employeur le paie, et un accident survenu chez vous est un <b>accident du travail</b>, "
+   "déclaré par l'employeur et pris en charge par son régime (article L. 411-1 du code de la "
+   "sécurité sociale). Votre responsabilité civile reste engagée si le dommage vient d'une "
+   "faute de votre part.</p>"
+   "<p><b>Hors temps de travail</b>, la personne est bénévole, et c'est là qu'il faut être "
+   "précis : votre responsabilité civile couvre les dommages qu'un bénévole <b>cause</b> à "
+   "autrui, elle ne couvre pas, par elle-même, ceux qu'il <b>subit</b>. Pour cela il faut une "
+   "garantie individuelle accident, ou l'assurance volontaire contre les accidents du travail "
+   "que les associations d'intérêt général peuvent souscrire pour leurs bénévoles (articles "
+   "L. 743-2 et R. 743-4 et suivants). Nous vous demandons de dire dans l'annonce ce qui est "
+   "couvert : un bénévole a le droit de le savoir avant de venir.</p>"
    "<p><b>Riseva n'assure pas les missions</b> et n'organise rien sur place. Nous hébergeons "
    "l'annonce et faisons la présentation, rien de plus. Nous préférons l'écrire que le "
    "laisser croire.</p>"),
@@ -1330,9 +1347,16 @@ FAQ_ASSO = faq([
    "la <a href='/confidentialite.html'>politique de confidentialité</a>. Nous ne gardons pas "
    "une association en otage dans un réseau.</p>"),
   ("Comment vérifiez-vous les associations ?",
-   "<p>Existence légale, statuts, publication au Journal officiel, ancrage local, et "
-   "attestation d'assurance couvrant les bénévoles extérieurs. La vérification vaut pour une "
-   "saison et se refait ensuite.</p>"
+   "<p>Sur les <b>registres publics</b>, pas sur des pièces que vous nous enverriez. Vous "
+   "donnez un numéro — RNA ou SIREN — et nous allons lire nous-mêmes l'Annuaire des "
+   "Entreprises et le Répertoire national des associations : dénomination déposée, date de "
+   "déclaration, adresse, état d'activité. Nous comparons avec ce que vous avez saisi et nous "
+   "vous montrons les écarts. <b>Vous n'avez aucun justificatif à envoyer, et nous ne vous en "
+   "demanderons pas.</b> La vérification vaut pour une saison et se refait ensuite.</p>"
+   "<p>Ce que nous ne faisons pas, et que personne ne devrait prétendre faire à votre place : "
+   "certifier votre éligibilité au mécénat, juger de votre gestion, ou attester que vous êtes "
+   "assurée. Ces trois choses relèvent de vous, et nous les affichons comme des "
+   "<b>déclarations</b>, jamais comme des vérifications.</p>"
    "<p>Le détail de ce que nous vérifions, de ce que nous vous demandons et de ce que nous "
    "nous engageons à faire pour vous est dans <a href='/charte-associations.html'>la "
    "charte</a>. Elle tient en deux colonnes : vos cinq engagements, nos cinq engagements.</p>"),

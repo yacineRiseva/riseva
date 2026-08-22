@@ -118,6 +118,9 @@ def main():
                 "bilan carbone réglementaire" in prixT and "document unique" in prixT)
         verifie("la remise fondateur est datée et plafonnée",
                 "31 décembre 2026" in prixT and "20 premières" in prixT)
+        verifie("aucun tarif n'est promis au-delà de la première saison",
+                "gel" not in prixT.lower() and "première saison, et sur elle seule" in prixT,
+                "SPEC §9 interdit tout prix garanti à l'avance, sous quelque nom que ce soit")
         verifie("l'acompte est justifié par ce qu'il paie",
                 "premier envoi d'affiches" in prixT)
 

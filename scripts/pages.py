@@ -241,14 +241,29 @@ ecrire("charte-associations.html",
   </ol>
 </div>
 
-<h2>Ce que nous vérifions à l'entrée</h2>
-<ul>
-  <li>Existence juridique : numéro RNA ou SIREN, statuts, date de déclaration.</li>
-  <li>Identité du référent et de la personne habilitée à signer les reçus fiscaux.</li>
-  <li>Objet réel de l'association et cohérence avec son activité déclarée.</li>
-  <li>Coordonnées vérifiables : adresse, téléphone, site ou page publique active.</li>
-  <li>Déclaration d'éligibilité au mécénat par l'association elle-même.</li>
-</ul>
+<h2>Ce que nous vérifions à l'entrée, et comment</h2>
+<p>Sur les <strong>registres publics</strong>, pas sur des pièces que vous nous enverriez. Vous
+donnez un numéro, nous allons lire nous-mêmes. <strong>Vous n'avez aucun justificatif à envoyer,
+et nous ne vous en demanderons pas</strong> — ni statuts, ni comptes, ni attestation.</p>
+<table class="table">
+  <thead><tr><th>Ce que nous lisons</th><th>Où</th></tr></thead>
+  <tbody>
+    <tr><td>Existence juridique, dénomination déposée, date de déclaration, état d'activité</td>
+        <td>Annuaire des Entreprises et Répertoire national des associations, via l'API
+            Recherche d'entreprises — Licence Ouverte 2.0</td></tr>
+    <tr><td>Adresse déclarée et cohérence avec ce que vous avez saisi</td>
+        <td>Les mêmes registres. Les écarts vous sont montrés, jamais corrigés en douce.</td></tr>
+    <tr><td>Objet réel de l'association</td>
+        <td>Votre fiche publique et vos annonces, lues par une personne</td></tr>
+    <tr><td>Identité du référent et du signataire des reçus</td>
+        <td>Vos déclarations, avec le mandat écrit que vous nous donnez pour préparer les
+            reçus — et que vous révoquez quand vous voulez</td></tr>
+  </tbody>
+</table>
+<p>Trois choses relèvent de vous et sont affichées comme des <strong>déclarations</strong>, jamais
+comme des vérifications : votre éligibilité au mécénat, votre assurance, et l'impact de vos
+missions. Nous n'avons ni la compétence ni la légitimité pour les certifier à votre place, et
+prétendre le contraire tromperait les entreprises.</p>
 
 <div class="encadre encadre--alerte">
   <p><strong>Ce que nous ne garantissons pas.</strong> Riseva ne certifie pas l'éligibilité fiscale
@@ -288,13 +303,29 @@ par les entreprises.</p>
 <ul>
   <li>Vous annoncez dans l'annonce ce que la mission demande : port de charges, station debout
       prolongée, travail extérieur par tous les temps, équipement à prévoir, âge minimum.</li>
-  <li>Vous accueillez les salariés dans des conditions sûres, et vous êtes assurée pour l'accueil
-      de bénévoles — c'est la responsabilité civile qu'exige déjà toute activité associative.</li>
-  <li>Le salarié reste couvert par son employeur quand la mission est sur son temps de travail.
-      Sur son temps personnel, il est bénévole, et c'est votre assurance qui joue.</li>
+  <li>Vous accueillez les salariés dans des conditions sûres, et vous êtes assurée en
+      responsabilité civile pour l'activité et pour les personnes que vous recevez.</li>
   <li>En cas d'incident, vous nous prévenez sous 48 heures et nous prévenons l'entreprise. Nous ne
       publions jamais le détail d'un incident.</li>
 </ul>
+<div class="encadre">
+  <p><strong>Qui couvre quoi, et la nuance qui compte.</strong></p>
+  <p><strong>Sur le temps de travail</strong>, le salarié reste salarié : son contrat continue et
+  un accident survenu chez vous est un <strong>accident du travail</strong>, déclaré par son
+  employeur et pris en charge par son régime (article L. 411-1 du code de la sécurité sociale).
+  Votre responsabilité civile reste engagée si le dommage vient d'une faute de votre part.</p>
+  <p><strong>Hors temps de travail</strong>, la personne est <strong>bénévole</strong>, et c'est
+  là qu'il faut être exact. Votre responsabilité civile couvre les dommages qu'un bénévole
+  <strong>cause</strong> à autrui ; elle ne couvre pas, par elle-même, ceux qu'il
+  <strong>subit</strong>. Pour cela il faut une garantie individuelle accident, ou l'assurance
+  volontaire contre les accidents du travail que les organismes d'intérêt général peuvent
+  souscrire pour leurs bénévoles (articles L. 743-2 et R. 743-4 et suivants du code de la
+  sécurité sociale). La jurisprudence retient par ailleurs une obligation de sécurité à votre
+  charge, tirée de la convention d'assistance bénévole.</p>
+  <p>Nous vous demandons d'<strong>écrire dans l'annonce ce qui est couvert</strong>. Un bénévole
+  a le droit de le savoir avant de venir, et une entreprise a le droit de le savoir avant
+  d'encourager ses salariés à y aller.</p>
+</div>
 
 <h2>Annulation, absence, incident</h2>
 <ul>
@@ -719,16 +750,38 @@ au bon de commande.</p>
       rapport annuel.</li>
 </ul>
 
+<h2>2 bis. Droit de rétractation des très petites structures</h2>
+<p>L'article <strong>L. 221-3 du code de la consommation</strong> étend le droit de rétractation
+des consommateurs aux contrats conclus <strong>hors établissement</strong> entre professionnels,
+lorsque le client emploie <strong>cinq salariés ou moins</strong> et que l'objet du contrat
+n'entre pas dans le champ de son activité principale. Une entreprise du bâtiment de quatre
+personnes qui signe un abonnement RSE lors d'un rendez-vous dans ses locaux est dans ce cas.</p>
+<ul>
+  <li>Ce client dispose de <strong>quatorze jours</strong> à compter de la signature pour se
+      rétracter, <strong>sans motif et sans pénalité</strong>. Un courriel à
+      <a href="mailto:contact@riseva.fr" style="color:var(--forest-800)">contact@riseva.fr</a>
+      suffit ; un formulaire type est joint au bon de commande.</li>
+  <li>Les sommes déjà versées, <strong>acompte compris</strong>, sont remboursées sous quatorze
+      jours à compter de la réception de la rétractation.</li>
+  <li>Si le client a demandé que le service commence pendant ce délai, il ne paie que la part
+      réellement exécutée, au prorata. Nous ne démarrons pas sans cette demande écrite : lancer
+      la saison pendant le délai de rétractation, c'est le vider de son sens.</li>
+  <li>Nous n'exigeons de personne qu'il déclare son effectif pour bénéficier de ce droit. Si vous
+      pensez y avoir droit, écrivez-nous : nous ne demanderons pas de preuve.</li>
+</ul>
+
 <h2>3. Prix, facturation et paiement</h2>
 <ul>
   <li>Le prix résulte de la <strong>grille tarifaire publiée</strong> sur riseva.fr, appliquée à
       l'effectif déclaré et au nombre de sites. Il figure au bon de commande et il est
       <strong>ferme pour la durée de la saison</strong> : une modification ultérieure de la grille
       est sans effet sur un contrat signé.</li>
-  <li><strong>Tarif fondateur.</strong> Une remise de 10 % sur la première saison est accordée aux
-      vingt premières entreprises signataires, jusqu'au 31 décembre 2026. Le tarif de cette
-      première saison est ensuite gelé pour la deuxième. Au-delà de ce nombre ou de cette date,
-      la grille s'applique sans remise.</li>
+  <li><strong>Tarif fondateur.</strong> Une remise de 10 % est accordée aux vingt premières
+      entreprises signataires, jusqu'au 31 décembre 2026. Elle porte sur la
+      <strong>première saison, et sur elle seule</strong> : nous ne garantissons le prix
+      d'aucune saison que nous n'avons pas encore vécue, et nous préférons vous le dire
+      maintenant plutôt que de le retirer plus tard. Au-delà de ce nombre ou de cette date, la
+      grille s'applique sans remise.</li>
   <li><strong>Acompte de 40 % du montant hors taxes</strong>, avec un minimum de 900 €, à la
       confirmation. Il est déduit du total et <strong>remboursé intégralement si la saison ne
       démarre pas</strong> au sens de l'article « Démarrage ». La TVA est exigible dès son
@@ -989,4 +1042,117 @@ l'émet. Nous prévenons avant de suspendre.</p>
 <p>Pour tout ce que le formulaire ne couvre pas :
 <a href="mailto:contact@riseva.fr" style="color:var(--forest-800)">contact@riseva.fr</a>.
 Réponse sous deux jours ouvrés.</p>
+""")
+
+# ---------------------------------------------------------------- mentions légales
+# L'article 6 III-1 de la LCEN énumère ce qu'un éditeur professionnel doit publier :
+# dénomination, siège, téléphone, RCS, TVA intracommunautaire, directeur de la
+# publication, et l'identité de l'hébergeur. Trois de ces mentions dépendent d'une
+# immatriculation qui n'est pas encore délivrée. On ne les invente pas : on dit
+# lesquelles manquent, pourquoi, et quand elles paraîtront. Une mention légale
+# fausse est plus grave qu'une mention légale incomplète et datée.
+ecrire("mentions.html",
+  surtitre="Informations légales",
+  titre="Mentions légales",
+  description="Qui édite ce site, qui l'héberge, qui répond, et ce qui reste à publier.",
+  chapo="Ces mentions sont exigées par l'article 6 III-1 de la loi du 21 juin 2004 pour la "
+        "confiance dans l'économie numérique. Elles sont ici en entier, y compris ce qui "
+        "manque encore et la date à laquelle cela paraîtra.",
+  corps="""
+<h2>Éditeur du site</h2>
+<table class="table">
+  <tbody>
+    <tr><td>Dénomination</td><td><strong>Riseva</strong></td></tr>
+    <tr><td>Directeur de la publication</td><td>Yacine Bounoua, fondateur</td></tr>
+    <tr><td>Contact</td>
+        <td><a href="mailto:contact@riseva.fr" style="color:var(--forest-800)">contact@riseva.fr</a></td></tr>
+    <tr><td>Forme juridique, SIREN, RCS, TVA</td>
+        <td><em>Immatriculation en cours.</em> Ces quatre mentions seront publiées ici le jour
+            où le greffe les délivre, et la date de mise à jour de cette page le montrera.</td></tr>
+    <tr><td>Siège social et téléphone</td>
+        <td><em>Publiés en même temps que l'immatriculation.</em> D'ici là, le courriel
+            ci-dessus est le canal officiel et il est relevé tous les jours ouvrés.</td></tr>
+  </tbody>
+</table>
+<p class="hint">Nous ne signons aucun contrat commercial avant que ces mentions soient complètes.
+Une plateforme qui facture sans être immatriculée n'est pas une plateforme, c'est un problème.</p>
+
+<h2>Hébergement</h2>
+<p>Les données sont hébergées dans l'Union européenne. Les sociétés qui exploitent ces
+infrastructures sont, elles, de droit américain — c'est un fait, et il est traité pour ce qu'il
+est dans notre <a href="/confidentialite.html" style="color:var(--forest-800)">politique de
+confidentialité</a> et dans l'accord de sous-traitance remis à chaque client.</p>
+<table class="table">
+  <tbody>
+    <tr><td>Application et diffusion</td>
+        <td><strong>Vercel Inc.</strong>, 440 N Barranca Avenue #4133, Covina, CA 91723,
+            États-Unis — <a href="https://vercel.com/legal/privacy-policy"
+            style="color:var(--forest-800)">vercel.com/legal</a>. Région d'hébergement :
+            Union européenne.</td></tr>
+    <tr><td>Base de données et authentification</td>
+        <td><strong>Supabase, Inc.</strong>, société de droit américain —
+            <a href="https://supabase.com/privacy" style="color:var(--forest-800)">supabase.com/privacy</a>,
+            privacy@supabase.com. Région d'hébergement : Union européenne.</td></tr>
+    <tr><td>Messages transactionnels</td>
+        <td><strong>Resend</strong> — <a href="https://resend.com/legal/privacy-policy"
+            style="color:var(--forest-800)">resend.com/legal</a>. Région d'envoi :
+            Union européenne.</td></tr>
+  </tbody>
+</table>
+
+<h2>Propriété intellectuelle</h2>
+<p>Le code, les textes, les visuels et la marque Riseva appartiennent à l'éditeur. Les données
+saisies par les clients et les associations leur appartiennent : nous n'en revendiquons aucun
+droit, et elles ressortent dans un format ouvert à tout moment, y compris en cas d'impayé.</p>
+<p>Les données d'entreprises affichées dans l'annuaire proviennent de l'API Recherche
+d'entreprises de la Direction interministérielle du numérique, sous
+<strong>Licence Ouverte 2.0</strong>. Les données du Répertoire national des associations
+proviennent du ministère de l'Intérieur, sous la même licence.</p>
+
+<h2>Données personnelles</h2>
+<p>Ce que nous collectons, pourquoi, combien de temps nous le gardons et comment exercer vos
+droits : tout est détaillé sur la page
+<a href="/confidentialite.html" style="color:var(--forest-800)">Données personnelles</a>.
+Pour l'essentiel : Riseva est <strong>sous-traitant</strong> de ses clients pour les données de
+leurs salariés, et <strong>responsable de traitement</strong> pour ses propres prospects et pour
+les comptes des associations.</p>
+<p>Vous pouvez à tout moment introduire une réclamation auprès de la Commission nationale de
+l'informatique et des libertés, 3 place de Fontenoy, TSA 80715, 75334 Paris Cedex 07.</p>
+
+<h2>Dons</h2>
+<p>Riseva <strong>n'encaisse pas les dons</strong> et n'est pas un établissement de paiement au
+sens de l'article L. 522-1 du code monétaire et financier. Les virements vont du donateur à
+l'association bénéficiaire, sans transiter par Riseva ni par aucun prestataire, et sans aucune
+commission. Riseva fournit la référence qui permet à l'association de rapprocher le virement du
+don annoncé.</p>
+<p>Le reçu fiscal est émis par l'association elle-même, sous sa seule responsabilité. Riseva le
+prépare sur <strong>mandat écrit et révocable</strong>, et ne juge jamais de l'éligibilité de
+l'association au régime de l'article 200 ou 238 bis du code général des impôts.</p>
+
+<h2>Responsabilité</h2>
+<p>Riseva met en relation des entreprises et des associations. Elle n'organise pas les missions,
+ne les encadre pas et ne les assure pas. Pendant une mission, le salarié reste sous contrat avec
+son employeur ; l'association exerce l'autorité fonctionnelle sur la tâche, pas le pouvoir
+disciplinaire. En cas d'incident, la responsabilité relève de l'entreprise et de l'association
+concernées, chacune pour ce qui la regarde.</p>
+<p>Les limites de responsabilité contractuelle figurent aux
+<a href="/cgv.html" style="color:var(--forest-800)">conditions de vente</a>. Elles ne couvrent
+ni le dommage corporel, ni la faute lourde, ni le dol : la loi ne le permettrait pas, et nous
+n'essayons pas.</p>
+
+<h2>Litiges et médiation</h2>
+<p>Riseva contracte exclusivement avec des <strong>professionnels</strong> — entreprises et
+associations agissant dans le cadre de leur objet. Le dispositif de médiation de la consommation
+des articles L. 611-1 et suivants du code de la consommation n'est donc pas étendu à ces
+contrats, y compris lorsque le client bénéficie du droit de rétractation de l'article L. 221-3
+(voir l'article 2 bis des <a href="/cgv.html" style="color:var(--forest-800)">conditions de
+vente</a>) : cet article étend les sections sur l'information et la rétractation, pas le titre
+sur la médiation.</p>
+<p>Avant toute action, les parties s'engagent à une phase de discussion de trente jours. À défaut
+d'accord, compétence des tribunaux dans les conditions prévues aux conditions de vente.</p>
+
+<h2>Signalement de contenu</h2>
+<p>Une annonce qui vous paraît trompeuse, dangereuse ou illicite se signale depuis la fiche
+elle-même, ou par courriel. La procédure, les délais et ce que nous conservons sont décrits sur
+la page <a href="/moderation.html" style="color:var(--forest-800)">Modération des annonces</a>.</p>
 """)

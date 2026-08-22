@@ -540,16 +540,19 @@ export const TARIFS = {
   ],
   site_supplementaire: 420,
   /* Remise de lancement. Elle est plafonnée en nombre ET datée : une remise sans
-     limite n'est pas une remise, c'est le prix. Elle porte sur la première
-     saison, et le tarif de cette première saison est gelé pour la seconde — ce
-     qui vaut mieux qu'une seconde remise, et ne coûte rien tant que la grille ne
-     bouge pas. */
+     limite n'est pas une remise, c'est le prix. Elle porte sur la PREMIÈRE saison
+     et sur elle seule.
+     Elle ne gèle pas le tarif de la seconde, et c'est délibéré. Un gel, c'est un
+     tarif garanti à l'avance : la décision du 29/07/2026, reconfirmée le
+     30/07/2026 et consignée au SPEC §9, l'interdit — « ne doit réapparaître nulle
+     part ». Il l'interdit pour une bonne raison : un prix promis pour une saison
+     qu'on n'a pas encore vécue est une promesse faite avec l'argent de l'année
+     suivante, et les affiches, elles, partent toute l'année. */
   fondateur: {
     taux: 0.10,
     places: 20,
     jusquau: "2026-12-31",
-    libelle: "Tarif fondateur",
-    gel_seconde_saison: true
+    libelle: "Tarif fondateur"
   },
   /* Trésorerie. Les affiches partent tout au long de l'année et se paient à
      l'impression, pas à la fin de la saison : l'acompte doit couvrir le premier

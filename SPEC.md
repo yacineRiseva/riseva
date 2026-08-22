@@ -315,12 +315,24 @@ panne en attente.
 
 ### Abonnement entreprise
 - **Préinscription gratuite**, sans engagement, ouverte avant que la plateforme soit complète.
-- **Finalisation** de l'inscription avec un **acompte de 500 €**, intégralement **remboursé si la saison
-  ne démarre pas**. Décision du 30/07/2026.
-- Prix de l'abonnement annuel v1 : **fourchette 3 500 à 4 000 € HT / an**, positionnement volontairement bas
-  en tant que nouvel entrant. Le prix exact est un paramètre de saison, pas une constante.
-- Interdit : promettre que le tarif restera identique pour les premières entreprises. Retiré le 29/07/2026,
-  reconfirmé le 30/07/2026. Ne doit réapparaître nulle part.
+- **Finalisation** de l'inscription avec un **acompte de 40 % du montant HT, minimum 900 €**,
+  intégralement **remboursé si la saison ne démarre pas**. Décision du 22/08/2026, qui remplace
+  l'acompte forfaitaire de 500 € du 30/07/2026 : celui-ci ne couvrait pas le premier envoi
+  d'affiches, et les supports partent tout au long de la saison.
+- **Escompte de 3 %** pour règlement intégral à la commande. Solde à trente jours.
+- Prix de l'abonnement annuel v1 : **grille par tranche d'effectif, de 2 400 à 18 500 € HT / an**,
+  un à douze sites compris selon la tranche, 420 € par site supplémentaire. Elle remplace la
+  fourchette unique 3 500–4 000 € du 30/07/2026, qui demandait la même chose à quarante personnes
+  qu'à mille cinq cents. La grille vit dans `TARIFS` (public/app/data.js) : la vitrine, le devis,
+  le contrat et la facture la lisent au même endroit.
+- **Tarif fondateur** : −10 % pour les vingt premières entreprises signataires, jusqu'au
+  31/12/2026, sur la **première saison et sur elle seule**. Demandé par Yacine le 22/08/2026.
+  Le plafond de vingt est tenu par un trigger en base, pas par l'interface.
+- **Interdit, et l'interdiction tient** : promettre que le tarif restera identique pour les
+  premières entreprises, sous quelque forme que ce soit — « gel », « prix garanti », « tarif
+  bloqué ». Retiré le 29/07/2026, reconfirmé le 30/07/2026, et **réapparu par erreur le
+  22/08/2026 sous la forme d'un gel de la seconde saison adossé au tarif fondateur, retiré le
+  jour même**. Une remise n'est pas une garantie de prix. Ne doit réapparaître nulle part.
 
 ### Deux modèles de reçu, et ils ne sont pas interchangeables
 
@@ -548,13 +560,17 @@ Explicitement exclus, ne pas les construire :
 - Application mobile native et site mobile dédié. Le responsive suffit.
 - Boutique de merchandising (t-shirts, mugs, parapluies en matériaux recyclés co-brandés). Idée conservée,
   non décidée.
-- Toute forme de tarif garanti à vie ou de statut « entreprise fondatrice » avec avantage tarifaire.
+- Toute forme de **tarif garanti à vie**, de prix bloqué, ou de gel pluriannuel. Le « tarif
+  fondateur » de −10 % décidé le 22/08/2026 n'en est pas un : c'est une remise ponctuelle,
+  plafonnée à vingt entreprises et datée au 31/12/2026, qui ne porte que sur la première saison
+  et n'engage rien au-delà. La distinction n'est pas cosmétique — voir §6.
 
 ## 10. Points encore ouverts
 
 À trancher avant la première saison réelle, tracés ici pour ne pas les oublier :
 
 - Valeur exacte du barème après calibrage sur les premières entreprises.
-- Prix final de l'abonnement dans la fourchette annoncée.
+- Prix final de l'abonnement à l'intérieur de la grille annoncée, après calibrage sur les
+  premières entreprises.
 - Forme juridique (SASU évoquée le 30/07/2026, non actée). Pas de SIREN au 30/07/2026.
 - Financement des affiches et du merchandising.
