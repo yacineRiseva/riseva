@@ -230,8 +230,7 @@ p{text-wrap:pretty;}
   font-size:17.5px;font-weight:700;letter-spacing:-.045em;
   flex:none;
 }
-.nav-brand svg{width:17px;height:17px;overflow:visible;}
-.nav-brand .lf{fill:var(--brand);stroke:var(--ink);stroke-width:1.4;}
+.nav-brand img{height:19px;width:auto;display:block;}
 
 .nav-links{
   display:flex;align-items:center;gap:clamp(14px,1.9vw,30px);
@@ -1768,8 +1767,7 @@ section{
   letter-spacing:-.045em;color:var(--paper);
   display:flex;align-items:center;gap:9px;margin-bottom:13px;
 }
-.foot-brand svg{width:19px;height:19px;overflow:visible;}
-.foot-brand .lf{fill:var(--brand);stroke:var(--paper);stroke-width:1.4;}
+.foot-brand img{height:22px;width:auto;display:block;}
 .foot p{font-size:14px;line-height:1.62;max-width:34ch;}
 .foot ul{list-style:none;display:grid;gap:8px;font-size:14px;}
 .foot a{transition:color .3s;}

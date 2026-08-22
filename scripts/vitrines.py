@@ -59,14 +59,11 @@ FEUILLE = "riseva-mark"   # favicon
 
 # ── briques communes ────────────────────────────────────────────────────────
 
-LOGO = """<svg viewBox="0 0 24 24" aria-hidden="true">
-      <path class="lf" d="M12 2.4c5 5.6 7.7 9.3 7.7 13a7.7 7.7 0 0 1-15.4 0c0-3.7 2.7-7.4 7.7-13z"></path>
-      <path d="M12 21.6V9.2" fill="none" stroke="#131510" stroke-width="1.3" stroke-linecap="round"></path>
-    </svg>"""
-
-LOGO_PIED = """<svg viewBox="0 0 24 24" aria-hidden="true">
-          <path class="lf" d="M12 2.4c5 5.6 7.7 9.3 7.7 13a7.7 7.7 0 0 1-15.4 0c0-3.7 2.7-7.4 7.7-13z"></path>
-        </svg>"""
+# Le pictogramme feuille dessine a la main a disparu d'ici. La vitrine portait un
+# logotype, l'application en portait un autre — le R geometrique de /brand — et un
+# visiteur qui passe de la page d'accueil a la demonstration voyait deux marques.
+# Avant la typographie et avant la couleur, c'est ce qui donne l'impression de deux
+# produits mal recolles. Il n'y en a plus qu'un, et c'est celui de l'application.
 
 
 def nav(liens, cta_texte, cta_href, note):
@@ -77,8 +74,7 @@ def nav(liens, cta_texte, cta_href, note):
         for n, (i, t) in enumerate(liens, 1))
     return f"""<nav class="nav" id="nav">
   <a class="nav-brand" href="#hero" aria-label="Riseva, accueil">
-    {LOGO}
-    Riseva
+    <img src="/brand/riseva-full.png" alt="Riseva" width="392" height="88">
   </a>
   <div class="nav-links">
     {grands}
@@ -114,8 +110,7 @@ def pied(pitch, colonnes, barre):
   <div class="foot-grid">
     <div>
       <div class="foot-brand">
-        {LOGO_PIED}
-        Riseva
+        <img src="/brand/riseva-full-white.png" alt="Riseva" width="392" height="88">
       </div>
       <p>{pitch}</p>
     </div>{cols}
