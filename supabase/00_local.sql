@@ -17,11 +17,6 @@ do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'service_role') then
     create role service_role nologin noinherit bypassrls;
   end if;
-  -- Propriétaire dédié des fonctions SECURITY DEFINER. Sans login : personne ne
-  -- s'y connecte, on ne fait qu'exécuter en son nom.
-  if not exists (select 1 from pg_roles where rolname = 'riseva_definer') then
-    create role riseva_definer nologin noinherit;
-  end if;
 end $$;
 
 grant anon, authenticated, service_role, riseva_definer to current_user;

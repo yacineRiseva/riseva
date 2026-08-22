@@ -1015,7 +1015,7 @@ const seed = {
   ],
   contrats: [
     { entreprise:"e1", statut:"actif", signe_le:"2025-11-14", debut:"2026-01-01", fin:"2026-12-31",
-      fondateur:true, montant_ht:6210, acompte:2484, reconduction:false,
+      fondateur:true, montant_ht:6210, acompte:2484, effectif_reference:210, reconduction:false,
       factures:[
         { ref:"RSV-2025-0007", libelle:"Acompte saison 2026 (40 %)", montant:2484, date:"2025-11-14",
           echeance:"2025-12-14", etat:"payee",  periode:"acompte, saison 2026" },
@@ -1547,9 +1547,25 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
 
     /* Points bruts d'une entreprise, ventilés par format, avec le plafond appliqué.
        On garde les deux chiffres : ce qui a été fait, et ce qui compte au classement. */
+    /* Le dénominateur du classement : l'effectif figé au contrat, pas celui que
+       le client déclare dans ses paramètres. Sinon il suffit de se déclarer
+       trois salariés pour rafler le classement normalisé — c'est déjà la règle
+       en base (`abonnement.effectif_reference`), elle manquait ici. */
+    effectifReference(eid){
+      const c = api.contrat(eid) || {};
+      const e = api.entreprise(eid) || {};
+      return Math.max(1, c.effectif_reference ?? e.effectif ?? 1);
+    },
+
     pointsDe(eid){
+      /* Les dons personnels ne sont pas des points de l'entreprise. Ils
+         entraient ici alors que la couche Postgres les excluait : deux scores
+         pour la même entreprise le même jour — et, par différence avec ce que
+         l'employeur a le droit de voir salarié par salarié, exactement le total
+         que le seuil d'agrégation est censé rendre inaccessible. */
       const ms = api.missions({ entreprise: eid })
-                   .filter(m => m.etat === "validee" || m.etat === "validee_auto");
+                   .filter(m => (m.etat === "validee" || m.etat === "validee_auto")
+                                && !api.estDonPersonnel(m));
       const parType = {};
       ms.forEach(m => {
         const a = api.annonceDe(m); if (!a) return;
@@ -1585,7 +1601,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
            Aucun compteur dénormalisé : le chiffre se relit dans les missions,
            sinon un total oublié survit à la correction qui l'a rendu faux. */
         const engages = sal.filter(u => api.pointsVisiblesEmployeur(u.id) > 0).length;
-        const base = Math.max(e.effectif || sal.length || 1, 1);
+        const base = api.effectifReference(e.id);
         return { ...e,
           points: p.retenu,
           brut: p.brut,
@@ -2557,6 +2573,21 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
               taux: Math.round((engages / Math.max(e.effectif || sal.length, 1)) * 1000) / 10 }
           : null,
         seuil,
+        /* La sécurité, en agrégat et sous seuil. Le registre ligne à ligne se
+           réidentifie : une date, une zone et un nombre de journées d'arrêt
+           suffisent sur un petit site. Un décompte par type ne le permet pas —
+           au-dessus du seuil. En dessous, on ne rend rien plutôt qu'un chiffre :
+           « un accident de manutention » dans une société de douze personnes
+           désigne quelqu'un. */
+        securite: (() => {
+          const sy = api.syntheseSecurite({ societe: eid,
+            debut: s.saison.debut, fin: s.saison.fin });
+          if (sy.total.evenements < seuil)
+            return { sous_seuil: true, pareto: [], total: sy.total,
+                     sites_sans_registre: sy.sites_sans_registre };
+          return { sous_seuil: false, pareto: sy.pareto, total: sy.total,
+                   sites_sans_registre: sy.sites_sans_registre };
+        })(),
         points: pts.retenu,
         rapports: api.rapports(eid).filter(r => r.etat === "genere"),
         /* Ce que le CSE ne verra pas ici, écrit à l'écran plutôt que deviné. */
@@ -2975,9 +3006,16 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
        reste visible dans l'espace du salarié, et c'est tout. */
     SEUIL_AGREGAT: 5,
 
+    /* Deux champs disent la même chose selon l'époque du jeu de données :
+       `origine`, posé par le circuit de don, et `pour_le_compte_de`, hérité. On
+       lit le premier s'il existe — sinon un don d'entreprise passé par le
+       nouveau circuit serait pris pour un don personnel, et disparaîtrait de
+       l'assiette de mécénat de son propre payeur. */
     estDonPersonnel(m){
       const a = api.annonceDe(m);
-      return !!(a && a.type === "don_financier" && m.pour_le_compte_de !== "entreprise");
+      if (!a || a.type !== "don_financier") return false;
+      if (m.origine) return m.origine !== "entreprise";
+      return m.pour_le_compte_de !== "entreprise";
     },
 
     /* Missions telles que l'employeur a le droit de les voir. */
@@ -4324,6 +4362,21 @@ const versEtat = {
     bloquant: r.bloquant, numero: r.numero, ecarts: r.ecarts || [], fiche: r.fiche,
     source: r.source
   }),
+  /* `eligible_mecenat` reste sur la table publique : une entreprise doit pouvoir
+     savoir si une association peut recevoir du mécénat de compétences avant de
+     s'engager. Le reste — qui signe, sous quel mandat, avec quelle numérotation —
+     ne regarde qu'elle. */
+  reglagesAssociation: (r, base) => ({
+    mandat_recus: r.mandat_recus_le
+      ? { version: r.mandat_recus_version, nom: r.mandat_recus_nom,
+          qualite: r.mandat_recus_qualite, accepte_le: r.mandat_recus_le }
+      : null,
+    recus: {
+      actif: r.recus_actif, eligible_mecenat: (base.recus || {}).eligible_mecenat,
+      signataire: r.signataire, qualite: r.qualite, prefixe: r.recu_prefixe,
+      prochain_numero: 1
+    }
+  }),
   intention: (r) => ({
     id: r.id, annonce: r.annonce, association: r.association, salarie: r.salarie,
     entreprise: r.entreprise, origine: r.origine,
@@ -4393,13 +4446,14 @@ async function chargerEtat(client){
   const [saisons, baremes, entreprises, groupes, etablissements, associations,
          annonces, missions, profils, invitations, campagnes, observations,
          acces, signalements, intentions, controles,
-         evenements, actionsCorrectives] = await Promise.all([
+         evenements, actionsCorrectives, reglagesAsso] = await Promise.all([
     lire("saison"), lire("bareme"), lire("entreprise"), lire("groupe"),
     lire("etablissement"), lire("association"), lire("annonce"), lire("mission"),
     lire("profil"), lire("invitation"), lire("campagne_indicateurs"),
     lire("observation_indicateur"), lire("acces"), lire("signalement"),
     lire("intention_don"), lire("controle_association"),
-    lire("evenement_securite"), lire("action_corrective")
+    lire("evenement_securite"), lire("action_corrective"),
+    lire("association_reglages")
   ]);
 
   const saison = saisons.find(x => x.etat === "ouverte") || saisons[0] || null;
@@ -4420,7 +4474,14 @@ async function chargerEtat(client){
     entreprises: entreprises.map(versEtat.entreprise),
     groupes: groupes.map(versEtat.groupe),
     etablissements: etablissements.map(versEtat.etablissement),
-    associations: associations.map(versEtat.association),
+    /* Les réglages de reçus d'une association ne sont plus dans la table qu'elle
+       publie : ils passent par une vue qui ne rend que les siens. On les
+       recolle ici, pour que le moteur voie un seul objet comme en démonstration. */
+    associations: associations.map(a => {
+      const r = reglagesAsso.find(x => x.id === a.id);
+      const base = versEtat.association(a);
+      return r ? { ...base, ...versEtat.reglagesAssociation(r, base) } : base;
+    }),
     annonces: annonces.map(versEtat.annonce),
     missions: missions.map(versEtat.mission),
     /* Un profil ne porte ni rôle ni entreprise : ce sont des colonnes du schéma

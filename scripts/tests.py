@@ -968,6 +968,27 @@ def main():
         verifie("chaque don porte l'état de sa réception et de son reçu",
                 "Réception" in m and "Reçu" in m and "En attente de l'association" in m)
 
+        print("\nCloisonnement : ce qui ne doit pas se déduire")
+        connecte(p, "u2", "#/tableau")
+        cl2 = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const brut = d.DB.pointsDe('e1').brut;
+          const visible = d.DB.salaries('e1')
+            .reduce((n, u) => n + d.DB.pointsVisiblesEmployeur(u.id), 0);
+          const perso = d.DB.missions({ entreprise:'e1' })
+            .filter(m => d.DB.estDonPersonnel(m)).length;
+          const cl = d.DB.classement({ pour:'e1' }).find(x => x.id === 'e1');
+          return { brut, visible, perso, base: d.DB.effectifReference('e1'),
+                   parSalarie: cl.parSalarie };
+        }""")
+        verifie("le score de l'entreprise n'inclut pas les dons personnels",
+                cl2["brut"] == cl2["visible"],
+                f"brut {cl2['brut']} vs visible {cl2['visible']}")
+        verifie("la différence ne révèle donc rien qu'un seuil devait protéger",
+                cl2["brut"] - cl2["visible"] == 0)
+        verifie("le classement se normalise sur l'effectif figé au contrat",
+                cl2["base"] == 210, str(cl2["base"]))
+
         print("\nLes rapports arrivent tout seuls")
         connecte(p, "u2", "#/rapports")
         rp = norm(p.inner_text(".content"))

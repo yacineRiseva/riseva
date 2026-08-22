@@ -52,21 +52,48 @@ create policy bareme_lecture on public.bareme for select to anon, authenticated 
 -- Entreprise : aucune lecture directe. Le nom et le secteur passent par la vue
 -- `entreprise_publique` ; le reste — CA, SIRET, adresse, coût journalier — ne
 -- sort que pour l'entreprise concernée.
-grant select (id, nom, secteur, ville) on public.entreprise to anon, authenticated;
+-- Rien en direct sur la table : le nom, le secteur et la ville passent par la
+-- vue `entreprise_publique`, qui s'exécute avec les droits de son propriétaire.
+--
+-- Il y avait ici une policy `using (true)` destinée à servir cette vue. Les
+-- policies PostgreSQL sont PERMISSIVES par défaut : elles s'additionnent en OU.
+-- Celle-là annulait donc `entreprise_privee` juste en dessous, et ouvrait le CA,
+-- le SIREN, le SIRET, l'adresse et le coût journalier de TOUTES les entreprises
+-- à n'importe quel compte connecté — y compris une association. Le commentaire
+-- affirmait le contraire, et la recette ne testait que `anon`.
 grant select on public.entreprise_publique to anon, authenticated;
-create policy entreprise_publique_lecture on public.entreprise for select
-  to anon, authenticated using (true);
-grant select (effectif, ca, cout_jour_moyen, siren, siret, adresse, lat, lon)
+grant select (id, nom, secteur, ville, effectif, ca, cout_jour_moyen,
+              siren, siret, adresse, lat, lon, groupe, visibilite)
   on public.entreprise to authenticated;
--- Les colonnes sensibles restent filtrées par la policy privée ci-dessous :
--- une colonne accordée ne devient lisible que sur les lignes que la RLS laisse voir.
 create policy entreprise_privee on public.entreprise for select to authenticated
-  using (id = private.mon_entreprise() or private.est_admin());
+  using (id = private.mon_entreprise()
+         or private.dans_mon_groupe(id)
+         or private.est_admin());
 
--- Association : lecture publique des associations vérifiées et non suspendues.
-grant select on public.association to anon, authenticated;
+-- Association : lecture publique des associations vérifiées et non suspendues,
+-- colonne par colonne. Un `grant select` sur la table entière laissait un
+-- visiteur moissonner les IBAN, les BIC et les titulaires de compte de toutes
+-- les associations validées — la matière première d'une fraude au changement de
+-- RIB — ainsi que les noms des signataires et des mandants, qui sont des
+-- personnes physiques sans nécessité publique.
+-- Les coordonnées bancaires sont publiques *par construction* : c'est le
+-- principe même du virement, et elles figurent sur la fiche que l'association
+-- publie. Ce qui ne l'est pas, et qui sortait pourtant avec le `grant select`
+-- sur la table entière : le nom du signataire des reçus, sa qualité, le nom du
+-- mandant et l'état du mandat. Ce sont des personnes physiques, sans nécessité
+-- publique. Elles passent maintenant par la vue `association_reglages`.
+grant select (id, nom, nom_juridique, rna, siren, cause, ville, resume, adresse,
+              lat, lon, site, valide, suspendue, verifiee_le, a_reverifier_le,
+              eligible_mecenat, helloasso, iban, bic, titulaire_compte, cree_le)
+  on public.association to anon, authenticated;
 create policy association_lecture on public.association for select to anon, authenticated
   using ((valide and not suspendue) or id = private.mon_association() or private.est_admin());
+
+-- Ses propres réglages, pour elle seule. Une vue plutôt qu'une policy
+-- restrictive : une restrictive sur `association` se serait appliquée à chaque
+-- sous-requête qui traverse cette table — celle de `annonce_lecture` en
+-- particulier — et aurait rendu les annonces invisibles à tous les salariés.
+grant select on public.association_reglages to authenticated;
 
 -- Contrôle au registre : l'association concernée et Riseva. C'est son dossier,
 -- elle doit pouvoir lire ce qui a été vérifié sur elle et le corriger ; personne
@@ -210,21 +237,33 @@ create policy observation_lecture on public.observation_indicateur for select to
 -- Registre de sécurité : le site qui le tient, sa société, le groupe qui la
 -- consolide, et le CSE. Rien de nominatif n'y figure par construction — c'est
 -- pour cela qu'il peut être lu par le comité sans précaution supplémentaire.
-grant select on public.evenement_securite to authenticated;
+-- Ligne à ligne, un événement se réidentifie : sur un site de quelques
+-- personnes, une date, une zone et un nombre de journées d'arrêt suffisent. Le
+-- registre est donc réservé à ceux qui le tiennent — la société et le référent
+-- de son site — et jamais aux collègues ni au comité, qui lisent des agrégats.
+-- `declare_par` n'est accordé à personne : joint à `profil`, il nomme le
+-- déclarant, et par ricochet souvent la victime.
+grant select (id, etablissement, date, nature, gravite, type_evenement, zone,
+              jours_arret, circonstances, declare_le, annule_le, motif_annulation)
+  on public.evenement_securite to authenticated;
 create policy evenement_lecture on public.evenement_securite for select to authenticated
-  using (private.est_admin() or exists (
-    select 1 from public.etablissement et
-     where et.id = evenement_securite.etablissement
-       and (et.societe = private.mon_entreprise()
-            or private.dans_mon_groupe(et.societe))));
+  using (private.est_admin() or (
+    private.mon_role() in ('entreprise_admin','site_referent') and exists (
+      select 1 from public.etablissement et
+       where et.id = evenement_securite.etablissement
+         and (et.societe = private.mon_entreprise()
+              or private.dans_mon_groupe(et.societe))
+         and (private.mon_role() <> 'site_referent'
+              or et.id = private.mon_etablissement()))));
 
 grant select on public.action_corrective to authenticated;
 create policy action_lecture on public.action_corrective for select to authenticated
-  using (private.est_admin() or exists (
-    select 1 from public.etablissement et
-     where et.id = action_corrective.etablissement
-       and (et.societe = private.mon_entreprise()
-            or private.dans_mon_groupe(et.societe))));
+  using (private.est_admin() or (
+    private.mon_role() in ('entreprise_admin','site_referent') and exists (
+      select 1 from public.etablissement et
+       where et.id = action_corrective.etablissement
+         and (et.societe = private.mon_entreprise()
+              or private.dans_mon_groupe(et.societe)))));
 
 -- Envois et expéditions : l'entreprise concernée et Riseva. Un client doit
 -- pouvoir répondre à « ai-je bien reçu mon rapport du deuxième trimestre » par
@@ -321,6 +360,7 @@ grant execute on function
   public.ajouter_action(uuid, text, text, date, uuid),
   public.maj_action(uuid, text),
   public.securite_du_registre(uuid, date, date),
+  public.pareto_securite(uuid, date, date),
   public.enregistrer_helloasso(uuid, text),
   public.confirmer_reception(uuid),
   public.expedier_kit(uuid, text, text)
@@ -345,6 +385,14 @@ revoke all on function
   private.sieges_pris(uuid), private.mon_etablissement(), private.mon_groupe(),
   private.dans_mon_groupe(uuid), private.meme_entreprise(uuid)
 from public, anon, authenticated;
+-- Et tout le reste du schéma privé, y compris ce qui sera écrit demain. Deux
+-- tâches planifiées manquaient à la liste nominative ci-dessus : une énumération
+-- se périme, une révocation en bloc non.
+revoke all on all functions in schema private from public, anon, authenticated;
+alter default privileges in schema private
+  revoke all on functions from public, anon, authenticated;
+alter default privileges in schema private
+  revoke all on tables from public, anon, authenticated;
 revoke all on all tables in schema private from anon, authenticated;
 
 -- Les policies s'exécutent au nom de l'appelant : pour qu'elles puissent

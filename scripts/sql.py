@@ -41,12 +41,67 @@ def jouer(nom):
     print(f"  ok   {nom}")
     return True
 
+# Ce que Supabase fournit déjà : les trois rôles PostgREST, le schéma `auth`,
+# `auth.users` et `auth.uid()`. Tout le reste doit venir de 01 → 05, sans
+# `00_local.sql` qui n'est jamais déployé. Le rôle `riseva_definer`, lui, y
+# vivait — et son absence en production laissait soixante fonctions privilégiées
+# appartenir au superutilisateur. Cette passe le vérifie à chaque recette.
+AMORCE_SUPABASE = """
+do $$ begin
+  if not exists (select 1 from pg_roles where rolname='anon') then create role anon nologin noinherit; end if;
+  if not exists (select 1 from pg_roles where rolname='authenticated') then create role authenticated nologin noinherit; end if;
+  if not exists (select 1 from pg_roles where rolname='service_role') then create role service_role nologin noinherit bypassrls; end if;
+end $$;
+grant anon, authenticated, service_role to current_user;
+create schema if not exists extensions;
+create schema if not exists auth;
+grant usage on schema auth to anon, authenticated, service_role;
+create table if not exists auth.users (id uuid primary key, email text);
+create or replace function auth.uid() returns uuid language sql stable as $$
+  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+"""
+
+def installation_production():
+    """Rejoue le chemin réel : ce que Supabase donne, puis 01 → 05, rien d'autre."""
+    print("\nInstallation sans le bac à sable local")
+    base = "riseva_prod"
+    subprocess.run(["su", "postgres", "-c", f"dropdb --if-exists {base}"], capture_output=True)
+    subprocess.run(["su", "postgres", "-c", f"createdb {base}"], capture_output=True)
+    r = psql("-f -", entree=AMORCE_SUPABASE, base=base)
+    if r.returncode:
+        print("  ÉCHEC amorce"); print("      " + r.stderr.strip()[:300]); return False
+    for nom in [f for f in FICHIERS if f != "00_local.sql"]:
+        chemin = RACINE / "supabase" / nom
+        if not chemin.exists():
+            continue
+        r = psql("-f -", entree=chemin.read_text(encoding="utf-8"), base=base)
+        if r.returncode:
+            print(f"  ÉCHEC {nom}")
+            for l in r.stderr.strip().splitlines()[:6]:
+                print("      " + l)
+            return False
+        print(f"  ok   {nom}")
+    r = psql("-t -A -f -", base=base, entree=
+        "select count(*) from pg_proc p "
+        "join pg_namespace n on n.oid = p.pronamespace "
+        "join pg_roles ro on ro.oid = p.proowner "
+        "where n.nspname in ('public','private') and p.prosecdef "
+        "and ro.rolname <> 'riseva_definer';")
+    mal = (r.stdout or "").strip()
+    ok = mal == "0"
+    print(("  ok   " if ok else "  RATÉ ")
+          + "aucune fonction privilégiée ne reste au superutilisateur"
+          + ("" if ok else f"  [{mal}]"))
+    return ok
+
 def main():
     print("Installation à blanc")
     recreer()
     for f in FICHIERS:
         if not jouer(f):
             sys.exit(1)
+    if not installation_production():
+        sys.exit(1)
     if "--schema" in sys.argv:
         return
     tests = RACINE / "supabase" / "tests.sql"

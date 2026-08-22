@@ -6052,7 +6052,7 @@ function vueCSE(u){
   const d = DB.dossierCSE(u.org, { campagne: sessionStorage.getItem("riseva.cse.camp") || null });
   if (!d) return h(`<section class="card"><p class="empty">Aucune entreprise rattachée à cet accès.</p></section>`);
   const ind = d.indicateurs;
-  const secu = DB.syntheseSecurite({ societe: u.org, debut: d.saison.debut, fin: d.saison.fin });
+  const secu = d.securite;
 
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <section class="card card--dark grain">
@@ -6125,6 +6125,14 @@ function vueCSE(u){
       </tbody></table>`}
     </section>
 
+    ${secu.sous_seuil ? `<section class="card card--flat"
+      style="background:var(--warn-bg);border-color:transparent">
+      <h3 style="font-size:var(--t-lg)">Événements de sécurité</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+        Moins de ${d.seuil} événements déclarés sur la saison : le détail n'est pas restitué.
+        Un décompte par type, à ce volume, désigne quelqu'un. Les taux calculés, eux, restent
+        dans le tableau ci-dessus.</p>
+    </section>` : ""}
     ${secu.pareto.length ? `<section class="card">
       <h3>Événements de sécurité de la saison</h3>
       <p class="muted" style="font-size:var(--t-sm);margin-top:4px">

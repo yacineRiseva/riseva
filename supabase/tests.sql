@@ -673,8 +673,13 @@ select pg_temp.refuse('il n''active pas le registre d''un site',
   'select public.activer_registre(''e7000000-0000-4000-8000-000000000002'', true)');
 do $$
 begin
-  perform pg_temp.dit('il lit en revanche le registre de sa société : rien n''y est nominatif',
-    (select count(*) from public.evenement_securite) > 0);
+  -- Ligne à ligne, un événement se réidentifie : une date, une zone et un
+  -- nombre de journées d'arrêt suffisent sur un petit site. Un salarié n'a donc
+  -- rien à lire ici — le comité, lui, lit des agrégats.
+  perform pg_temp.dit('il ne lit aucune ligne du registre',
+    (select count(*) from public.evenement_securite) = 0);
+  perform pg_temp.dit('ni aucune action corrective',
+    (select count(*) from public.action_corrective) = 0);
 end $$;
 reset role;
 
@@ -1100,6 +1105,120 @@ select pg_temp.refuse('un visiteur ne lit aucun contrôle',
 reset role;
 
 \echo ''
+\echo 'Ce que l''audit avait trouvé, et qui ne doit plus arriver'
+
+-- 1. Une policy PERMISSIVE `using (true)` s'additionne en OU avec les autres :
+--    celle qui servait la vue publique annulait la policy privée, et ouvrait le
+--    CA, le SIREN, le SIRET et l'adresse de toutes les entreprises à n'importe
+--    quel compte connecté.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000003', false);
+select set_config('request.jwt.claim.email', 'elise@quatrevents.org', false);
+do $$
+begin
+  perform pg_temp.dit('une association ne lit le chiffre d''affaires d''aucune entreprise',
+    (select count(*) from public.entreprise where ca is not null) = 0);
+  perform pg_temp.dit('ni aucune ligne de la table entreprise',
+    (select count(*) from public.entreprise) = 0);
+  perform pg_temp.dit('la vitrine publique reste servie par la vue',
+    (select count(*) from public.entreprise_publique) > 0);
+end $$;
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000007', false);
+select set_config('request.jwt.claim.email', 'theo@lafarge-negoce.fr', false);
+do $$
+begin
+  -- Deux sociétés du même groupe : la consolidation reste ouverte, mais dans un
+  -- sens seulement — la filiale ne lit pas la maison mère.
+  perform pg_temp.dit('une filiale ne lit pas le chiffre d''affaires de la maison mère',
+    not exists (select 1 from public.entreprise
+                 where id = '22222222-2222-4222-8222-222222222222' and ca is not null));
+end $$;
+
+-- 2. Le classement anonymisé se levait par jointure : `points_entreprise`
+--    rendait le brut et le retenu exacts de n'importe quel identifiant, et le
+--    classement publiait ces mêmes entiers sur ses lignes anonymes.
+do $$
+begin
+  perform pg_temp.dit('le détail des points d''une autre entreprise ne sort pas',
+    (select count(*) from public.points_entreprise(
+       '22222222-2222-4222-8222-222222222222',
+       '11111111-1111-4111-8111-111111111111')) = 0);
+  perform pg_temp.dit('mais une société lit bien le sien',
+    (select count(*) from public.points_entreprise(
+       private.mon_entreprise(), '11111111-1111-4111-8111-111111111111')) >= 0);
+end $$;
+reset role;
+set role anon;
+select set_config('request.jwt.claim.sub', '', false);
+do $$
+begin
+  perform pg_temp.dit('une ligne anonymisée du classement ne publie plus ses totaux exacts',
+    not exists (select 1 from public.classement_saison('11111111-1111-4111-8111-111111111111')
+                 where anonyme and (brut is not null or retenu is not null
+                                    or effectif_reference is not null)));
+  perform pg_temp.dit('le détail par unité d''une entreprise nommée n''est pas public',
+    (select count(*) from public.realisations('22222222-2222-4222-8222-222222222222', null, null)) = 0);
+  perform pg_temp.dit('le total du réseau, lui, reste public',
+    (select count(*) from public.realisations(null, null, null)) >= 0);
+end $$;
+reset role;
+
+-- 3. `emettre_recu` n'exigeait rien : un identifiant de don suffisait à émettre
+--    un reçu au nom d'une association et à consommer sa numérotation.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
+select set_config('request.jwt.claim.email', 'malik@lafarge-ciments.fr', false);
+select pg_temp.refuse('un salarié n''émet pas de reçu fiscal au nom d''une association',
+  'select public.emettre_recu((select id from public.don limit 1))');
+-- 6. `securite_du_registre` ne vérifiait pas le périmètre du site demandé.
+do $$
+declare r record;
+begin
+  select * into r from public.securite_du_registre(
+    'e7000000-0000-4000-8000-000000000004', current_date - 365, current_date);
+  perform pg_temp.dit('l''accidentologie d''un site hors périmètre ne sort pas',
+    r.evenements is null or r.evenements = 0);
+end $$;
+reset role;
+
+-- 7. Les noms des signataires et des mandants sortaient avec le `grant select`
+--    sur toute la table association.
+set role anon;
+select set_config('request.jwt.claim.sub', '', false);
+select pg_temp.refuse('le nom du signataire des reçus n''est pas public',
+  'select signataire from public.association limit 1');
+select pg_temp.refuse('ni le nom de la personne qui a donné mandat',
+  'select mandat_recus_nom from public.association limit 1');
+do $$
+begin
+  perform pg_temp.dit('l''IBAN reste public : c''est le principe même du virement',
+    (select count(*) from public.association where iban is not null) > 0);
+end $$;
+reset role;
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000003', false);
+select set_config('request.jwt.claim.email', 'elise@quatrevents.org', false);
+do $$
+begin
+  perform pg_temp.dit('l''association lit ses propres réglages par la vue dédiée',
+    (select count(*) from public.association_reglages) = 1);
+end $$;
+reset role;
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@lafarge-ciments.fr', false);
+do $$
+begin
+  perform pg_temp.dit('une entreprise ne lit pas les réglages de reçus d''une association',
+    (select count(*) from public.association_reglages) = 0);
+end $$;
+reset role;
+
+\echo ''
 \echo 'Fonctions privilégiées'
 do $$
 declare v_sans integer;
@@ -1115,6 +1234,15 @@ begin
     join pg_roles r on r.oid = p.proowner
    where n.nspname in ('public','private') and p.prosecdef and r.rolname <> 'riseva_definer';
   perform pg_temp.dit('elles appartiennent toutes à un rôle dédié sans login', v_sans = 0);
+
+  -- Le rôle doit exister dans le chemin de déploiement, pas seulement dans le
+  -- bac à sable local : sans lui, l'attribution échoue et les fonctions
+  -- privilégiées restent propriété du superutilisateur.
+  perform pg_temp.dit('le rôle propriétaire est créé par le schéma lui-même',
+    exists (select 1 from pg_roles where rolname = 'riseva_definer')
+    and (select rolcanlogin = false from pg_roles where rolname = 'riseva_definer'));
+  perform pg_temp.dit('et il n''est ni superutilisateur ni BYPASSRLS',
+    (select not rolsuper and not rolbypassrls from pg_roles where rolname = 'riseva_definer'));
 
   select count(*) into v_sans from pg_tables t
    where t.schemaname = 'public'

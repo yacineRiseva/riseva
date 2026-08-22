@@ -120,10 +120,19 @@ end $$;
 -- Le plafond porte sur le total RETENU, pas sur le brut. `least(pts, brut-pts)`
 -- dit exactement cela : la part d'un format ne peut pas dépasser la somme de
 -- tous les autres. Avec (6 240, 780, 0), on retient 1 560, pas 4 290.
+-- Le score détaillé d'une entreprise. Réservé à elle-même, à son groupe et à
+-- Riseva : sans ce contrôle, la fonction rendait le `brut` et le `retenu` exacts
+-- de n'importe quel identifiant, et le classement publie ces mêmes entiers sur
+-- ses lignes anonymisées. Une jointure sur deux nombres levait le masque de
+-- toute la moitié basse — l'anonymat tenait à un affichage, pas à une frontière.
 create or replace function public.points_entreprise(p_entreprise uuid, p_saison uuid)
 returns table (type public.type_annonce, brut bigint, retenu bigint)
 language sql stable security definer set search_path = '' as $$
-  with par_type as (
+  with autorise as (
+    select p_entreprise = private.mon_entreprise()
+        or private.dans_mon_groupe(p_entreprise)
+        or private.est_admin() as ok
+  ), par_type as (
     select a.type, sum(m.points)::bigint as pts
       from public.mission m
       join public.annonce a on a.id = m.annonce
@@ -134,7 +143,8 @@ language sql stable security definer set search_path = '' as $$
      group by a.type
   ), total as (select coalesce(sum(pts), 0)::bigint as brut from par_type)
   select p.type, p.pts, greatest(0, least(p.pts, t.brut - p.pts))::bigint
-    from par_type p cross join total t
+    from par_type p cross join total t, autorise
+   where autorise.ok
 $$;
 
 -- Le classement, en un seul agrégat. L'ancienne version rappelait plusieurs
@@ -216,7 +226,20 @@ language sql stable security definer set search_path = '' as $$
          else 'Entreprise · ' || c.categorie || coalesce(' · ' || c.secteur, '') end,
     not (private.nommable(c.visibilite, c.rang + c.exaequo - 1, c.cohorte)
          or c.entreprise = private.mon_entreprise() or private.est_admin()),
-    c.categorie, c.brut, c.retenu, c.effectif_reference,
+    c.categorie,
+    -- Sur une ligne anonymisée, les totaux exacts sont retirés : ce sont des
+    -- empreintes. Le brut, le retenu et l'effectif de référence suffisaient à
+    -- rapprocher la ligne d'une entreprise nommée ailleurs. Reste ce qui sert à
+    -- lire un classement : la position et la valeur normalisée, arrondie.
+    case when private.nommable(c.visibilite, c.rang + c.exaequo - 1, c.cohorte)
+              or c.entreprise = private.mon_entreprise() or private.est_admin()
+         then c.brut end,
+    case when private.nommable(c.visibilite, c.rang + c.exaequo - 1, c.cohorte)
+              or c.entreprise = private.mon_entreprise() or private.est_admin()
+         then c.retenu end,
+    case when private.nommable(c.visibilite, c.rang + c.exaequo - 1, c.cohorte)
+              or c.entreprise = private.mon_entreprise() or private.est_admin()
+         then c.effectif_reference end,
     round(c.retenu::numeric / c.effectif_reference, 1),
     c.rang, c.cohorte
   from classe c
@@ -224,6 +247,8 @@ $$;
 
 -- Un décile n'a aucun sens sur une poignée d'entreprises : sous dix, on ne le
 -- calcule pas, plutôt que d'afficher « top 10 % » à un peloton de trois.
+-- Même règle : un décile est une position, et une position rendue pour un
+-- identifiant arbitraire est un moyen de situer les autres.
 create or replace function public.decile_entreprise(p_entreprise uuid, p_saison uuid)
 returns integer
 language sql stable security definer set search_path = '' as $$
@@ -231,6 +256,9 @@ language sql stable security definer set search_path = '' as $$
               then ceil((c.rang::numeric / c.cohorte) * 10)::integer end
     from public.classement_saison(p_saison) c
    where c.entreprise = p_entreprise
+     and (p_entreprise = private.mon_entreprise()
+          or private.dans_mon_groupe(p_entreprise)
+          or private.est_admin())
 $$;
 
 -- ---------------------------------------------------------------- réalisations
@@ -252,9 +280,20 @@ language sql stable security definer set search_path = '' as $$
     join public.annonce a on a.id = m.annonce
    where m.etat in ('validee','validee_auto')
      and a.impact_unite is not null
+     -- Les dons personnels ne sont pas des réalisations de l'employeur. Sans ce
+     -- filtre, la fonction les agrégeait dans ses chiffres, à rebours de
+     -- `points_entreprise` — et donnait, par différence, ce que le seuil
+     -- d'agrégation des dons personnels est censé rendre inaccessible.
+     and m.origine = 'entreprise'
      and (p_entreprise  is null or m.entreprise = p_entreprise)
      and (p_association is null or a.association = p_association)
      and (p_saison      is null or a.saison = p_saison)
+     -- Le total du réseau est public ; le détail d'une entreprise nommée ne
+     -- l'est pas. Un visiteur ne peut donc pas cibler une entreprise.
+     and (p_entreprise is null
+          or p_entreprise = private.mon_entreprise()
+          or private.dans_mon_groupe(p_entreprise)
+          or private.est_admin())
    group by a.impact_unite
 $$;
 
@@ -898,13 +937,25 @@ begin
   if not found or v_d.etat <> 'confirme' then
     raise exception 'Don introuvable ou non confirmé' using errcode = '42501';
   end if;
+  -- Seule l'association bénéficiaire émet ses reçus. Sans ce contrôle, quiconque
+  -- tenait l'identifiant d'un don émettait un reçu au nom d'une association et
+  -- consommait sa numérotation — et c'est elle qui encourt l'amende de l'article
+  -- 1740 A du CGI, pas celui qui a appelé la fonction.
+  if v_d.association is distinct from private.mon_association()
+     and not private.est_admin() then
+    raise exception 'Réservé à l''association bénéficiaire' using errcode = '42501';
+  end if;
   -- Le verrou sérialise la numérotation : deux reçus ne peuvent pas porter le
   -- même numéro, et aucun numéro n'est attribué côté navigateur.
   select * into v_a from public.association a where a.id = v_d.association for update;
   if not v_a.recus_actif then
     raise exception 'Cette association n''émet pas de reçus' using errcode = '42501';
   end if;
-  if v_a.association is not null then null; end if;
+  -- Un reçu ne se prépare que sous mandat écrit : sans lui, Riseva n'a pas le
+  -- droit d'agir au nom de l'association.
+  if v_a.mandat_recus_le is null then
+    raise exception 'Aucun mandat de préparation des reçus' using errcode = '42501';
+  end if;
 
   select count(*) + 1 into v_suite from public.recu r where r.association = v_a.id;
   v_num := v_a.recu_prefixe || lpad(v_suite::text, 4, '0');
@@ -1009,10 +1060,27 @@ end $$;
 -- La RLS protège les lignes, pas les colonnes : `select *` sur `entreprise`
 -- livrait le CA, le SIRET, l'adresse et le coût journalier moyen. Le public ne
 -- voit plus qu'une projection.
-create or replace view public.entreprise_publique
-with (security_invoker = true) as
+-- La vue publique n'est PAS en `security_invoker` : elle s'exécute avec les
+-- droits de son propriétaire, et c'est tout l'intérêt. En invoker, elle exigeait
+-- un droit de lecture sur `public.entreprise`, donc une policy `using (true)`
+-- pour la servir — et une policy permissive s'additionne en OU avec les autres,
+-- ce qui ouvrait le CA, le SIRET et l'adresse de toutes les entreprises à
+-- n'importe quel compte connecté. La vue est la frontière ; la table reste
+-- fermée derrière.
+create or replace view public.entreprise_publique as
   select e.id, e.nom, e.secteur, e.ville
     from public.entreprise e;
+
+-- Les réglages qu'une association ne partage avec personne : qui signe ses reçus,
+-- avec quelle qualité, sous quel mandat, et où en est sa numérotation. Sans
+-- `security_invoker`, donc exécutée avec les droits de son propriétaire : c'est
+-- la vue qui est la frontière, pas un droit sur la table.
+create or replace view public.association_reglages as
+  select a.id, a.recus_actif, a.signataire, a.qualite, a.recu_prefixe,
+         a.mandat_recus_le, a.mandat_recus_nom, a.mandat_recus_qualite,
+         a.mandat_recus_version
+    from public.association a
+   where a.id = private.mon_association() or private.est_admin();
 
 -- ---------------------------------------------------------------------------
 -- Contrôle au registre public
@@ -1569,6 +1637,9 @@ end $$;
 -- dans le navigateur : un accident déclaré au fil de l'eau et un total recopié
 -- en fin de période ne tombent jamais juste, et c'est exactement ce que cette
 -- fonction supprime.
+-- Réservée au périmètre de l'appelant. Sans ce filtre, tout compte connecté
+-- obtenait l'accidentologie complète de n'importe quel site dont il tenait
+-- l'identifiant — et les identifiants de sites circulent dans les missions.
 create or replace function public.securite_du_registre(
   p_etablissement uuid, p_debut date, p_fin date)
 returns table (at_avec_arret integer, at_sans_arret integer, at_trajet integer,
@@ -1585,6 +1656,11 @@ language sql stable security definer set search_path = '' as $$
  where e.etablissement = p_etablissement
    and e.annule_le is null
    and e.date between p_debut and p_fin
+   and exists (select 1 from public.etablissement et
+                where et.id = p_etablissement
+                  and (et.societe = private.mon_entreprise()
+                       or private.dans_mon_groupe(et.societe)
+                       or private.est_admin()))
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -1621,3 +1697,29 @@ begin
   update public.expedition set recu_le = current_date
    where id = p_expedition and recu_le is null;
 end $$;
+
+-- Le Pareto des événements de sécurité, en agrégat. C'est ce que lit le comité
+-- social et économique : le registre ligne à ligne se réidentifie, un décompte
+-- par type ne le permet pas — au-dessus d'un seuil.
+--
+-- Sous ce seuil, on ne rend rien plutôt qu'un chiffre : « un accident de
+-- manutention » dans une société de douze personnes désigne quelqu'un.
+create or replace function public.pareto_securite(
+  p_societe uuid, p_debut date, p_fin date)
+returns table (type_evenement text, nombre integer)
+language sql stable security definer set search_path = '' as $$
+  with perimetre as (
+    select e.type_evenement
+      from public.evenement_securite e
+      join public.etablissement et on et.id = e.etablissement
+     where et.societe = p_societe
+       and e.annule_le is null
+       and e.date between p_debut and p_fin
+       and (p_societe = private.mon_entreprise() or private.est_admin())
+  )
+  select p.type_evenement, count(*)::int
+    from perimetre p
+   where (select count(*) from perimetre) >= 5
+   group by p.type_evenement
+   order by count(*) desc
+$$;

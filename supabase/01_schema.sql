@@ -20,6 +20,18 @@
 create schema if not exists extensions;
 create extension if not exists "pgcrypto" with schema extensions;
 
+-- Propriétaire dédié des fonctions SECURITY DEFINER. Sans login : personne ne
+-- s'y connecte, on ne fait qu'exécuter en son nom. Il vivait dans `00_local.sql`,
+-- qui n'est jamais déployé : en production, `alter function ... owner to` échouait
+-- et, sans `ON_ERROR_STOP`, les soixante fonctions privilégiées restaient
+-- propriété de `postgres` — superutilisateur, BYPASSRLS. C'est-à-dire exactement
+-- le risque que ce rôle existe pour écarter.
+do $$ begin
+  if not exists (select 1 from pg_roles where rolname = 'riseva_definer') then
+    create role riseva_definer nologin noinherit;
+  end if;
+end $$;
+
 create schema if not exists private;
 revoke all on schema private from public;
 
