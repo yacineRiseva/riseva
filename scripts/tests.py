@@ -214,10 +214,16 @@ def main():
         # et sourcés, ou des propriétés du produit qui ne dépendent que de nous.
         # Un chiffre de performance client à cet endroit serait le premier
         # mensonge de la page, puisqu'il n'existe aucun client.
+        # On lit le HTML SERVI, pas le DOM animé : le compteur remplace
+        # temporairement la valeur pendant sa montée, et c'est justement le
+        # point — le nombre final doit être dans la source, là où le lisent un
+        # moteur d'indexation, un lecteur d'écran et un navigateur sans script.
+        src = norm(p.evaluate("()=>fetch('/').then(r=>r.text())"))
+        verifie("les chiffres de tête sont dans le HTML, pas seulement animés",
+                "233 Md€" in src and "14 j" in src and "0 €" in src)
         ch = norm(p.inner_text(".chiffres"))
         verifie("les chiffres de tête sont sourcés ou ne dépendent que de nous",
-                "233 Md€" in ch and "L. 2152-7" in ch
-                and "238 bis" in ch and "14 j" in ch and "0 €" in ch)
+                "L. 2152-7" in ch and "238 bis" in ch)
         verifie("aucun n'est présenté comme un résultat obtenu par un client",
                 "clients" not in ch and "nos clients" not in ch
                 and "satisfaction" not in ch)

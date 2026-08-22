@@ -2421,3 +2421,31 @@ section{
   .chiffres > div{border-left:0;padding-left:0;border-bottom:1px solid var(--line);}
   .chiffres > div:last-child{border-bottom:0;}
 }
+
+/* ── ce qui bouge, et pourquoi ──────────────────────────────────────────── */
+/* Deux mouvements sur toute la page, et aucun ne conditionne l'affichage : le
+   contenu est la avant eux, il y reste sans eux, et un lecteur qui a demande
+   moins d'animation ne perd rien.
+
+   La derive lente sur l'image de tete : une photographie fixe en haut d'une
+   page se lit comme une affiche, une photographie qui respire se lit comme une
+   fenetre. Vingt-quatre secondes pour trois pour cent d'echelle, c'est en
+   dessous du seuil ou l'oeil suit le mouvement au lieu de lire.
+
+   Le compteur sur les quatre chiffres : il part de zero a l'arrivee dans
+   l'ecran. Le nombre final est dans le HTML des le depart — c'est lui que lit
+   un moteur d'indexation, un lecteur d'ecran, et un navigateur sans
+   JavaScript. */
+.photo--bande img{
+  transform:scale(1.02);
+  animation:derive 24s ease-in-out infinite alternate;
+  will-change:transform;
+}
+@keyframes derive{
+  from{transform:scale(1.02) translate3d(0,0,0);}
+  to{transform:scale(1.055) translate3d(0,-1.2%,0);}
+}
+.chiffres b{transition:none;}
+@media (prefers-reduced-motion:reduce){
+  .photo--bande img{animation:none;transform:none;}
+}

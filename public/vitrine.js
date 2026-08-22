@@ -551,3 +551,51 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
   }
 })();
 
+/* ══════════════════════════════════════════════════════════════
+   LES QUATRE CHIFFRES DE TETE, QUI MONTENT A L'ARRIVEE
+
+   Le nombre final est ecrit dans le HTML. C'est lui que lisent un
+   moteur d'indexation, un lecteur d'ecran et un navigateur sans
+   JavaScript ; ce script ne fait que rejouer le trajet depuis zero,
+   une fois, et remet la valeur exacte a la fin plutot qu'un arrondi
+   de l'animation. Un compteur qui anime un chiffre absent du HTML
+   est un chiffre que personne d'autre qu'un navigateur moderne ne
+   verra jamais.
+
+   Le bloc est autonome : il redeclare ses deux aides plutot que
+   d'emprunter celles d'une IIFE voisine, parce qu'un voisin qui
+   sort tot emporterait tout ce qui le suit.
+   ══════════════════════════════════════════════════════════════ */
+(function(){
+  var els = [].slice.call(document.querySelectorAll('.chiffres b'));
+  if(!els.length) return;
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  if(!('IntersectionObserver' in window)) return;
+  var obs = new IntersectionObserver(function(en){
+    en.forEach(function(e){
+      if(!e.isIntersecting) return;
+      obs.unobserve(e.target);
+      var el = e.target, fin = el.textContent;
+      var m = fin.match(/^([^\d]*)([\d\s\u202f,.]+)(.*)$/);
+      if(!m) return;
+      /* L'espace qui separe le nombre de son unite appartient au suffixe :
+         sans ca, les images intermediaires affichent « 0Md€ ». */
+      var suffixe = (/[\s\u202f]$/.test(m[2]) ? '\u202f' : '') + m[3];
+      var brut = m[2].replace(/[\s\u202f]/g, '').replace(',', '.');
+      var val = parseFloat(brut);
+      if(!isFinite(val) || val <= 0) return;
+      var dec = (brut.split('.')[1] || '').length;
+      var t0 = null, duree = 900;
+      function pas(t){
+        if(t0 === null) t0 = t;
+        var k = Math.min(1, (t - t0) / duree);
+        var v = val * (1 - Math.pow(1 - k, 3));
+        el.textContent = m[1] + v.toFixed(dec).replace('.', ',') + suffixe;
+        if(k < 1) requestAnimationFrame(pas);
+        else el.textContent = fin;
+      }
+      requestAnimationFrame(pas);
+    });
+  }, { threshold: 0.6 });
+  els.forEach(function(el){ obs.observe(el); });
+})();
