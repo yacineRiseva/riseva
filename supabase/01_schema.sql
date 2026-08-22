@@ -108,6 +108,10 @@ create type etat_saison      as enum ('brouillon','ouverte','close');
 create type etat_preinscription as enum ('preinscrite','relancee','confirmee','abandonnee');
 create type etat_paiement    as enum ('attendu','confirme','rembourse','echoue');
 create type origine_don      as enum ('entreprise','salarie');
+-- La catégorie comptable du bien donné, et rien de plus. Riseva ne calcule
+-- aucune valeur : elle demande sous quel régime le bien était inscrit, parce
+-- que la méthode de valorisation en dépend, et laisse le montant au donateur.
+create type categorie_materiel as enum ('stock','immobilisation','autre');
 create type unite_realisation as enum (
   'arbre','haie','dechet_kg','repas','colis','animal','maraude','kit','eleve','metre_berge');
 
@@ -625,6 +629,32 @@ create table mission (
   -- de main-d'œuvre redevient illicite. On garde l'horodatage, pas un booléen —
   -- un booléen ne prouve rien devant un inspecteur du travail.
   consentement_le timestamptz,
+  -- Le texte exact auquel le salarié a consenti, et son empreinte. Un horodatage
+  -- seul prouve qu'on a coché quelque chose, pas à quoi. Si la convention change
+  -- l'an prochain, seule l'empreinte permet de dire lequel des deux textes il
+  -- avait sous les yeux — et c'est précisément la question qu'on pose en
+  -- contentieux. Le texte est conservé en clair parce qu'il n'a rien de secret
+  -- et que reconstituer un texte à partir d'une empreinte est impossible.
+  consentement_texte    text,
+  consentement_empreinte bytea,
+  -- ---- don de matériel : ce que l'entreprise déclare, jamais ce qu'on calcule
+  -- La valorisation d'un don en nature relève du donateur et de son
+  -- expert-comptable. La doctrine distingue au moins deux régimes — un bien
+  -- inscrit en stock se valorise à son coût de revient, une immobilisation à la
+  -- valeur de cession retenue pour la plus ou moins-value de sortie — et une
+  -- règle unique écrite dans un logiciel serait fausse une fois sur deux. On
+  -- enregistre donc une valeur *déclarée*, sous la catégorie qui la justifie.
+  -- Le nom de la colonne le dit : `valeur_declaree`, pas `valeur_nette`.
+  valeur_declaree      numeric(12,2) check (valeur_declaree >= 0),
+  categorie_comptable  categorie_materiel,
+  nature               text check (length(nature) <= 200),
+  reference_actif      text check (length(reference_actif) <= 80),
+  sortie_le            date,
+  justificatif         text check (length(justificatif) <= 200),
+  -- Un ordinateur donné porte des données. Le donateur atteste de leur
+  -- effacement, ou il ne l'atteste pas — et NULL veut dire « pas encore
+  -- répondu », ce qu'un booléen à deux états ne sait pas dire.
+  effacement_donnees   boolean,
   -- Le lien de réponse envoyé à l'association. On stocke l'empreinte SHA-256, pas
   -- le jeton : une fuite de la base ne doit pas livrer de quoi trancher les
   -- missions de tout le monde. Il expire avec le délai de validation et ne sert
@@ -645,7 +675,23 @@ create table mission (
   -- ou il ne vaut rien. La borne haute est vérifiée dans le RPC, pas ici : un
   -- CHECK sur now() n'est pas immuable et casserait toute restauration.
   constraint mission_consentement_avant check (
-    consentement_le is null or consentement_le <= cree_le + interval '1 minute')
+    consentement_le is null or consentement_le <= cree_le + interval '1 minute'),
+  -- Un consentement sans son texte est un consentement qu'on ne peut pas
+  -- produire. Les trois colonnes tiennent ou tombent ensemble.
+  constraint mission_consentement_complet check (
+    (consentement_le is null and consentement_texte is null
+       and consentement_empreinte is null)
+    or (consentement_le is not null and consentement_texte is not null
+       and consentement_empreinte is not null)),
+  -- Une valeur sans catégorie n'est pas une valorisation, c'est un nombre. La
+  -- catégorie seule, en revanche, est légitime : elle se choisit avant de
+  -- connaître le montant.
+  constraint mission_valeur_categorie check (
+    valeur_declaree is null or categorie_comptable is not null),
+  -- La date de sortie de l'actif ne peut pas précéder de beaucoup le don
+  -- lui-même : elle le date, elle ne raconte pas une autre opération.
+  constraint mission_sortie_apres check (
+    sortie_le is null or sortie_le >= date_mission - 90)
 );
 create unique index mission_idempotence on mission (cle_idempotence)
   where cle_idempotence is not null;

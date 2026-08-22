@@ -921,6 +921,25 @@ def main():
                 "L. 8241-3" in md and "L. 8241-2" in md and "pas d'avenant" in md)
         verifie("l'accord écrit du salarié est posé en condition",
                 "accord exprès" in md and "R. 8241-2" in md)
+        # Un horodatage prouve qu'une case a été cochée ; il ne dit pas à quoi.
+        # « Exprès », à l'article R. 8241-2, qualifie le contenu de l'accord.
+        cons = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const t = d.DB.texteConsentement('an1');
+          const a = d.DB.annonce('an1');
+          const asso = d.DB.association(a.asso);
+          const m = d.DB.missions({ entreprise:'e1' }).find(x => x.consentement);
+          return { t, titre:a.titre, asso:asso.nom,
+                   fige: m ? m.consentement.texte : null };
+        }""")
+        verifie("le texte du consentement nomme la mission et l'organisme",
+                cons["titre"] in cons["t"] and cons["asso"] in cons["t"])
+        verifie("il rappelle que le contrat de travail se poursuit",
+                "contrat de travail se poursuit" in cons["t"])
+        verifie("il rappelle que le refus n'est pas une faute",
+                "ni un motif de sanction" in cons["t"])
+        verifie("chaque mission consentie porte son propre texte, figé",
+                bool(cons["fige"]) and "accord exprès" in cons["fige"])
         with p.context.expect_page() as onglet:
             p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Générer/.test(b.textContent)).click()")
         doc = onglet.value
@@ -939,7 +958,32 @@ def main():
         verifie("elle borne le rôle de Riseva",
                 "ni assureur, ni conseil fiscal" in d)
         verifie("Riseva n'est pas partie à l'acte", "n'est pas partie" in d)
+        # La convention doit produire le texte accepté, mot pour mot. Une date
+        # seule atteste qu'on a coché, pas ce qu'on a lu.
+        verifie("la convention reproduit le texte accepté par le salarié",
+                "Texte accepté par le Salarié" in d
+                and "accord exprès à cette mise à disposition" in d)
         doc.close()
+
+        # Le bon Cerfa selon l'origine du don, et pas l'inverse. Les deux modèles
+        # ouvrent des droits à deux contribuables différents ; un reçu au mauvais
+        # formulaire peut être écarté en contrôle, et l'article 1740 A du CGI
+        # sanctionne l'association qui l'a signé, pas l'outil qui l'a préparé.
+        cf = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          let refus = false;
+          try { d.cerfaPour('autre'); } catch { refus = true; }
+          return { sal: d.cerfaPour('salarie'), ent: d.cerfaPour('entreprise'), refus };
+        }""")
+        verifie("le don personnel d'un salarié relève du 2041-RD, article 200",
+                cf["sal"]["numero"] == "11580*05" and cf["sal"]["modele"] == "2041-RD"
+                and cf["sal"]["article"] == "200 du CGI")
+        verifie("le don de l'entreprise relève du 2041-MEC-SD, article 238 bis",
+                cf["ent"]["numero"] == "16216*03" and cf["ent"]["modele"] == "2041-MEC-SD"
+                and cf["ent"]["article"] == "238 bis du CGI")
+        verifie("les deux modèles ne se confondent jamais",
+                cf["sal"]["numero"] != cf["ent"]["numero"])
+        verifie("une origine inconnue ne produit pas un modèle par défaut", cf["refus"])
 
         print("\nIndicateurs de pilote")
         connecte(p, "u1", "#/pilotes")
@@ -1343,7 +1387,13 @@ def main():
         verifie("les décès et maladies professionnelles sont explicitement hors périmètre",
                 "décès et les maladies professionnelles" in vt)
         verifie("le réemploi de matériel alimente la rubrique économie circulaire",
-                "Valeur nette comptable du matériel réemployé" in vt)
+                "Valeur déclarée par l'entreprise, matériel réemployé" in vt)
+        # Un indicateur VSME qui nomme une méthode engage l'entreprise sur cette
+        # méthode devant son commissaire aux comptes. Riseva n'en applique aucune :
+        # elle enregistre ce que le donateur déclare, sous la catégorie qui le
+        # justifie. Le libellé ne doit donc plus prononcer « valeur nette comptable ».
+        verifie("la fiche VSME ne prête plus de méthode de valorisation à Riseva",
+                "aleur nette comptable" not in vt)
         vf = p.evaluate("""async () => {
           const d = await import('/app/data.js');
           const f = d.DB.ficheVSME('e1');

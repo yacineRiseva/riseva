@@ -330,6 +330,8 @@ grant execute on function
                          boolean, public.unite_realisation, numeric),
   public.fermer_annonce(uuid),
   public.regler_logo(text),
+  public.declarer_valeur_materiel(uuid, numeric, public.categorie_materiel,
+                                  text, text, date, text, boolean),
   public.pseudonymiser_salarie(uuid),
   public.supprimer_salarie(uuid),
   public.signaler_annonce(uuid, text, text),
@@ -468,6 +470,7 @@ grant execute on function private.recouvrement(text[], text[]) to riseva_definer
 grant execute on function public.sans_accents(text) to riseva_definer;
 grant execute on function private.iban_ok(text) to riseva_definer;
 grant execute on function private.pilote_le_site(uuid) to riseva_definer;
+grant execute on function private.texte_consentement(uuid) to riseva_definer;
 grant execute on function private.reference_virement() to riseva_definer;
 grant execute on function private.seuil_ecart() to riseva_definer;
 grant execute on function private.campagne_precedente(uuid) to riseva_definer;

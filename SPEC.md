@@ -315,7 +315,7 @@ moitié serait inventée.
 | B4 Pollution | aucune | — |
 | B5 Biodiversité | aucune | une plantation est une action, pas un indicateur d'impact. On ne les confond pas |
 | B6 Eau | aucune | — |
-| B7 Ressources et économie circulaire | partielle | dons de matériel réemployé : nature, quantité, valeur nette comptable |
+| B7 Ressources et économie circulaire | partielle | dons de matériel réemployé : nature, quantité, catégorie comptable, valeur déclarée par l'entreprise |
 | B8 Effectifs | partielle | effectif, entrées, sorties, femmes, bénéficiaires de l'obligation d'emploi |
 | B9 Santé et sécurité | **complète** | accidents par site, consolidés, taux calculés sur les heures réelles |
 | B10 Rémunération et formation | partielle | heures de formation, salariés formés |

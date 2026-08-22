@@ -68,7 +68,16 @@ values
  ('33333333-3333-4333-8333-333333333333', '11111111-1111-4111-8111-111111111111',
   'don_financier', 'Vaccins et stérilisations pour l''hiver',
   'Chaque prise en charge coûte environ 90 € en soins vétérinaires. Nous en avons quarante devant nous.',
-  'Saint-Étienne', false, 3600, 3600, current_date + 60, 'ouverte', 'animal', 0.011);
+  'Saint-Étienne', false, 3600, 3600, current_date + 60, 'ouverte', 'animal', 0.011),
+ -- Le quatrième format : le don de matériel. Il manquait à la semence, et son
+ -- absence rendait muets les tests de valorisation — c'est-à-dire précisément
+ -- la partie où Riseva touche à de la comptabilité. Pas d'unité d'impact ici :
+ -- un ordinateur réemployé ne se convertit pas en arbres ni en repas, et lui
+ -- inventer une équivalence aurait été le premier chiffre faux du produit.
+ ('33333333-3333-4333-8333-333333333333', '11111111-1111-4111-8111-111111111111',
+  'don_materiel', 'Ordinateurs pour le suivi des adoptions',
+  'Nos trois postes datent de 2012 et le logiciel de suivi ne tourne plus dessus. Du matériel reconditionné convient parfaitement, à condition que les disques aient été effacés avant remise.',
+  'Saint-Étienne', false, 10, 7, current_date + 30, 'ouverte', null, null);
 
 insert into private.retention (ensemble, duree, motif) values
   ('acces',          interval '6 months',  'journal de sécurité, durée glissante'),

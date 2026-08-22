@@ -867,6 +867,28 @@ export const FISCAL = {
   duree_max_mise_a_disposition_ans: 3   // article L. 8241-3 du code du travail
 };
 
+/* Le modèle de reçu se déduit de QUI a donné, jamais de qui saisit.
+   Un don versé par un salarié sur ses propres deniers relève de l'article 200 du
+   CGI et se constate au modèle 2041-RD ; un don de l'entreprise relève de
+   l'article 238 bis et se constate au modèle 2041-MEC-SD. Les deux ouvrent des
+   droits à deux contribuables différents, à deux taux différents.
+
+   Se tromper de modèle n'est pas une coquille de mise en page. Un reçu au mauvais
+   millésime ou au mauvais formulaire peut être écarté en contrôle, et l'article
+   1740 A du CGI punit la délivrance irrégulière d'une amende égale au taux de la
+   réduction en cause — la sanction retombe sur l'association qui a signé, pas sur
+   l'outil qui a préparé. L'écran promet que « Riseva choisit le bon modèle selon
+   l'origine du don » : cette fonction est cette promesse, et le test la tient. */
+export function cerfaPour(origine){
+  if (origine !== "entreprise" && origine !== "salarie")
+    throw new Error("Origine de don inconnue : impossible de choisir un modèle de reçu.");
+  return origine === "salarie"
+    ? { numero: FISCAL.cerfa_particulier, modele: "2041-RD",
+        article: "200 du CGI", donateur: "le salarié, à titre personnel" }
+    : { numero: FISCAL.cerfa_entreprise, modele: "2041-MEC-SD",
+        article: "238 bis du CGI", donateur: "l'entreprise" };
+}
+
 /* Unités de réalisation. Ce que la mission produit dans le monde réel, déclaré par
    l'association qui en est témoin. C'est volontairement séparé des points : les points
    sont une mécanique de classement, les réalisations sont un décompte de choses faites. */
@@ -957,9 +979,11 @@ export const VSME = {
     { cle:"B7", pilier:"environnement",
       titre:"Utilisation des ressources, économie circulaire et déchets",
       couvert:"partiel",
-      apporte:"Les dons de matériel réemployé passés par Riseva : nature, quantité et "
-        + "valeur nette comptable, avec l'association qui les a reçus. C'est du réemploi "
-        + "documenté, opposable, et daté.",
+      apporte:"Les dons de matériel réemployé passés par Riseva : nature, quantité, "
+        + "catégorie comptable et valeur déclarée par l'entreprise, avec l'association "
+        + "qui les a reçus. C'est du réemploi documenté, opposable, et daté. La valeur "
+        + "reste celle que vous déclarez : Riseva rappelle la méthode qui s'applique à "
+        + "la catégorie choisie, elle ne valorise pas à la place de votre comptable.",
       manque:"Les tonnages de déchets produits et traités, et les flux entrants.",
       ailleurs:"Vos bordereaux de suivi de déchets et le registre de votre prestataire." },
     { cle:"B8", pilier:"social", titre:"Effectifs — caractéristiques générales",
@@ -1396,7 +1420,7 @@ const seed = {
     { id:"m2", annonce:"an2", entreprise:"e1", salarie:"u4", etablissement:"et3", etat:"validee",     quantite:3, points:450,  date:J(-9), declaree_le:J(-8), tranchee_le:J(-7), realise:118,
       consentement:{ donne_le:J(-14), mission:"Atelier réparation vélos", date_mission:J(-9) } },
     { id:"m3", annonce:"an4", entreprise:"e1", salarie:"u3", etablissement:"et2", etat:"validee",     quantite:600, points:60, date:J(-7), declaree_le:J(-7), tranchee_le:J(-6), realise:68 },
-    { id:"m4", annonce:"an5", entreprise:"e1", salarie:"u5", etablissement:"et1", etat:"a_valider",   quantite:3, points:300,  date:J(-2), declaree_le:J(-2), valeur_nette:840, nature:"Trois ordinateurs portables renouvelés",
+    { id:"m4", annonce:"an5", entreprise:"e1", salarie:"u5", etablissement:"et1", etat:"a_valider",   quantite:3, points:300,  date:J(-2), declaree_le:J(-2), valeur_declaree:840, nature:"Trois ordinateurs portables renouvelés",
       categorie_comptable:"immobilisation", reference_actif:"IMMO-2023-0412 à 0414",
       sortie_le:J(-2), effacement_donnees:true,
       justificatif:"Fiche de sortie d'immobilisation signée" },
@@ -1845,6 +1869,39 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       if (BAREME[type] && points > 0) BAREME[type].points = Number(points);
       return BAREME;
     },
+    /* Le texte exact du consentement, composé à partir de l'annonce.
+       Un horodatage prouve qu'une case a été cochée ; il ne dit pas à QUOI. Or
+       c'est la seule question qui se pose devant un inspecteur du travail : ce
+       salarié a-t-il accepté CETTE mission, à CES dates, auprès de CET
+       organisme ? L'article R. 8241-2 exige un accord exprès et écrit —
+       « exprès » qualifie le contenu, pas la vitesse du clic.
+
+       La phrase est composée en un seul endroit et lue en deux : l'écran
+       l'affiche au-dessus de la case, la convention la reproduit mot pour mot.
+       Deux formulations proches auraient été pires que pas de texte du tout,
+       parce qu'elles auraient donné à croire qu'il y en avait un.
+
+       Son empreinte SHA-256 est calculée côté serveur, jamais ici : une
+       empreinte fournie par le navigateur est une empreinte que celui qui
+       consent peut réécrire, et un consentement rédigé par la partie qui le
+       recueille ne prouve rien. */
+    texteConsentement(aid){
+      const a = api.annonce(aid);
+      if (!a) return "";
+      const asso = api.association(a.asso) || {};
+      /* Date écrite ici plutôt qu'empruntée à la couche d'affichage : ce texte
+         part dans une convention et dans une base, pas seulement dans un écran. */
+      const jj = (d) => { const p = String(d).slice(0, 10).split("-");
+                          return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : String(d); };
+      const quand = a.date ? `, le ${jj(a.date)}` : "";
+      const ou = a.lieu ? ` à ${a.lieu}` : "";
+      return `Je donne mon accord exprès à cette mise à disposition sur mon temps de `
+        + `travail : « ${a.titre} », au profit de ${asso.nom || "l'association"}${quand}${ou}. `
+        + `Je sais que mon contrat de travail se poursuit sans changement pendant toute `
+        + `la durée de la mise à disposition, que je peux refuser sans que ce refus `
+        + `constitue une faute ni un motif de sanction, et que mon employeur reste mon `
+        + `employeur.`;
+    },
     engager({ annonce, entreprise, salarie, quantite, consentement }){
       const a = s.annonces.find(x => x.id === annonce);
       if (!a || a.etat !== "ouverte") throw new Error("Annonce indisponible");
@@ -1889,7 +1946,12 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
                   etablissement: sal.etablissement || null,
                   points: api.pointsPour(a.type, quantite), etat:"engagee", date:a.date,
                   consentement: a.temps_travail
-                    ? { donne_le: new Date().toISOString().slice(0, 10), mission: a.titre, date_mission: a.date }
+                    ? { donne_le: new Date().toISOString().slice(0, 10),
+                        /* Figé au moment de l'accord. Si le gabarit change l'an
+                           prochain, la convention doit produire le texte d'alors,
+                           pas celui d'aujourd'hui. */
+                        texte: api.texteConsentement(a.id),
+                        mission: a.titre, date_mission: a.date }
                     : null };
       s.missions.unshift(m); return m;
     },
@@ -2191,7 +2253,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
             association: asso.nom || "—", ville: asso.ville || "",
             etablissement: et ? `${et.nom} — ${et.ville}` : "—",
             salarie: sal.nom || "—",
-            valeurNette: m.valeur_nette ?? null,
+            valeurDeclaree: m.valeur_declaree ?? null,
             categorie: m.categorie_comptable || null,
             reference: m.reference_actif || null,
             sortieLe: m.sortie_le || null,
@@ -2206,13 +2268,13 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
           };
         })
         .sort((x, y) => (y.date || "").localeCompare(x.date || ""));
-      const valorisees = lignes.filter(x => x.valeurNette !== null);
+      const valorisees = lignes.filter(x => x.valeurDeclaree !== null);
       return {
         lignes,
         total: lignes.length,
         confirmes: lignes.filter(x => x.confirme).length,
         valorisees: valorisees.length,
-        valeur: valorisees.reduce((n, x) => n + x.valeurNette, 0),
+        valeur: valorisees.reduce((n, x) => n + x.valeurDeclaree, 0),
         /* Ce qu'on ne sait pas valoriser, on ne l'invente pas. */
         sansValeur: lignes.length - valorisees.length
       };
@@ -2226,7 +2288,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       const { valeur, categorie, nature, reference, sortieLe, justificatif, effacement } = champs;
       if (categorie && !api.CATEGORIES_MATERIEL.some(c => c.cle === categorie))
         throw new Error("Catégorie comptable inconnue");
-      m.valeur_nette = valeur === "" || valeur === null || valeur === undefined
+      m.valeur_declaree = valeur === "" || valeur === null || valeur === undefined
         ? null : Math.max(0, Number(valeur) || 0);
       if (categorie !== undefined) m.categorie_comptable = categorie || null;
       if (nature !== undefined) m.nature = String(nature || "").slice(0, 200) || undefined;
@@ -4586,13 +4648,20 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
                         unite: faites > 1 ? "actions" : "action", valeur: faites });
         }
         if (sec.cle === "B7"){
-          const valeurNette = materiel.reduce((n, m) => n + (Number(m.valeur_nette) || 0), 0);
+          const valeurDeclaree = materiel.reduce((n, m) => n + (Number(m.valeur_declaree) || 0), 0);
           lignes.push({ cle:"reemploi", libelle:"Dons de matériel réemployé",
                         unite: materiel.length > 1 ? "dons" : "don",
                         valeur: materiel.length });
+          /* Le libellé ne nomme plus de méthode. « Valeur nette comptable » était
+             faux comme règle unique — un bien en stock se valorise à son coût de
+             revient, une immobilisation à la valeur de cession retenue pour la
+             plus ou moins-value de sortie — et surtout ce n'est pas Riseva qui
+             valorise : c'est le donateur. Un indicateur VSME qui annonce une
+             méthode que l'outil n'applique pas est une affirmation de plus à
+             défendre devant un commissaire aux comptes. */
           lignes.push({ cle:"reemploi_valeur",
-                        libelle:"Valeur nette comptable du matériel réemployé",
-                        unite:"€", valeur: valeurNette || null });
+                        libelle:"Valeur déclarée par l'entreprise, matériel réemployé",
+                        unite:"€", valeur: valeurDeclaree || null });
           lignes.push({ cle:"reemploi_nature", libelle:"Nature du matériel", unite:"",
                         texte: materiel.map(m => m.nature).filter(Boolean).join(" · ")
                                || "non détaillée" });
@@ -4796,6 +4865,19 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
     return true;
   };
   api.enregistreLe = () => (lireEtat() || {}).enregistre_le || null;
+
+  /* Les missions du jeu de démonstration portent un consentement daté mais pas
+     son texte : elles sont écrites à la main dans ce fichier, et recopier la
+     phrase trois fois aurait garanti qu'une des trois finisse par diverger. On
+     la compose donc ici, une fois, à partir de la même méthode que la vraie.
+     C'est un rattrapage de fixture, et il est écrit là où on le voit : sur une
+     mission réelle, le texte est figé au moment de l'accord et jamais
+     reconstitué — reconstituer a posteriori le texte auquel quelqu'un a
+     consenti, c'est précisément ce qu'un consentement doit empêcher. */
+  s.missions.forEach(m => {
+    if (m.consentement && !m.consentement.texte)
+      m.consentement.texte = api.texteConsentement(m.annonce);
+  });
 
   /* Toute méthode appelée déclenche une sauvegarde différée. Écrire après une lecture
      ne coûte rien et garantit qu'aucune mutation ne passe à travers les mailles. */
@@ -5011,8 +5093,11 @@ const versEtat = {
        l'édition de la convention (article R. 8241-2). Absent, la convention n'est
        pas proposée — jamais éditée sans preuve. */
     consentement: r.consentement_le
-      ? { donne_le: String(r.consentement_le).slice(0, 10) } : null,
-    valeur_nette: r.valeur_nette ?? null, nature: r.nature || undefined
+      ? { donne_le: String(r.consentement_le).slice(0, 10),
+          /* Le texte vient de la base, jamais d'une recomposition côté client :
+             c'est celui qui a été accepté, pas celui qu'on écrirait aujourd'hui. */
+          texte: r.consentement_texte || null } : null,
+    valeur_declaree: r.valeur_declaree ?? null, nature: r.nature || undefined
   }),
   invitation: (r) => ({
     id: r.id, entreprise: r.entreprise, etablissement: r.etablissement || null,

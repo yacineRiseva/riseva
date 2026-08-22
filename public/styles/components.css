@@ -41,7 +41,7 @@
 /* ============ Badges ============ */
 .badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;
   border-radius:var(--r-pill);font-size:var(--t-xs);font-weight:600;letter-spacing:.01em;
-  background:var(--ink-050);color:var(--ink-600)}
+  white-space:nowrap;background:var(--ink-050);color:var(--ink-600)}
 .badge--brand{background:var(--forest-050);color:var(--forest-700)}
 .badge--lime{background:var(--lime);color:var(--ink)}
 .badge--ok{background:var(--ok-bg);color:var(--ok-texte)}
@@ -53,10 +53,16 @@
 .badge--neutre{background:var(--ink-050);color:var(--ink-600)}
 .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
 
+/* Un champ de saisie herite de la couleur de son parent. Pose dans une carte
+   sombre -- le tableau de bord du salarie, le rang en grand du classement --
+   il ecrivait en couleur papier sur fond papier : invisible a la frappe, et
+   invisible aussi a la relecture du code, puisque la regle manquante ne
+   s'ecrit nulle part. La couleur du texte se declare donc ici. */
 /* ============ Formulaires ============ */
 .field{display:block}
 .field>label,.label{display:block;font-size:var(--t-sm);font-weight:550;color:var(--ink-600);margin-bottom:6px}
 .input,.select,.textarea{width:100%;height:44px;padding:0 var(--s4);background:var(--paper-high);
+  color:var(--ink);
   border:1px solid rgba(19,21,16,.16);border-radius:var(--r-sm);
   transition:border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
 .textarea{height:auto;padding:var(--s3) var(--s4);min-height:120px;resize:vertical;line-height:1.5}

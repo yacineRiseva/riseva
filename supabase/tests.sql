@@ -178,7 +178,7 @@ begin
   perform pg_temp.dit('le nom des associations vérifiées reste public',
     (select count(*) from public.association) = 2);
   perform pg_temp.dit('les annonces ouvertes restent publiques',
-    (select count(*) from public.annonce) = 3);
+    (select count(*) from public.annonce) = 4);
 end $$;
 reset role;
 
@@ -238,6 +238,36 @@ begin
   perform pg_temp.dit('il peut s''engager sur une annonce ouverte', v_mid is not null);
   perform pg_temp.dit('l''accord du salarie est horodate, pas juste coche',
     (select consentement_le from public.mission where id = v_mid) is not null);
+  -- Un horodatage prouve qu'une case a ete cochee. Il ne dit pas A QUOI, et c'est
+  -- la seule question qui se pose devant un inspecteur du travail. L'article
+  -- R. 8241-2 exige un accord expres : « expres » qualifie le contenu.
+  perform pg_temp.dit('le texte accepte est conserve, pas seulement la date',
+    (select consentement_texte from public.mission where id = v_mid) is not null);
+  perform pg_temp.dit('ce texte nomme la mission et l''organisme',
+    (select m.consentement_texte like '%' || a.titre || '%'
+        and m.consentement_texte like '%' || asso.nom || '%'
+       from public.mission m
+       join public.annonce a on a.id = m.annonce
+       join public.association asso on asso.id = a.association
+      where m.id = v_mid));
+  perform pg_temp.dit('il rappelle que le refus n''est pas une faute',
+    (select consentement_texte from public.mission where id = v_mid)
+      like '%ni un motif de sanction%');
+  -- L'empreinte est calculee par le serveur, jamais fournie par le client : une
+  -- empreinte que celui qui consent peut reecrire ne prouve rien. Et c'est elle
+  -- qui, si le gabarit change l'an prochain, dira lequel des deux textes il
+  -- avait sous les yeux.
+  perform pg_temp.dit('l''empreinte correspond au texte conserve',
+    (select consentement_empreinte = extensions.digest(consentement_texte, 'sha256')
+       from public.mission where id = v_mid));
+  -- Une mission hors temps de travail ne porte aucun des trois : le consentement
+  -- de R. 8241-2 n'a d'objet que pour une mise a disposition.
+  perform pg_temp.dit('un benevolat hors temps de travail ne fabrique pas de consentement',
+    not exists (select 1 from public.mission m
+                  join public.annonce a on a.id = m.annonce
+                 where not a.temps_travail
+                   and (m.consentement_texte is not null
+                     or m.consentement_empreinte is not null)));
   perform pg_temp.dit('les points sont fixés par le barème, pas par lui',
     (select points from public.mission where id = v_mid) = 300);
   perform public.declarer_mission(v_mid, 118);
@@ -1446,6 +1476,93 @@ begin
     (select count(*) from public.envoi where type = 'demande_validation'
       and mission = v_mid) = 0);
 end $$;
+
+\echo ''
+\echo 'Un don de materiel se declare, il ne se calcule pas'
+-- La doctrine distingue au moins deux regimes : un bien inscrit en stock se
+-- valorise a son cout de revient, une immobilisation a la valeur de cession
+-- retenue pour determiner la plus ou moins-value de sortie. Ecrire une regle
+-- unique dans un logiciel aurait donc ete faux une fois sur deux, et opposable
+-- a personne : la valorisation releve du donateur et de son expert-comptable.
+-- Riseva enregistre une valeur DECLAREE, sous la categorie qui la justifie.
+-- Le don est d'abord engage par un salarie : on teste le chemin reel, pas une
+-- ligne posee a la main dans la table.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
+select set_config('request.jwt.claim.email', 'malik@lafarge-ciments.fr', false);
+do $$
+declare v_mid uuid;
+begin
+  select public.engager_mission(a.id, 3) into v_mid
+    from public.annonce a where a.type = 'don_materiel' limit 1;
+  perform pg_temp.dit('un don de materiel s''engage comme une mission',
+    v_mid is not null);
+  -- Aucun consentement de R. 8241-2 ici : donner du materiel n'est pas se
+  -- mettre soi-meme a disposition.
+  perform pg_temp.dit('un don de materiel n''appelle pas d''accord de mise a disposition',
+    (select consentement_le from public.mission where id = v_mid) is null);
+end $$;
+reset role;
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@lafarge-ciments.fr', false);
+do $$
+declare v_mid uuid;
+begin
+  select m.id into v_mid
+    from public.mission m
+    join public.annonce a on a.id = m.annonce
+   where a.type = 'don_materiel' and m.etat <> 'refusee'
+   limit 1;
+
+  -- Une valeur sans categorie n'est pas une valorisation, c'est un nombre.
+  begin
+    perform public.declarer_valeur_materiel(v_mid, 840);
+    perform pg_temp.dit('une valeur sans categorie comptable est refusee', false);
+  exception when others then
+    perform pg_temp.dit('une valeur sans categorie comptable est refusee',
+      sqlerrm like '%gorie comptable%');
+  end;
+
+  perform public.declarer_valeur_materiel(v_mid, 840, 'immobilisation',
+    'Trois ordinateurs portables', 'IMMO-2023-0412', null,
+    'Fiche de sortie signee', true);
+  perform pg_temp.dit('la valeur declaree est enregistree telle quelle',
+    (select valeur_declaree from public.mission where id = v_mid) = 840.00);
+  perform pg_temp.dit('la categorie qui la justifie l''accompagne',
+    (select categorie_comptable from public.mission where id = v_mid) = 'immobilisation');
+  perform pg_temp.dit('l''attestation d''effacement des donnees est conservee',
+    (select effacement_donnees from public.mission where id = v_mid));
+
+  -- Une valeur absente reste absente : un don non valorise est un don reel, qui
+  -- compte au registre AGEC et ne compte pas dans l'assiette du mecenat.
+  perform public.declarer_valeur_materiel(v_mid, null, 'stock');
+  perform pg_temp.dit('une valeur retiree ne se remplace pas par zero',
+    (select valeur_declaree from public.mission where id = v_mid) is null);
+end $$;
+reset role;
+
+-- Elle n'est pas ouverte a tout le monde : c'est une ecriture comptable.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
+select set_config('request.jwt.claim.email', 'malik@lafarge-ciments.fr', false);
+do $$
+declare v_mid uuid;
+begin
+  select m.id into v_mid from public.mission m
+    join public.annonce a on a.id = m.annonce
+   where a.type = 'don_materiel' limit 1;
+  if v_mid is null then return; end if;
+  begin
+    perform public.declarer_valeur_materiel(v_mid, 100, 'stock');
+    perform pg_temp.dit('un salarie ne valorise pas les dons de son entreprise', false);
+  exception when others then
+    perform pg_temp.dit('un salarie ne valorise pas les dons de son entreprise',
+      sqlerrm like '%administrateur%');
+  end;
+end $$;
+reset role;
 
 \echo ''
 do $$

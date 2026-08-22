@@ -1,4 +1,4 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, DELAI_VALIDATION_JOURS, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, KITS_SAISON, ETATS_EXPEDITION, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, DELAI_VALIDATION_JOURS, FISCAL, cerfaPour, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, KITS_SAISON, ETATS_EXPEDITION, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
 import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, ecusson, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
@@ -956,9 +956,12 @@ function ouvrirEngagement(a, u){
       <p><strong>Mission sur le temps de travail.</strong> Votre employeur vous met à disposition
       de l'association pour cette mission précise, à cette date précise. Vous restez son salarié,
       payé par lui et couvert par lui. Vous pouvez refuser sans aucune conséquence.</p>
+      ${/* La case porte le texte exact qui sera enregistré et reproduit dans la
+            convention. Une formulation courte à l'écran et une longue dans le
+            document, c'est un consentement à deux versions : celle qu'il a lue
+            n'est alors pas celle qu'on produit. */ ""}
       <label class="checkline" style="margin-top:var(--s3)"><input type="checkbox" id="consent">
-        <span>Je donne mon accord pour <strong>${esc(a.titre)}</strong>, le
-        ${dateFR(a.date)}.</span></label>
+        <span>${esc(DB.texteConsentement(a.id))}</span></label>
     </div>` : ""}
   </div>`);
   const q = corps.querySelector("#q"), calc = corps.querySelector("#calc");
@@ -4623,6 +4626,14 @@ function ouvrirConvention(u, m){
     mission et à ses dates${m.consentement ? `, enregistré le ${dateFR(m.consentement.donne_le)}
     sur la plateforme Riseva` : ""}. Une acceptation générale de conditions d'utilisation ne vaut
     pas consentement au sens de l'article R. 8241-2.</p>
+    ${/* Le texte accepté, reproduit mot pour mot. C'est la pièce que la convention
+          doit porter : une date seule atteste qu'on a coché, pas ce qu'on a lu. Et
+          s'il manque, on l'écrit — un blanc franc vaut mieux qu'une phrase
+          reconstituée aujourd'hui et présentée comme celle d'alors. */ ""}
+    ${m.consentement && m.consentement.texte
+      ? `<p><em>Texte accepté par le Salarié :</em><br>« ${esc(m.consentement.texte)} »</p>`
+      : `<p><em>Le texte de l'accord n'a pas été conservé pour cette mission : il est à
+         reconstituer et à faire signer avant la mise à disposition.</em></p>`}
     <p>Un refus ne peut donner lieu ni à sanction, ni à licenciement, ni à mesure discriminatoire.</p>`)}
 
   ${art(6, "Mission", `
@@ -4787,13 +4798,17 @@ function vueRecus(u){
         sous votre responsabilité. La loi ne permet pas à un tiers de délivrer un reçu à votre place.
       </p>
       <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
-        <div class="row" style="align-items:flex-start;gap:var(--s3)">
-          <span class="badge">Cerfa ${esc(FISCAL.cerfa_particulier)}</span>
-          <span class="muted">Don d'un salarié à titre personnel, article 200 du CGI.</span></div>
-        <div class="row" style="align-items:flex-start;gap:var(--s3)">
-          <span class="badge">Cerfa ${esc(FISCAL.cerfa_entreprise)}</span>
-          <span class="muted">Don ou mécénat de l'entreprise, article 238 bis du CGI.
-            Obligatoire depuis le 1<sup>er</sup> janvier 2022.</span></div>
+        ${/* Les deux lignes sont tirées de la même fonction que le reçu lui-même.
+              Recopier ici le numéro à la main aurait laissé l'écran promettre un
+              modèle et le document en produire un autre — et c'est l'association
+              qui signe, donc c'est elle que l'article 1740 A du CGI sanctionne. */
+          [cerfaPour("salarie"), cerfaPour("entreprise")].map((c, i) => `
+          <div class="row" style="align-items:flex-start;gap:var(--s3)">
+            <span class="badge">Cerfa ${esc(c.numero)}</span>
+            <span class="muted">${i === 0
+              ? `Don d'un salarié à titre personnel, article ${esc(c.article)}.`
+              : `Don ou mécénat de l'entreprise, article ${esc(c.article)}.
+                 Obligatoire depuis le 1<sup>er</sup> janvier 2022.`}</span></div>`).join("")}
       </div>
       <p class="hint">Riseva choisit le bon modèle selon l'origine du don. Vous pouvez l'adapter
         à vos couleurs, à condition de conserver toutes les mentions obligatoires.</p>
@@ -6848,8 +6863,8 @@ function vueMateriel(u){
             `dont ${nb(r.confirmes)} confirmés par l'association`, "", "kpi--tete grain")}
       ${kpi("Valorisés", `${nb(r.valorisees)} / ${nb(r.total)}`,
             r.sansValeur ? `${nb(r.sansValeur)} sans valeur déclarée` : "tous valorisés")}
-      ${kpi("Valeur nette comptable", eur(r.valeur),
-            "somme des valeurs que vous avez déclarées")}
+      ${kpi("Valeur déclarée", eur(r.valeur),
+            "somme des valeurs que vous avez déclarées, méthode comprise")}
       ${/* « Réduction correspondante » se lisait comme un montant acquis. Ce n'en
             est pas un tant que le don n'est pas reçu, valorisé, approuvé, rattaché
             au bon SIREN et plafonné avec les dons faits ailleurs. */
@@ -6918,8 +6933,8 @@ function vueMateriel(u){
         <span style="font-size:var(--t-xs)">${esc(x.societe)}${x.siren ? ` · ${esc(x.siren)}` : ""}</span></td>
       <td class="muted" style="font-size:var(--t-xs)">${cat
         ? esc(cat) : `<span class="badge badge--warn">à préciser</span>`}</td>
-      <td class="tnum" style="text-align:right">${x.valeurNette === null
-        ? `<span class="badge badge--warn">à valoriser</span>` : eur(x.valeurNette)}</td>
+      <td class="tnum" style="text-align:right">${x.valeurDeclaree === null
+        ? `<span class="badge badge--warn">à valoriser</span>` : eur(x.valeurDeclaree)}</td>
       <td>${x.confirme ? `<span class="badge badge--ok">association</span>`
         : x.etat === "validee_auto" ? `<span class="badge badge--neutre">clôture d'office</span>`
         : `<span class="badge ${ETATS_MISSION[x.etat].badge}">${ETATS_MISSION[x.etat].label}</span>`}</td>
@@ -6927,7 +6942,7 @@ function vueMateriel(u){
         : `<span class="badge badge--warn">attendu</span>`}</td>
       <td style="text-align:right"></td>
     </tr>`);
-    const b2 = h(`<button class="btn btn--quiet btn--sm">${x.valeurNette === null ? "Valoriser" : "Corriger"}</button>`);
+    const b2 = h(`<button class="btn btn--quiet btn--sm">${x.valeurDeclaree === null ? "Valoriser" : "Corriger"}</button>`);
     b2.onclick = () => formValeurMateriel(x);
     tr.querySelector("td:last-child").appendChild(b2);
     tb.appendChild(tr);
@@ -6944,7 +6959,7 @@ function vueMateriel(u){
         x.societe, x.siren, x.etablissement, x.association, x.ville,
         x.eligible ? "oui" : "non",
         (DB.CATEGORIES_MATERIEL.find(c => c.cle === x.categorie) || {}).label || "",
-        x.valeurNette ?? "", x.justificatif || "",
+        x.valeurDeclaree ?? "", x.justificatif || "",
         x.effacementDonnees === null ? "" : (x.effacementDonnees ? "oui" : "non"),
         x.confirme ? "oui" : "non", x.recu ? "émis" : "attendu"]));
     toast("Export téléchargé.");
@@ -6972,7 +6987,7 @@ function formValeurMateriel(x){
         || "Choisissez la catégorie pour voir la méthode applicable.")}</p></div>
     <div class="row" style="gap:var(--s4)">
       <div class="field" style="flex:1"><label for="vm-val">Valeur déclarée, en euros</label>
-        <input class="input" id="vm-val" type="number" min="0" step="0.01" value="${x.valeurNette ?? ""}"></div>
+        <input class="input" id="vm-val" type="number" min="0" step="0.01" value="${x.valeurDeclaree ?? ""}"></div>
       <div class="field" style="flex:1"><label for="vm-date">Date de sortie du bien</label>
         <input class="input" id="vm-date" type="date" value="${esc(x.sortieLe || "")}"></div>
     </div>

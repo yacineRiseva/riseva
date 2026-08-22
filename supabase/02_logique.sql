@@ -730,6 +730,37 @@ end $$;
 -- arguments survivrait au rejeu et un appel ambigu pourrait la choisir — donc
 -- engager une mise à disposition sans trace de consentement.
 drop function if exists public.engager_mission(uuid, numeric, text);
+-- ---------------------------------------------- le texte du consentement, ici
+-- Un horodatage prouve qu'une case a été cochée. Il ne dit pas à QUOI. Or c'est
+-- exactement la question posée en contentieux : le salarié a-t-il accepté cette
+-- mission-là, ces dates-là, auprès de cet organisme-là ? L'article R. 8241-2 du
+-- code du travail exige un accord exprès et écrit ; « exprès » qualifie le
+-- contenu, pas la vitesse du clic.
+--
+-- Le texte est donc composé ICI, côté serveur, à partir de l'annonce. Il n'est
+-- jamais envoyé par le client : une phrase fournie par le navigateur serait une
+-- phrase que l'utilisateur peut réécrire, et un consentement rédigé par celui
+-- qui le recueille ne prouve rien. Le client affiche la même phrase parce qu'il
+-- applique le même gabarit, pas parce qu'il la transmet.
+-- Elle n'est pas SECURITY DEFINER : elle ne doit rien pouvoir faire d'autre que
+-- composer une phrase. Elle est appelée depuis engager_mission, qui s'exécute
+-- déjà au nom de riseva_definer.
+create or replace function private.texte_consentement(p_annonce uuid)
+returns text
+language sql stable set search_path = '' as $$
+  select 'Je donne mon accord exprès à cette mise à disposition sur mon temps de '
+      || 'travail : « ' || a.titre || ' », au profit de ' || asso.nom
+      || coalesce(', le ' || to_char(a.date_prevue, 'DD/MM/YYYY'), '')
+      || coalesce(' à ' || a.lieu, '')
+      || '. Je sais que mon contrat de travail se poursuit sans changement '
+      || 'pendant toute la durée de la mise à disposition, que je peux refuser '
+      || 'sans que ce refus constitue une faute ni un motif de sanction, et que '
+      || 'mon employeur reste mon employeur.'
+    from public.annonce a
+    join public.association asso on asso.id = a.association
+   where a.id = p_annonce
+$$;
+
 create or replace function public.engager_mission(
   p_annonce uuid, p_quantite numeric, p_cle text default null,
   p_consentement boolean default false)
@@ -740,6 +771,7 @@ declare
   v_ent uuid := private.mon_entreprise();
   v_uid uuid := auth.uid();
   v_id uuid;
+  v_texte text;
 begin
   if v_ent is null or private.mon_role() not in ('salarie','entreprise_admin') then
     raise exception 'Réservé aux salariés de l''entreprise' using errcode = '42501';
@@ -780,12 +812,26 @@ begin
       using errcode = '42501';
   end if;
 
+  -- On fige le texte accepté, et son empreinte. Le texte parce qu'il faut
+  -- pouvoir le produire ; l'empreinte parce que si le gabarit change l'an
+  -- prochain, c'est elle qui dit lequel des deux textes le salarié avait sous
+  -- les yeux. Les deux sont écrits dans la même transaction que la mission :
+  -- un consentement recueilli « juste après » n'est pas un consentement
+  -- préalable.
+  if v_a.temps_travail then
+    v_texte := private.texte_consentement(p_annonce);
+  end if;
+
   insert into public.mission (annonce, entreprise, salarie, etat, quantite, points,
-                              date_mission, cle_idempotence, consentement_le)
+                              date_mission, cle_idempotence, consentement_le,
+                              consentement_texte, consentement_empreinte)
   values (p_annonce, v_ent, v_uid, 'engagee', p_quantite,
           private.points_pour(v_a.saison, v_a.type, p_quantite),
           coalesce(v_a.date_prevue, current_date), p_cle,
-          case when v_a.temps_travail then clock_timestamp() end)
+          case when v_a.temps_travail then clock_timestamp() end,
+          v_texte,
+          case when v_texte is not null
+               then extensions.digest(v_texte, 'sha256') end)
   returning id into v_id;
 
   update public.annonce a set restant = a.restant - p_quantite where a.id = p_annonce;
@@ -1978,4 +2024,74 @@ begin
   update public.entreprise e
      set logo = nullif(btrim(coalesce(p_logo, '')), '')
    where e.id = v_ent;
+end $$;
+
+-- ------------------------------------------------- valorisation d'un don matériel
+-- Ce que fait cette fonction : elle enregistre ce que l'entreprise DÉCLARE.
+-- Ce qu'elle ne fait pas, et ne fera pas : calculer une valeur. La méthode
+-- dépend du régime sous lequel le bien était inscrit — coût de revient pour un
+-- stock, valeur de cession retenue pour la plus ou moins-value de sortie pour
+-- une immobilisation — et le choix relève du donateur et de son
+-- expert-comptable, pas d'un logiciel de gestion RSE. Une règle unique codée en
+-- dur ici serait fausse une fois sur deux et opposable à personne.
+--
+-- La valeur reste donc nullable de bout en bout : un don sans valorisation est
+-- un don réel, documenté, qui compte dans le registre AGEC et ne compte pas
+-- dans l'assiette du mécénat. C'est un état légitime, pas une saisie incomplète.
+create or replace function public.declarer_valeur_materiel(
+  p_mission       uuid,
+  p_valeur        numeric                    default null,
+  p_categorie     public.categorie_materiel  default null,
+  p_nature        text                       default null,
+  p_reference     text                       default null,
+  p_sortie_le     date                       default null,
+  p_justificatif  text                       default null,
+  p_effacement    boolean                    default null)
+returns void
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_ent  uuid := private.mon_entreprise();
+  v_type public.type_annonce;
+  v_etat public.etat_mission;
+begin
+  if v_ent is null or private.mon_role() <> 'entreprise_admin' then
+    raise exception 'Réservé à l''administrateur de l''entreprise' using errcode = '42501';
+  end if;
+
+  select a.type, m.etat into v_type, v_etat
+    from public.mission m
+    join public.annonce a on a.id = m.annonce
+   where m.id = p_mission and m.entreprise = v_ent;
+
+  if not found then
+    raise exception 'Mission inconnue' using errcode = 'P0002';
+  end if;
+
+  if v_type <> 'don_materiel' then
+    raise exception 'Cette mission n''est pas un don de matériel' using errcode = '22023';
+  end if;
+
+  -- Une mission refusée n'a pas eu lieu. La valoriser reviendrait à porter dans
+  -- le registre AGEC un réemploi qui n'a jamais quitté l'entrepôt.
+  if v_etat = 'refusee' then
+    raise exception 'Une mission refusée ne se valorise pas' using errcode = '22023';
+  end if;
+
+  -- Une valeur sans catégorie est refusée ici plutôt que par la contrainte :
+  -- le message doit dire ce qui manque, pas nommer une contrainte.
+  if p_valeur is not null and p_categorie is null then
+    raise exception 'Indiquez la catégorie comptable : la méthode de valorisation en dépend'
+      using errcode = '22023';
+  end if;
+
+  update public.mission m
+     set valeur_declaree     = case when p_valeur is null then null
+                                    else round(greatest(p_valeur, 0), 2) end,
+         categorie_comptable = p_categorie,
+         nature              = nullif(btrim(coalesce(p_nature, '')), ''),
+         reference_actif     = nullif(btrim(coalesce(p_reference, '')), ''),
+         sortie_le           = p_sortie_le,
+         justificatif        = nullif(btrim(coalesce(p_justificatif, '')), ''),
+         effacement_donnees  = p_effacement
+   where m.id = p_mission;
 end $$;
