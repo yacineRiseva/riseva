@@ -1425,18 +1425,18 @@ const seed = {
     /* Claire est salariée de la société mère et pilote le groupe : deux périmètres,
        un seul compte. `groupe` ouvre la consolidation, `org` reste sa société — elle
        ne devient pas administratrice des autres sociétés pour autant. */
-    { id:"u2", nom:"Claire Fontaine", email:"claire@lafarge-ciments.fr",role:"entreprise_admin", org:"e1", etablissement:"et1", groupe:"g1", actif:true },
-    { id:"u3", nom:"Malik Ferhat",    email:"malik@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et2", actif:true },
-    { id:"u4", nom:"Sonia Delaunay",  email:"sonia@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et3", actif:true, visible_pairs:true },
-    { id:"u5", nom:"Hugo Vasseur",    email:"hugo@lafarge-ciments.fr",  role:"salarie",          org:"e1", etablissement:"et1", actif:true, visible_pairs:true },
-    { id:"u6", nom:"Nadia Berrada",   email:"nadia@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et3", actif:false },
+    { id:"u2", nom:"Claire Fontaine", email:"claire@lafarge-ciments.fr",role:"entreprise_admin", org:"e1", etablissement:"et1", groupe:"g1", actif:true, cree_le:J(-300) },
+    { id:"u3", nom:"Malik Ferhat",    email:"malik@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et2", actif:true, cree_le:J(-280) },
+    { id:"u4", nom:"Sonia Delaunay",  email:"sonia@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et3", actif:true, visible_pairs:true, cree_le:J(-275) },
+    { id:"u5", nom:"Hugo Vasseur",    email:"hugo@lafarge-ciments.fr",  role:"salarie",          org:"e1", etablissement:"et1", actif:true, visible_pairs:true, cree_le:J(-190) },
+    { id:"u6", nom:"Nadia Berrada",   email:"nadia@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et3", actif:false, cree_le:J(-150) },
     /* Les référents de site : ils invitent leurs propres salariés, dans la limite du
        quota que le groupe leur a alloué, et ne voient rien des autres sites. */
-    { id:"u10", nom:"Karim Belhadj",  email:"karim@lafarge-ciments.fr", role:"site_referent",    org:"e1", etablissement:"et2", actif:true },
-    { id:"u11", nom:"Léa Mercier",    email:"lea@lafarge-ciments.fr",   role:"site_referent",    org:"e1", etablissement:"et3", actif:true },
-    { id:"u7", nom:"Élise Tournier",  email:"elise@quatrevents.org",    role:"association",      org:"a1" },
-    { id:"u9", nom:"Paul Girard",     email:"paul@groupe-vidal.fr",     role:"salarie",          org:"e2", actif:true },
-    { id:"u12", nom:"Farid Amrani",   email:"cse@lafarge-ciments.fr",   role:"cse",              org:"e1", actif:true }
+    { id:"u10", nom:"Karim Belhadj",  email:"karim@lafarge-ciments.fr", role:"site_referent",    org:"e1", etablissement:"et2", actif:true, cree_le:J(-100) },
+    { id:"u11", nom:"Léa Mercier",    email:"lea@lafarge-ciments.fr",   role:"site_referent",    org:"e1", etablissement:"et3", actif:true, cree_le:J(-80) },
+    { id:"u7", nom:"Élise Tournier",  email:"elise@quatrevents.org",    role:"association",      org:"a1", cree_le:J(-260) },
+    { id:"u9", nom:"Paul Girard",     email:"paul@groupe-vidal.fr",     role:"salarie",          org:"e2", actif:true, cree_le:J(-120) },
+    { id:"u12", nom:"Farid Amrani",   email:"cse@lafarge-ciments.fr",   role:"cse",              org:"e1", actif:true, cree_le:J(-60) }
   ],
   signalements: [],
   acces: [
@@ -3429,6 +3429,101 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         throw new Error("Ce logo est trop lourd. Un carré de 256 pixels suffit largement.");
       e.logo = v;
       return e;
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* L'entonnoir d'adoption                                              */
+    /* ------------------------------------------------------------------ */
+    /* La question qu'un responsable RSE se pose au bout de trois mois n'est pas
+       « combien de points » mais « pourquoi ça ne prend pas », et aucun écran ne
+       lui répondait. Un rapport annuel ne rattrape pas une saison restée inactive :
+       quand il arrive, la saison est finie et le renouvellement est déjà décidé.
+
+       Cinq marches, et chacune a sa propre cause quand elle décroche :
+       — compte ouvert, mais jamais venu → le lien d'inscription n'est pas passé ;
+       — venu, jamais engagé → l'offre locale ne convient pas, ou elle est trop loin ;
+       — engagé, jamais déclaré → le rappel après la mission ne fonctionne pas ;
+       — une action, jamais deux → la première expérience n'a pas donné envie ;
+       — deux actions et plus → celui-là revient, et c'est lui qui fait la saison.
+
+       On rend la marche ET la cause probable, parce qu'un entonnoir qui ne dit pas
+       quoi faire est un joli graphique de plus. */
+    adoption({ entreprise = null, etablissement = null } = {}){
+      const eid = entreprise;
+      const e = api.entreprise(eid); if (!e) return null;
+      const sites = api.etablissements(eid);
+      const cible = (u) => !etablissement || u.etablissement === etablissement;
+      const gens = api.salaries(eid).filter(u => !u.anonyme && cible(u));
+
+      const parPersonne = new Map();
+      api.missions({ entreprise: eid }).forEach(m => {
+        if (!m.salarie) return;
+        const x = parPersonne.get(m.salarie) || { engagees:0, declarees:0, validees:0, premiere:null };
+        x.engagees++;
+        if (["a_valider", "validee", "validee_auto"].includes(m.etat)) x.declarees++;
+        if (["validee", "validee_auto"].includes(m.etat)){
+          x.validees++;
+          if (!x.premiere || m.date < x.premiere) x.premiere = m.date;
+        }
+        parPersonne.set(m.salarie, x);
+      });
+
+      const compte = (f) => gens.filter(f).length;
+      const act = (u) => parPersonne.get(u.id) || { engagees:0, declarees:0, validees:0, premiere:null };
+      const effectif = etablissement
+        ? ((api.etablissement(etablissement) || {}).effectif || 0)
+        : api.effectifReference(eid);
+
+      /* Le délai entre l'ouverture du compte et la première action validée. La
+         médiane, pas la moyenne : un salarié qui met huit mois tire une moyenne
+         vers le haut et fait croire à un problème général alors qu'il est seul. */
+      const delais = gens.map(u => {
+        const a = act(u);
+        if (!a.premiere || !u.cree_le) return null;
+        return Math.round((new Date(a.premiere) - new Date(u.cree_le)) / 86400000);
+      }).filter(x => x !== null && x >= 0).sort((a, b) => a - b);
+      const mediane = delais.length
+        ? (delais.length % 2 ? delais[(delais.length - 1) / 2]
+           : Math.round((delais[delais.length / 2 - 1] + delais[delais.length / 2]) / 2))
+        : null;
+
+      const marches = [
+        { cle:"effectif", label:"Salariés du périmètre", n: effectif,
+          cause:null },
+        { cle:"comptes", label:"Comptes ouverts", n: gens.length,
+          cause:"Le lien d'inscription n'a pas circulé, ou il est arrivé dans les indésirables." },
+        { cle:"engages", label:"Se sont engagés au moins une fois",
+          n: compte(u => act(u).engagees > 0),
+          cause:"Les annonces proposées sont trop loin, ou ne correspondent pas. Regardez la distance moyenne." },
+        { cle:"declarees", label:"Ont déclaré une mission faite",
+          n: compte(u => act(u).declarees > 0),
+          cause:"Ils y sont allés mais n'ont rien déclaré : c'est le rappel après la mission qui manque." },
+        { cle:"validees", label:"Ont au moins une action validée",
+          n: compte(u => act(u).validees > 0),
+          cause:"L'association n'a pas confirmé. Relancez-la : sans confirmation, le résultat reste estimé." },
+        { cle:"fideles", label:"Sont revenus une deuxième fois",
+          n: compte(u => act(u).validees > 1),
+          cause:"La première expérience n'a pas donné envie de recommencer. C'est la marche qui fait la saison." }
+      ];
+      /* Le point de rupture : la marche où l'on perd le plus de monde, en part de
+         la marche précédente. C'est là qu'agir, et nulle part ailleurs. */
+      let rupture = null, pire = 0;
+      for (let i = 1; i < marches.length; i++){
+        const av = marches[i - 1].n, ap = marches[i].n;
+        const perte = av ? (av - ap) / av : 0;
+        marches[i].garde = av ? ap / av : 0;
+        marches[i].perdus = Math.max(0, av - ap);
+        if (av >= 3 && perte > pire){ pire = perte; rupture = marches[i].cle; }
+      }
+      return {
+        entreprise: e, sites, etablissement: etablissement || null,
+        marches, rupture, delaiMedian: mediane,
+        /* Ce qu'on ne sait pas, on ne l'affiche pas : sans date d'ouverture de
+           compte, il n'y a pas de délai, et un « 0 jour » serait un mensonge. */
+        delaiMesurable: delais.length,
+        actifs: compte(u => act(u).validees > 0),
+        effectif
+      };
     },
 
     /* ------------------------------------------------------------------ */

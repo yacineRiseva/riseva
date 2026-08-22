@@ -37,6 +37,7 @@ const MENUS = {
     { groupe: "Entreprise", items: [
       ["equipe",     "Équipe",       "users"],
       ["rapports",   "Rapports",     "report"],
+      ["adoption",   "Adoption",     "trophy"],
       ["supports",   "Affiches",     "box"],
       ["mecenat",    "Mécénat",      "coins"],
       ["materiel",   "Dons de matériel", "box"],
@@ -7811,6 +7812,108 @@ function vueVSME(u){
   return el;
 }
 
+/* ------------------------------------------------------------------ */
+/* L'adoption                                                          */
+/* ------------------------------------------------------------------ */
+/* La question qu'un responsable RSE se pose au bout de trois mois n'est pas
+   « combien de points » mais « pourquoi ça ne prend pas ». Un rapport annuel ne
+   rattrape pas une saison restée inactive : quand il arrive, elle est finie et
+   le renouvellement est déjà décidé. Cet écran-là arrive au bon moment. */
+function vueAdoption(u){
+  let site = null;
+  const el = h(`<div class="stack" style="--gap:var(--s5)"></div>`);
+
+  const dessine = () => {
+    const a = DB.adoption({ entreprise: u.org, etablissement: site });
+    if (!a){ el.innerHTML = ""; el.appendChild(h(`<section class="card"><p class="empty">Aucune société rattachée.</p></section>`)); return; }
+    const max = a.marches[0].n || 1;
+    el.innerHTML = "";
+    /* `h()` ne rend que le premier élément : deux sections frères dans un même
+       appel et la seconde disparaît sans erreur. Un conteneur, et le problème
+       n'existe plus. */
+    el.appendChild(h(`<div class="stack" style="--gap:var(--s5)">
+      <section class="card">
+        <div class="between" style="flex-wrap:wrap;gap:var(--s4);align-items:flex-start">
+          <div>
+            <h3>Où ça bloque</h3>
+            <p class="muted" style="font-size:var(--t-sm);margin-top:4px;max-width:64ch">
+              Cinq marches entre un salarié inscrit et un salarié qui revient. Celle où
+              vous perdez le plus de monde est signalée : c'est là qu'il faut agir, et
+              nulle part ailleurs.</p>
+          </div>
+          <div class="field" style="margin:0;min-width:200px">
+            <label for="ads">Périmètre</label>
+            <select class="select" id="ads">
+              <option value="">Toute la société</option>
+              ${a.sites.map(x => `<option value="${x.id}"${x.id === site ? " selected" : ""}
+                >${esc(x.nom)} — ${esc(x.ville)}</option>`).join("")}
+            </select>
+          </div>
+        </div>
+
+        <div class="stack" style="--gap:var(--s4);margin-top:var(--s6)">
+          ${a.marches.map((m, i) => `
+            <div>
+              <div class="between" style="align-items:baseline;margin-bottom:6px">
+                <span style="font-size:var(--t-sm)${
+                  m.cle === a.rupture ? ";font-weight:600;color:var(--ink)" : ""}">
+                  ${esc(m.label)}${m.cle === a.rupture
+                    ? ` <span class="badge badge--warn" style="height:20px;margin-left:6px">c'est ici</span>` : ""}</span>
+                <span class="tnum"><b>${nb(m.n)}</b>${i > 0 && m.garde !== undefined
+                  ? ` <span class="muted" style="font-size:var(--t-xs)">${
+                      pct(m.garde * 100, 0)} % de la marche précédente</span>` : ""}</span>
+              </div>
+              <div class="bar${m.cle === a.rupture ? "" : " bar--lime"}">
+                <i style="width:${Math.max(0.6, (m.n / max) * 100)}%"></i></div>
+              ${m.cle === a.rupture && m.cause ? `<p class="hint" style="margin-top:6px">
+                <strong style="color:var(--ink)">${nb(m.perdus)} personne${
+                  m.perdus > 1 ? "s perdues" : " perdue"} ici.</strong> ${esc(m.cause)}</p>` : ""}
+            </div>`).join("")}
+        </div>
+      </section>
+
+      <div class="two">
+        <section class="card">
+          <h3 style="font-size:var(--t-lg)">Combien de temps avant la première action</h3>
+          ${a.delaiMesurable >= 3 ? `
+            <div style="font-family:var(--font-display);font-size:2.2rem;line-height:1.05;
+              margin-top:var(--s4)">${nb(a.delaiMedian)}
+              <span style="font-size:var(--t-lg);color:var(--ink-500)">jours, en médiane</span></div>
+            <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+              Entre l'ouverture du compte et la première action validée, mesuré sur
+              ${nb(a.delaiMesurable)} personnes. La médiane et pas la moyenne : un salarié
+              qui met huit mois tirerait la moyenne et ferait croire à un problème général
+              alors qu'il est seul.</p>
+            ${a.delaiMedian > 90 ? `<p class="hint" style="margin-top:var(--s4)">
+              Au-delà de trois mois, ce n'est plus un délai de démarrage, c'est un oubli.
+              Une relance ciblée sur les comptes ouverts sans action est ce qui la raccourcit
+              le plus vite.</p>` : ""}
+          ` : `<p class="empty" style="margin-top:var(--s4)">Pas encore assez de premières
+            actions pour en tirer une médiane. Riseva préfère ne rien afficher qu'un chiffre
+            calculé sur deux personnes.</p>`}
+        </section>
+
+        <section class="card card--flat" style="background:var(--forest-050);border-color:transparent">
+          <h3 style="font-size:var(--t-lg)">Ce que cet écran ne dit pas</h3>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);color:var(--ink-600)">
+            Il ne nomme personne, et il ne le fera pas. Vous voyez des marches et des
+            nombres, jamais la liste de ceux qui ne sont pas venus. Un outil qui produit
+            cette liste-là cesse d'être un outil d'engagement et devient un outil de
+            surveillance — et le premier salarié qui le comprend est le dernier à
+            s'inscrire.</p>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);color:var(--ink-600)">
+            Un taux bas ne mesure pas non plus la bonne volonté de vos équipes. Il mesure
+            souvent l'offre associative disponible autour du site, les horaires, et le
+            temps que leur encadrement leur laisse réellement prendre.</p>
+        </section>
+      </div>
+    </div>`));
+    el.querySelector("#ads").onchange = (ev) => { site = ev.target.value || null; dessine(); };
+  };
+  dessine();
+  return el;
+}
+
 const ROUTES = {
   entreprise_admin: {
     tableau:   [tableauEntreprise, "Tableau de bord"],
@@ -7821,6 +7924,7 @@ const ROUTES = {
     ensemble:  [vueEnsemble,       "Tous ensemble"],
     equipe:    [vueEquipe,         "Équipe"],
     rapports:  [vueRapports,       "Rapports"],
+    adoption:  [vueAdoption,       "Adoption"],
     mecenat:   [vueMecenat,        "Mécénat"],
     materiel:  [vueMateriel,       "Dons de matériel"],
     dossier:   [vueDossier,        "Réponses aux questionnaires clients"],

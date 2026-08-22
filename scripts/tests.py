@@ -258,6 +258,39 @@ def main():
             p.wait_for_timeout(350)
         verifie("la mission passe à valider", "confirmation" in p.inner_text(".toast"))
 
+        print("\nOù ça bloque : l'adoption")
+        connecte(p, "u2", "#/adoption")
+        ad = norm(p.inner_text(".content"))
+        verifie("l'entonnoir montre les cinq marches",
+                all(x in ad for x in ["Comptes ouverts", "Se sont engagés",
+                                      "Ont déclaré une mission faite",
+                                      "Ont au moins une action validée",
+                                      "Sont revenus une deuxième fois"]))
+        verifie("il désigne la marche où l'on perd le plus de monde", "c'est ici" in ad)
+        verifie("et il dit la cause probable, pas seulement le chiffre",
+                "personnes perdues ici" in ad and "indésirables" in ad)
+        verifie("le délai avant la première action est une médiane, pas une moyenne",
+                "jours, en médiane" in ad and "pas la moyenne" in ad)
+        verifie("l'écran refuse de devenir un outil de surveillance",
+                "jamais la liste de ceux qui ne sont pas venus" in ad
+                and "surveillance" in ad)
+        verifie("il rappelle qu'un taux bas ne mesure pas la bonne volonté",
+                "offre associative disponible" in ad)
+        ade = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const a = d.DB.adoption({ entreprise:'e1' });
+          const s = d.DB.adoption({ entreprise:'e1', etablissement:'et2' });
+          return { rupture:a.rupture, marches:a.marches.length,
+                   siteEffectif:s.effectif, societeEffectif:a.effectif,
+                   croissant: a.marches.slice(1).every((m,i)=> m.n <= a.marches[i].n),
+                   mesurable:a.delaiMesurable };
+        }""")
+        verifie("un entonnoir ne remonte jamais", ade["croissant"], str(ade))
+        verifie("le filtre par site change bien le périmètre",
+                ade["siteEffectif"] < ade["societeEffectif"], str(ade))
+        verifie("la médiane n'est calculée que sur assez de monde",
+                ade["mesurable"] >= 3 or "Pas encore assez" in ad)
+
         print("\nNotre saison, et qui vient avec moi")
         connecte(p, "u3", "#/tableau")
         ts = norm(p.inner_text(".content"))
