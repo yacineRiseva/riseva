@@ -287,35 +287,6 @@ def faits(items):
     return f'    <ol class="facts-list">{out}\n    </ol>'
 
 
-def confluent(eyebrow, mots, lede, cta_texte, cta_href, note, perks, photo="/photos/forest.jpg"):
-    ms = " ".join(f'<span class="w{" it" if it else ""}">{m}</span>' for m, it in mots)
-    ps = "\n        ".join(
-        f'<li><span>{i + 1:02d}</span>{p}</li>' for i, p in enumerate(perks))
-    return f"""<section id="confluent" class="conf">
-  <div class="conf-photo" aria-hidden="true">
-    <img src="{photo}" alt="" loading="lazy" decoding="async" width="900" height="600">
-  </div>
-  <div class="conf-veil" aria-hidden="true"></div>
-
-  <div class="conf-in">
-    <div class="eyebrow mono rv">{eyebrow}</div>
-    <h2 class="conf-h" id="confH">{ms}</h2>
-    <div class="conf-grid">
-      <div class="rv d2">
-        <p class="conf-lede">{lede}</p>
-        <div class="conf-cta">
-          <a class="btn btn-lg" href="{cta_href}"><span class="dot"></span>{cta_texte}</a>
-          <span class="conf-note">{note}</span>
-        </div>
-      </div>
-      <ol class="conf-perks rv d3">
-        {ps}
-      </ol>
-    </div>
-  </div>
-</section>"""
-
-
 def faq(items):
     idx = "\n      ".join(
         f'<li><button class="qa-link mono{" is-on" if not i else ""}" type="button" '
@@ -1106,41 +1077,49 @@ PIED_ASSO = pied(
     "Gratuit pour les associations · toujours")
 
 
-HERO_ASSO = """<header class="hero" id="hero">
-  <h1 class="h1" id="h1">
-    <span class="ln"><span>Vous n'avez pas besoin</span></span>
-    <span class="ln"><span>d'un outil de plus.</span></span>
-    <span class="ln turn"><span>Il vous faut <span class="hit">des bras.</span></span></span>
-  </h1>
+# L'ancienne accroche disait « Vous n'avez pas besoin d'un outil de plus. Il vous
+# faut des bras. » Elle était mémorable et fausse de ton : ouvrir par une négation
+# rappelle au lecteur qu'il pourrait ne rien faire, et « il vous faut des bras »
+# réduit une association à un besoin de main-d'œuvre. Une présidente de refuge sait
+# mieux que nous ce qui lui manque.
+HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
+  <div class="layer">
+    <p class="eyebrow mono">Gratuit pour les associations, sans exclusivité</p>
+    <h1 class="h1 h1--doc">Publiez un besoin concret.<br>
+      <span class="it">Des salariés d'entreprises peuvent y répondre.</span></h1>
 
-  <div class="hero-grid">
-    <div class="hero-pitch rv d2">
-      <div class="eyebrow mono">Le principe</div>
-      <p>
-        Vous publiez un besoin concret — <b>une demi-journée de bras, du matériel</b> —
-        et des salariés d'entreprises abonnées peuvent s'y proposer. Vous voyez qui
-        vient et pour quelle date. Quand c'est fait, vous confirmez en un clic.
-        C'est tout le travail que ça vous demande.
-      </p>
-      <div class="hero-cta">
-        <a class="btn btn-lg" href="#yacine"><span class="dot"></span>Parler à Yacine</a>
-        <a class="tlink" href="#comment">Voir comment ça marche</a>
-      </div>
-      <ul class="hero-assure mono">
-        <li>Gratuit, toujours</li>
-        <li>Sans exclusivité</li>
-        <li>Aucune commission sur vos dons</li>
-      </ul>
-    </div>
-
-    <div class="rv d3">
-      <figure class="vframe">
-        <div class="vframe-in">
-          <div class="sp-layer" style="background-image:url('/photos/voix-chien.jpg')"></div>
+    <div class="doc-tete">
+      <div class="doc-intro">
+        <p>Une demi-journée de bras, du matériel, un besoin de financement : vous écrivez
+          l'annonce, des salariés d'entreprises abonnées se proposent, et vous voyez qui vient
+          et pour quelle date. Quand c'est fait, vous confirmez en un clic, sans vous
+          connecter.</p>
+        <p>C'est tout le travail que ça vous demande. Pas de tableau de bord à surveiller, pas
+          de fichier à tenir, pas de rapport à produire pour l'entreprise.</p>
+        <div class="hero-cta">
+          <a class="btn btn-lg" href="#yacine"><span class="dot"></span>Parler à Yacine</a>
+          <a class="tlink" href="#comment">Voir comment ça marche</a>
         </div>
-        <figcaption class="mono">Photo d'illustration — aucune mise en scène</figcaption>
-      </figure>
+        <p class="doc-micro">C'est une personne qui vous répond, pas un formulaire.</p>
+      </div>
+
+      <dl class="fiche">
+        <div><dt class="mono">Prix</dt><dd>gratuit, et ça ne changera pas</dd></div>
+        <div><dt class="mono">Engagement</dt><dd>aucune exclusivité : vous continuez tout ce que
+          vous faites ailleurs, avec qui vous voulez</dd></div>
+        <div><dt class="mono">Sur vos dons</dt><dd>aucune commission. L'argent va du donateur à
+          votre compte, sans transiter par Riseva</dd></div>
+        <div><dt class="mono">Technique</dt><dd>rien à installer, rien à intégrer. Confirmer une
+          mission se fait depuis un courriel</dd></div>
+        <div><dt class="mono">Vos textes</dt><dd><a href="/charte-associations.html">la charte des
+          associations</a>, <a href="/reglement.html">le règlement du barème</a></dd></div>
+      </dl>
     </div>
+
+    {capture("asso-tableau",
+             "Le tableau de bord d'une association dans Riseva",
+             "Votre tableau de bord : ce que vous avez à confirmer, et qui vient",
+             " shot--large", eager=True)}
   </div>
 </header>"""
 
@@ -1187,6 +1166,11 @@ COMMENT_ASSO = f"""<section id="comment">
    "<b>estimé</b> et identifié comme <b>non confirmé</b> partout où il apparaît. Aucune "
    "suspension, aucun rappel culpabilisant."),
 ])}
+
+    {capture("asso-valider",
+             "L'écran par lequel une association confirme ce qui a été réalisé",
+             "L'écran de confirmation : trois boutons, et le texte dit lui-même "
+             "qu'un silence n'est pas une faute")}
   </div>
 </section>"""
 
@@ -1255,8 +1239,14 @@ JAMAIS_ASSO = jalons(
     "Ce sont celles qu'on nous oppose en rendez-vous. Chacune est légitime, et chacune a une "
     "réponse écrite noir sur blanc dans <a href='/charte-associations.html'>la charte</a> — "
     "pas seulement sur cette page.",
-    "/photos/forest.jpg", "Une forêt de conifères",
-    "Photo d'illustration",
+    "/photos/voix-chien.jpg", "Un chien recueilli dans un refuge",
+    # Une légende « photo d'illustration » ne rachète rien : elle confirme au
+    # lecteur que l'image ne prouve pas ce que le texte affirme. Une photographie
+    # documentaire porte un nom d'association, un lieu, une date. Faute de l'avoir,
+    # on dit ce que l'image est — et ce qu'elle n'est pas.
+    "Image d'ambiance. Ce n'est pas une mission Riseva : nous n'en avons "
+    "encore photographié aucune, et nous ne le ferons pas sans l'accord de "
+    "l'association et des personnes présentes",
     [("01", "« Vous allez vous approprier notre travail »",
       "Votre page publique porte votre nom et votre logo. Les résultats sont attribués "
       "explicitement : « résultats déclarés par votre association ». Riseva additionne, ne "
@@ -1276,20 +1266,6 @@ JAMAIS_ASSO = jalons(
       "Non. Vous continuez tout ce que vous faites ailleurs, avec qui vous voulez. Riseva "
       "n'est pas un canal exclusif et ne le deviendra pas.", None)],
     ident="jamais", bande=" class=\"band-moss\"")
-
-
-CONFLUENT_ASSO = confluent(
-    "Écrire la première annonce",
-    [("La", 0), ("première", 1), ("annonce,", 1), ("nous", 0), ("l'écrivons", 0),
-     ("avec", 0), ("vous.", 1)],
-    "C'est souvent là que ça coince : formuler un besoin en quelques lignes, avec une date, "
-    "un lieu et un nombre de places. <b>Un quart d'heure au téléphone suffit.</b> Vous "
-    "corrigez, ou vous refusez — l'annonce n'est publiée que si elle vous convient.",
-    "Parler à Yacine", "#yacine", "Réponse sous deux jours ouvrés, à tout le monde",
-    ["Vous décrivez votre besoin, à l'oral, sans rien rédiger",
-     "Nous vous renvoyons l'annonce écrite, en clair, dans un mail",
-     "Vous corrigez ou vous refusez : rien n'est publié sans vous"],
-    photo="/photos/forest.jpg")
 
 
 YACINE_ASSO = f"""<section id="yacine">
@@ -1411,12 +1387,14 @@ FAQ_ASSO = faq([
 ])
 
 
+# Le bandeau défilant des causes est retiré : des causes qui défilent se lisent
+# comme les catégories d'une place de marché, et une association n'est pas un
+# rayon. Le bloc « confluent » l'est aussi — sa rareté annoncée s'adresse à un
+# acheteur, pas à une bénévole.
 CORPS_ASSO = "\n\n".join([
     HERO_ASSO,
-    ticker(["Refuges animaliers", "Reboisement", "Rivières et zones humides",
-            "Océans et littoral", "Protection des espèces", "Collectes solidaires"]),
     HONNETE_ASSO, COMMENT_ASSO, TEMPS_ASSO, ARGENT_ASSO, JAMAIS_ASSO,
-    CONFLUENT_ASSO, YACINE_ASSO, FAQ_ASSO,
+    YACINE_ASSO, FAQ_ASSO,
 ])
 
 
@@ -1434,7 +1412,8 @@ def main():
              description="Publiez un besoin concret, des salariés d'entreprises abonnées peuvent "
                          "y répondre. Gratuit, sans intégration technique, sans exclusivité et "
                          "sans commission sur vos dons.",
-             corps=CORPS_ASSO, nav_html=NAV_ASSO, pied_html=PIED_ASSO)
+             corps=CORPS_ASSO, nav_html=NAV_ASSO, pied_html=PIED_ASSO,
+             classe_corps="va")
     for f in (a, b):
         print("écrit", f, f"{(PUBLIC / f).stat().st_size // 1024} Ko")
 

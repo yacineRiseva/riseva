@@ -2199,9 +2199,9 @@ section{
 /* Cinq cents pixels de blanc entre deux sections, c'est un défilement où l'on
    ne trouve plus rien. Quatre-vingts suffisent à séparer deux idées, et le reste
    de la page y gagne d'être lisible en moins de tours de molette. */
-.vd section{padding-block:clamp(52px,5.4vw,78px);}
-.vd .s-head{margin-bottom:clamp(26px,2.8vw,40px);}
-.vd .hero{padding-top:clamp(88px,10vh,118px);}
+.vd section,.va section{padding-block:clamp(52px,5.4vw,78px);}
+.vd .s-head,.va .s-head{margin-bottom:clamp(26px,2.8vw,40px);}
+.vd .hero,.va .hero{padding-top:clamp(88px,10vh,118px);}
 
 /* ── les trois formats, en colonnes ─────────────────────────────────────── */
 .fmt3{
@@ -2225,7 +2225,7 @@ section{
    un navigateur qui restaure la position de défilement, une capture d'écran, un
    moteur d'indexation : dans tous ces cas la page se lisait à moitié blanche.
    Sur la vitrine « dossier », plus rien n'est différé. */
-.vd .rv,.vd .rl{opacity:1;transform:none;transition:none;}
+.vd .rv,.vd .rl,.va .rv,.va .rl{opacity:1;transform:none;transition:none;}
 .shot--seule{margin:clamp(24px,3vw,36px) 0;}
 /* La mention de démonstration, sur chaque capture, portée par la fonction qui
    les fabrique plutôt que recopiée à la main sous chacune. */
