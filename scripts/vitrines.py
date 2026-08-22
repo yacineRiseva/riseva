@@ -689,10 +689,12 @@ PILOTAGE_ENT = f"""<section id="pilotage">
     <div class="dates3">
       <p class="mono dates3-h">Ce que ce rapport vous permet d'écrire, et depuis quand</p>
       <ul>
-        <li><b>21.08.26</b><span>Tout marché public doit comporter un critère environnemental.
-          Ce qui est demandé n'est pas une intention mais une pièce : des chiffres datés, une
-          méthode, une traçabilité. <cite>Loi Climat et résilience, article 35 · code de la
-          commande publique, article L. 2152-7</cite></span></li>
+        <li><b>21.08.26</b><span>Toute nouvelle consultation de marché public doit comporter un
+          critère environnemental — sans seuil de montant ni condition de secteur, contrairement
+          à la clause sociale. Ce qui est demandé n'est pas une intention mais une pièce : des
+          chiffres datés, une méthode, une traçabilité. <cite>Code de la commande publique,
+          article L. 2152-7, modifié par l'article 35 de la loi Climat et résilience du 22 août
+          2021 · entrée en vigueur fixée par le décret n° 2022-767 du 2 mai 2022</cite></span></li>
         <li><b>27.09.26</b><span>Les allégations environnementales vagues deviennent interdites
           dans toute l'Union. « Engagés pour la planète » devient un risque ; « 42 demi-journées
           confirmées par 7 associations » n'en est pas un. <cite>Directive (UE) 2024/825</cite></span></li>
@@ -896,8 +898,11 @@ FAQ_ENT = faq([
   ("Est-ce que la dépense est déductible ?",
    "<p>Deux lignes, deux régimes. L'abonnement Riseva est une prestation de services : il "
    "entre dans vos charges, TVA récupérable. Le mécénat, lui, suit l'article 238 bis du CGI "
-   "et donne droit à 60 % de réduction d'impôt, dans la limite de 20 000 € ou 5 ‰ du chiffre "
-   "d'affaires, le plus élevé des deux.</p>"
+   "et donne droit à 60 % de réduction d'impôt jusqu'à <b>2 millions d'euros de dons sur "
+   "l'exercice</b>, puis 40 % au-delà, dans la limite de 20 000 € ou 5 ‰ du chiffre "
+   "d'affaires, le plus élevé des deux. Le second taux ne concernera probablement jamais "
+   "une PME — nous l'écrivons quand même, parce qu'une phrase juste aux trois quarts est "
+   "une phrase qu'on nous opposera le jour où elle comptera.</p>"
    "<p>Riseva calcule une estimation à partir de ce qu'elle connaît, et <b>refuse d'afficher "
    "un plafond</b> tant que vous ne lui avez pas donné votre chiffre d'affaires, vos dons "
    "faits ailleurs et vos reports antérieurs : sans eux, le chiffre serait faux. Votre "

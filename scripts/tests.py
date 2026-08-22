@@ -179,6 +179,21 @@ def main():
         verifie("rien n'attend un défilement pour s'afficher", caches == 0, str(caches))
         verifie("le seuil du classement est dit sur la vitrine",
                 "dix entreprises" in corps)
+        # Le mécénat est à deux taux depuis la loi de finances 2020 : 60 % jusqu'à
+        # deux millions d'euros de dons sur l'exercice, 40 % au-delà. Le second ne
+        # concernera probablement aucune PME de la cible — mais une phrase juste
+        # aux trois quarts est une phrase qu'on nous opposera le jour où elle
+        # comptera, et une page de vente n'a pas le droit d'être approximative sur
+        # un chiffre fiscal.
+        verifie("les deux taux du mécénat sont donnés, pas seulement le flatteur",
+                "60 %" in corps and "40 %" in corps
+                and "2 millions d'euros de dons" in corps)
+        # Le critère environnemental de la commande publique vaut pour les nouvelles
+        # consultations, sans seuil : le dire ainsi est ce qui rend l'argument
+        # opposable plutôt que séduisant.
+        verifie("l'obligation de la commande publique est datée et bornée",
+                "nouvelle consultation" in corps and "L. 2152-7" in corps
+                and "2022-767" in corps)
         verifie("l'offre groupe est présentée avec ses trois niveaux",
                 "Trois niveaux" in corps and "SIREN" in corps and "établissements" in corps)
         verifie("le cloisonnement du groupe est annoncé, pas suggéré",

@@ -2230,3 +2230,15 @@ section{
 /* La mention de démonstration, sur chaque capture, portée par la fonction qui
    les fabrique plutôt que recopiée à la main sous chacune. */
 .shot-demo{display:block;margin-top:3px;color:var(--stone);opacity:.72;}
+
+/* ── les captures sur petit écran ───────────────────────────────────────── */
+/* Une capture d'écran de 1 440 pixels ramenée à 390 n'est plus lisible : c'est
+   redevenu une image décorative, sur le telephone où se fait la moitie des
+   premieres visites. Elle garde donc une largeur minimale et devient
+   defilable horizontalement — dans son propre cadre, jamais en faisant deriver
+   la page entiere. */
+@media (max-width:760px){
+  .shot{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;}
+  .shot img{min-width:720px;}
+  .shot figcaption{position:sticky;left:0;max-width:100vw;}
+}
