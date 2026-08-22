@@ -811,6 +811,7 @@ function listeAnnonces(annonces, u){
        plantés » par demi-journée ne veut rien dire pour qui lit l'annonce, « objectif
        480 arbres » si. */
     const objectif = imp ? Math.round(a.quantite * imp.par_unite) : 0;
+    const qv = DB.quiVient(a.id, u.id);
 
     const card = h(`<article class="annonce">
       <div class="annonce__haut">
@@ -847,6 +848,25 @@ function listeAnnonces(annonces, u){
           <span><b>${dateFR(a.date)}</b></span>
           <span>${esc(restant)}</span>
         </div>
+        ${/* Qui vient. C'est le seul élément de cette carte qui lève le vrai frein :
+              le premier obstacle au bénévolat d'entreprise n'est ni le temps ni la
+              cause, c'est de ne pas savoir avec qui on y va. « 4 places sur 6 »
+              décrit un stock ; « Sonia y va » décide quelqu'un.
+              Le nombre est toujours montré, il ne désigne personne. Les prénoms
+              ne sortent que pour les collègues qui ont choisi d'être visibles :
+              une mission auprès d'une association peut révéler une conviction,
+              et ça ne se déduit pas d'un réglage par défaut. */""}
+        ${qv.moi || qv.collegues ? `<p class="annonce__qui">
+          ${qv.moi ? `<b>Vous y allez.</b>` : ""}
+          ${qv.collegues ? `${qv.noms.length
+            ? `${esc(qv.noms.slice(0, 2).join(" et "))}${
+                qv.collegues > qv.noms.length
+                  ? ` et ${qv.collegues - Math.min(2, qv.noms.length)} autre${
+                      qv.collegues - Math.min(2, qv.noms.length) > 1 ? "s" : ""}` : ""} y ${
+                qv.collegues > 1 ? "vont" : "va"}`
+            : `${qv.collegues} collègue${qv.collegues > 1 ? "s" : ""} y ${
+                qv.collegues > 1 ? "vont" : "va"}`}` : ""}
+        </p>` : ""}
       </div>
       <div class="annonce__actions">
         <button class="btn btn--forest btn--sm" data-go>${esc(ACTION_FORMAT[a.type] || "Participer")}</button>
@@ -3724,6 +3744,7 @@ function tableauSalarie(u){
   const res = DB.reseau();
   const monEnt = DB.entreprise(u.org);
   const proches = u.org ? DB.associationsProches(u.org, { avecAnnonces: true }) : [];
+  const ns = DB.notreSaison(u.id);
 
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     ${aDeclarer.length ? `<section class="aFaire">
@@ -3763,6 +3784,47 @@ function tableauSalarie(u){
     </div>
 
     <div id="realisMoi"></div>
+
+    ${ns ? `<section class="card card--dark grain">
+      <div class="between" style="flex-wrap:wrap;gap:var(--s4);align-items:flex-start">
+        <div>
+          <p class="eyebrow" style="color:var(--lime)">Notre saison</p>
+          <h3 style="color:var(--paper);margin-top:var(--s2)">${esc(ns.site ? ns.site.nom
+            : ns.entreprise.nom)}, ensemble</h3>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:4px;color:#C5CDBB">
+            L'objectif se compte en personnes, pas en points : il ne s'atteint qu'en allant
+            chercher quelqu'un qui n'est pas encore venu.</p>
+        </div>
+        ${ns.atteint ? `<span class="badge badge--lime">Objectif atteint</span>` : ""}
+      </div>
+
+      <div style="margin-top:var(--s6)">
+        <div class="between" style="align-items:flex-end;margin-bottom:var(--s3)">
+          <div style="font-family:var(--font-display);font-size:2.2rem;line-height:1;
+            color:var(--paper)">${nb(ns.mobilises)}
+            <span style="font-size:var(--t-lg);color:#C5CDBB">
+              ${ns.mobilises > 1 ? "personnes mobilisées" : "personne mobilisée"}
+              sur ${nb(ns.cible)}</span></div>
+          <span class="tnum" style="color:var(--lime);font-weight:600">${pct(ns.part * 100, 0)} %</span>
+        </div>
+        <div class="bar bar--sombre"><i style="width:${Math.round(ns.part * 100)}%"></i></div>
+        <p class="muted" style="font-size:var(--t-xs);margin-top:var(--s3);color:#A8B29B">
+          ${ns.atteint
+            ? `L'objectif est atteint. Tout ce qui vient en plus est du bonus, et personne ne compte les retardataires.`
+            : `Il manque ${nb(ns.cible - ns.mobilises)} personne${
+                ns.cible - ns.mobilises > 1 ? "s" : ""}. La plus efficace des deux façons d'aider,
+               c'est d'en amener une avec vous.`}
+        </p>
+      </div>
+
+      <div class="three" style="margin-top:var(--s6)">
+        ${kpi("Missions faites ici", nb(ns.missions), "", "", "kpi--nu")}
+        ${kpi("Engagements à venir", nb(ns.aVenir),
+          ns.prochaine ? "la prochaine le " + dateCourte(ns.prochaine.date) : "aucun pour l'instant",
+          "", "kpi--nu")}
+        ${kpi("Effectif du périmètre", nb(ns.effectif), "", "", "kpi--nu")}
+      </div>
+    </section>` : ""}
 
     <div class="two">
       <section class="card">
@@ -4832,6 +4894,24 @@ function vuePreferences(u){
         Les notifications restent visibles dans la cloche même si vous coupez les mails.
         Nous n'envoyons jamais de message commercial à vos salariés.</p>
       <div class="stack" style="--gap:var(--s5);margin-top:var(--s6)" id="l"></div>
+
+      ${u.role === "salarie" || u.role === "site_referent" ? `
+      <hr class="sep">
+      <h3 style="font-size:var(--t-lg)">Votre prénom auprès de vos collègues</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+        Sur une annonce, le <strong style="color:var(--ink)">nombre</strong> de collègues inscrits
+        est toujours affiché : c'est ce qui rassure quelqu'un qui n'ose pas y aller seul, et ça ne
+        désigne personne. Votre <strong style="color:var(--ink)">prénom</strong>, lui, n'apparaît
+        que si vous le décidez ici.</p>
+      <label class="checkline" style="margin-top:var(--s5)">
+        <input type="checkbox" id="visp" ${u.visible_pairs ? "checked" : ""}>
+        <span><strong>Mes collègues peuvent voir que je participe</strong><br>
+          <span class="muted" style="font-size:var(--t-xs)">Votre prénom seul, et seulement pour
+          les salariés de votre entreprise. Jamais votre nom, jamais pour une autre entreprise,
+          jamais pour un don en argent. Une mission auprès d'une association peut en dire long
+          sur vos convictions ou votre santé — c'est pour ça que ce réglage est à vous, décoché
+          par défaut, et modifiable à tout moment.</span></span></label>` : ""}
+
       <button class="btn btn--primary" style="margin-top:var(--s8)" id="save">Enregistrer</button>
     </section>
     <div class="stack" style="--gap:var(--s5)">
@@ -4871,6 +4951,8 @@ function vuePreferences(u){
     const champs = {};
     el.querySelectorAll("[data-p]").forEach(i => champs[i.dataset.p] = i.checked);
     DB.majPreferences(u.id, champs);
+    const vp = el.querySelector("#visp");
+    if (vp) DB.reglerVisibiliteParis(u.id, vp.checked);
     toast("Préférences enregistrées.");
   };
   el.querySelector("#raz").onclick = () => modal("Remettre la démonstration à neuf",

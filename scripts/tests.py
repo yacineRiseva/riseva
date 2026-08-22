@@ -258,6 +258,71 @@ def main():
             p.wait_for_timeout(350)
         verifie("la mission passe à valider", "confirmation" in p.inner_text(".toast"))
 
+        print("\nNotre saison, et qui vient avec moi")
+        connecte(p, "u3", "#/tableau")
+        ts = norm(p.inner_text(".content"))
+        verifie("le salarié voit l'objectif collectif de son périmètre",
+                "Notre saison" in ts and "mobilisée" in ts or "mobilisées" in ts)
+        verifie("l'objectif se compte en personnes, pas en points",
+                "sur 11" in ts or "personnes mobilisées sur" in ts or "personne mobilisée sur" in ts,
+                "un objectif en points s'atteint à trois et n'élargit rien")
+        verifie("il dit ce qu'il manque, et quoi faire",
+                "Il manque" in ts and "en amener une avec vous" in ts)
+        ns = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const n = d.DB.notreSaison('u3');
+          const o = d.DB.objectifSaison('e1');
+          let trop = null, zero = null;
+          try { d.DB.reglerObjectifSaison('e1', 99999); } catch (e){ trop = e.message; }
+          try { d.DB.reglerObjectifSaison('e1', 0); } catch (e){ zero = e.message; }
+          return { site:n.site && n.site.nom, cible:n.cible, mobilises:n.mobilises,
+                   effectif:n.effectif, propose:o.propose, choisi:o.choisi, trop, zero };
+        }""")
+        verifie("le périmètre est le site du salarié, pas l'entreprise entière",
+                ns["site"] is not None, str(ns["site"]))
+        verifie("l'objectif du site est proratisé à son effectif",
+                0 < ns["cible"] <= ns["effectif"], str(ns))
+        verifie("un objectif par défaut est proposé, pas demandé",
+                ns["propose"] >= 3 and ns["choisi"] is False, str(ns["propose"]))
+        verifie("un objectif plus grand que l'effectif est refusé",
+                ns["trop"] is not None and "inatteignable" in ns["trop"], str(ns["trop"]))
+        verifie("un objectif nul est refusé", ns["zero"] is not None)
+
+        connecte(p, "u3", "#/annonces")
+        an = norm(p.inner_text(".content"))
+        verifie("les cartes disent qui vient, pas seulement combien de places",
+                "y va" in an or "y vont" in an)
+        verifie("et elles disent quand on y va soi-même", "Vous y allez" in an)
+        qv = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          return { don: d.DB.quiVient('an4', 'u3'),
+                   benevolat: d.DB.quiVient('an2', 'u3'),
+                   sansOptIn: d.DB.quiVient('an2', 'u5') };
+        }""")
+        verifie("aucune preuve sociale sur un don en argent",
+                qv["don"]["total"] == 0 and qv["don"]["collegues"] == 0,
+                "qui donne, à qui et combien est la donnée la mieux protégée du produit")
+        verifie("le nombre de collègues est toujours donné",
+                qv["benevolat"]["collegues"] >= 1)
+        verifie("le prénom ne sort que pour qui l'a choisi",
+                "Sonia" in qv["benevolat"]["noms"], str(qv["benevolat"]["noms"]))
+        vis = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          d.DB.reglerVisibiliteParis('u4', false);
+          const apres = d.DB.quiVient('an2', 'u3');
+          d.DB.reglerVisibiliteParis('u4', true);
+          return { noms: apres.noms, collegues: apres.collegues };
+        }""")
+        verifie("retirer sa visibilité retire le prénom, pas le compteur",
+                vis["noms"] == [] and vis["collegues"] >= 1, str(vis))
+
+        connecte(p, "u3", "#/preferences")
+        pr = norm(p.inner_text(".content"))
+        verifie("le réglage de visibilité est offert au salarié, décoché par défaut",
+                "Mes collègues peuvent voir que je participe" in pr)
+        verifie("il explique pourquoi il est décoché par défaut",
+                "convictions" in pr and "jamais pour un don en argent" in pr)
+
         print("\nQuota de places et anonymisation")
         connecte(p, "u2", "#/equipe")
         avant = p.inner_text(".kpi--tete .kpi__value")

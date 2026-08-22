@@ -382,3 +382,13 @@
 .aFaire__col .aFaire__liste{ flex:1; }
 .realis__methode{ color:var(--forest-800); text-decoration:underline; text-underline-offset:2px; }
 .card--dark .realis__methode{ color:var(--lime); }
+
+
+/* « Trois collègues y vont » : la ligne qui décide, sur la carte d'une annonce.
+   Elle est détachée du bloc de métadonnées — lieu, date, places — parce qu'elle
+   ne décrit pas l'annonce, elle décrit les gens. */
+.annonce__qui{
+  margin-top:var(--s3);padding-top:var(--s3);
+  border-top:1px dashed var(--ink-100);
+  font-size:var(--t-sm);color:var(--forest-800)}
+.annonce__qui b{color:var(--forest-800)}

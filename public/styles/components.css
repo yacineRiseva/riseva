@@ -91,6 +91,10 @@ tr.is-anonyme td{color:var(--ink-400)}
 .bar>i{display:block;height:100%;border-radius:inherit;background:var(--forest-700);
   transition:width 600ms var(--ease)}
 .bar--lime>i{background:var(--lime)}
+/* Sur fond forêt, la piste claire d'une barre devient plus lumineuse que son
+   remplissage : la jauge se lit à l'envers, pleine quand elle est vide. */
+.bar--sombre{background:rgba(223,230,208,.16)}
+.bar--sombre>i{background:var(--lime)}
 
 /* ============ KPI ============ */
 .kpi{display:flex;flex-direction:column;gap:var(--s2)}

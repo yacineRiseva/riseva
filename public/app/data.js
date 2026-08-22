@@ -1427,8 +1427,8 @@ const seed = {
        ne devient pas administratrice des autres sociétés pour autant. */
     { id:"u2", nom:"Claire Fontaine", email:"claire@lafarge-ciments.fr",role:"entreprise_admin", org:"e1", etablissement:"et1", groupe:"g1", actif:true },
     { id:"u3", nom:"Malik Ferhat",    email:"malik@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et2", actif:true },
-    { id:"u4", nom:"Sonia Delaunay",  email:"sonia@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et3", actif:true },
-    { id:"u5", nom:"Hugo Vasseur",    email:"hugo@lafarge-ciments.fr",  role:"salarie",          org:"e1", etablissement:"et1", actif:true },
+    { id:"u4", nom:"Sonia Delaunay",  email:"sonia@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et3", actif:true, visible_pairs:true },
+    { id:"u5", nom:"Hugo Vasseur",    email:"hugo@lafarge-ciments.fr",  role:"salarie",          org:"e1", etablissement:"et1", actif:true, visible_pairs:true },
     { id:"u6", nom:"Nadia Berrada",   email:"nadia@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et3", actif:false },
     /* Les référents de site : ils invitent leurs propres salariés, dans la limite du
        quota que le groupe leur a alloué, et ne voient rien des autres sites. */
@@ -3429,6 +3429,138 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         throw new Error("Ce logo est trop lourd. Un carré de 256 pixels suffit largement.");
       e.logo = v;
       return e;
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* Notre saison : l'objectif collectif, et qui vient                    */
+    /* ------------------------------------------------------------------ */
+    /* La brique que les trois relectures ont désignée en même temps. Le constat
+       partagé : un salarié seul devant ses points ne revient pas, et un classement
+       ne répare pas ça — il peut même l'aggraver, parce qu'une compétition
+       instaurée par l'employeur se lit comme une évaluation déguisée.
+
+       Deux choix de conception, et ils ne sont pas cosmétiques.
+
+       L'objectif se compte en SALARIÉS MOBILISÉS, pas en points. Un objectif en
+       points est atteint par trois personnes très actives, et il récompense
+       exactement le contraire de ce qu'on cherche : il n'élargit rien. Un objectif
+       en personnes ne s'atteint qu'en allant chercher quelqu'un qui n'est pas
+       encore venu, ce qui est précisément le geste qu'on veut provoquer.
+
+       Le défaut se calcule, il ne se demande pas. Un administrateur à qui on
+       demande « quel objectif ? » à l'inscription répond au hasard, et un objectif
+       au hasard est soit ridicule soit décourageant. On propose un salarié sur dix,
+       arrondi, plancher à trois : c'est atteignable la première saison et ça reste
+       un vrai effort. Il reste modifiable. */
+    OBJECTIF_PART_DEFAUT: 0.1,
+    objectifSaison(eid){
+      const e = api.entreprise(eid); if (!e) return null;
+      const base = api.effectifReference(eid) || e.effectif || 0;
+      const propose = Math.max(3, Math.round(base * api.OBJECTIF_PART_DEFAUT));
+      return {
+        cible: e.objectif_mobilises || propose,
+        propose,
+        choisi: !!e.objectif_mobilises
+      };
+    },
+    reglerObjectifSaison(eid, cible){
+      const e = api.entreprise(eid); if (!e) return null;
+      if (cible === "" || cible === null || cible === undefined){ e.objectif_mobilises = null; return e; }
+      const n = Math.round(Number(cible));
+      if (!isFinite(n) || n < 1)
+        throw new Error("Un objectif se compte en personnes, et il en faut au moins une.");
+      const base = api.effectifReference(eid) || e.effectif || 0;
+      if (base && n > base)
+        throw new Error(`Vous n'avez que ${base} salariés : viser plus haut rend l'objectif `
+          + "inatteignable, et un objectif inatteignable ne motive personne.");
+      e.objectif_mobilises = n;
+      return e;
+    },
+
+    /* Ce que le salarié voit de sa saison collective. Le périmètre est SON SITE
+       quand il en a un — « douze personnes sur mon site » parle, « douze personnes
+       sur les onze cents de l'entreprise » ne parle pas — et l'entreprise sinon. */
+    notreSaison(uid){
+      const u = api.utilisateur(uid); if (!u || !u.org) return null;
+      const e = api.entreprise(u.org); if (!e) return null;
+      const site = u.etablissement ? api.etablissement(u.etablissement) : null;
+      const pairs = api.salaries(u.org)
+        .filter(x => !x.anonyme && (!site || x.etablissement === site.id));
+      const idsPairs = new Set(pairs.map(x => x.id));
+
+      const validees = api.missions({ entreprise: u.org })
+        .filter(m => ["validee", "validee_auto"].includes(m.etat))
+        .filter(m => !site || (m.etablissement
+          || (api.utilisateur(m.salarie) || {}).etablissement) === site.id)
+        .filter(m => !api.estDonPersonnel(m));
+      const mobilises = new Set(validees.map(m => m.salarie).filter(x => idsPairs.has(x)));
+
+      const objectif = api.objectifSaison(u.org);
+      /* L'objectif de l'entreprise se répartit au prorata de l'effectif du site :
+         demander trente personnes à un site de douze serait une farce. */
+      const partSite = site && e.effectif
+        ? Math.max(1, Math.round(objectif.cible * ((site.effectif || 0) / e.effectif)))
+        : objectif.cible;
+
+      const aVenir = api.missions({ entreprise: u.org })
+        .filter(m => m.etat === "engagee")
+        .filter(m => !site || (m.etablissement
+          || (api.utilisateur(m.salarie) || {}).etablissement) === site.id)
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+      return {
+        site, entreprise: e,
+        effectif: site ? (site.effectif || 0) : (e.effectif || 0),
+        mobilises: mobilises.size,
+        cible: partSite,
+        part: partSite ? Math.min(1, mobilises.size / partSite) : 0,
+        atteint: mobilises.size >= partSite,
+        missions: validees.length,
+        realisations: api.realisations({ entreprise: u.org }),
+        prochaine: aVenir[0] || null,
+        aVenir: aVenir.length
+      };
+    },
+
+    /* Qui vient sur une annonce. Le NOMBRE est toujours visible : c'est lui qui
+       lève le frein — la peur d'y aller seul — et il ne désigne personne. Les
+       PRÉNOMS ne sortent que pour les collègues qui l'ont choisi, parce qu'une
+       mission auprès d'une association peut révéler une conviction, une croyance
+       ou un état de santé, et que ça, ça ne se déduit pas d'un réglage par défaut.
+
+       Et on ne montre que les collègues de la même entreprise : savoir qui vient
+       d'ailleurs n'aide personne et exposerait des salariés d'un autre client. */
+    quiVient(aid, uid){
+      const u = api.utilisateur(uid);
+      const vide = { total: 0, collegues: 0, noms: [], moi: false, reseau: 0 };
+      if (!u) return vide;
+      /* Jamais sur un don en argent, et ce n'est pas un oubli : qui donne, à qui,
+         et combien est la donnée la mieux protégée du produit. Le montant d'un don
+         personnel n'apparaît nulle part côté employeur, et le nom du donateur ne
+         doit pas fuir par la porte d'à côté sous couvert d'entraînement collectif.
+         Le bénévolat et le matériel se font à plusieurs, sur place, au vu de tous ;
+         un virement ne se fait pas à plusieurs. */
+      const a = api.annonce(aid);
+      if (!a || a.type === "don_financier") return vide;
+      const ms = s.missions.filter(m => m.annonce === aid
+        && ["engagee", "a_valider", "validee", "validee_auto"].includes(m.etat));
+      const miens = ms.filter(m => m.entreprise === u.org);
+      const noms = miens
+        .map(m => api.utilisateur(m.salarie))
+        .filter(x => x && !x.anonyme && x.id !== uid && x.visible_pairs)
+        .map(x => String(x.nom || "").split(/\s+/)[0]);
+      return {
+        total: miens.length,
+        collegues: miens.filter(m => m.salarie !== uid).length,
+        noms: [...new Set(noms)],
+        moi: miens.some(m => m.salarie === uid),
+        reseau: ms.length
+      };
+    },
+    /* Le réglage appartient à la personne, et à personne d'autre. */
+    reglerVisibiliteParis(uid, oui){
+      const u = api.utilisateur(uid); if (!u) return null;
+      u.visible_pairs = !!oui; return u;
     },
 
     reglerVisibilite(eid, valeur){
