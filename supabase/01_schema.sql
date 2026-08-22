@@ -220,6 +220,14 @@ create table etablissement (
   -- rafler le classement normalisé.
   effectif  integer not null default 0 check (effectif >= 0),
   quota     integer not null default 0 check (quota >= 0),
+  -- L'adresse du site et ses coordonnées. Ce n'est pas du confort : c'est le
+  -- seul moyen de savoir ce qu'un salarié DE CE SITE peut réellement faire.
+  -- L'entreprise a déjà les siennes, mais un groupe dont le siège est à Paris
+  -- et l'usine à Lyon ne se diagnostique pas depuis le siège — c'est justement
+  -- l'usine qui n'a rien autour d'elle.
+  adresse   text check (length(adresse) <= 240),
+  lat       double precision check (lat between -90 and 90),
+  lon       double precision check (lon between -180 and 180),
   referent_nom   text check (length(referent_nom) <= 160),
   referent_mail  text check (length(referent_mail) <= 240),
   -- Tant qu'un site n'a pas activé son registre, il saisit ses chiffres de
@@ -230,6 +238,32 @@ create table etablissement (
   cree_le   timestamptz not null default now()
 );
 create index etablissement_societe on etablissement (societe);
+
+-- ---------------------------------------------------------- zones à travailler
+-- Un site dont l'offre associative est trop faible, et que Riseva doit aller
+-- démarcher. C'est le seul endroit du produit où le client nous donne du
+-- travail plutôt que l'inverse, et c'est voulu : un diagnostic qui s'arrête au
+-- diagnostic est une excuse préparée d'avance.
+--
+-- Aucune date de traitement n'est promise et aucune ne sera affichée comme un
+-- engagement : une association décide seule de publier ou non, et promettre un
+-- délai qui ne dépend pas de nous serait la première chose qu'on ne tiendrait
+-- pas. `traite_le` sert à Riseva pour sa file, pas à l'entreprise pour compter.
+create table sourcing (
+  id            uuid primary key default gen_random_uuid(),
+  etablissement uuid not null references etablissement(id) on delete cascade,
+  -- `par` est ajouté plus bas, une fois `profil` créé : ce fichier se lit et
+  -- s'exécute de haut en bas, et `sourcing` vient avant lui.
+  motif         text check (length(motif) <= 400),
+  le            timestamptz not null default now(),
+  traite_le     timestamptz,
+  constraint sourcing_traite_apres check (traite_le is null or traite_le >= le)
+);
+-- Une zone ne se signale qu'une fois tant qu'elle n'est pas traitée : deux
+-- demandes ouvertes pour le même site ne sont pas deux fois plus urgentes,
+-- elles sont juste deux lignes.
+create unique index sourcing_ouvert on sourcing (etablissement)
+  where traite_le is null;
 
 -- Les domaines de messagerie décident qui peut entrer : c'est un contrôle
 -- d'accès, pas une préférence. Ils ne vivent donc pas dans une colonne que
@@ -316,6 +350,11 @@ create table profil (
   cree_le   timestamptz not null default now(),
   maj_le    timestamptz not null default now()
 );
+
+-- Le demandeur d'une prospection associative. Il peut partir ; la demande reste :
+-- un site mal servi ne cesse pas de l'être parce que la personne qui l'a signalé
+-- a changé d'entreprise.
+alter table sourcing add column par uuid references profil(id) on delete set null;
 
 create table private.appartenance (
   profil       uuid primary key references profil(id) on delete cascade,

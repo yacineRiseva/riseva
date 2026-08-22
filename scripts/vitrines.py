@@ -438,6 +438,52 @@ def capture(nom, alt, legende, classe="", eager=False):
       </figure>"""
 
 
+def photo(nom, alt, legende, classe="", eager=False):
+    """Une illustration, et ce qu'elle est écrit dessous.
+
+    Riseva n'a aucune photographie de mission réelle : elle n'a pas encore de
+    mission. Ces images sont donc générées, et la page le dit sous chacune —
+    pas en petites lettres au bas d'une mention légale. C'est la seule
+    condition à laquelle une illustration reste honnête : le lecteur doit
+    pouvoir la regarder sans se demander si elle prouve quelque chose.
+
+    Ce qu'elles font, elles, c'est montrer de quoi on parle. Une page qui vend
+    du ramassage de berge, de la plantation et des refuges sans jamais montrer
+    ni berge, ni arbre, ni animal demande au lecteur un effort d'imagination
+    qu'il ne fera pas. La règle « pas de photo » corrigeait seize photos de
+    bureaux en open space, ce qui était juste ; la remplacer par zéro image
+    était une surcorrection.
+
+    Ce qui reste interdit : présenter une image comme la trace d'une mission
+    Riseva, montrer un visage reconnaissable, ou nommer une association qui
+    n'aurait pas donné son accord."""
+    fichier = PUBLIC / "photos" / f"{nom}.jpg"
+    if not fichier.exists():
+        raise SystemExit(f"illustration manquante : {fichier}")
+    w, h = dimensions(fichier)
+    charge = 'loading="eager" fetchpriority="high"' if eager else 'loading="lazy"'
+    return f"""<figure class="photo{classe}">
+        <img src="/photos/{nom}.jpg" alt="{alt}" {charge} decoding="async"
+             width="{w}" height="{h}">
+        <figcaption class="mono">{legende}
+          <span class="photo-src">Image générée &mdash; ce n'est pas une mission Riseva</span>
+        </figcaption>
+      </figure>"""
+
+
+def chiffres(items):
+    """Les quelques nombres qui portent l'argument, en grand.
+
+    Aucun n'est un résultat de Riseva : ce sont des faits extérieurs, datés et
+    sourcés, ou des propriétés du produit qui ne dépendent que de nous. Un
+    chiffre de performance client à cet endroit serait le premier mensonge de
+    la page, puisqu'il n'existe aucun client."""
+    lis = "".join(f"""
+        <div><b>{n}</b><span>{t}</span>{f'<cite>{src}</cite>' if src else ''}</div>"""
+        for n, t, src in items)
+    return f'<div class="chiffres">{lis}\n      </div>'
+
+
 def objection(question, reponse):
     """Une question fréquente, et sa réponse en une phrase.
 
@@ -498,11 +544,32 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
     </dl>
     </div>
 
+    {photo("berge-ramassage",
+           "Trois personnes en waders remontent une berge de rivière avec des sacs de collecte, "
+           "un matin d'automne",
+           "Ramassage de berge, un samedi matin — le format le plus demandé par les associations",
+           " photo--bande", eager=True)}
+
     {capture("admin-tableau",
              "Le tableau de bord d'un responsable RSE dans Riseva : indicateurs de la saison, "
              "résultats confirmés par les associations, et comparaison entre sites",
              "Le tableau de bord d'un responsable RSE",
-             " shot--large", eager=True)}
+             " shot--large")}
+
+    {chiffres([
+      ("233 Md€", "de commande publique par an en France, dont environ 60 % vers des PME. "
+        "Depuis le 21 août 2026, toute nouvelle consultation doit comporter un critère "
+        "environnemental.",
+        "Loi Climat et résilience, art. 35 · code de la commande publique, art. L. 2152-7"),
+      ("60 %", "de réduction d'impôt sur le mécénat, jusqu'à 2 M€ de dons sur l'exercice, "
+        "dans la limite de 20 000 € ou 5 ‰ du chiffre d'affaires.",
+        "Article 238 bis du CGI"),
+      ("14 j", "avant qu'une mission sans réponse soit clôturée sans confirmation — et le "
+        "résultat reste marqué comme estimé partout où il apparaît. C'est la seule promesse "
+        "chiffrée qui ne dépend que de nous.", None),
+      ("0 €", "de commission sur les dons, et pas un centime facturé aux associations. "
+        "Le virement va du donateur à l'association, sans transiter par Riseva.", None),
+    ])}
   </div>
 </header>"""
 
@@ -548,6 +615,11 @@ EQUIPES_ENT = f"""<section id="equipes">
                "c'est de ne pas savoir avec qui on y va. L'écran répond à cette question-là "
                "avant de parler de points.")}
 
+    {photo("depart-chantier",
+           "Quatre personnes en bleu de travail chargent des outils dans un utilitaire devant "
+           "une usine, au lever du jour",
+           "Un départ de chantier depuis le site, un vendredi matin", " photo--bande")}
+
     <div class="duo duo--pile">
       {capture("salarie-saison",
                "Le tableau de bord d'un salarié : ses points, et l'objectif collectif de son site",
@@ -586,6 +658,15 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
                "C'est la vraie question, et nous n'avons pas de réseau éprouvé à vous vendre : "
                "il n'existe pas encore. Ce que nous garantissons est écrit dans les engagements "
                "de service, y compris l'acompte remboursé si le démarrage n'est pas constaté.")}
+
+    <div class="photos3">
+      {photo("refuge", "Un chien recueilli, allongé dans un box de refuge",
+             "Refuge animalier")}
+      {photo("plantation", "Deux mains tassent la terre autour d'un jeune arbre planté",
+             "Plantation d'arbres")}
+      {photo("collecte", "Des mains gantées trient des conserves dans des cagettes",
+             "Collecte solidaire")}
+    </div>
 
     {capture("asso-valider",
              "L'écran par lequel une association confirme ce qui a été réalisé",
@@ -707,6 +788,10 @@ PERIMETRES_ENT = f"""<section id="perimetres" class="band">
 {entete("Groupes et services RSE", "Un même cadre,<br><span class='it'>plusieurs périmètres.</span>",
         "Deux portes d'entrée, et deux écrans pour les montrer. Le détail complet est sur les "
         "pages dédiées : cette section dit seulement ce qui existe.")}
+
+    {photo("atelier",
+           "Des bleus de travail accrochés au mur et des outils sur un établi, dans un atelier",
+           "Une PME industrielle : c'est là que la question se pose vraiment", " photo--bande")}
 
     {capture("groupe",
              "La vue consolidée d'un groupe : sociétés, sites et indicateurs réunis",
@@ -888,7 +973,8 @@ FAQ_ENT = faq([
 ])
 
 
-def jalons(eyebrow, titre, note, items, ident="preuve", bande=" class=\"band-moss\""):
+def jalons(eyebrow, titre, note, items, ident="preuve", bande=" class=\"band-moss\"",
+           illustration=""):
     """Une liste de reponses numerotees, sans image a cote.
 
     Il y avait une photo de refuge ici, avec une legende qui reconnaissait
@@ -910,6 +996,7 @@ def jalons(eyebrow, titre, note, items, ident="preuve", bande=" class=\"band-mos
     return f"""<section id="{ident}"{bande}>
   <div class="layer">
 {entete(eyebrow, titre, note)}
+    {illustration}
     <ul class="stakes-list stakes-list--large">{lis}
     </ul>
   </div>
@@ -1082,10 +1169,26 @@ HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
       </dl>
     </div>
 
+    {photo("riviere-aube",
+           "Une petite rivière française à l'aube, brume sur l'eau, saules sur la berge",
+           "Ce que vos bénévoles voient en arrivant", " photo--bande", eager=True)}
+
+    {chiffres([
+      ("0 €", "à payer, aujourd'hui et après. Les associations ne paient jamais rien sur "
+        "Riseva, et aucune commission n'est prélevée sur vos dons.", None),
+      ("1 clic", "pour confirmer qu'une mission a eu lieu, depuis un courriel, sans vous "
+        "connecter. C'est tout ce qu'on vous demande après.", None),
+      ("14 j", "sans réponse et la mission se clôture toute seule, sans confirmation. Ce "
+        "n'est pas une faute, ça n'entraîne aucune suspension, et le résultat est écrit "
+        "comme estimé.", None),
+      ("15 min", "au téléphone si écrire l'annonce vous rebute : nous la rédigeons avec "
+        "vous, et rien n'est publié tant qu'elle ne vous convient pas.", None),
+    ])}
+
     {capture("asso-tableau",
              "Le tableau de bord d'une association dans Riseva",
              "Votre tableau de bord : ce que vous avez à confirmer, et qui vient",
-             " shot--large", eager=True)}
+             " shot--large")}
   </div>
 </header>"""
 
@@ -1223,7 +1326,9 @@ JAMAIS_ASSO = jalons(
      ("05", "« Il va falloir signer une exclusivité »",
       "Non. Vous continuez tout ce que vous faites ailleurs, avec qui vous voulez. Riseva "
       "n'est pas un canal exclusif et ne le deviendra pas.", None)],
-    ident="jamais", bande=" class=\"band-moss\"")
+    ident="jamais", bande=" class=\"band-moss\"",
+    illustration=photo("refuge", "Un chien recueilli, allongé dans un box de refuge",
+                       "Un refuge, un samedi matin", " photo--bande"))
 
 
 YACINE_ASSO = f"""<section id="yacine">

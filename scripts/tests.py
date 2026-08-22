@@ -16,6 +16,12 @@ PORT = 8123
 BASE = f"http://127.0.0.1:{PORT}"
 
 resultats = []
+def a_rupture_ailleurs(t):
+    """La cause écrite dépend de la marche qui décroche : sur un jeu de données
+    donné, ce n'est pas toujours celle des comptes ouverts."""
+    return "premier écart observable" in t
+
+
 def norm(t):
     """Les montants en français contiennent des espaces insécables : on normalise."""
     return t.replace("\u202f", " ").replace("\u00a0", " ")
@@ -169,10 +175,26 @@ def main():
         # confirme au lecteur qu'elle n'en est pas une. Riseva n'ayant aucune
         # photographie réelle de chantier, la seule preuve disponible est le produit.
         vues = p.evaluate("""()=>[...document.images].map(i=>i.getAttribute('src'))""")
-        verifie("aucune photo d'illustration sur la vitrine entreprises",
-                not [x for x in vues if "/photos/" in (x or "")], str(vues))
-        verifie("ce qu'elle montre, ce sont des captures de l'application",
+        verifie("ce qu'elle montre d'abord, ce sont des captures de l'application",
                 len([x for x in vues if "/captures/" in (x or "")]) >= 5, str(vues))
+        # Elle porte aussi des illustrations, et c'est voulu : une page qui vend
+        # du ramassage de berge sans jamais montrer de berge demande au lecteur
+        # un effort d'imagination qu'il ne fera pas. Ce qui est interdit, c'est
+        # de les faire passer pour des preuves.
+        verifie("elle montre aussi de quoi on parle",
+                len([x for x in vues if "/photos/" in (x or "")]) >= 3, str(vues))
+        legendesP = p.evaluate(
+            """()=>[...document.querySelectorAll('.photo')].map(f=>f.textContent)""")
+        verifie("chaque illustration dit qu'elle est générée et qu'elle ne prouve rien",
+                legendesP and all("Image générée" in x and "pas une mission Riseva" in x
+                                  for x in legendesP), str(legendesP)[:200])
+        # Aucun visage identifiable, aucune association nommée sur une image :
+        # une illustration qui nomme quelqu'un devient une affirmation le
+        # concernant.
+        alts = p.evaluate(
+            """()=>[...document.querySelectorAll('.photo img')].map(i=>i.alt)""")
+        verifie("les illustrations décrivent une scène, pas des personnes nommées",
+                all(a and len(a) > 20 for a in alts), str(alts)[:200])
         # Et chacune dit d'où elle vient : une capture sans cette mention se lit
         # comme un résultat obtenu, et Riseva n'en a aucun.
         legendes = p.evaluate(
@@ -188,6 +210,17 @@ def main():
         verifie("rien n'attend un défilement pour s'afficher", caches == 0, str(caches))
         verifie("le seuil du classement est dit sur la vitrine",
                 "dix entreprises" in corps)
+        # Les quatre chiffres du premier écran sont des faits extérieurs, datés
+        # et sourcés, ou des propriétés du produit qui ne dépendent que de nous.
+        # Un chiffre de performance client à cet endroit serait le premier
+        # mensonge de la page, puisqu'il n'existe aucun client.
+        ch = norm(p.inner_text(".chiffres"))
+        verifie("les chiffres de tête sont sourcés ou ne dépendent que de nous",
+                "233 Md€" in ch and "L. 2152-7" in ch
+                and "238 bis" in ch and "14 j" in ch and "0 €" in ch)
+        verifie("aucun n'est présenté comme un résultat obtenu par un client",
+                "clients" not in ch and "nos clients" not in ch
+                and "satisfaction" not in ch)
         # Le mécénat est à deux taux depuis la loi de finances 2020 : 60 % jusqu'à
         # deux millions d'euros de dons sur l'exercice, 40 % au-delà. Le second ne
         # concernera probablement aucune PME de la cible — mais une phrase juste
@@ -312,17 +345,43 @@ def main():
 
         print("\nOù ça bloque : l'adoption")
         connecte(p, "u2", "#/adoption")
+        # L'écran attend maintenant la base : les chiffres d'offre locale sont
+        # calculés par PostgreSQL, pas dans le navigateur, et même en
+        # démonstration le rendu passe par une promesse. Un test qui lit le DOM
+        # trop tôt mesure une page vide.
+        p.wait_for_selector(".offre", timeout=5000)
         ad = norm(p.inner_text(".content"))
         verifie("l'entonnoir montre les cinq marches",
-                all(x in ad for x in ["Comptes ouverts", "Se sont engagés",
+                all(x in ad for x in ["Salariés du périmètre", "Comptes ouverts",
+                                      "Se sont engagés",
                                       "Ont déclaré une mission faite",
-                                      "Ont au moins une action validée",
-                                      "Sont revenus une deuxième fois"]))
-        verifie("il désigne la marche où l'on perd le plus de monde", "c'est ici" in ad)
+                                      "Ont au moins une action validée"]))
+        # « Revenu une deuxième fois » mesure ce que fait quelqu'un qui a déjà
+        # tout franchi, pas un franchissement de plus. Mélangé aux cinq marches,
+        # il faisait chercher la cause d'un décrochage au mauvais endroit.
+        verifie("la rétention est sortie de l'entonnoir et dite avec son dénominateur",
+                "Et ceux qui reviennent" in ad and "après une première action validée" in ad)
+        # « C'est ici » sonnait comme un verdict. « Premier écart observable »
+        # dit ce que c'est vraiment : l'endroit où le décompte décroche le plus,
+        # pas la preuve d'une cause.
+        verifie("il désigne la marche où l'on perd le plus de monde",
+                "premier écart observable" in ad)
+        # « 203 personnes perdues » était faux : Riseva sait qu'elles n'ont pas
+        # ouvert de compte, elle ne sait pas si le lien leur est parvenu.
         verifie("et il dit la cause probable, pas seulement le chiffre",
-                "personnes perdues ici" in ad and "indésirables" in ad)
+                "de moins qu'à la marche précédente" in ad)
+        verifie("il ne prétend pas savoir ce qu'il ignore",
+                "personnes perdues ici" not in ad
+                and ("ne sait pas combien ont effectivement vu le lien" in ad
+                     or a_rupture_ailleurs(ad)))
         verifie("le délai avant la première action est une médiane, pas une moyenne",
-                "jours, en médiane" in ad and "pas la moyenne" in ad)
+                ("jours, en médiane" in ad and "Médiane et non moyenne" in ad)
+                or "Pas encore assez" in ad)
+        # Une médiane calculée sur les seuls survivants est une médiane de
+        # survivants : ceux qui n'ont rien fait n'ont pas un délai long, ils
+        # n'ont pas de délai.
+        verifie("le délai porte son dénominateur",
+                "obtenu une première action validée" in ad or "Pas encore assez" in ad)
         verifie("l'écran refuse de devenir un outil de surveillance",
                 "jamais la liste de ceux qui ne sont pas venus" in ad
                 and "surveillance" in ad)
@@ -346,10 +405,12 @@ def main():
         # L'écran écrivait « l'offre locale est trop loin ou ne correspond pas »
         # comme cause probable, sans jamais la mesurer. Une cause qu'on suggère
         # sans la chiffrer n'est qu'une excuse polie faite au client.
+        # Deux distances pour deux annonces n'apprennent rien : en dessous de
+        # quatre, la médiane laisse la place au nombre de places prenables.
         verifie("l'offre associative autour de chaque site est mesurée, pas supposée",
                 "L'offre autour de vos sites" in ad
                 and "annonces ouvertes à moins de 30 km" in ad
-                and "distance médiane" in ad)
+                and ("distance médiane" in ad or "places encore ouvertes" in ad))
         verifie("le tableau désigne un travail pour nous, pas un reproche au client",
                 "c'est notre travail, pas le vôtre" in ad
                 and "c'est dans cet ordre que nous nous en occupons" in ad)
@@ -379,6 +440,41 @@ def main():
                 len({tuple(x) for x in off["attendus"]}) > 1
                 and all(a >= 2 for _, a in off["attendus"]), str(off["attendus"]))
         verifie("le rayon annoncé est celui qui a servi au calcul", off["rayon"])
+        # Un diagnostic qui s'arrête au diagnostic est une excuse préparée
+        # d'avance : le client lit « offre trop mince », comprend « ce n'est pas
+        # de notre faute », et retient surtout que personne ne fera rien.
+        verifie("un verdict négatif ouvre deux issues, il n'est pas une impasse",
+                "Nous demander de chercher ici" in ad
+                and "Inviter une association que vous connaissez" in ad)
+        verifie("aucun délai n'est promis sur une chose qui ne dépend pas de nous",
+                "une association décide seule de publier" in ad)
+        p.evaluate("""()=>document.querySelector('.js-signal').click()""")
+        p.wait_for_timeout(400)
+        ad2 = norm(p.inner_text(".content"))
+        verifie("le signalement est daté et visible sur l'écran", "Zone signalée le" in ad2)
+        # Le texte d'invitation part chez des gens que nous ne connaissons pas :
+        # il engage Riseva autant qu'une page publique, et il ne promet rien
+        # qu'on ne tienne.
+        p.evaluate("""()=>[...document.querySelectorAll('.js-inviter')][0].click()""")
+        p.wait_for_timeout(400)
+        # Le corps du message vit dans un textarea : sa valeur n'est pas du texte
+        # rendu, donc inner_text ne la voit pas.
+        inv = norm(p.input_value(".modal #inv-c") + " " + p.input_value(".modal #inv-o")
+                   + " " + p.inner_text(".modal"))
+        verifie("le message d'invitation est écrit d'avance et nominatif",
+                "Vaudrey" in inv and "gratuite et le restera" in inv
+                and "aucune commission" in inv)
+        verifie("il ne promet ni argent ni bénévoles",
+                "que quelqu'un vienne" in inv and "personne ne peut le garantir" in inv)
+        p.evaluate("()=>document.querySelector('.overlay')?.remove()")
+        zs = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const a = d.DB.signalerZone('et2');
+          const b = d.DB.signalerZone('et2');
+          return { memeId: a.id === b.id, n: d.DB.zonesSignalees('e1').length };
+        }""")
+        verifie("signaler deux fois la même zone ne la met pas deux fois dans la file",
+                zs["memeId"], str(zs))
 
         print("\nNotre saison, et qui vient avec moi")
         connecte(p, "u3", "#/tableau")

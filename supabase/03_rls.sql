@@ -208,6 +208,19 @@ create policy etablissement_lecture on public.etablissement for select to authen
          or private.dans_mon_groupe(societe)
          or private.est_admin());
 
+-- --------------------------------------------------------- zones à travailler
+-- L'entreprise lit ses propres demandes de prospection, et rien d'autre : elle
+-- n'a pas à savoir quelles zones les autres clients ont signalées, ce qui
+-- reviendrait à lire leur carte d'implantation. L'écriture passe par la RPC,
+-- qui vérifie le rôle et le rattachement au site.
+grant select on public.sourcing to authenticated;
+create policy sourcing_lecture on public.sourcing for select to authenticated
+  using (exists (select 1 from public.etablissement e
+                  where e.id = sourcing.etablissement
+                    and (e.societe = private.mon_entreprise()
+                         or private.dans_mon_groupe(e.societe)))
+         or private.est_admin());
+
 -- ---------------------------------------------------------------- indicateurs
 grant select on public.campagne_indicateurs to authenticated;
 create policy campagne_lecture on public.campagne_indicateurs for select to authenticated
@@ -330,6 +343,10 @@ grant execute on function
                          boolean, public.unite_realisation, numeric),
   public.fermer_annonce(uuid),
   public.regler_logo(text),
+  public.offre_locale(uuid),
+  public.offre_par_site(uuid),
+  public.signaler_zone(uuid, text),
+  public.adoption(uuid, uuid),
   public.declarer_valeur_materiel(uuid, numeric, public.categorie_materiel,
                                   text, text, date, text, boolean),
   public.pseudonymiser_salarie(uuid),
@@ -471,6 +488,12 @@ grant execute on function public.sans_accents(text) to riseva_definer;
 grant execute on function private.iban_ok(text) to riseva_definer;
 grant execute on function private.pilote_le_site(uuid) to riseva_definer;
 grant execute on function private.texte_consentement(uuid) to riseva_definer;
+grant execute on function private.distance_km(double precision, double precision,
+                                              double precision, double precision)
+  to riseva_definer;
+grant execute on function private.rayon_offre_km() to riseva_definer;
+grant execute on function private.offre_min_pour_cent() to riseva_definer;
+grant execute on function private.plancher_adoption() to riseva_definer;
 grant execute on function private.reference_virement() to riseva_definer;
 grant execute on function private.seuil_ecart() to riseva_definer;
 grant execute on function private.campagne_precedente(uuid) to riseva_definer;

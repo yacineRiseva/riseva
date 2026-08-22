@@ -22,6 +22,7 @@ values ('22222222-2222-4222-8222-222222222222', 'Vaudrey Ciments', 'Industrie', 
 insert into private.domaine_entreprise (entreprise, domaine)
 values ('22222222-2222-4222-8222-222222222222', 'vaudrey-ciments.fr');
 
+
 -- 210 salariés, trois sites : tranche « 200 à 499 », 6 900 € HT, trois sites
 -- compris, moins 10 % au tarif fondateur = 6 210 €. Acompte de 40 % = 2 484 €.
 insert into abonnement (entreprise, saison, montant_ht, acompte_paye, sieges,

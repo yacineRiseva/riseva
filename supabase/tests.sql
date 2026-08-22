@@ -67,15 +67,19 @@ insert into entreprise (id, nom, secteur, ville, effectif, ca, siren, groupe) va
   ('88888888-8888-4888-8888-888888888888', 'Vaudrey Négoce', 'Négoce', 'Nantes',
    45, 6200000, '842100448', '99999999-9999-4999-8999-999999999999');
 
-insert into etablissement (id, societe, nom, ville, effectif, quota) values
+-- Les coordonnees ne sont pas du decor : c'est le seul moyen de savoir ce qu'un
+-- salarie DE CE SITE peut reellement faire. Un groupe dont le siege est a Paris
+-- et l'usine a Lyon ne se diagnostique pas depuis le siege — c'est justement
+-- l'usine qui n'a rien autour d'elle.
+insert into etablissement (id, societe, nom, ville, effectif, quota, lat, lon) values
   ('e7000000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
-   'Siège', 'Paris', 60, 60),
+   'Siège', 'Paris', 60, 60, 48.8566, 2.3522),
   ('e7000000-0000-4000-8000-000000000002', '22222222-2222-4222-8222-222222222222',
-   'Usine', 'Lyon', 110, 110),
+   'Usine', 'Lyon', 110, 110, 45.7333, 4.8137),
   ('e7000000-0000-4000-8000-000000000003', '22222222-2222-4222-8222-222222222222',
-   'Agence', 'Marseille', 40, 40),
+   'Agence', 'Marseille', 40, 40, 43.2965, 5.3698),
   ('e7000000-0000-4000-8000-000000000004', '88888888-8888-4888-8888-888888888888',
-   'Plateforme', 'Nantes', 45, 45);
+   'Plateforme', 'Nantes', 45, 45, 47.2184, -1.5536);
 
 insert into private.appartenance (profil, role, entreprise, association, etablissement, groupe) values
   ('aaaaaaaa-0000-4000-8000-000000000001', 'entreprise_admin',
@@ -1561,6 +1565,203 @@ begin
     perform pg_temp.dit('un salarie ne valorise pas les dons de son entreprise',
       sqlerrm like '%administrateur%');
   end;
+end $$;
+reset role;
+
+-- Trois situations, et c'est exprès : sur trois sites identiques, un diagnostic
+-- d'offre locale ne diagnostique rien. Lyon recoit une seule annonce pour cent
+-- dix salaries — trop mince. Marseille en recoit deux, toutes deux en semaine
+-- ouvree et aucune en don de materiel — inaccessible a un salarie en poste.
+-- Paris en recoit assez, dont un don de materiel — suffisante.
+reset role;
+insert into association (id, nom, rna, cause, ville, resume, adresse, lat, lon,
+                         valide, verifiee_le, a_reverifier_le)
+values
+ ('a1000000-0000-4000-8000-000000000001', 'Berges du Rhone', 'W691000001',
+  'Environnement', 'Lyon', 'Entretien des berges du Rhone et de la Saone.',
+  '5 quai Victor Augagneur, 69003 Lyon', 45.7580, 4.8420,
+  true, current_date - 30, current_date + 330),
+ ('a1000000-0000-4000-8000-000000000002', 'Calanques Solidaires', 'W131000002',
+  'Environnement', 'Marseille', 'Nettoyage du littoral et sensibilisation.',
+  '3 quai du Port, 13002 Marseille', 43.2965, 5.3698,
+  true, current_date - 30, current_date + 330),
+ ('a1000000-0000-4000-8000-000000000003', 'Toits d''Abord', 'W751000003',
+  'Solidarite', 'Paris', 'Hebergement d''urgence et accompagnement.',
+  '18 rue de la Roquette, 75011 Paris', 48.8566, 2.3522,
+  true, current_date - 30, current_date + 330);
+
+-- Les dates sont calees sur des jours precis : c'est tout l'enjeu du diagnostic.
+-- `date_trunc('week')` rend le lundi de la semaine, donc +5 est un samedi.
+insert into annonce (association, saison, type, titre, description, lieu,
+                     temps_travail, quantite, restant, date_prevue, etat)
+values
+ ('a1000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
+  'benevolat_demi_journee', 'Ramassage sur la berge amont',
+  'Une matinee a deux equipes, gants et sacs fournis sur place.',
+  'Lyon', false, 8, 8,
+  (date_trunc('week', current_date) + interval '2 day')::date, 'ouverte'),
+ ('a1000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111',
+  'benevolat_demi_journee', 'Nettoyage de la crique',
+  'Ramassage sur le littoral, un mardi matin, encadre par nos benevoles.',
+  'Marseille', false, 6, 6,
+  (date_trunc('week', current_date) + interval '1 day')::date, 'ouverte'),
+ ('a1000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111',
+  'benevolat_demi_journee', 'Tri de la collecte',
+  'Tri des sacs rapportes du littoral, en interieur, un jeudi apres-midi.',
+  'Marseille', false, 4, 4,
+  (date_trunc('week', current_date) + interval '3 day')::date, 'ouverte'),
+ ('a1000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111',
+  'benevolat_demi_journee', 'Maraude du samedi',
+  'Distribution et ecoute, en binome, le samedi en fin de journee.',
+  'Paris', false, 10, 10,
+  (date_trunc('week', current_date) + interval '5 day')::date, 'ouverte'),
+ ('a1000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111',
+  'don_materiel', 'Ordinateurs pour l''accueil de jour',
+  'Nous equipons deux postes d''accueil, du materiel reconditionne convient.',
+  'Paris', false, 6, 6,
+  (date_trunc('week', current_date) + interval '2 day')::date, 'ouverte'),
+ ('a1000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111',
+  'don_financier', 'Nuitees d''hiver',
+  'Chaque nuitee revient a 22 euros, la periode froide commence en novembre.',
+  'Paris', false, 4000, 4000,
+  (date_trunc('week', current_date) + interval '4 day')::date, 'ouverte');
+
+\echo ''
+\echo 'L'' offre associative autour d'' un site, calculee dans la base'
+-- Ces chiffres finissent dans le rapport de fin de saison d'un client. Un
+-- chiffre calcule dans le navigateur est un chiffre que personne ne peut
+-- refaire : celui-ci se refait avec une requete.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
+do $$
+declare o record; l record; m record;
+begin
+  select * into o from public.offre_locale('e7000000-0000-4000-8000-000000000001'); -- Paris
+  select * into l from public.offre_locale('e7000000-0000-4000-8000-000000000002'); -- Lyon
+  select * into m from public.offre_locale('e7000000-0000-4000-8000-000000000003'); -- Marseille
+
+  -- Le rayon est rendu par la fonction elle-meme : un ecran qui affiche
+  -- « a moins de 30 km » sans que ce 30 vienne du calcul finira par mentir le
+  -- jour ou le parametre changera.
+  perform pg_temp.dit('le rayon annonce est celui qui a servi au calcul',
+    o.rayon = l.rayon and o.rayon = m.rayon and o.rayon > 0);
+  perform pg_temp.dit('un site sans coordonnees est signale comme tel, pas compte a zero',
+    o.situe and l.situe and m.situe);
+
+  -- Le seuil suit l'effectif : trois annonces suffisent a un site de vingt
+  -- personnes et ne suffisent pas a un site de quatre cents.
+  perform pg_temp.dit('le seuil d''offre suffisante suit l''effectif du site',
+    l.attendu > o.attendu and o.attendu >= 2 and m.attendu >= 2);
+
+  -- Chaque annonce a portee est comptee une fois et une seule. Un decompte par
+  -- format ou par jour qui ne retombe pas sur le total est un decompte dont une
+  -- annonce est tombee quelque part sans qu'on le voie.
+  perform pg_temp.dit('chaque annonce a portee est comptee une fois et une seule',
+    o.benevolat + o.materiel + o.financier = o.ouvertes
+    and o.semaine + o.weekend + o.sans_date = o.ouvertes
+    and l.benevolat + l.materiel + l.financier = l.ouvertes
+    and m.benevolat + m.materiel + m.financier = m.ouvertes);
+
+  -- Lyon est a 4 km du refuge de Saint-Etienne ? non : la distance se calcule,
+  -- elle ne se decrete pas. On verifie surtout qu'aucune annonce hors rayon
+  -- n'entre dans le compte.
+  perform pg_temp.dit('rien au-dela du rayon n''entre dans le compte',
+    o.plus_proche is null or o.plus_proche <= o.rayon);
+
+  -- Les trois verdicts qui comptent, sur trois situations construites pour eux.
+  perform pg_temp.dit('un site bien servi est dit suffisant', o.verdict = 'suffisante');
+  perform pg_temp.dit('une annonce pour cent dix salaries est une offre trop mince',
+    l.verdict = 'mince' and l.ouvertes = 1);
+  -- Tout en semaine ouvree et aucun don de materiel : un salarie en poste ou en
+  -- equipe ne peut pas s'y rendre, et ce n'est pas un probleme d'envie.
+  perform pg_temp.dit('tout en semaine ouvree sans don de materiel est inaccessible',
+    m.verdict = 'inaccessible' and m.semaine = 2 and m.weekend = 0 and m.materiel = 0);
+  perform pg_temp.dit('le week-end est compte comme tel',
+    o.weekend >= 1);
+  -- Un besoin de financement se compte en euros, pas en places : additionner
+  -- 4 000 euros restants et 6 ordinateurs donnerait 4 006 places, un chiffre qui
+  -- ne veut rien dire et qui flatte.
+  perform pg_temp.dit('les places encore prenables sont comptees, pas les euros',
+    o.places = 16 and o.financier = 1);
+
+  -- Le tri : du plus mal servi au mieux servi. Un tri par nom l'aurait cache.
+  perform pg_temp.dit('les sites sortent du plus mal servi au mieux servi',
+    (select bool_and(ok) from (
+       select (case verdict when 'aucune' then 0 when 'inaccessible' then 1
+                            when 'mince' then 2 else 3 end)
+              >= lag(case verdict when 'aucune' then 0 when 'inaccessible' then 1
+                                  when 'mince' then 2 else 3 end)
+                 over (order by n) as ok
+         from (select verdict, row_number() over () as n
+                 from public.offre_par_site('22222222-2222-4222-8222-222222222222')) x
+     ) y where ok is not null));
+end $$;
+reset role;
+
+\echo ''
+\echo 'Signaler une zone, c'' est nous donner du travail'
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
+do $$
+declare a uuid; b uuid;
+begin
+  a := public.signaler_zone('e7000000-0000-4000-8000-000000000002', 'Rien a portee de l''usine');
+  perform pg_temp.dit('l''administrateur peut demander une prospection', a is not null);
+  -- Deux demandes ouvertes pour le meme site ne sont pas deux fois plus
+  -- urgentes : ce sont deux lignes.
+  b := public.signaler_zone('e7000000-0000-4000-8000-000000000002');
+  perform pg_temp.dit('signaler deux fois la meme zone ne l''empile pas', a = b);
+  perform pg_temp.dit('la demande est datee',
+    (select le is not null from public.sourcing where id = a));
+  perform pg_temp.dit('l''ecran d''offre la voit',
+    (select signalee_le is not null
+       from public.offre_locale('e7000000-0000-4000-8000-000000000002')));
+end $$;
+reset role;
+
+-- Un salarie ne donne pas de travail a Riseva au nom de son entreprise.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
+select set_config('request.jwt.claim.email', 'malik@vaudrey-ciments.fr', false);
+select pg_temp.refuse('un salarie ne signale pas une zone',
+  'select public.signaler_zone(''e7000000-0000-4000-8000-000000000001'')');
+reset role;
+
+\echo ''
+\echo 'L'' entonnoir d'' adoption, et son plancher d'' anonymat'
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
+do $$
+declare a record; s record;
+begin
+  select * into a from public.adoption('22222222-2222-4222-8222-222222222222');
+  perform pg_temp.dit('un entonnoir ne remonte jamais',
+    a.comptes >= a.engages and a.engages >= a.declarees
+    and a.declarees >= a.validees);
+  -- La retention n'est pas dans l'entonnoir : elle mesure ce que fait quelqu'un
+  -- qui a deja tout franchi, pas un franchissement de plus.
+  perform pg_temp.dit('les revenus ne peuvent pas depasser ceux qui ont agi',
+    a.revenus <= a.validees);
+
+  -- Le plancher : sur un tout petit groupe, dire « un seul s'est engage »
+  -- revient a designer quelqu'un, meme sans le nommer.
+  perform pg_temp.dit('le plancher d''anonymat est celui du CSE, cinq personnes',
+    a.plancher = 5 and a.lisible = (a.comptes >= 5));
+  select * into s from public.adoption('22222222-2222-4222-8222-222222222222',
+                                       'e7000000-0000-4000-8000-000000000003');
+  perform pg_temp.dit('un perimetre trop petit n''est pas affichable',
+    s.comptes < 5 and not s.lisible);
+
+  -- Le delai dit son denominateur : il ne concerne que ceux qui ont fini par
+  -- agir. Les autres n'ont pas un delai long, ils n'ont pas de delai.
+  perform pg_temp.dit('le delai porte son denominateur',
+    a.delai_sur = a.comptes and a.delai_mesurable <= a.delai_sur);
+  perform pg_temp.dit('ceux qui n''ont rien fait sont comptes a part',
+    a.sans_action + a.delai_mesurable <= a.comptes
+    and a.sans_action_plus_90 <= a.sans_action);
 end $$;
 reset role;
 

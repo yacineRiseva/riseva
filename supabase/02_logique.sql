@@ -2095,3 +2095,292 @@ begin
          effacement_donnees  = p_effacement
    where m.id = p_mission;
 end $$;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  L'OFFRE ASSOCIATIVE AUTOUR D'UN SITE, ET CE QU'ON EN FAIT
+--
+--  La question qu'un responsable RSE se pose au bout de trois mois n'est pas
+--  « combien de points » mais « pourquoi ça ne prend pas ». L'entonnoir
+--  d'adoption écrivait déjà, comme cause probable, « l'offre locale est trop
+--  loin ou ne correspond pas ». Il l'écrivait sans jamais la mesurer, et une
+--  cause qu'on suggère sans la chiffrer n'est qu'une excuse polie faite au
+--  client.
+--
+--  Trois choses décident, et aucune ne dépend de la bonne volonté des équipes.
+--  LA DISTANCE : un site industriel est en périphérie ou en zone rurale, et
+--  personne ne fait trente-cinq kilomètres après sa journée. LE JOUR : un chef
+--  d'atelier ne libère pas un opérateur en 3×8 un mardi à quatorze heures, donc
+--  une offre entièrement en semaine ouvrée exclut mécaniquement une grande part
+--  d'un effectif industriel. LE FORMAT : le don de matériel ne demande la
+--  disponibilité de personne — c'est la seule voie qui reste ouverte à
+--  l'entreprise quand les deux contraintes précédentes se cumulent.
+--
+--  Ces fonctions vivent ici, dans la base, et pas seulement dans le moteur de
+--  démonstration : ce sont des chiffres qu'un client lira dans son rapport de
+--  fin de saison, et un chiffre calculé dans le navigateur est un chiffre que
+--  personne ne peut refaire.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- Distance orthodromique en kilomètres. Suffisamment juste à l'échelle d'un
+-- pays, et sans dépendance : installer PostGIS pour ça serait absurde, et une
+-- extension de plus est une extension de plus à maintenir et à auditer.
+create or replace function private.distance_km(
+  p_lat1 double precision, p_lon1 double precision,
+  p_lat2 double precision, p_lon2 double precision)
+returns integer
+language sql immutable set search_path = '' as $$
+  select case
+    when p_lat1 is null or p_lon1 is null or p_lat2 is null or p_lon2 is null then null
+    else round(2 * 6371 * asin(sqrt(
+           power(sin(radians(p_lat2 - p_lat1) / 2), 2)
+         + cos(radians(p_lat1)) * cos(radians(p_lat2))
+         * power(sin(radians(p_lon2 - p_lon1) / 2), 2))))::integer
+  end
+$$;
+
+-- Le rayon retenu, et le seuil d'offre suffisante pour cent salariés. Ils
+-- vivent ici plutôt que dans le code des écrans : ce sont des paramètres de
+-- méthode, et une méthode qui change doit se voir en un seul endroit.
+create or replace function private.rayon_offre_km() returns integer
+  language sql immutable as $$ select 30 $$;
+create or replace function private.offre_min_pour_cent() returns integer
+  language sql immutable as $$ select 4 $$;
+
+create or replace function public.offre_locale(p_etablissement uuid)
+returns table (
+  etablissement uuid, site text, ville text, effectif integer,
+  situe boolean, rayon integer, attendu integer, verdict text,
+  ouvertes integer, places integer, plus_proche integer, mediane integer,
+  benevolat integer, materiel integer, financier integer,
+  semaine integer, weekend integer, sans_date integer,
+  non_situees integer, a_relancer integer, signalee_le timestamptz)
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_et  public.etablissement;
+  v_r   integer := private.rayon_offre_km();
+begin
+  select * into v_et from public.etablissement e where e.id = p_etablissement;
+  if not found then
+    raise exception 'Site inconnu' using errcode = 'P0002';
+  end if;
+  -- Le cloisonnement d'abord : un site appartient à une société, et la RLS de
+  -- `etablissement` a déjà tranché ce que l'appelant a le droit de voir. On la
+  -- rejoue ici parce que cette fonction est SECURITY DEFINER et qu'elle
+  -- contournerait sinon la frontière qu'elle est censée respecter.
+  if not exists (select 1 from public.etablissement e where e.id = p_etablissement) then
+    raise exception 'Site inconnu' using errcode = 'P0002';
+  end if;
+
+  return query
+  with brut as (
+    select a.id, a.type, a.restant, a.date_prevue,
+           private.distance_km(v_et.lat, v_et.lon, asso.lat, asso.lon) as km,
+           extract(isodow from a.date_prevue)::int as jour
+      from public.annonce a
+      join public.association asso on asso.id = a.association
+     where a.etat = 'ouverte' and asso.valide and not asso.suspendue
+  ),
+  proches as (select * from brut where km is not null and km <= v_r),
+  agg as (
+    select
+      count(*)::int                                            as n,
+      -- Un besoin de financement se compte en euros, pas en places : additionner
+      -- « 4 000 » euros restants et « 6 » ordinateurs donnerait 4 006 places,
+      -- c'est-a-dire un chiffre qui ne veut rien dire et qui flatte.
+      coalesce(sum(p.restant) filter (where p.type <> 'don_financier'), 0)::int as places,
+      min(p.km)::int                                            as proche,
+      -- La médiane et non la moyenne : une annonce à quatre-vingts kilomètres
+      -- tirerait la moyenne et ferait croire à un désert autour du site.
+      percentile_cont(0.5) within group (order by p.km)::int     as med,
+      count(*) filter (where p.type = 'benevolat_demi_journee')::int as bene,
+      count(*) filter (where p.type = 'don_materiel')::int           as mat,
+      count(*) filter (where p.type = 'don_financier')::int          as fin,
+      count(*) filter (where p.jour between 1 and 5)::int            as sem,
+      count(*) filter (where p.jour in (6, 7))::int                  as we,
+      count(*) filter (where p.jour is null)::int                    as sd
+    from proches p
+  ),
+  relance as (
+    select count(*)::int as n
+      from public.association asso
+     where asso.valide and not asso.suspendue
+       and private.distance_km(v_et.lat, v_et.lon, asso.lat, asso.lon) <= v_r
+       and not exists (select 1 from public.annonce a
+                        where a.association = asso.id and a.etat = 'ouverte')
+  )
+  select
+    v_et.id, v_et.nom, v_et.ville, v_et.effectif,
+    (v_et.lat is not null and v_et.lon is not null),
+    v_r,
+    -- Le seuil suit l'effectif : trois annonces suffisent à un site de vingt
+    -- personnes et ne suffisent pas à un site de quatre cents.
+    greatest(2, round(v_et.effectif::numeric / 100 * private.offre_min_pour_cent()))::int,
+    case
+      when agg.n = 0 then 'aucune'
+      when agg.n < greatest(2, round(v_et.effectif::numeric / 100
+                                     * private.offre_min_pour_cent())) then 'mince'
+      -- Tout en semaine ouvrée et aucun don de matériel : un salarié en poste
+      -- ou en équipe ne peut pas s'y rendre. Ce n'est pas un problème d'envie.
+      when agg.sem > 0 and agg.we = 0 and agg.mat = 0 then 'inaccessible'
+      else 'suffisante'
+    end,
+    agg.n, agg.places, agg.proche, agg.med,
+    agg.bene, agg.mat, agg.fin, agg.sem, agg.we, agg.sd,
+    (select count(*)::int from brut where km is null),
+    relance.n,
+    (select s.le from public.sourcing s
+      where s.etablissement = v_et.id and s.traite_le is null limit 1)
+  from agg, relance;
+end $$;
+
+-- Tous les sites d'une société, du plus mal servi au mieux servi : c'est dans
+-- cet ordre qu'on doit s'en occuper, et un tri par nom l'aurait caché.
+create or replace function public.offre_par_site(p_entreprise uuid)
+returns table (
+  etablissement uuid, site text, ville text, effectif integer,
+  situe boolean, rayon integer, attendu integer, verdict text,
+  ouvertes integer, places integer, plus_proche integer, mediane integer,
+  benevolat integer, materiel integer, financier integer,
+  semaine integer, weekend integer, sans_date integer,
+  non_situees integer, a_relancer integer, signalee_le timestamptz)
+language sql stable security definer set search_path = '' as $$
+  select o.*
+    from public.etablissement e
+    cross join lateral public.offre_locale(e.id) o
+   where e.societe = p_entreprise and e.ferme_le is null
+   order by case o.verdict when 'aucune' then 0 when 'inaccessible' then 1
+                           when 'mince' then 2 else 3 end,
+            o.ouvertes
+$$;
+
+-- Signaler une zone, c'est nous donner du travail. Réservé à l'administrateur
+-- de l'entreprise et au référent du site concerné : c'est une demande faite en
+-- son nom, pas un vote.
+create or replace function public.signaler_zone(p_etablissement uuid, p_motif text default null)
+returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_id uuid;
+  v_ent uuid := private.mon_entreprise();
+  v_role public.role_utilisateur := private.mon_role();
+begin
+  if v_ent is null or v_role not in ('entreprise_admin', 'site_referent') then
+    raise exception 'Réservé à l''administrateur de l''entreprise ou au référent du site'
+      using errcode = '42501';
+  end if;
+  if not exists (select 1 from public.etablissement e
+                  where e.id = p_etablissement and e.societe = v_ent) then
+    raise exception 'Site inconnu' using errcode = 'P0002';
+  end if;
+  if v_role = 'site_referent' and not private.pilote_le_site(p_etablissement) then
+    raise exception 'Vous ne pilotez pas ce site' using errcode = '42501';
+  end if;
+
+  -- Deux demandes ouvertes pour le même site ne sont pas deux fois plus
+  -- urgentes : on rend celle qui existe déjà plutôt que d'en empiler une.
+  select s.id into v_id from public.sourcing s
+   where s.etablissement = p_etablissement and s.traite_le is null limit 1;
+  if v_id is not null then return v_id; end if;
+
+  insert into public.sourcing (etablissement, par, motif)
+  values (p_etablissement, auth.uid(), nullif(btrim(coalesce(p_motif, '')), ''))
+  returning id into v_id;
+  return v_id;
+end $$;
+
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  L'ENTONNOIR D'ADOPTION
+--
+--  Cinq marches entre un salarié inscrit et un salarié qui a fait quelque
+--  chose. Trois précautions, et chacune corrige une façon de mentir avec un
+--  chiffre juste.
+--
+--  1. UN PLANCHER D'ANONYMAT. Sur un site de trois comptes, dire « un seul
+--     s'est engagé » revient à désigner quelqu'un, même sans le nommer. Le
+--     même plancher de cinq que pour les agrégats du CSE, et pour la même
+--     raison : un outil d'engagement qui devient un outil de surveillance perd
+--     ses inscrits avant de perdre son client.
+--
+--  2. LE DÉLAI N'EST PAS UNE MOYENNE, ET IL DIT SON DÉNOMINATEUR. Il ne
+--     concerne que ceux qui ont fini par agir. Les autres n'ont pas un délai
+--     long : ils n'ont pas de délai. On rend donc aussi combien de comptes
+--     n'ont rien fait, et depuis quand — sans quoi la médiane est une médiane
+--     de survivants.
+--
+--  3. LA RÉTENTION N'EST PAS DANS L'ENTONNOIR. « Revenu une deuxième fois »
+--     mesure ce que fait quelqu'un qui a déjà tout franchi ; les cinq marches
+--     mesurent des franchissements. Mélangés, ils font chercher la cause d'un
+--     décrochage au mauvais endroit.
+-- ═══════════════════════════════════════════════════════════════════════════
+create or replace function private.plancher_adoption() returns integer
+  language sql immutable as $$ select 5 $$;
+
+create or replace function public.adoption(
+  p_entreprise uuid, p_etablissement uuid default null)
+returns table (
+  effectif integer, comptes integer, engages integer, declarees integer,
+  validees integer, revenus integer,
+  lisible boolean, plancher integer,
+  delai_median integer, delai_mesurable integer, delai_sur integer,
+  sans_action integer, sans_action_median integer, sans_action_plus_90 integer)
+language plpgsql stable security definer set search_path = '' as $$
+declare v_plancher integer := private.plancher_adoption();
+begin
+  return query
+  with gens as (
+    select p.id, p.cree_le
+      from public.profil p
+      join private.appartenance ap on ap.profil = p.id
+     where ap.entreprise = p_entreprise
+       and ap.role in ('salarie', 'site_referent')
+       and not ap.pseudonymise
+       and (p_etablissement is null or ap.etablissement = p_etablissement)
+  ),
+  actes as (
+    select m.salarie,
+           count(*) filter (where true)                                       as engagees,
+           count(*) filter (where m.etat in ('a_valider','validee','validee_auto')) as declarees,
+           count(*) filter (where m.etat in ('validee','validee_auto'))        as validees,
+           min(m.date_mission) filter (where m.etat in ('validee','validee_auto'))
+                                                                              as premiere
+      from public.mission m
+     where m.entreprise = p_entreprise and m.salarie is not null
+     group by m.salarie
+  ),
+  j as (
+    select g.id, g.cree_le,
+           coalesce(a.engagees, 0) as engagees,
+           coalesce(a.declarees, 0) as declarees,
+           coalesce(a.validees, 0) as validees,
+           a.premiere
+      from gens g left join actes a on a.salarie = g.id
+  ),
+  d as (
+    select (j.premiere - j.cree_le::date)::int as jours
+      from j where j.premiere is not null and j.cree_le is not null
+       and (j.premiere - j.cree_le::date) >= 0
+  ),
+  att as (
+    select (current_date - j.cree_le::date)::int as jours
+      from j where j.premiere is null and j.cree_le is not null
+       and (current_date - j.cree_le::date) >= 0
+  )
+  select
+    coalesce((select e.effectif from public.etablissement e where e.id = p_etablissement),
+             (select coalesce(ent.effectif, 0) from public.entreprise ent
+               where ent.id = p_entreprise))::int,
+    (select count(*)::int from j),
+    (select count(*)::int from j where j.engagees > 0),
+    (select count(*)::int from j where j.declarees > 0),
+    (select count(*)::int from j where j.validees > 0),
+    (select count(*)::int from j where j.validees > 1),
+    ((select count(*) from j) >= v_plancher),
+    v_plancher,
+    (select percentile_cont(0.5) within group (order by d.jours)::int from d),
+    (select count(*)::int from d),
+    (select count(*)::int from j),
+    (select count(*)::int from att),
+    (select percentile_cont(0.5) within group (order by att.jours)::int from att),
+    (select count(*)::int from att where att.jours > 90);
+end $$;

@@ -1463,6 +1463,10 @@ const seed = {
     { id:"u12", nom:"Farid Amrani",   email:"cse@vaudrey-ciments.fr",   role:"cse",              org:"e1", actif:true, cree_le:J(-60) }
   ],
   signalements: [],
+  /* Les zones signalées : un site dont l'offre associative est trop faible, et
+     que Riseva doit aller travailler. C'est le seul endroit du produit où le
+     client nous donne du travail plutôt que l'inverse. */
+  sourcing: [],
   acces: [
     { id:"ac1", entreprise:"e1", utilisateur:"u3", quoi:"inscription", code:"VAUDREY-7QK2", date:J(-28) },
     { id:"ac2", entreprise:"e1", utilisateur:"u4", quoi:"inscription", code:"VAUDREY-7QK2", date:J(-27) },
@@ -3303,8 +3307,19 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       else if (proches.length < attendu) verdict = "mince";
       else if (semaine && !weekend && !parFormat.don_materiel) verdict = "inaccessible";
 
+      /* Un besoin de financement se compte en euros, pas en places : additionner
+         4 000 € restants et 6 ordinateurs donnerait 4 006 places, c'est-à-dire un
+         chiffre qui ne veut rien dire et qui flatte. */
+      const places = proches
+        .filter(a => a.type !== "don_financier")
+        .reduce((n, a) => n + (Number(a.restant) || 0), 0);
+
       return {
         site: { id: et.id, nom: et.nom, ville: et.ville, effectif: et.effectif || 0 },
+        signalee: api.zoneSignalee(et.id),
+        /* Deux distances pour deux annonces n'apprennent rien. Le nombre de
+           places encore prenables, si. */
+        places,
         situe: depuis != null,
         rayon: r, attendu, verdict,
         ouvertes: proches.length,
@@ -3320,6 +3335,66 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
           id: a.id, titre: a.titre, asso: a.asso_nom, type: a.type,
           distance: a.distance, date: a.date || null }))
       };
+    },
+
+    /* ---- Ce qu'on fait du constat ----
+       Un diagnostic qui s'arrête au diagnostic est une excuse préparée
+       d'avance : le client lit « offre trop mince », comprend « ce n'est pas de
+       notre faute » et retient surtout que personne ne fera rien. Deux issues,
+       donc, et elles vont dans deux directions opposées.
+
+       SIGNALER LA ZONE, c'est nous donner du travail. Le site est mis dans la
+       file de prospection associative de son bassin, et l'écran porte la date du
+       signalement. Aucune promesse de délai n'est faite, parce qu'aucun délai ne
+       dépend de nous : une association décide seule de publier ou non.
+
+       INVITER UNE ASSOCIATION, c'est reconnaître que le site en sait plus que
+       nous. Une usine de province connaît son écosystème mieux que n'importe
+       quelle recherche : elle soutient déjà un club, fait travailler l'ESAT
+       voisin, croise la banque alimentaire. Le texte est écrit d'avance et
+       nominatif — le référent n'a rien à rédiger, et c'est la seule raison pour
+       laquelle ce genre de bouton sert à quelque chose. */
+    signalerZone(etid, uid = null){
+      const et = api.etablissement(etid);
+      if (!et) throw new Error("Site inconnu");
+      const deja = api.zoneSignalee(etid);
+      if (deja) return deja;
+      const z = { id: id("z"), etablissement: etid, societe: et.societe,
+                  par: uid, le: new Date().toISOString().slice(0, 10), traite_le: null };
+      s.sourcing.unshift(z);
+      return z;
+    },
+    zoneSignalee: (etid) => s.sourcing.find(z => z.etablissement === etid) || null,
+    zonesSignalees: (eid) => s.sourcing.filter(z => !eid || z.societe === eid),
+
+    /* Le message d'invitation, écrit ici et pas dans l'écran : il part par
+       courriel chez des gens que nous ne connaissons pas, et il engage Riseva
+       autant qu'une page publique. Il ne promet rien qu'on ne tienne — pas
+       d'argent garanti, pas de bénévoles garantis — et il nomme le site
+       d'où part l'invitation, parce qu'une association répond à un voisin,
+       pas à une plateforme. */
+    texteInvitationAsso(etid){
+      const et = api.etablissement(etid);
+      if (!et) return { objet: "", corps: "" };
+      const soc = api.entreprise(et.societe) || {};
+      const lieu = et.ville ? ` à ${et.ville}` : "";
+      const objet = `Vos besoins, portés aux salariés de ${soc.nom || "notre entreprise"}${lieu}`;
+      const corps =
+        `Bonjour,\n\n`
+        + `Nous sommes ${soc.nom || "une entreprise"}, sur le site de ${et.nom}${lieu}. `
+        + `Nous participons à Riseva, une plateforme sur laquelle des associations publient `
+        + `des besoins concrets — une demi-journée de bras, du matériel, un besoin de `
+        + `financement — auxquels nos salariés peuvent répondre.\n\n`
+        + `Si cela vous intéresse, l'inscription est gratuite et le restera, il n'y a `
+        + `aucune exclusivité, et Riseva ne prélève aucune commission sur vos dons : `
+        + `un virement va du donateur à votre compte, sans passer par elle.\n\n`
+        + `Ce que nous ne pouvons pas vous promettre : que quelqu'un vienne. Cela dépend `
+        + `de nos salariés, et personne ne peut le garantir à l'avance. Ce que nous pouvons `
+        + `vous dire, c'est que sans annonce publiée près d'ici, la question ne se pose même `
+        + `pas.\n\n`
+        + `Tout est expliqué là : https://riseva.fr/associations.html\n\n`
+        + `Bien à vous,`;
+      return { objet, corps };
     },
 
     /* La même chose pour tous les sites d'une société, du plus mal servi au
@@ -3676,20 +3751,37 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         { cle:"effectif", label:"Salariés du périmètre", n: effectif,
           cause:null },
         { cle:"comptes", label:"Comptes ouverts", n: gens.length,
-          cause:"Le lien d'inscription n'a pas circulé, ou il est arrivé dans les indésirables." },
+          /* Riseva sait qu'ils n'ont pas ouvert de compte. Elle ne sait pas s'ils
+             n'ont pas reçu le lien, s'ils l'ont vu et ignoré, ou s'ils ne se
+             sentaient pas concernés — et écrire « personnes perdues » à propos de
+             gens dont on ignore tout, c'est se donner un diagnostic qu'on n'a pas.
+             La cause est donc écrite comme une piste, jamais comme un constat. */
+          cause:"Riseva ne sait pas combien ont effectivement vu le lien : c'est la première "
+              + "chose à vérifier avant d'en conclure quoi que ce soit.",
+          action:{ texte:"Préparer une nouvelle diffusion", vers:"#/supports" } },
         { cle:"engages", label:"Se sont engagés au moins une fois",
           n: compte(u => act(u).engagees > 0),
-          cause:"Les annonces proposées sont trop loin, ou ne correspondent pas. Regardez la distance moyenne." },
+          cause:"Les annonces proposées sont trop loin, ou ne correspondent pas. Regardez la distance moyenne.",
+          action:{ texte:"Voir l'offre autour de vos sites", vers:"#/adoption" } },
         { cle:"declarees", label:"Ont déclaré une mission faite",
           n: compte(u => act(u).declarees > 0),
-          cause:"Ils y sont allés mais n'ont rien déclaré : c'est le rappel après la mission qui manque." },
+          cause:"Ils y sont allés mais n'ont rien déclaré : c'est le rappel après la mission qui manque.",
+          action:{ texte:"Voir les missions à déclarer", vers:"#/missions" } },
         { cle:"validees", label:"Ont au moins une action validée",
           n: compte(u => act(u).validees > 0),
-          cause:"L'association n'a pas confirmé. Relancez-la : sans confirmation, le résultat reste estimé." },
-        { cle:"fideles", label:"Sont revenus une deuxième fois",
-          n: compte(u => act(u).validees > 1),
-          cause:"La première expérience n'a pas donné envie de recommencer. C'est la marche qui fait la saison." }
+          cause:"L'association n'a pas confirmé. Relancez-la : sans confirmation, le résultat reste estimé.",
+          action:{ texte:"Relancer les associations", vers:"#/missions" } },
       ];
+      /* « Sont revenus une deuxième fois » était la sixième marche de ce tunnel.
+         Elle n'y avait pas sa place : les cinq premières mesurent une ACQUISITION
+         — combien de personnes franchissent une étape de plus — et celle-là mesure
+         une RÉTENTION, c'est-à-dire ce que fait quelqu'un qui a déjà tout franchi.
+         Les mélanger donne un entonnoir qui se lit comme une seule mécanique alors
+         qu'il en décrit deux, et fait chercher la cause du décrochage au mauvais
+         endroit. Elle sort donc du tunnel et se dit à part, avec son
+         dénominateur. */
+      const ayantAgi = compte(u => act(u).validees > 0);
+      const revenus = compte(u => act(u).validees > 1);
       /* Le point de rupture : la marche où l'on perd le plus de monde, en part de
          la marche précédente. C'est là qu'agir, et nulle part ailleurs. */
       let rupture = null, pire = 0;
@@ -3700,13 +3792,40 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         marches[i].perdus = Math.max(0, av - ap);
         if (av >= 3 && perte > pire){ pire = perte; rupture = marches[i].cle; }
       }
+      /* Les comptes ouverts qui n'ont encore jamais agi, et depuis combien de
+         temps. Sans eux, la médiane du délai est une médiane de survivants : elle
+         ne compte que ceux qui ont fini par agir, et ceux qui n'ont jamais agi
+         n'ont pas de délai — pas un délai long, pas de délai du tout. Les
+         afficher à côté est la seule façon honnête de donner le chiffre. */
+      const auj = new Date("2026-08-20");
+      const attente = gens.filter(u => !act(u).premiere && u.cree_le)
+        .map(u => Math.round((auj - new Date(u.cree_le)) / 86400000))
+        .filter(x => x >= 0).sort((a, b) => a - b);
+
+      /* Un tunnel comportemental sur un tout petit groupe désigne les personnes
+         même sans les nommer : avec deux comptes ouverts sur un site et un seul
+         salarié mobilisé, le référent sait de qui il s'agit. L'écran affirmait
+         qu'il ne nomme personne tout en le permettant, ce qui est pire que de ne
+         rien afficher. C'est le même plancher de cinq personnes que pour les
+         agrégats du CSE, et pour la même raison. */
+      const PLANCHER = 5;
+      const lisible = gens.length >= PLANCHER;
+
       return {
         entreprise: e, sites, etablissement: etablissement || null,
-        marches, rupture, delaiMedian: mediane,
+        marches, rupture,
+        lisible, plancher: PLANCHER,
+        delaiMedian: mediane,
         /* Ce qu'on ne sait pas, on ne l'affiche pas : sans date d'ouverture de
            compte, il n'y a pas de délai, et un « 0 jour » serait un mensonge. */
         delaiMesurable: delais.length,
-        actifs: compte(u => act(u).validees > 0),
+        /* Le dénominateur du délai, et son biais, donnés avec le chiffre. */
+        delaiSur: gens.length,
+        sansAction: attente.length,
+        sansActionMedian: attente.length ? attente[Math.floor((attente.length - 1) / 2)] : null,
+        sansActionPlusDe90: attente.filter(x => x > 90).length,
+        actifs: ayantAgi,
+        revenus,
         effectif
       };
     },
@@ -5337,6 +5456,72 @@ export function brancherEvenements({ apres, erreur } = {}){
   if (erreur) surErreur = erreur;
 }
 
+/* La base rend des colonnes plates ; les écrans attendent la forme que le
+   moteur de démonstration produit. La traduction vit ici, une fois, et pas
+   dans chaque écran : deux formes pour la même donnée, c'est deux endroits où
+   elles finiront par diverger. */
+function versOffre(r){
+  return {
+    site: { id: r.etablissement, nom: r.site, ville: r.ville,
+            effectif: r.effectif || 0 },
+    signalee: r.signalee_le ? { le: String(r.signalee_le).slice(0, 10) } : null,
+    situe: !!r.situe,
+    rayon: r.rayon, attendu: r.attendu, verdict: r.verdict,
+    ouvertes: r.ouvertes, places: r.places,
+    plusProche: r.plus_proche, mediane: r.mediane,
+    parFormat: { benevolat_demi_journee: r.benevolat,
+                 don_materiel: r.materiel,
+                 don_financier: r.financier },
+    semaine: r.semaine, weekend: r.weekend, sansDate: r.sans_date,
+    nonSituees: r.non_situees,
+    /* La liste nominative des associations à rappeler n'est pas rendue par la
+       base : c'est notre carnet d'adresses, pas celui du client. Il voit
+       combien, pas lesquelles. */
+    aRelancer: [], aRelancerTotal: r.a_relancer,
+    exemples: []
+  };
+}
+
+function versAdoption(r, moteur){
+  const marche = (cle, label, n, cause, action) => ({ cle, label, n, cause, action });
+  const marches = [
+    marche("effectif", "Salariés du périmètre", r.effectif, null, null),
+    marche("comptes", "Comptes ouverts", r.comptes,
+      "Riseva ne sait pas combien ont effectivement vu le lien : c'est la première "
+      + "chose à vérifier avant d'en conclure quoi que ce soit.",
+      { texte:"Préparer une nouvelle diffusion", vers:"#/supports" }),
+    marche("engages", "Se sont engagés au moins une fois", r.engages,
+      "Les annonces proposées sont trop loin, ou ne correspondent pas.",
+      { texte:"Voir l'offre autour de vos sites", vers:"#/adoption" }),
+    marche("declarees", "Ont déclaré une mission faite", r.declarees,
+      "Ils y sont allés mais n'ont rien déclaré : c'est le rappel après la mission qui manque.",
+      { texte:"Voir les missions à déclarer", vers:"#/missions" }),
+    marche("validees", "Ont au moins une action validée", r.validees,
+      "L'association n'a pas confirmé. Relancez-la : sans confirmation, le résultat reste estimé.",
+      { texte:"Relancer les associations", vers:"#/missions" })
+  ];
+  let rupture = null, pire = 0;
+  for (let i = 1; i < marches.length; i++){
+    const av = marches[i - 1].n, ap = marches[i].n;
+    const perte = av ? (av - ap) / av : 0;
+    marches[i].garde = av ? ap / av : 0;
+    marches[i].perdus = Math.max(0, av - ap);
+    if (av >= 3 && perte > pire){ pire = perte; rupture = marches[i].cle; }
+  }
+  const e = moteur ? moteur.entreprise : null;
+  return {
+    entreprise: e, sites: moteur ? moteur.etablissements() : [],
+    etablissement: null,
+    marches, rupture,
+    lisible: !!r.lisible, plancher: r.plancher,
+    delaiMedian: r.delai_median, delaiMesurable: r.delai_mesurable,
+    delaiSur: r.delai_sur,
+    sansAction: r.sans_action, sansActionMedian: r.sans_action_median,
+    sansActionPlusDe90: r.sans_action_plus_90,
+    actifs: r.validees, revenus: r.revenus, effectif: r.effectif
+  };
+}
+
 function creerSupabase(client){
   const rpc = async (nom, args) => {
     const { data, error } = await client.rpc(nom, args);
@@ -5406,7 +5591,35 @@ function creerSupabase(client){
       rpc("decider_signalement", { p_signalement: sid, p_decision: decision, p_motivation: motivation })),
     donsPersonnelsAgreges: (saison) => rpc("dons_personnels_agreges", { p_saison: saison }),
     emettreRecu: (don) => ecrire(() => rpc("emettre_recu", { p_don: don })),
-    classement: (saison) => rpc("classement_saison", { p_saison: saison })
+    classement: (saison) => rpc("classement_saison", { p_saison: saison }),
+
+    /* ---- Ce que la base calcule, et que le navigateur ne recalcule pas ----
+       Ces chiffres finissent dans le rapport de fin de saison d'un client, et
+       servent d'argument au renouvellement. Un chiffre calculé dans le
+       navigateur est un chiffre que personne ne peut refaire : ni un
+       commissaire aux comptes, ni nous six mois plus tard. La distance, le
+       verdict d'offre, l'entonnoir et son plancher d'anonymat sont donc
+       calculés par PostgreSQL, sous les mêmes policies que le reste, et le
+       navigateur ne fait que les afficher.
+
+       Les noms de colonnes changent de forme au passage — la base parle
+       serpent, l'écran parle chameau. La conversion se fait ici, une fois,
+       plutôt que dans chaque écran. */
+    offreLocale: async (etid) => {
+      const r = await rpc("offre_locale", { p_etablissement: etid });
+      return r && r.length ? versOffre(r[0]) : null;
+    },
+    offreParSite: async (eid) => {
+      const r = await rpc("offre_par_site", { p_entreprise: eid });
+      return (r || []).map(versOffre);
+    },
+    signalerZone: (etid, motif = null) => ecrire(() =>
+      rpc("signaler_zone", { p_etablissement: etid, p_motif: motif })),
+    adoption: async ({ entreprise = null, etablissement = null } = {}) => {
+      const r = await rpc("adoption", { p_entreprise: entreprise,
+                                        p_etablissement: etablissement });
+      return r && r.length ? versAdoption(r[0], moteur) : null;
+    }
   };
 
   /* Le moteur d'abord, les écritures ensuite : une méthode d'écriture masque

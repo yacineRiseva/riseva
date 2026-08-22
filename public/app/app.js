@@ -7861,16 +7861,15 @@ const VERDICTS_OFFRE = {
                     + "pas s'y rendre — ce n'est pas un problème d'envie." },
   mince:        { badge:"badge--warn", mot:"offre trop mince",
                   dit:"Il y a moins d'annonces à portée que ce que l'effectif de ce site "
-                    + "demanderait. Les places partiront vite, et ceux qui arrivent "
-                    + "ensuite trouveront une page vide." },
+                    + "demanderait. Ce n'est pas une prédiction sur ce qui va se passer : "
+                    + "c'est un décompte de ce qui est ouvert aujourd'hui." },
   suffisante:   { badge:"badge--ok", mot:"offre suffisante",
                   dit:"Assez d'annonces à portée pour l'effectif du site. Si la "
                     + "participation reste basse ici, la cause est ailleurs." }
 };
 
-function offreLocaleBloc(u){
-  const sites = DB.offreParSite(u.org);
-  if (!sites.length) return "";
+function offreLocaleBloc(u, sites){
+  if (!sites || !sites.length) return "";
   const km = (n) => n === 0 ? "moins d'1 km" : `${nb(n)} km`;
   const lignes = sites.map(o => {
     const v = VERDICTS_OFFRE[o.verdict];
@@ -7887,15 +7886,33 @@ function offreLocaleBloc(u){
           <div><b>${nb(o.ouvertes)}</b><span>annonce${o.ouvertes > 1 ? "s" : ""} ouverte${
             o.ouvertes > 1 ? "s" : ""} à moins de ${nb(o.rayon)} km</span></div>
           <div><b>${o.plusProche === null ? "—" : km(o.plusProche)}</b><span>la plus proche</span></div>
-          <div><b>${o.mediane === null ? "—" : km(o.mediane)}</b><span>distance médiane</span></div>
+          ${o.ouvertes >= 4
+            ? `<div><b>${km(o.mediane)}</b><span>distance médiane</span></div>`
+            : `<div><b>${nb(o.places)}</b><span>place${o.places > 1 ? "s" : ""} encore
+                ouverte${o.places > 1 ? "s" : ""}</span></div>`}
           <div><b>${nb(o.weekend)} / ${nb(o.semaine + o.weekend)}</b>
             <span>hors semaine ouvrée</span></div>
         </div>
         <p class="hint" style="margin-top:var(--s3)">${esc(v.dit)}</p>
         ${o.parFormat.don_materiel === 0 ? `<p class="hint">
-          Aucun don de matériel ouvert à portée. C'est le format qui ne demande la
-          disponibilité de personne : quand les horaires bloquent, c'est celui qui
-          reste.</p>` : ""}
+          Aucun don de matériel ouvert à portée. Ce format n'est pas une solution de
+          rechange pour un salarié qui n'a pas de créneau — le matériel appartient à
+          l'entreprise, la décision aussi. C'est en revanche la seule voie qui reste
+          ouverte à l'entreprise elle-même quand les horaires bloquent.</p>` : ""}
+        ${o.verdict !== "suffisante" ? `
+        <div class="offre__agir" data-et="${esc(o.site.id)}">
+          ${o.signalee ? `<p class="hint" style="margin:0">
+            <strong style="color:var(--ink)">Zone signalée le ${dateFR(o.signalee.le)}.</strong>
+            Ce site est dans notre file de prospection associative. Nous ne vous donnons pas
+            de date : une association décide seule de publier ou non, et promettre un délai
+            qui ne dépend pas de nous serait la première chose qu'on ne tiendrait pas.</p>`
+          : `<button class="btn btn--quiet btn--sm js-signal" type="button">Nous demander de
+              chercher ici</button>
+            <span class="muted" style="font-size:var(--t-sm)">Met ce site dans notre file de
+              prospection. Sans date promise : une association décide seule de publier.</span>`}
+          <button class="btn btn--quiet btn--sm js-inviter" type="button">Inviter une
+            association que vous connaissez</button>
+        </div>` : ""}
         ${o.aRelancerTotal ? `<p class="hint">
           <strong style="color:var(--ink)">${nb(o.aRelancerTotal)} association${
             o.aRelancerTotal > 1 ? "s vérifiées" : " vérifiée"} à moins de ${nb(o.rayon)} km
@@ -7924,12 +7941,60 @@ function offreLocaleBloc(u){
   </section>`;
 }
 
+/* Le texte de l'invitation est écrit d'avance et nominatif. C'est la seule
+   raison pour laquelle ce genre de bouton sert à quelque chose : un référent de
+   site ne rédigera pas un courriel de présentation d'une plateforme qu'il ne
+   connaît pas lui-même bien. On lui donne le message, il ajoute l'adresse. */
+function ouvrirInvitationAsso(etid){
+  const t = DB.texteInvitationAsso(etid);
+  const corps = h(`<div class="stack" style="--gap:var(--s4)">
+    <p class="muted" style="font-size:var(--t-sm)">Votre site connaît son territoire mieux
+      que nous : le club que vous soutenez, l'ESAT voisin, la banque alimentaire du coin.
+      Le message est écrit, vous n'avez qu'à mettre l'adresse.</p>
+    <div class="field"><label for="inv-o">Objet</label>
+      <input class="input" id="inv-o" value="${esc(t.objet)}" readonly></div>
+    <div class="field"><label for="inv-c">Message</label>
+      <textarea class="textarea" id="inv-c" rows="12" readonly>${esc(t.corps)}</textarea></div>
+    <p class="hint">Il ne promet ni argent ni bénévoles : personne ne peut garantir qu'un
+      salarié se proposera, et une association qui découvrirait ça après coup ne
+      reviendrait pas.</p>
+  </div>`);
+  modal("Inviter une association que vous connaissez", corps, [
+    { label: "Fermer" },
+    { label: "Copier le message", classe: "btn--quiet", onClick: () => {
+        try { navigator.clipboard.writeText(t.corps); toast("Message copié."); }
+        catch { toast("Copie impossible : sélectionnez le texte à la main."); }
+        return false;
+      }},
+    { label: "Ouvrir dans mon courriel", classe: "btn--primary", onClick: () => {
+        location.href = `mailto:?subject=${encodeURIComponent(t.objet)}`
+          + `&body=${encodeURIComponent(t.corps)}`;
+      }}
+  ]);
+}
+
 function vueAdoption(u){
-  let site = null;
+  let site = null, offre = [];
   const el = h(`<div class="stack" style="--gap:var(--s5)"></div>`);
+
+  /* Le moteur de démonstration répond tout de suite ; Supabase répond après un
+     aller-retour, parce que ces chiffres sont calculés dans la base et pas dans
+     le navigateur. `Promise.resolve` accepte les deux sans que l'écran ait à
+     savoir lequel il a en face. */
+  const charger = () => Promise.resolve(DB.offreParSite(u.org))
+    .then(r => { offre = r || []; dessine(); })
+    .catch(() => { offre = []; dessine(); });
 
   const dessine = () => {
     const a = DB.adoption({ entreprise: u.org, etablissement: site });
+    if (a && typeof a.then === "function"){
+      a.then(x => { rendreAdoption(x); }).catch(() => {});
+      return;
+    }
+    rendreAdoption(a);
+  };
+
+  const rendreAdoption = (a) => {
     if (!a){ el.innerHTML = ""; el.appendChild(h(`<section class="card"><p class="empty">Aucune société rattachée.</p></section>`)); return; }
     const max = a.marches[0].n || 1;
     el.innerHTML = "";
@@ -7956,14 +8021,20 @@ function vueAdoption(u){
           </div>
         </div>
 
-        <div class="stack" style="--gap:var(--s4);margin-top:var(--s6)">
+        ${a.lisible ? "" : `<p class="empty" style="margin-top:var(--s6)">
+          Moins de ${nb(a.plancher)} comptes ouverts sur ce périmètre : l'entonnoir n'est pas
+          affiché. Sur un si petit groupe, dire « un seul s'est engagé » revient à désigner
+          quelqu'un, même sans le nommer — et cet écran promet le contraire. Choisissez un
+          périmètre plus large.</p>`}
+        <div class="stack" style="--gap:var(--s4);margin-top:var(--s6)"${
+          a.lisible ? "" : ' hidden'}>
           ${a.marches.map((m, i) => `
             <div>
               <div class="between" style="align-items:baseline;margin-bottom:6px">
                 <span style="font-size:var(--t-sm)${
                   m.cle === a.rupture ? ";font-weight:600;color:var(--ink)" : ""}">
                   ${esc(m.label)}${m.cle === a.rupture
-                    ? ` <span class="badge badge--warn" style="height:20px;margin-left:6px">c'est ici</span>` : ""}</span>
+                    ? ` <span class="badge badge--warn" style="height:20px;margin-left:6px">premier écart observable</span>` : ""}</span>
                 <span class="tnum"><b>${nb(m.n)}</b>${i > 0 && m.garde !== undefined
                   ? ` <span class="muted" style="font-size:var(--t-xs)">${
                       pct(m.garde * 100, 0)} % de la marche précédente</span>` : ""}</span>
@@ -7972,10 +8043,30 @@ function vueAdoption(u){
                 <i style="width:${Math.max(0.6, (m.n / max) * 100)}%"></i></div>
               ${m.cle === a.rupture && m.cause ? `<p class="hint" style="margin-top:6px">
                 <strong style="color:var(--ink)">${nb(m.perdus)} personne${
-                  m.perdus > 1 ? "s perdues" : " perdue"} ici.</strong> ${esc(m.cause)}</p>` : ""}
+                  m.perdus > 1 ? "s" : ""} de moins qu'à la marche précédente.</strong>
+                ${esc(m.cause)}${m.action ? ` <a href="${esc(m.action.vers)}">${
+                  esc(m.action.texte)}</a>.` : ""}</p>` : ""}
             </div>`).join("")}
         </div>
       </section>
+
+      ${a.lisible && a.actifs ? `<section class="card">
+        <h3 style="font-size:var(--t-lg)">Et ceux qui reviennent</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px;max-width:70ch">
+          Ce chiffre était la sixième marche de l'entonnoir. Il n'y avait pas sa place :
+          les cinq marches mesurent une <em>acquisition</em> — combien de personnes
+          franchissent une étape de plus — et celui-ci mesure une <em>rétention</em>, ce que
+          fait quelqu'un qui a déjà tout franchi. Mélangés, ils font chercher la cause du
+          décrochage au mauvais endroit.</p>
+        <p style="font-family:var(--font-display);font-size:1.6rem;line-height:1.2;
+          margin-top:var(--s4)">${nb(a.revenus)} salarié${a.revenus > 1 ? "s" : ""}
+          sur ${nb(a.actifs)} <span style="font-size:var(--t-md);color:var(--ink-500)">
+          ${a.revenus > 1 ? "sont revenus" : "est revenu"} après une première action
+          validée</span></p>
+        <p class="hint" style="margin-top:var(--s3)">C'est la mesure qui fait la saison
+          suivante : une personne qui revient a trouvé l'expérience bonne, et c'est la seule
+          chose qu'aucune relance ne fabrique.</p>
+      </section>` : ""}
 
       <div class="two">
         <section class="card">
@@ -7985,14 +8076,20 @@ function vueAdoption(u){
               margin-top:var(--s4)">${nb(a.delaiMedian)}
               <span style="font-size:var(--t-lg);color:var(--ink-500)">jours, en médiane</span></div>
             <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
-              Entre l'ouverture du compte et la première action validée, mesuré sur
-              ${nb(a.delaiMesurable)} personnes. La médiane et pas la moyenne : un salarié
-              qui met huit mois tirerait la moyenne et ferait croire à un problème général
-              alors qu'il est seul.</p>
-            ${a.delaiMedian > 90 ? `<p class="hint" style="margin-top:var(--s4)">
-              Au-delà de trois mois, ce n'est plus un délai de démarrage, c'est un oubli.
-              Une relance ciblée sur les comptes ouverts sans action est ce qui la raccourcit
-              le plus vite.</p>` : ""}
+              <strong style="color:var(--ink)">${nb(a.delaiMesurable)} compte${
+                a.delaiMesurable > 1 ? "s" : ""} sur ${nb(a.delaiSur)} ${
+                a.delaiMesurable > 1 ? "ont" : "a"} obtenu une première action validée.</strong>
+              Ce délai est celui de ces ${nb(a.delaiMesurable)}-là, et d'eux seuls : les autres
+              n'ont pas un délai long, ils n'ont pas de délai. Médiane et non moyenne, pour la
+              même raison — un salarié qui met huit mois tirerait la moyenne et ferait croire
+              à un problème général alors qu'il est seul.</p>
+            ${a.sansAction ? `<p class="hint" style="margin-top:var(--s4)">
+              <strong style="color:var(--ink)">${nb(a.sansAction)} compte${
+                a.sansAction > 1 ? "s ouverts n'ont" : " ouvert n'a"} encore rien fait</strong>,
+              ouvert${a.sansAction > 1 ? "s" : ""} depuis ${nb(a.sansActionMedian)} jours en
+              médiane${a.sansActionPlusDe90 ? `, dont ${nb(a.sansActionPlusDe90)} depuis plus de
+              quatre-vingt-dix jours` : ""}.
+              <a href="#/supports">Relancer les comptes ouverts sans action</a>.</p>` : ""}
           ` : `<p class="empty" style="margin-top:var(--s4)">Pas encore assez de premières
             actions pour en tirer une médiane. Riseva préfère ne rien afficher qu'un chiffre
             calculé sur deux personnes.</p>`}
@@ -8014,11 +8111,29 @@ function vueAdoption(u){
         </section>
       </div>
 
-      ${offreLocaleBloc(u)}
+      ${offreLocaleBloc(u, offre)}
     </div>`));
     el.querySelector("#ads").onchange = (ev) => { site = ev.target.value || null; dessine(); };
+
+    /* Un diagnostic qui s'arrête au diagnostic est une excuse préparée d'avance.
+       Deux issues, et elles vont dans deux directions opposées : l'une nous donne
+       du travail, l'autre reconnaît que le site en sait plus que nous sur son
+       propre bassin. */
+    el.querySelectorAll(".offre__agir").forEach(zone => {
+      const etid = zone.dataset.et;
+      const bs = zone.querySelector(".js-signal");
+      if (bs) bs.onclick = () => {
+        Promise.resolve(DB.signalerZone(etid, u.id))
+          .then(() => {
+            toast("Zone signalée. Nous cherchons des associations autour de ce site.");
+            charger();
+          })
+          .catch(err => toast(err.message || "Signalement impossible."));
+      };
+      zone.querySelector(".js-inviter").onclick = () => ouvrirInvitationAsso(etid);
+    });
   };
-  dessine();
+  charger();
   return el;
 }
 
