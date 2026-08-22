@@ -806,6 +806,38 @@ export const ETATS_ACTION = {
    où finit par apparaître un prénom. */
 export const MAX_CIRCONSTANCES = 300;
 
+/* ------------------------------------------------------------------ */
+/* Les supports : ce qui arrive par la poste                           */
+/* ------------------------------------------------------------------ */
+/* Quatre envois dans la saison. Ce n'est pas une option marketing : c'est ce
+   qui fait qu'une plateforme d'engagement ne meurt pas au bout de six semaines.
+   Un lien envoyé une fois par courriel se perd ; une affiche au-dessus de la
+   machine à café rappelle la saison à des gens qui n'ouvrent pas leurs mails.
+
+   Le suivi est ici parce que c'est le seul endroit où il tient : qui a reçu
+   quoi, quand, et pour quel site. Sans ça, un client qui dit « on n'a rien
+   reçu » a toujours raison, et Riseva n'a rien à opposer. */
+export const KITS_SAISON = [
+  { code:"K1", nom:"Lancement", mois:1,
+    contenu:"Affiches A3 pour chaque site, cartes du lien d'inscription, une page pour le manager.",
+    quoi:"lancement de la saison" },
+  { code:"K2", nom:"Premier trimestre", mois:4,
+    contenu:"Affiche des résultats du trimestre, avec ce que les missions ont réellement produit.",
+    quoi:"relance après le premier trimestre" },
+  { code:"K3", nom:"Rentrée", mois:8,
+    contenu:"Affiches des besoins de la rentrée, période où les associations manquent le plus de bras.",
+    quoi:"relance de rentrée" },
+  { code:"K4", nom:"Clôture", mois:11,
+    contenu:"Affiche du bilan de la saison, à laisser en place : c'est elle qui donne envie de recommencer.",
+    quoi:"bilan de fin de saison" }
+];
+
+export const ETATS_EXPEDITION = {
+  a_preparer: { label:"À préparer", badge:"badge--attente" },
+  expedie:    { label:"Expédié",    badge:"badge--info" },
+  recu:       { label:"Reçu",       badge:"badge--ok" }
+};
+
 export const FISCAL = {
   annee: 2026,
   taux_reduction: 0.60,
@@ -1258,7 +1290,7 @@ const seed = {
     /* Claire est salariée de la société mère et pilote le groupe : deux périmètres,
        un seul compte. `groupe` ouvre la consolidation, `org` reste sa société — elle
        ne devient pas administratrice des autres sociétés pour autant. */
-    { id:"u2", nom:"Claire Fontaine", email:"claire@lafarge-ciments.fr",role:"entreprise_admin", org:"e1", etablissement:"et1", groupe:"g1" },
+    { id:"u2", nom:"Claire Fontaine", email:"claire@lafarge-ciments.fr",role:"entreprise_admin", org:"e1", etablissement:"et1", groupe:"g1", actif:true },
     { id:"u3", nom:"Malik Ferhat",    email:"malik@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et2", actif:true },
     { id:"u4", nom:"Sonia Delaunay",  email:"sonia@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et3", actif:true },
     { id:"u5", nom:"Hugo Vasseur",    email:"hugo@lafarge-ciments.fr",  role:"salarie",          org:"e1", etablissement:"et1", actif:true },
@@ -1290,6 +1322,8 @@ const seed = {
   ],
   controles: [],
   intentions: [],
+  envois: [],
+  expeditions: [],
   rapports_generes: [],
   moteur_journal: [],
   classement_recalcule_le: null
@@ -1397,7 +1431,7 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
    est enregistré, et retrouvé au retour. Une clé de version évite de restaurer un
    état écrit par une version antérieure du modèle. */
 const CLE_ETAT = "riseva.etat";
-const VERSION_ETAT = 7;
+const VERSION_ETAT = 8;
 
 function lireEtat(){
   try {
@@ -1733,8 +1767,13 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       if (!autres.length) throw new Error("Il doit rester au moins un administrateur");
       u.role = "salarie"; return u;
     },
+    /* `u.actif` absent veut dire actif : c'est `false` qui retire un compte, pas
+       l'absence de la clé. La version stricte renvoyait une liste vide pour une
+       entreprise dont l'administrateur venait du jeu de départ — donc aucun
+       destinataire pour ses rapports, et aucun garde-fou sur le dernier
+       administrateur. */
     administrateurs: (eid) => s.utilisateurs.filter(u => u.org === eid
-      && u.role === "entreprise_admin" && u.actif),
+      && u.role === "entreprise_admin" && u.actif !== false && !u.anonyme),
 
     /* Une seule écriture : l'état de la mission, et le chiffre que l'association
        a corrigé. Pas de compteur additionné au passage sur l'entreprise ni sur le
@@ -3528,6 +3567,66 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
     },
 
 
+
+    /* ------------------------------------------------------------------ */
+    /* Supports et affiches                                                */
+    /* ------------------------------------------------------------------ */
+    expeditions(filtre = {}){
+      return s.expeditions.filter(x =>
+        (!filtre.entreprise || x.entreprise === filtre.entreprise) &&
+        (!filtre.kit || x.kit === filtre.kit))
+        .sort((a, b) => String(b.expedie_le || b.cree_le).localeCompare(String(a.expedie_le || a.cree_le)));
+    },
+    /* L'état de la saison en supports, pour une entreprise : les quatre vagues,
+       et où en est chacune. Une vague sans expédition n'est pas « en retard » :
+       elle est simplement à venir tant que son mois n'est pas atteint. */
+    supportsDe(eid, { aujourdhui = "2026-08-20" } = {}){
+      const sa = s.saison;
+      const debut = new Date(sa.debut);
+      return KITS_SAISON.map(k => {
+        const d = new Date(debut); d.setMonth(d.getMonth() + k.mois - 1);
+        const prevu = d.toISOString().slice(0, 10);
+        const ex = s.expeditions.find(x => x.entreprise === eid && x.kit === k.code) || null;
+        return { kit: k, prevu, expedition: ex,
+                 etat: ex ? (ex.recu_le ? "recu" : "expedie")
+                          : (prevu <= aujourdhui ? "a_preparer" : "a_venir"),
+                 en_retard: !ex && prevu < aujourdhui };
+      });
+    },
+    expedier(eid, kit, { etablissement = null, suivi = null, le = null } = {}){
+      const e = api.entreprise(eid); if (!e) throw new Error("Entreprise inconnue");
+      if (!KITS_SAISON.some(k => k.code === kit)) throw new Error("Vague inconnue.");
+      const deja = s.expeditions.find(x => x.entreprise === eid && x.kit === kit);
+      if (deja) throw new Error("Cette vague a déjà été expédiée à cette entreprise.");
+      const x = { id: id("ex"), entreprise: eid, etablissement, kit,
+                  cree_le: new Date(2026, 7, 20).toISOString().slice(0, 10),
+                  expedie_le: le || new Date(2026, 7, 20).toISOString().slice(0, 10),
+                  suivi: String(suivi || "").trim() || null, recu_le: null };
+      s.expeditions.unshift(x);
+      return x;
+    },
+    /* C'est le client qui confirme, pas nous. Marquer « reçu » à sa place ferait
+       du suivi une déclaration de Riseva sur elle-même, ce qui ne vaut rien le
+       jour où il dit n'avoir rien eu. */
+    confirmerReception(exid){
+      const x = s.expeditions.find(y => y.id === exid); if (!x) return null;
+      x.recu_le = new Date(2026, 7, 20).toISOString().slice(0, 10);
+      return x;
+    },
+    /* Ce que Riseva a à préparer, tous clients confondus. C'est l'écran qui
+       remplace le tableau à la main. */
+    aExpedier({ aujourdhui = "2026-08-20" } = {}){
+      const l = [];
+      s.entreprises.forEach(e => {
+        api.supportsDe(e.id, { aujourdhui }).forEach(x => {
+          if (x.etat === "a_preparer")
+            l.push({ entreprise: e, kit: x.kit, prevu: x.prevu, en_retard: x.en_retard,
+                     sites: api.etablissements(e.id).length || 1 });
+        });
+      });
+      return l.sort((a, b) => a.prevu.localeCompare(b.prevu));
+    },
+
     /* ------------------------------------------------------------------ */
     /* Registre des événements de sécurité                                */
     /* ------------------------------------------------------------------ */
@@ -3824,23 +3923,33 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         }
       });
 
-      /* 3. Une intention de don que personne n'a virée finit par s'éteindre. Sans
+      /* 3. Les rapports arrivent tout seuls. « Générés automatiquement » ne veut
+            rien dire tant que personne ne les reçoit : ce qui compte pour un
+            client, c'est que le document tombe dans sa boîte sans qu'il ait
+            pensé à le demander. Chaque envoi porte une clé, et une clé déjà
+            présente n'est jamais renvoyée — un rapport reçu deux fois est une
+            erreur qu'on remarque, et qui coûte la confiance dans tout le reste. */
+      s.entreprises.forEach(e => {
+        const dest = api.administrateurs(e.id)[0];
+        api.rapports(e.id).filter(r => r.etat === "genere").forEach(r => {
+          const cle = `rapport:${e.id}:${r.id}`;
+          if (s.envois.some(x => x.cle === cle)) return;
+          s.envois.unshift({ id: id("en"), cle, type: "rapport",
+            entreprise: e.id, destinataire: dest ? dest.email : null,
+            sujet: `${r.titre} — ${e.nom}`,
+            detail: `Période du ${r.periode.debut} au ${r.periode.fin}, ${r.points} points retenus.`,
+            date: r.genere_le || aujourdhui, etat: dest ? "envoyé" : "sans destinataire" });
+          fait.rapports++;
+        });
+      });
+
+      /* 4. Une intention de don que personne n'a virée finit par s'éteindre. Sans
             échéance, le « reste à financer » d'une annonce serait faux en
             permanence, et l'association verrait s'empiler des promesses. Rien
             n'est crédité, rien n'est reproché : l'intention s'efface. */
       s.intentions.filter(i => i.etat === "annoncee" && i.expire_le < aujourdhui)
         .forEach(i => { i.etat = "abandonnee"; i.motif = "sans virement à l'échéance";
                         fait.intentions_expirees++; });
-
-      /* 4. Les rapports de période close se génèrent seuls, une fois. */
-      s.entreprises.forEach(e => {
-        api.rapports(e.id).filter(r => r.etat === "genere").forEach(r => {
-          const cle = e.id + ":" + r.id;
-          if (!s.rapports_generes.includes(cle)){
-            s.rapports_generes.push(cle); fait.rapports++;
-          }
-        });
-      });
 
       /* 5. Le classement est recalculé chaque lundi. On ne stocke pas de rang :
             il se déduit des points, ce qui évite tout écart entre l'affiché et le réel. */
@@ -3852,6 +3961,12 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       return fait;
     },
     journalMoteur: () => s.moteur_journal,
+    /* Ce qui est réellement parti, avec sa clé d'unicité. Un client qui demande
+       « ai-je bien reçu mon rapport du deuxième trimestre » doit avoir une
+       réponse, pas une conviction. */
+    envois: (filtre = {}) => s.envois.filter(x =>
+      (!filtre.entreprise || x.entreprise === filtre.entreprise) &&
+      (!filtre.type || x.type === filtre.type)),
 
     /* ------------------------------------------------------------------ */
     /* Indicateurs de pilote                                              */

@@ -226,6 +226,19 @@ create policy action_lecture on public.action_corrective for select to authentic
        and (et.societe = private.mon_entreprise()
             or private.dans_mon_groupe(et.societe))));
 
+-- Envois et expéditions : l'entreprise concernée et Riseva. Un client doit
+-- pouvoir répondre à « ai-je bien reçu mon rapport du deuxième trimestre » par
+-- une trace, pas par une conviction.
+grant select on public.envoi to authenticated;
+create policy envoi_lecture on public.envoi for select to authenticated
+  using ((entreprise = private.mon_entreprise() and private.mon_role() = 'entreprise_admin')
+         or association = private.mon_association()
+         or private.est_admin());
+
+grant select on public.expedition to authenticated;
+create policy expedition_lecture on public.expedition for select to authenticated
+  using (entreprise = private.mon_entreprise() or private.est_admin());
+
 grant select on public.affectation_siege to authenticated;
 create policy siege_lecture on public.affectation_siege for select to authenticated
   using (private.est_admin() or exists (
@@ -308,7 +321,9 @@ grant execute on function
   public.ajouter_action(uuid, text, text, date, uuid),
   public.maj_action(uuid, text),
   public.securite_du_registre(uuid, date, date),
-  public.enregistrer_helloasso(uuid, text)
+  public.enregistrer_helloasso(uuid, text),
+  public.confirmer_reception(uuid),
+  public.expedier_kit(uuid, text, text)
 to authenticated;
 
 -- Le paiement n'est jamais confirmé par le navigateur. Seule la fonction Edge,

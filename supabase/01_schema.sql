@@ -322,6 +322,54 @@ create table private.appartenance (
     not pseudonymise or (not actif and retire_le is not null))
 );
 
+-- ---------------------------------------------------------------- envois
+-- Ce qui est réellement parti. « Généré automatiquement » ne veut rien dire tant
+-- que personne ne l'a reçu : ce qui compte pour un client, c'est que le document
+-- tombe dans sa boîte sans qu'il ait pensé à le demander.
+--
+-- La clé porte l'unicité. Un rapport reçu deux fois est une erreur qu'on
+-- remarque, et qui coûte la confiance dans tout le reste — l'index l'empêche,
+-- plutôt qu'un `if` dans le code de la tâche planifiée.
+create table envoi (
+  id           uuid primary key default gen_random_uuid(),
+  cle          text not null unique check (length(cle) between 3 and 160),
+  type         text not null check (type in ('rapport','recu','relance','recap')),
+  entreprise   uuid references entreprise(id) on delete cascade,
+  association  uuid references association(id) on delete cascade,
+  -- Qui, pas où. L'adresse vit dans `auth.users`, que la tâche planifiée n'a pas
+  -- à pouvoir lire : lui ouvrir la table des comptes pour composer un courriel
+  -- serait un privilège gagné pour un confort. La fonction Edge qui envoie
+  -- réellement, elle, détient la clé de service et inscrit l'adresse utilisée.
+  destinataire_profil uuid references profil(id) on delete set null,
+  destinataire text check (length(destinataire) <= 240),
+  sujet        text not null check (length(sujet) between 1 and 240),
+  detail       text check (length(detail) <= 400),
+  date         date not null default current_date,
+  etat         text not null default 'a_envoyer'
+                 check (etat in ('a_envoyer','envoye','sans_destinataire','echec'))
+);
+create index envoi_entreprise on envoi (entreprise, date desc);
+
+-- ---------------------------------------------------------------- expéditions
+-- Quatre envois d'affiches dans la saison. Le suivi est ici parce que c'est le
+-- seul endroit où il tient : sans lui, un client qui dit « on n'a rien reçu » a
+-- toujours raison, et Riseva n'a rien à opposer.
+--
+-- La réception est confirmée par le client, jamais par Riseva : un suivi où
+-- l'expéditeur se déclare à lui-même que le colis est arrivé ne vaut rien.
+create table expedition (
+  id           uuid primary key default gen_random_uuid(),
+  entreprise   uuid not null references entreprise(id) on delete cascade,
+  saison       uuid not null references saison(id) on delete cascade,
+  kit          text not null check (kit in ('K1','K2','K3','K4')),
+  expedie_le   date not null default current_date,
+  suivi        text check (length(suivi) <= 60),
+  recu_le      date,
+  cree_le      timestamptz not null default now(),
+  unique (entreprise, saison, kit),
+  constraint expedition_reception check (recu_le is null or recu_le >= expedie_le)
+);
+
 -- ------------------------------------------------- sécurité : événements
 -- Le site déclare ses événements un par un ; les indicateurs de la période s'en
 -- déduisent, pour lui comme pour la société. C'est ce qui supprime la double

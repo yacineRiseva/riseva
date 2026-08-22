@@ -1586,3 +1586,38 @@ language sql stable security definer set search_path = '' as $$
    and e.annule_le is null
    and e.date between p_debut and p_fin
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Supports : ce qui part par la poste
+-- ---------------------------------------------------------------------------
+create or replace function public.expedier_kit(
+  p_entreprise uuid, p_kit text, p_suivi text default null)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare v_id uuid; v_saison uuid := private.saison_ouverte();
+begin
+  if not private.est_admin() then
+    raise exception 'Réservé à Riseva' using errcode = '42501';
+  end if;
+  if v_saison is null then
+    raise exception 'Aucune saison ouverte' using errcode = '42501';
+  end if;
+  insert into public.expedition (entreprise, saison, kit, suivi)
+  values (p_entreprise, v_saison, p_kit, nullif(btrim(coalesce(p_suivi, '')), ''))
+  returning id into v_id;
+  return v_id;
+end $$;
+
+-- C'est le client qui confirme, pas nous.
+create or replace function public.confirmer_reception(p_expedition uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+declare v_ent uuid;
+begin
+  select entreprise into v_ent from public.expedition where id = p_expedition;
+  if v_ent is null then raise exception 'Expédition inconnue' using errcode = '42704'; end if;
+  if v_ent is distinct from private.mon_entreprise()
+     or private.mon_role() <> 'entreprise_admin' then
+    raise exception 'Réservé à l''entreprise destinataire' using errcode = '42501';
+  end if;
+  update public.expedition set recu_le = current_date
+   where id = p_expedition and recu_le is null;
+end $$;

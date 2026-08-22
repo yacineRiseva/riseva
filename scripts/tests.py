@@ -962,6 +962,62 @@ def main():
         verifie("chaque don porte l'état de sa réception et de son reçu",
                 "Réception" in m and "Reçu" in m and "En attente de l'association" in m)
 
+        print("\nLes rapports arrivent tout seuls")
+        connecte(p, "u2", "#/rapports")
+        rp = norm(p.inner_text(".content"))
+        verifie("le client n'a rien à demander",
+                "Vous n'avez rien à demander" in rp and "une fois et une seule" in rp)
+        verifie("chaque rapport généré porte sa date d'envoi et son destinataire",
+                "Envoyé le" in rp and "@lafarge-ciments.fr" in rp)
+        env = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const avant = d.DB.envois({ entreprise:'e1', type:'rapport' }).length;
+          const f = d.DB.moteur('2026-08-20');
+          const apres = d.DB.envois({ entreprise:'e1', type:'rapport' }).length;
+          const cles = d.DB.envois({ type:'rapport' }).map(x => x.cle);
+          return { avant, apres, rapports:f.rapports,
+                   doublons: cles.length - new Set(cles).size };
+        }""")
+        verifie("un rapport déjà envoyé n'est jamais renvoyé",
+                env["avant"] == env["apres"] and env["rapports"] == 0, str(env))
+        verifie("aucun envoi en double dans le journal", env["doublons"] == 0)
+
+        print("\nLes affiches, tout au long de l'année")
+        connecte(p, "u2", "#/supports")
+        su = norm(p.inner_text(".content"))
+        verifie("les quatre envois de la saison sont annoncés",
+                "Lancement" in su and "Clôture" in su and "Rentrée" in su)
+        verifie("le client confirme lui-même la réception",
+                "C'est vous qui confirmez" in su)
+        verifie("un envoi en retard est signalé au client aussi",
+                "en retard sur le calendrier" in su)
+        sup = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const l = d.DB.supportsDe('e1');
+          let doublon = null;
+          const k = l.find(x => x.etat === 'a_preparer');
+          d.DB.expedier('e1', k.kit.code, { suivi:'6A99999999999' });
+          try { d.DB.expedier('e1', k.kit.code, {}); } catch (e){ doublon = e.message; }
+          const apres = d.DB.supportsDe('e1').find(x => x.kit.code === k.kit.code);
+          const ex = apres.expedition;
+          d.DB.confirmerReception(ex.id);
+          const fin = d.DB.supportsDe('e1').find(x => x.kit.code === k.kit.code);
+          return { vagues:l.length, doublon, apresEtat:apres.etat, finEtat:fin.etat,
+                   suivi: ex.suivi };
+        }""")
+        verifie("quatre vagues par saison, pas une de plus", sup["vagues"] == 4)
+        verifie("une vague déjà expédiée ne part pas deux fois", sup["doublon"] is not None)
+        verifie("l'expédition passe à « expédié », la confirmation à « reçu »",
+                sup["apresEtat"] == "expedie" and sup["finEtat"] == "recu", str(sup))
+        verifie("le numéro de suivi est conservé", sup["suivi"] == "6A99999999999")
+
+        connecte(p, "u1", "#/expeditions")
+        ex = norm(p.inner_text(".content"))
+        verifie("Riseva voit ce qu'il reste à préparer, et pour combien de sites",
+                "À préparer" in ex and "Sites" in ex)
+        verifie("les retards sortent avant que le client les signale",
+                "en retard" in ex)
+
         print("\nRegistre de sécurité et consolidation multi-sites")
         connecte(p, "u2", "#/securite")
         sc = norm(p.inner_text(".content"))

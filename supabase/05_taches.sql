@@ -59,6 +59,36 @@ begin
   return v_n;
 end $$;
 
+-- ---------------------------------------------------- envoi des rapports
+-- Un rapport arrêté qui reste dans la base n'a servi à personne. La tâche crée
+-- une ligne d'envoi par rapport scellé, une seule fois : c'est l'index unique
+-- sur la clé qui le garantit, pas un `if` dans cette fonction.
+create or replace function private.tache_envoi_rapports()
+returns integer
+language plpgsql security definer set search_path = '' as $$
+declare v_n integer;
+begin
+  with candidats as (
+    select r.id, r.entreprise, r.periode,
+           'rapport:' || r.entreprise || ':' || r.periode as cle,
+           (select p.profil from private.appartenance p
+             where p.entreprise = r.entreprise and p.role = 'entreprise_admin' and p.actif
+             order by p.maj_le limit 1) as destinataire
+      from public.rapport r
+     where r.scelle_le is not null
+  )
+  insert into public.envoi (cle, type, entreprise, destinataire_profil, sujet, detail, date, etat)
+  select c.cle, 'rapport', c.entreprise, c.destinataire,
+         'Rapport ' || c.periode,
+         'Période scellée, disponible dans votre espace.',
+         current_date,
+         case when c.destinataire is null then 'sans_destinataire' else 'a_envoyer' end
+    from candidats c
+  on conflict (cle) do nothing;
+  get diagnostics v_n = row_count;
+  return v_n;
+end $$;
+
 -- ---------------------------------------------------------------- rapports
 -- Un rapport ne se scelle qu'une fois les validations closes. Le sceller à la
 -- fin du trimestre le fige incomplet : quatorze jours de missions manquent, et
@@ -162,6 +192,7 @@ begin
     'validations_auto', private.tache_validation_auto(),
     'annonces_fermees', private.tache_fermeture_annonces(),
     'intentions_expirees', private.tache_intentions_expirees(),
+    'rapports_envoyes', private.tache_envoi_rapports(),
     'rapports',         private.tache_rapports(),
     'purges',           private.tache_retention());
   insert into public.moteur_journal (tache, fait) values ('moteur', v);

@@ -530,6 +530,75 @@ begin
 end $$;
 
 \echo ''
+\echo 'Les rapports partent, et une seule fois'
+reset role;
+do $$
+declare v_n1 integer; v_n2 integer;
+begin
+  perform private.tache_rapports();
+  -- Un rapport n'est scellé qu'après la clôture des validations ; on force la
+  -- date pour éprouver l'envoi et non le calendrier.
+  update public.rapport set scelle_le = now() where scelle_le is null;
+  v_n1 := private.tache_envoi_rapports();
+  v_n2 := private.tache_envoi_rapports();
+  perform pg_temp.dit('chaque rapport scellé produit un envoi', v_n1 > 0);
+  perform pg_temp.dit('un deuxième passage ne renvoie rien', v_n2 = 0);
+  perform pg_temp.dit('aucune clé d''envoi en double',
+    (select count(*) from public.envoi) = (select count(distinct cle) from public.envoi));
+  perform pg_temp.dit('l''envoi désigne un destinataire, ou dit qu''il n''en a pas',
+    not exists (select 1 from public.envoi
+                 where etat = 'a_envoyer' and destinataire_profil is null));
+  -- La tâche ne lit pas la table des comptes : elle désigne un profil, et c'est
+  -- la fonction Edge qui détient la clé de service qui résout l'adresse.
+  perform pg_temp.dit('la tâche planifiée ne compose aucune adresse',
+    not exists (select 1 from public.envoi where destinataire is not null));
+end $$;
+
+\echo ''
+\echo 'Les affiches, et qui confirme la réception'
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000008', false);
+select set_config('request.jwt.claim.email', 'controle@riseva.fr', false);
+do $$
+declare v_ex uuid;
+begin
+  v_ex := public.expedier_kit('22222222-2222-4222-8222-222222222222', 'K1', '6A12345678901');
+  perform pg_temp.dit('Riseva enregistre une expédition avec son suivi',
+    (select suivi is not null from public.expedition where id = v_ex));
+  perform set_config('riseva.exp', v_ex::text, false);
+end $$;
+select pg_temp.refuse('la même vague ne part pas deux fois à la même entreprise',
+  'select public.expedier_kit(''22222222-2222-4222-8222-222222222222'', ''K1'')');
+select pg_temp.refuse('Riseva ne confirme pas la réception à la place du client',
+  'select public.confirmer_reception(current_setting(''riseva.exp'')::uuid)');
+
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@lafarge-ciments.fr', false);
+do $$
+begin
+  perform public.confirmer_reception(current_setting('riseva.exp')::uuid);
+  perform pg_temp.dit('le client confirme lui-même, et la date est posée',
+    (select recu_le is not null from public.expedition
+      where id = current_setting('riseva.exp')::uuid));
+  perform pg_temp.dit('il lit ses propres envois',
+    (select count(*) from public.envoi
+      where entreprise = '22222222-2222-4222-8222-222222222222') > 0);
+end $$;
+select pg_temp.refuse('un client n''expédie rien à personne',
+  'select public.expedier_kit(''22222222-2222-4222-8222-222222222222'', ''K2'')');
+reset role;
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
+select set_config('request.jwt.claim.email', 'malik@lafarge-ciments.fr', false);
+do $$
+begin
+  perform pg_temp.dit('un salarié ne lit pas les envois de son entreprise',
+    (select count(*) from public.envoi) = 0);
+end $$;
+reset role;
+
+\echo ''
 \echo 'Registre de sécurité et plan d''actions'
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000005', false);

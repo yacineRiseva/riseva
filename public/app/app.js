@@ -1,4 +1,4 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, KITS_SAISON, ETATS_EXPEDITION, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
 import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
@@ -37,6 +37,7 @@ const MENUS = {
     { groupe: "Entreprise", items: [
       ["equipe",     "Équipe",       "users"],
       ["rapports",   "Rapports",     "report"],
+      ["supports",   "Affiches",     "box"],
       ["mecenat",    "Mécénat",      "coins"],
       ["materiel",   "Dons de matériel", "box"],
       ["dossier",    "Réponses clients", "hands"],
@@ -97,6 +98,7 @@ const MENUS = {
       ["entreprises",   "Entreprises",     "building"],
       ["assos",         "Associations",    "heart"],
       ["preinscriptions","Préinscriptions","users"],
+      ["expeditions",   "Affiches",        "box"],
       ["pilotes",       "Indicateurs",     "trophy"]
     ]},
     { groupe: "Paramètres", items: [
@@ -1790,6 +1792,7 @@ function vueEquipe(u){
 function vueRapports(u){
   const r = DB.rapport(u.org, "annuel");
   const liste = DB.rapports(u.org);
+  const envois = DB.envois({ entreprise: u.org, type: "rapport" });
   const res = DB.impactReseau();
   const maxT = Math.max(...r.trimestres.map(t => t.points), 1);
   const v = DB.valorisationMecenat(u.org);
@@ -1808,8 +1811,12 @@ function vueRapports(u){
           rien à consolider.</p></div>
       </div>
       <table class="table"><thead><tr>
-        <th>Rapport</th><th>Période</th><th>Points</th><th>État</th><th></th>
+        <th>Rapport</th><th>Période</th><th>Points</th><th>État</th><th>Envoi</th><th></th>
       </tr></thead><tbody></tbody></table>
+      <p class="hint" style="margin-top:var(--s4)">Vous n'avez rien à demander : chaque rapport
+        part vers l'administrateur de l'entreprise dès la clôture de sa période, une fois et une
+        seule. Un rapport reçu deux fois est une erreur qu'on remarque, et qui coûte la confiance
+        dans tout le reste.</p>
     </section>
 
     <section class="card" id="apercu" style="padding:var(--s10)">
@@ -1929,6 +1936,11 @@ function vueRapports(u){
       <td class="tnum">${x.etat === "genere" ? nb(x.points) : "—"}</td>
       <td><span class="badge ${x.etat === "genere" ? "badge--ok" : ""}">${
         x.etat === "genere" ? "Généré le " + dateCourte(x.genere_le) : "À la clôture"}</span></td>
+      <td class="muted" style="font-size:var(--t-xs)">${(() => {
+        const en = envois.find(e => e.cle === `rapport:${u.org}:${x.id}`);
+        return en ? `Envoyé le ${dateCourte(en.date)}<br>à ${esc(en.destinataire || "—")}`
+                  : (x.etat === "genere" ? "Envoi au prochain passage" : "—");
+      })()}</td>
       <td style="text-align:right"></td></tr>`);
     if (x.etat === "genere"){
       const b = h(`<button class="btn btn--quiet btn--sm">Ouvrir</button>`);
@@ -5429,6 +5441,240 @@ function vueIndicateurs(u){
 }
 
 /* ------------------------------------------------------------------ */
+/* Supports : l'affiche, et ce qui arrive par la poste                 */
+/* ------------------------------------------------------------------ */
+/* L'affiche est le seul support que Riseva peut produire à la demande, et c'est
+   le plus utile : un site qui a perdu la sienne, ou qui vient d'ouvrir, n'a pas
+   à attendre la vague suivante. Elle est générée avec le lien d'inscription de
+   l'entreprise — c'est ce lien qui fait toute la différence entre une affiche
+   qu'on regarde et une affiche à laquelle on répond. */
+const STYLE_AFFICHE = `
+  @page{size:A4;margin:0}
+  body{margin:0;background:#F2F0E9;font:16px/1.5 -apple-system,Segoe UI,Inter,sans-serif;
+    color:#131510}
+  .a4{width:210mm;height:297mm;margin:0 auto;background:#FAF9F5;padding:22mm 20mm;
+    box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;
+    position:relative;overflow:hidden}
+  .mq{position:absolute;right:-40mm;bottom:-40mm;width:150mm;height:150mm;
+    border-radius:50%;background:#DFE6D0;opacity:.5}
+  .in{position:relative;z-index:1}
+  .eb{font:600 12px/1 -apple-system,Segoe UI,Inter,sans-serif;letter-spacing:.16em;
+    text-transform:uppercase;color:#1F5C4A;margin:0 0 10mm}
+  h1{font-size:46px;line-height:1.04;letter-spacing:-.03em;margin:0 0 8mm;max-width:15ch}
+  h1 em{font-style:italic;color:#3B6D11}
+  .lede{font-size:17px;line-height:1.55;color:#4A4F42;max-width:44ch;margin:0}
+  .box{border:2px solid #131510;border-radius:14px;padding:8mm 9mm;background:#FAF9F5}
+  .box p{margin:0 0 4mm;font-size:13.5px;color:#4A4F42}
+  .lien{font:600 20px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace;
+    letter-spacing:-.01em;word-break:break-all;color:#131510}
+  .pied{display:flex;justify-content:space-between;align-items:flex-end;gap:10mm;
+    font-size:12px;color:#63675C}
+  .fmts{display:flex;gap:6mm;margin:8mm 0 0;padding:0;list-style:none;flex-wrap:wrap}
+  .fmts li{font-size:13px;color:#131510;font-weight:600;border:1px solid #CFD1C6;
+    border-radius:999px;padding:2mm 5mm}
+  @media print{body{background:#fff}.a4{box-shadow:none;margin:0}.noprint{display:none}}
+  .noprint{text-align:center;padding:14px}
+  .noprint button{font:inherit;background:#131510;color:#F2F0E9;border:0;border-radius:12px;
+    padding:11px 22px;cursor:pointer}`;
+
+function ouvrirAffiche(u){
+  const e = DB.entreprise(u.org) || {};
+  const sa = DB.saison();
+  const inv = DB.invitationActive(u.org);
+  const lien = inv ? lienPublic(`/rejoindre.html?code=${inv.code}`) : null;
+  if (!lien){
+    modal("Aucun lien d'inscription actif",
+      `<p class="muted">Une affiche sans lien est une affiche qu'on regarde sans y répondre.
+       Créez d'abord le lien d'inscription de vos salariés, depuis l'écran Équipe.</p>`,
+      [{ label:"Fermer" }]);
+    return;
+  }
+  const rea = DB.impactReseau();
+  const w = window.open("", "_blank");
+  if (!w){ toast("Autorisez les fenêtres pour ouvrir l'affiche."); return; }
+  w.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
+<title>Affiche Riseva — ${esc(e.nom || "")}</title><style>${STYLE_AFFICHE}</style></head><body>
+<div class="noprint"><button onclick="window.print()">Imprimer en A3 ou A4</button></div>
+<div class="a4"><div class="mq"></div>
+  <div class="in">
+    <p class="eb">${esc(e.nom || "")} · ${esc(sa.nom)}</p>
+    <h1>Une demi-journée. <em>Une association.</em> Près d'ici.</h1>
+    <p class="lede">Des associations près de nos sites publient ce dont elles ont besoin :
+      des bras, du matériel, parfois un coup de main financier. Vous choisissez ce que vous
+      voulez faire, quand vous le voulez. Ce que vous faites compte pour l'entreprise, et rien
+      de ce que vous donnez à titre personnel n'est visible par elle.</p>
+    <ul class="fmts">
+      <li>Une demi-journée de bénévolat</li>
+      <li>Du matériel qui repart utile</li>
+      <li>Un don, sans passer par nous</li>
+    </ul>
+  </div>
+  <div class="in box">
+    <p><strong>Pour participer</strong>, ouvrez ce lien depuis votre poste ou votre téléphone :</p>
+    <div class="lien">${esc(lien)}</div>
+  </div>
+  <div class="in pied">
+    <span>Riseva — ${nb(rea.associations || 0)} associations vérifiées${
+      rea.missions ? ` · ${nb(rea.missions)} missions confirmées à ce jour` : ""}</span>
+    <span>riseva.fr</span>
+  </div>
+</div></body></html>`);
+  w.document.close();
+  toast("Affiche ouverte dans un nouvel onglet.");
+}
+
+/* Côté client : ce qui est arrivé, ce qui arrive, et de quoi réimprimer. */
+function vueSupports(u){
+  const l = DB.supportsDe(u.org);
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <section class="card">
+      <div class="between" style="flex-wrap:wrap;gap:var(--s4);align-items:flex-start">
+        <div>
+          <h3>Vos supports</h3>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+            Quatre envois dans la saison, compris dans l'abonnement. Ce n'est pas un cadeau
+            marketing : un lien envoyé une fois par courriel se perd, une affiche au-dessus de
+            la machine à café rappelle la saison à des gens qui n'ouvrent pas leurs mails.</p>
+        </div>
+        <button class="btn btn--forest btn--sm" id="affiche">Imprimer une affiche</button>
+      </div>
+      <table class="table" style="margin-top:var(--s6)"><thead><tr>
+        <th>Envoi</th><th>Contenu</th><th>Prévu</th><th>État</th><th></th>
+      </tr></thead><tbody id="kits"></tbody></table>
+      <p class="hint" style="margin-top:var(--s4)">C'est vous qui confirmez la réception, pas
+        nous : un suivi où Riseva se déclare à elle-même que le colis est arrivé ne vaut rien le
+        jour où vous dites n'avoir rien reçu.</p>
+    </section>
+  </div>`);
+
+  const tb = el.querySelector("#kits");
+  l.forEach(x => {
+    const et = ETATS_EXPEDITION[x.etat] || { label:"À venir", badge:"" };
+    const tr = h(`<tr>
+      <td><strong>${esc(x.kit.nom)}</strong>
+        <br><span class="muted" style="font-size:var(--t-xs)">${esc(x.kit.quoi)}</span></td>
+      <td class="muted" style="font-size:var(--t-xs)">${esc(x.kit.contenu)}</td>
+      <td class="muted tnum">${dateCourte(x.prevu)}</td>
+      <td><span class="badge ${et.badge}">${esc(et.label)}</span>
+        ${x.expedition && x.expedition.suivi
+          ? `<br><span class="muted" style="font-size:var(--t-xs);font-family:var(--font-mono)">${esc(x.expedition.suivi)}</span>` : ""}
+        ${x.en_retard ? `<br><span style="font-size:var(--t-xs);color:var(--danger)">en retard sur le calendrier</span>` : ""}</td>
+      <td style="text-align:right"></td></tr>`);
+    if (x.expedition && !x.expedition.recu_le){
+      const b = h(`<button class="btn btn--ghost btn--sm">Bien reçu</button>`);
+      b.onclick = () => { DB.confirmerReception(x.expedition.id);
+        toast("Réception confirmée. Merci."); rendre(); };
+      tr.lastElementChild.appendChild(b);
+    }
+    tb.appendChild(tr);
+  });
+  el.querySelector("#affiche").onclick = () => ouvrirAffiche(u);
+  return el;
+}
+
+/* Côté Riseva : ce qu'il reste à préparer, tous clients confondus. C'est l'écran
+   qui remplace le tableau tenu à la main — et le seul endroit où l'on voit qu'un
+   envoi est en retard avant que le client ne le signale. */
+function vueExpeditions(){
+  const l = DB.aExpedier();
+  const faites = DB.expeditions();
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <div class="kpis">
+      ${kpi("À préparer", nb(l.length), l.filter(x => x.en_retard).length
+        ? `${nb(l.filter(x => x.en_retard).length)} en retard sur le calendrier` : "à jour",
+        "", "kpi--tete grain")}
+      ${kpi("Expédiés", nb(faites.length), "sur la saison")}
+      ${kpi("Reçus confirmés", nb(faites.filter(x => x.recu_le).length), "par le client lui-même")}
+      ${kpi("Envois par saison", nb(KITS_SAISON.length), "compris dans l'abonnement")}
+    </div>
+
+    <section class="card">
+      <h3>À préparer</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+        Par date prévue. Le nombre de sites donne la quantité d'affiches à mettre dans le colis.</p>
+      <div id="apr" style="margin-top:var(--s5)"></div>
+    </section>
+
+    <section class="card">
+      <div class="between" style="margin-bottom:var(--s5)">
+        <h3>Expédiés</h3>
+        <button class="btn btn--ghost btn--sm" id="csvEx">Exporter</button>
+      </div>
+      <div id="fai"></div>
+    </section>
+  </div>`);
+
+  const apr = el.querySelector("#apr");
+  if (!l.length) apr.appendChild(vide({ titre:"Rien à préparer",
+    texte:"Toutes les vagues dues ont été expédiées." }));
+  else {
+    const tb = h(`<table class="table"><thead><tr>
+      <th>Entreprise</th><th>Envoi</th><th>Sites</th><th>Prévu</th><th></th>
+    </tr></thead><tbody></tbody></table>`);
+    l.forEach(x => {
+      const tr = h(`<tr>
+        <td><strong>${esc(x.entreprise.nom)}</strong>
+          <br><span class="muted" style="font-size:var(--t-xs)">${esc(x.entreprise.ville || "")}</span></td>
+        <td>${esc(x.kit.nom)}<br><span class="muted" style="font-size:var(--t-xs)">${esc(x.kit.contenu)}</span></td>
+        <td class="tnum">${nb(x.sites)}</td>
+        <td class="tnum ${x.en_retard ? "" : "muted"}" style="${x.en_retard ? "color:var(--danger)" : ""}">${dateCourte(x.prevu)}</td>
+        <td style="text-align:right"></td></tr>`);
+      const b = h(`<button class="btn btn--forest btn--sm">Marquer expédié</button>`);
+      b.onclick = () => {
+        const corps = h(`<div class="stack" style="--gap:var(--s4)">
+          <p class="muted" style="font-size:var(--t-sm)">${esc(x.kit.nom)} — ${esc(x.entreprise.nom)},
+            ${nb(x.sites)} site${x.sites > 1 ? "s" : ""}.</p>
+          <div class="field"><label for="sv">Numéro de suivi (facultatif)</label>
+            <input class="input" id="sv" placeholder="6A12345678901"></div>
+          <p class="hint">Le client confirmera lui-même la réception : c'est la seule trace qui
+            vaille quelque chose le jour où il dit n'avoir rien reçu.</p>
+        </div>`);
+        modal("Marquer expédié", corps, [
+          { label:"Annuler" },
+          { label:"Expédié", classe:"btn--primary", onClick: () => {
+              try { DB.expedier(x.entreprise.id, x.kit.code,
+                { suivi: corps.querySelector("#sv").value }); }
+              catch (e){ toast(e.message); return false; }
+              toast("Expédition enregistrée."); rendre(); }}]);
+      };
+      tr.lastElementChild.appendChild(b);
+      tb.querySelector("tbody").appendChild(tr);
+    });
+    apr.appendChild(tb);
+  }
+
+  const fai = el.querySelector("#fai");
+  if (!faites.length) fai.appendChild(vide({ titre:"Aucune expédition",
+    texte:"Les envois marqués expédiés apparaîtront ici." }));
+  else {
+    const tb = h(`<table class="table"><thead><tr>
+      <th>Entreprise</th><th>Envoi</th><th>Expédié</th><th>Suivi</th><th>Reçu</th>
+    </tr></thead><tbody></tbody></table>`);
+    faites.forEach(x => {
+      const e = DB.entreprise(x.entreprise) || {};
+      const k = KITS_SAISON.find(y => y.code === x.kit) || {};
+      tb.querySelector("tbody").appendChild(h(`<tr>
+        <td>${esc(e.nom || "")}</td>
+        <td>${esc(k.nom || x.kit)}</td>
+        <td class="muted tnum">${dateCourte(x.expedie_le)}</td>
+        <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(x.suivi || "—")}</td>
+        <td>${x.recu_le ? `<span class="badge badge--ok">${dateCourte(x.recu_le)}</span>`
+                        : `<span class="badge badge--attente">en attente</span>`}</td></tr>`));
+    });
+    fai.appendChild(tb);
+  }
+  el.querySelector("#csvEx").onclick = () => {
+    versCSV("riseva-expeditions.csv",
+      ["Entreprise", "Envoi", "Expédié le", "Suivi", "Reçu le"],
+      faites.map(x => [(DB.entreprise(x.entreprise) || {}).nom || "",
+        (KITS_SAISON.find(y => y.code === x.kit) || {}).nom || x.kit,
+        x.expedie_le, x.suivi || "", x.recu_le || ""]));
+    toast("Export téléchargé.");
+  };
+  return el;
+}
+
+/* ------------------------------------------------------------------ */
 /* Sécurité : le registre, le Pareto, le plan d'actions               */
 /* ------------------------------------------------------------------ */
 /* Un site déclare ses événements au fil de l'eau ; la société les lit
@@ -7137,6 +7383,7 @@ const ROUTES = {
     mecenat:   [vueMecenat,        "Mécénat"],
     materiel:  [vueMateriel,       "Dons de matériel"],
     dossier:   [vueDossier,        "Réponses aux questionnaires clients"],
+    supports:  [vueSupports,       "Affiches et supports"],
     abonnement:[vueAbonnement,     "Abonnement"],
     parametres:[vueParametres,     "Paramètres"],
     groupe:    [vueGroupe,         "Vue consolidée du groupe"],
@@ -7192,6 +7439,7 @@ const ROUTES = {
     journal:        [vueJournal,               "Journal des envois"],
     moteur:         [vueMoteur,                "Automatismes"],
     moderation:     [vueModeration,            "Modération"],
+    expeditions:    [vueExpeditions,           "Affiches à expédier"],
     preferences:    [vuePreferences,           "Préférences"]
   }
 };
