@@ -2,7 +2,8 @@
 .login{min-height:100vh;display:grid;grid-template-columns:1.05fr 1fr;background:var(--paper)}
 .login__aside{background:var(--forest-900);color:rgba(223,230,208,.72);padding:var(--s16) var(--s12);
   display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
-.login__aside img{height:26px;width:auto;align-self:flex-start;flex:none}
+.login__aside img{height:30px;width:auto;align-self:flex-start;flex:none;
+  position:relative;margin-bottom:var(--s10)}
 .login__river{position:absolute;left:-40px;bottom:-30px;width:520px;opacity:.2}
 .login__form{display:grid;place-items:center;padding:var(--s12)}
 .login__box{width:100%;max-width:380px}
@@ -210,13 +211,23 @@
 .card--dark .jauge__retenu{background:var(--lime)}
 
 /* ============ Cartes d'annonce ============ */
-.vignette{display:block;width:100%;background:var(--forest-900)}
+.vignette{display:block;width:100%;background:var(--forest-900);object-fit:cover}
 .annonce{display:flex;flex-direction:column;background:var(--paper-raised);
   border:var(--line-soft);border-radius:var(--r-md);overflow:hidden;
   transition:box-shadow var(--dur) var(--ease),transform var(--dur) var(--ease),
              border-color var(--dur) var(--ease)}
 .annonce:hover{box-shadow:var(--sh-2);transform:translateY(-1px);border-color:rgba(19,21,16,.12)}
 .annonce__haut{position:relative}
+/* La vignette est une photographie depuis qu'elle a cesse d'etre un motif
+   dessine : le nom de l'association et le cartouche de points se posent dessus,
+   et une photo claire les avalait. Un voile en degrade, plus dense en haut et en
+   bas qu'au milieu, rend le texte lisible sans assombrir l'image. */
+.annonce__haut::after{
+  content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+  background:linear-gradient(180deg,rgba(11,38,32,.52) 0%,rgba(11,38,32,.10) 42%,
+             rgba(11,38,32,.14) 62%,rgba(11,38,32,.46) 100%);
+}
+.annonce__asso,.annonce__pts{z-index:1}
 /* Le cartouche annonce un barème, pas un gain exceptionnel : il se lit sans
    dominer la vignette. Une ligne, un quart de surface en moins. */
 .annonce__pts{position:absolute;right:var(--s3);bottom:var(--s3);
@@ -227,7 +238,7 @@
   line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
 .annonce__ptsL{font-size:var(--t-xs);font-weight:600;line-height:1;opacity:.78}
 .annonce__asso{position:absolute;left:var(--s4);top:var(--s4);display:flex;align-items:center;
-  gap:8px;background:rgba(11,38,32,.72);backdrop-filter:blur(6px);border-radius:var(--r-pill);
+  gap:8px;background:rgba(11,38,32,.78);backdrop-filter:blur(7px);border-radius:var(--r-pill);
   padding:5px 12px 5px 6px;color:var(--paper);font-size:var(--t-sm);font-weight:550}
 .annonce__pastille{width:22px;height:22px;border-radius:50%;background:var(--forest-800);
   color:var(--lime);display:grid;place-items:center;font-size:10px;font-weight:700;flex:none}
@@ -415,3 +426,57 @@
   margin-top:var(--s4);padding-top:var(--s4);border-top:var(--line-soft)
 }
 .offre__agir .muted{max-width:44ch;line-height:1.45}
+
+/* ============ Le panneau vert de la connexion ============ */
+/* Il portait un titre et deux lignes au milieu de six cents pixels d'aplat. Un
+   ecran de connexion est le premier ecran du produit : un grand vide vert s'y
+   lit comme une page qui n'a pas fini de charger, pas comme du calme. Il porte
+   maintenant les sept formats du bareme et ce que le reseau a deja fait, sans
+   devenir une brochure : trois blocs, une liste, et une lueur qui respire. */
+.login__lueur{
+  position:absolute;inset:-30% -20% auto -20%;height:120%;pointer-events:none;
+  background:
+    radial-gradient(48% 42% at 18% 22%, rgba(94,177,70,.20), transparent 70%),
+    radial-gradient(42% 38% at 82% 8%,  rgba(31,92,74,.55),  transparent 72%);
+  animation:respire 26s ease-in-out infinite alternate;
+}
+@keyframes respire{
+  from{transform:translate3d(0,0,0) scale(1);}
+  to  {transform:translate3d(0,-2.5%,0) scale(1.08);}
+}
+.login__formats{
+  list-style:none;margin:var(--s8) 0 0;padding:0;
+  display:grid;gap:2px;max-width:38ch;
+  border-top:1px solid rgba(223,230,208,.16);
+}
+.login__formats li{
+  display:grid;grid-template-columns:22px 1fr auto;align-items:center;gap:var(--s3);
+  padding:9px 0;border-bottom:1px solid rgba(223,230,208,.10);
+  font-size:var(--t-sm);color:rgba(223,230,208,.82);
+}
+.login__ic{display:grid;place-items:center;color:var(--lime);opacity:.85}
+.login__ic svg{width:17px;height:17px}
+.login__pts{color:var(--lime);font-weight:600;font-variant-numeric:tabular-nums}
+.login__note{
+  margin-top:var(--s5);max-width:40ch;
+  font-size:var(--t-xs);line-height:1.6;color:rgba(223,230,208,.66);
+}
+.login__pied{position:relative}
+.login__chiffres{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s4);
+  padding-top:var(--s5);border-top:1px solid rgba(223,230,208,.16);
+}
+.login__chiffres b{
+  display:block;font-family:var(--f-disp);font-size:26px;line-height:1;
+  letter-spacing:-.03em;color:var(--paper);font-variant-numeric:tabular-nums;
+}
+.login__chiffres span{
+  display:block;margin-top:6px;font-size:var(--t-xs);line-height:1.35;
+  color:rgba(223,230,208,.55);
+}
+@media (prefers-reduced-motion:reduce){ .login__lueur{animation:none;} }
+
+/* La page d'inscription des salaries n'a pas les icones sous la main : sa liste
+   se passe de la premiere colonne au lieu de reserver une gouttiere vide. */
+.login__formats li:has(.login__ic:empty){grid-template-columns:0 1fr auto;gap:0 var(--s3)}
+.login__formats li:has(.login__ic:empty) .login__ic{display:none}

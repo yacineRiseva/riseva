@@ -14,7 +14,7 @@ GABARIT = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Riseva — {titre}</title>
+<title>Riseva, {titre}</title>
 <meta name="description" content="{description}">
 <link rel="icon" href="/brand/riseva-mark.png">
 <link rel="stylesheet" href="/styles/polices.css">
@@ -174,9 +174,9 @@ et le résultat reste une estimation, déduite de l'objectif annoncé.</p>
 
 <div class="encadre">
   <p><strong>Deux chiffres, jamais additionnés.</strong></p>
-  <p><strong>Résultats confirmés</strong> — déclarés par l'association après la mission. Ce sont les
+  <p><strong>Résultats confirmés</strong>, déclarés par l'association après la mission. Ce sont les
   chiffres affichés en grand, et les seuls qui partent dans un rapport comme des résultats.</p>
-  <p><strong>Résultats estimés</strong> — calculés à partir de l'objectif de l'annonce, faute de
+  <p><strong>Résultats estimés</strong>, calculés à partir de l'objectif de l'annonce, faute de
   réponse. Ils sont affichés à part, dans un bloc distinct, et jamais ajoutés aux précédents.</p>
 </div>
 
@@ -190,7 +190,7 @@ donné. Ce n'est pas une mesure d'impact environnemental ou social, et Riseva ne
 comme telle, ni dans l'interface, ni dans les rapports, ni en rendez-vous commercial.</p>
 <p><strong>Ce n'est pas non plus une assiette fiscale, et les deux ne se convertissent pas.</strong>
 Un point est un point ; un euro déductible est un euro que quelqu'un a constaté. Une mission close
-sans confirmation de l'association crédite ses points — l'équipe y était — mais n'entre
+sans confirmation de l'association crédite ses points, l'équipe y était, mais n'entre
 <strong>pas</strong> dans l'assiette de l'article 238 bis, parce que personne n'a attesté qu'elle
 avait eu lieu. Il n'existe donc aucun taux de conversion entre votre rang au classement et votre
 réduction d'impôt, et personne chez Riseva n'en promettra un. L'écran Mécénat affiche à part, en
@@ -227,7 +227,7 @@ ecrire("charte-associations.html",
     <li>Publier des besoins réels, dans l'objet de votre association.</li>
     <li>Accueillir les salariés dans des conditions sûres, et dire à l'avance ce que la mission
         demande physiquement et matériellement.</li>
-    <li>Répondre aux missions déclarées, ou laisser le délai courir — un silence n'est pas une
+    <li>Répondre aux missions déclarées, ou laisser le délai courir, un silence n'est pas une
         faute, une fausse confirmation en est une.</li>
     <li>N'utiliser les coordonnées reçues par Riseva que pour la mission concernée.</li>
     <li>Rester responsable des reçus fiscaux que vous émettez, sous votre numéro d'ordre.</li>
@@ -252,20 +252,20 @@ ecrire("charte-associations.html",
 <h2>Ce que nous vérifions à l'entrée, et comment</h2>
 <p>Sur les <strong>registres publics</strong>, pas sur des pièces que vous nous enverriez. Vous
 donnez un numéro, nous allons lire nous-mêmes. <strong>Vous n'avez aucun justificatif à envoyer,
-et nous ne vous en demanderons pas</strong> — ni statuts, ni comptes, ni attestation.</p>
+et nous ne vous en demanderons pas</strong>, ni statuts, ni comptes, ni attestation.</p>
 <table class="table">
   <thead><tr><th>Ce que nous lisons</th><th>Où</th></tr></thead>
   <tbody>
     <tr><td>Existence juridique, dénomination déposée, date de déclaration, état d'activité</td>
         <td>Annuaire des Entreprises et Répertoire national des associations, via l'API
-            Recherche d'entreprises — Licence Ouverte 2.0</td></tr>
+            Recherche d'entreprises, Licence Ouverte 2.0</td></tr>
     <tr><td>Adresse déclarée et cohérence avec ce que vous avez saisi</td>
         <td>Les mêmes registres. Les écarts vous sont montrés, jamais corrigés en douce.</td></tr>
     <tr><td>Objet réel de l'association</td>
         <td>Votre fiche publique et vos annonces, lues par une personne</td></tr>
     <tr><td>Identité du référent et du signataire des reçus</td>
         <td>Vos déclarations, avec le mandat écrit que vous nous donnez pour préparer les
-            reçus — et que vous révoquez quand vous voulez</td></tr>
+            reçus, et que vous révoquez quand vous voulez</td></tr>
   </tbody>
 </table>
 <p>Trois choses relèvent de vous et sont affichées comme des <strong>déclarations</strong>, jamais
@@ -289,8 +289,8 @@ par les entreprises.</p>
 <ul>
   <li>Vous avez <strong>quatorze jours</strong> pour confirmer une mission, à compter du jour où le
       salarié la déclare faite. Vous recevez le message, puis des rappels à trois, sept et douze
-      jours. Chacun contient trois boutons — réalisée comme prévu, réalisée partiellement, non
-      réalisée — qui fonctionnent <strong>sans vous connecter</strong>.</li>
+      jours. Chacun contient trois boutons, réalisée comme prévu, réalisée partiellement, non
+      réalisée, qui fonctionnent <strong>sans vous connecter</strong>.</li>
   <li>Sans réponse au bout de quatorze jours, la mission est <strong>clôturée automatiquement sans
       confirmation</strong>. Les points sont crédités à l'entreprise selon le barème, mais le
       résultat reste <strong>estimé</strong> et identifié comme <strong>non confirmé</strong> sur
@@ -298,8 +298,8 @@ par les entreprises.</p>
       que vous n'avez pas confirmé.</li>
   <li><strong>Une clôture automatique n'est pas une faute et n'entraîne aucune suspension.</strong>
       Vous avez une association à faire tourner, pas une boîte de réception à surveiller. Si les
-      clôtures se répètent, nous vous appelons pour comprendre — un référent absent, une adresse
-      qui ne marche plus — et pour trouver une solution.</li>
+      clôtures se répètent, nous vous appelons pour comprendre, un référent absent, une adresse
+      qui ne marche plus, et pour trouver une solution.</li>
   <li>Vous pouvez déclarer une <strong>période d'absence</strong> et un référent suppléant. Pendant
       cette période, les demandes partent au suppléant et les rappels vous laissent tranquille.</li>
   <li>Ce qui peut être sanctionné, c'est une <strong>confirmation volontairement fausse</strong> :
@@ -358,14 +358,14 @@ et elle est motivée par écrit.</p>
 <ul>
   <li>Annonces sans rapport avec l'objet déclaré.</li>
   <li>Coordonnées devenues fausses, ou référent injoignable malgré plusieurs tentatives sur
-      plusieurs canaux — et à condition qu'aucune période d'absence n'ait été déclarée.</li>
+      plusieurs canaux, et à condition qu'aucune période d'absence n'ait été déclarée.</li>
   <li><strong>Démarchage détourné</strong> : utiliser les coordonnées d'un salarié ou d'une
-      entreprise obtenues par Riseva pour une autre finalité que la mission — appel aux dons,
-      lettre d'information, invitation, revente — sans que la personne l'ait demandé.</li>
+      entreprise obtenues par Riseva pour une autre finalité que la mission, appel aux dons,
+      lettre d'information, invitation, revente, sans que la personne l'ait demandé.</li>
 </ul>
 <p>Trois situations, et trois seulement, permettent une suspension immédiate sans délai de
-correction : une <strong>fraude avérée</strong> — confirmation volontairement fausse, détournement
-de fonds —, un <strong>risque pour la sécurité</strong> des personnes accueillies, et l'émission de
+correction : une <strong>fraude avérée</strong> (confirmation volontairement fausse, détournement
+de fonds), un <strong>risque pour la sécurité</strong> des personnes accueillies, et l'émission de
 <strong>reçus fiscaux gravement irréguliers</strong>, par exemple après la perte de l'éligibilité.</p>
 <p>Une suspension retire les annonces, gèle les points en cours de validation liés à vos missions,
 et informe les entreprises concernées. Elle est motivée par écrit et peut être contestée : nous
@@ -513,14 +513,14 @@ identité de la personne accidentée.</p>
     <tr><td>Activité</td><td>Missions, points, dates</td><td>Durée de l'abonnement + 1 an pour les rapports</td></tr>
     <tr><td>Dons</td><td>Montant, date, association, identité du donateur</td><td>6 ans, obligation comptable et fiscale</td></tr>
     <tr><td>Journal des accès</td><td>Événement, horodatage, lien utilisé, adresse IP tronquée et navigateur</td><td>6 mois</td></tr>
-    <tr><td>Registre de sécurité</td><td>Date, site, zone, type et gravité d'un événement, journées d'arrêt — <strong>aucune identité, aucune donnée de santé</strong></td><td>durée de la saison, puis archivage agrégé</td></tr>
+    <tr><td>Registre de sécurité</td><td>Date, site, zone, type et gravité d'un événement, journées d'arrêt, <strong>aucune identité, aucune donnée de santé</strong></td><td>durée de la saison, puis archivage agrégé</td></tr>
     <tr><td>Facturation</td><td>Raison sociale, SIRET, adresse, factures</td><td>10 ans, obligation légale</td></tr>
   </tbody>
 </table>
 <p>Aucune donnée sensible au sens de l'article 9 n'est collectée <strong>directement</strong>.
 Il serait faux de s'arrêter là : rapprocher un donateur identifié de la cause qu'il soutient
 <strong>est</strong> une donnée sensible par déduction (CJUE, 1<sup>er</sup> août 2022, C-184/20).
-Ce rapprochement existe, il est nécessaire au reçu fiscal, et il est traité comme tel — un don
+Ce rapprochement existe, il est nécessaire au reçu fiscal, et il est traité comme tel, un don
 personnel déclaré dans Riseva demande votre <strong>accord explicite</strong>, distinct de votre
 inscription, et ce lien n'est jamais exposé à votre employeur. Aucun profilage, aucune décision
 automatisée produisant des effets juridiques. Aucune revente, jamais.</p>
@@ -580,7 +580,7 @@ complétées le cas échéant par la certification <em>Data Privacy Framework</e
       transmise au responsable de traitement sous 72 heures et instruite avec lui.</li>
   <li>Pour les données de son espace, Riseva agit comme <strong>sous-traitant</strong> de votre
       employeur : elle ne peut pas effacer un compte de sa propre initiative, ce serait agir hors
-      instruction (article 28.3.a). Vous pouvez nous écrire directement — nous transmettons, nous
+      instruction (article 28.3.a). Vous pouvez nous écrire directement, nous transmettons, nous
       assistons, et nous vous disons ce qui a été fait.</li>
   <li>Riseva reste responsable de traitement pour ce qui la concerne en propre : prospection,
       facturation, journal de sécurité. Sur ces données-là, elle répond elle-même, sous un mois.</li>
@@ -600,13 +600,13 @@ de bandeau à cliquer, parce qu'il n'y a rien à accepter.</p>
 
 <p>Cela vaut aussi pour ce qui ne ressemble pas à un traceur. <strong>Les polices de caractères
 sont servies par Riseva</strong>, pas par une fonderie extérieure. Consulter une page publique de
-riseva.fr — accueil, tarifs, règlement, page d'une association — ne déclenche donc aucune requête
+riseva.fr, accueil, tarifs, règlement, page d'une association, ne déclenche donc aucune requête
 vers un domaine extérieur, et n'envoie l'adresse IP du visiteur à personne avant qu'il ait fait
 quoi que ce soit. Une seule police chargée depuis un service extérieur suffirait à rendre cette
 phrase fausse : un test de la recette échoue si un appel externe réapparaît sur une page.</p>
 
 <p>Une fois connecté à l'application, votre navigateur dialogue évidemment avec l'hébergement de
-la base — c'est ce qui affiche vos données. Ces prestataires sont ceux du tableau ci-dessus, ils
+la base, c'est ce qui affiche vos données. Ces prestataires sont ceux du tableau ci-dessus, ils
 sont dans l'Union européenne, et il n'y en a pas d'autre.</p>
 """)
 
@@ -676,8 +676,8 @@ le réseau, pas seulement sur le logiciel.</p>
 <ul>
   <li>Vous avez <strong>quatorze jours</strong> pour confirmer une mission, à compter du jour où
       le salarié la déclare faite. Vous recevez le message, puis deux rappels : à trois jours, à
-      sept jours, et un dernier à douze jours. Chacun contient trois boutons — réalisée comme
-      prévu, réalisée partiellement, non réalisée — qui fonctionnent <strong>sans vous
+      sept jours, et un dernier à douze jours. Chacun contient trois boutons, réalisée comme
+      prévu, réalisée partiellement, non réalisée, qui fonctionnent <strong>sans vous
       connecter</strong>.</li>
   <li>Sans réponse au bout de quatorze jours, la mission est <strong>clôturée automatiquement
       sans confirmation</strong>. Les points sont crédités à l'entreprise, mais le résultat reste
@@ -686,8 +686,8 @@ le réseau, pas seulement sur le logiciel.</p>
       confirmé.</li>
   <li><strong>Une clôture automatique n'est pas une faute et n'entraîne aucune suspension.</strong>
       Vous avez une association à faire tourner, pas une boîte de réception à surveiller. Si les
-      clôtures automatiques se répètent, nous vous appelons pour comprendre — un référent
-      indisponible, une adresse qui ne marche plus — et pour trouver une solution avec vous.</li>
+      clôtures automatiques se répètent, nous vous appelons pour comprendre, un référent
+      indisponible, une adresse qui ne marche plus, et pour trouver une solution avec vous.</li>
   <li>Ce qui peut être sanctionné, c'est une <strong>confirmation volontairement fausse</strong> :
       attester qu'une mission a eu lieu alors qu'elle n'a pas eu lieu. C'est autre chose qu'un
       silence.</li>
@@ -1096,22 +1096,22 @@ L'article 1-2 de la même loi punit l'absence de ces mentions d'un an d'emprison
 le 5°, ajouté par la loi du 21 mai 2024, exige en plus l'identité des sous-traitants qui stockent
 les données. Voici les deux, sans distinction, parce que chez nous ce sont les mêmes.</p>
 <p>Les données sont hébergées dans l'Union européenne. Les sociétés qui exploitent ces
-infrastructures sont, elles, de droit américain — c'est un fait, et il est traité pour ce qu'il
+infrastructures sont, elles, de droit américain, c'est un fait, et il est traité pour ce qu'il
 est dans notre <a href="/confidentialite.html" style="color:var(--forest-800)">politique de
 confidentialité</a> et dans l'accord de sous-traitance remis à chaque client.</p>
 <table class="table">
   <tbody>
     <tr><td>Application et diffusion</td>
         <td><strong>Vercel Inc.</strong>, 440 N Barranca Avenue #4133, Covina, CA 91723,
-            États-Unis — <a href="https://vercel.com/legal/privacy-policy"
+            États-Unis, <a href="https://vercel.com/legal/privacy-policy"
             style="color:var(--forest-800)">vercel.com/legal</a>, privacy@vercel.com.
             Région d'hébergement : Union européenne.</td></tr>
     <tr><td>Base de données, authentification et stockage</td>
-        <td><strong>Supabase, Inc.</strong>, société de droit américain —
+        <td><strong>Supabase, Inc.</strong>, société de droit américain ,
             <a href="https://supabase.com/privacy" style="color:var(--forest-800)">supabase.com/privacy</a>,
             privacy@supabase.com. Région d'hébergement : Union européenne.</td></tr>
     <tr><td>Messages transactionnels</td>
-        <td><strong>Resend</strong> — <a href="https://resend.com/legal/privacy-policy"
+        <td><strong>Resend</strong>, <a href="https://resend.com/legal/privacy-policy"
             style="color:var(--forest-800)">resend.com/legal</a>. Région d'envoi :
             Union européenne.</td></tr>
   </tbody>
@@ -1162,7 +1162,7 @@ ni le dommage corporel, ni la faute lourde, ni le dol : la loi ne le permettrait
 n'essayons pas.</p>
 
 <h2>Litiges et médiation</h2>
-<p>Riseva contracte exclusivement avec des <strong>professionnels</strong> — entreprises et
+<p>Riseva contracte exclusivement avec des <strong>professionnels</strong>, entreprises et
 associations agissant dans le cadre de leur objet. Le dispositif de médiation de la consommation
 des articles L. 611-1 et suivants du code de la consommation n'est donc pas étendu à ces
 contrats, y compris lorsque le client bénéficie du droit de rétractation de l'article L. 221-3

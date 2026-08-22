@@ -429,9 +429,9 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
     var ht=base-Math.round(base*0.10);
     var acompte=Math.min(ht,Math.max(900,Math.round(ht*0.40)));
     out.innerHTML='<b>'+eur(ht)+' HT</b> la saison au tarif fondateur, soit '
-      +(ht/e).toFixed(1).replace('.',',')+' € par salarie. Acompte de <b>'+eur(acompte)
-      +'</b> a la commande'
-      +(facturables?', dont '+facturables+' site'+(facturables>1?'s':'')+' au-dela de ceux compris':'')
+      +(ht/e).toFixed(1).replace('.',',')+' € par salarié. Acompte de <b>'+eur(acompte)
+      +'</b> à la commande'
+      +(facturables?', dont '+facturables+' site'+(facturables>1?'s':'')+' au-delà de ceux compris':'')
       +'.';
   }
   eff.addEventListener('input',maj); sites.addEventListener('input',maj); maj();

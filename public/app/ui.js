@@ -55,7 +55,7 @@ export const initiales = (nom) => nom.split(/\s+/).slice(0,2).map(m => m[0]).joi
 
 /* L'écusson d'une entreprise dans le classement : son logo si elle en a chargé un,
    ses initiales sur une pastille sinon. La couleur de la pastille se dérive du nom,
-   donc elle est stable — une entreprise garde la même d'une semaine à l'autre, ce
+   donc elle est stable, une entreprise garde la même d'une semaine à l'autre, ce
    qui permet de la reconnaître du coin de l'œil sans lire.
 
    Deux règles.
@@ -103,6 +103,12 @@ export const ICONS = {
   plus:      P(`<path d="M12 5v14M5 12h14"/>`),
   coins:     P(`<ellipse cx="12" cy="6.5" rx="7" ry="3"/><path d="M5 6.5v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/><path d="M5 11.5v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/>`),
   hands:     P(`<path d="M8 13V6.5a1.5 1.5 0 0 1 3 0V12"/><path d="M11 12V5.5a1.5 1.5 0 0 1 3 0V12"/><path d="M14 12V7.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6v-3a1.5 1.5 0 0 1 3 0"/>`),
+  /* Une patte : le refuge est le format le plus demandé du barème, il lui
+     fallait sa propre icône plutôt que le carton du don de matériel. */
+  paw:       P(`<ellipse cx="6.5" cy="10" rx="2" ry="2.6"/><ellipse cx="11" cy="7.6" rx="2" ry="2.7"/>`
+             + `<ellipse cx="15.8" cy="8.4" rx="2" ry="2.6"/><ellipse cx="19" cy="12" rx="1.9" ry="2.3"/>`
+             + `<path d="M12.6 12.4c2.6 0 5 2.2 5 4.6 0 1.9-1.6 3-3.4 3-1 0-1.4-.4-2.3-.4s-1.3.4-2.3.4`
+             + `c-1.8 0-3.4-1.1-3.4-3 0-2.4 2.4-4.6 5-4.6Z"/>`),
   box:       P(`<path d="M21 8.5 12 4 3 8.5v7L12 20l9-4.5v-7Z"/><path d="M3 8.5 12 13l9-4.5M12 13v7"/>`),
   clock:     P(`<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>`),
   cloche:    P(`<path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M13.7 20a2 2 0 0 1-3.4 0"/>`),
@@ -275,7 +281,7 @@ const PLAFOND = 0.5;
 export function jauge({ brut, ecrete, retenu, diviseur, cohorte, cause, unite = "points" }){
   /* Une barre, deux segments : ce qui compte, ce qui a sauté. La version
      précédente mettait « retenus », « écrêtés » et « réalisés » côte à côte dans
-     la même légende — deux parties et leur total présentés comme trois
+     la même légende, deux parties et leur total présentés comme trois
      catégories. On lisait alors une jauge remplie à 12 %, c'est-à-dire un échec,
      là où le mécanisme fait exactement ce qu'il annonce. L'équation est écrite,
      et le format responsable est nommé : sans lui, l'administrateur voit qu'il
@@ -340,8 +346,12 @@ const MOTIFS = {
 };
 const MOTIF_TYPE = {
   benevolat_demi_journee: "silhouettes",
-  don_materiel: "caisses",
-  don_financier: "riviere"
+  benevolat_journee:      "silhouettes",
+  mecenat_competence:     "silhouettes",
+  parrainage_animal:      "pattes",
+  adoption_animal:        "pattes",
+  don_materiel:           "caisses",
+  don_financier:          "riviere"
 };
 
 function dessinFore(al){
@@ -408,8 +418,49 @@ function dessinSilhouettes(al){
 
 /* 132 px donnaient à un motif génératif le poids d'une photographie propre à la
    mission. Une bande de 78 px dit la catégorie sans prétendre montrer l'annonce. */
-export function vignette(annonce, { hauteur = 78 } = {}){
+/* Une photographie plutôt qu'un motif vert.
+
+   Chaque carte d'annonce portait un dessin génératif : des silhouettes, des
+   caisses, une rivière, tracés à partir du titre. C'était joli et ça ne disait
+   rien. Une carte qui annonce « Adopter un chat adulte » au-dessus de trois
+   traits verts demande au lecteur de deviner ce dont on parle, alors qu'une
+   photographie de refuge le lui montre en un dixième de seconde.
+
+   Le choix de l'image passe d'abord par l'unité d'impact de l'annonce, qui est
+   ce qu'il y a de plus précis (« animal », « arbre », « repas »), puis par la
+   cause de l'association, puis par la famille du format. Le motif dessiné reste
+   en dernier recours : une annonce dont on ne sait rien vaut mieux avec un
+   décor sobre qu'avec une photo qui raconterait autre chose. */
+const PHOTO_UNITE = {
+  animal: "refuge-chats", arbre: "plantation", haie: "biodiversite",
+  metre_berge: "berge-ramassage", dechet_kg: "berge-ramassage",
+  repas: "collecte", colis: "collecte", kit: "materiel",
+  eleve: "education", maraude: "maraude"
+};
+const PHOTO_CAUSE = {
+  "Protection animale": "refuge", "Reforestation": "plantation",
+  "Dépollution": "berge-ramassage", "Aide alimentaire": "collecte",
+  "Réemploi": "materiel", "Biodiversité": "biodiversite",
+  "Éducation": "education", "Lutte contre l'exclusion": "maraude"
+};
+const PHOTO_TYPE = {
+  parrainage_animal: "refuge", adoption_animal: "refuge-chats",
+  don_materiel: "materiel", don_financier: "riviere-aube"
+};
+
+/* Servi par un serveur, le chemin suffit. Dans le fichier autonome qu'on ouvre
+   d'un double-clic, il n'y a pas de serveur : les images y sont embarquées, et
+   c'est ce tableau que le script de construction remplit. Il reste vide ici, et
+   le chemin sert alors de repli. */
+export const VIGNETTES = {};
+
+export function vignette(annonce, { hauteur = 78, cause = "" } = {}){
   const cle = (annonce.impact && annonce.impact.unite) || "";
+  const nom = PHOTO_UNITE[cle] || PHOTO_CAUSE[cause] || PHOTO_TYPE[annonce.type];
+  if (nom)
+    return `<img class="vignette" src="${VIGNETTES[nom] || `/photos/vignettes/${nom}.jpg`}" alt=""
+      loading="lazy" decoding="async" width="560" height="171"
+      style="height:${hauteur}px">`;
   const motif = MOTIFS[cle] || MOTIF_TYPE[annonce.type] || "riviere";
   const al = graine(annonce.id + annonce.titre);
   const dessins = { foret: dessinFore, riviere: dessinRiviere, caisses: dessinCaisses,
@@ -470,7 +521,7 @@ const trace = (pts, p) => "M" + pts.map(([lo, la]) =>
 export function carteFrance(points, { hauteur = 300, legende = "", compacte = false } = {}){
   /* Cadre serré sur la France, contour appuyé, siège en losange avec son nom
      écrit. La version précédente laissait un hexagone pâle au milieu d'un grand
-     vide, et ne distinguait le siège des associations que par la couleur — donc
+     vide, et ne distinguait le siège des associations que par la couleur, donc
      pas du tout pour qui ne distingue pas ces deux verts, et jamais sans survol. */
   const L = 340, H = 360;
   const p = projeter(L, H, compacte ? 8 : 14);
@@ -491,7 +542,7 @@ export function carteFrance(points, { hauteur = 300, legende = "", compacte = fa
             r="7" class="carte__halo"/>
           <circle cx="${p.x(pt.lon).toFixed(1)}" cy="${p.y(pt.lat).toFixed(1)}"
             r="4" class="carte__coeur"/>
-          <title>${esc(pt.nom || "")}${pt.distance != null ? ` — ${nb(pt.distance)} km` : ""}</title>
+          <title>${esc(pt.nom || "")}${pt.distance != null ? `, ${nb(pt.distance)} km` : ""}</title>
         </g>`).join("")}
       ${moi ? `<g class="carte__pt carte__pt--moi">
         <path d="${losange(p.x(moi.lon), p.y(moi.lat), 12)}" class="carte__halo"/>
@@ -512,7 +563,7 @@ export function carteFrance(points, { hauteur = 300, legende = "", compacte = fa
 /* ------------------------------------------------------------------ */
 /* Un compteur qu'on regarde au lieu de le lire. Chaque arbre dessiné vaut un
    nombre fixe d'arbres réellement plantés ; quand le total monte, un arbre de
-   plus apparaît, toujours au même endroit — les positions viennent d'une suite
+   plus apparaît, toujours au même endroit, les positions viennent d'une suite
    de Halton, déterministe : l'arbre numéro 41 est au même pixel aujourd'hui et
    dans six mois. Rien ne s'anime au chargement : ce n'est pas une animation
    d'accueil, c'est l'état du compteur à l'instant où on ouvre la page. Le vrai
@@ -521,8 +572,8 @@ export function carteFrance(points, { hauteur = 300, legende = "", compacte = fa
 /* Cent arbres au maximum, rangés en cinq rangs de vingt, séparés tous les dix.
    La version précédente semait les positions au hasard : joli, et parfaitement
    incomptable. Un décompte déguisé qu'on ne peut pas recompter n'est plus un
-   décompte, c'est une illustration. Ici on peut vérifier à l'œil — dix, vingt,
-   trente — et le pas est écrit dessous. */
+   décompte, c'est une illustration. Ici on peut vérifier à l'œil, dix, vingt,
+   trente, et le pas est écrit dessous. */
 const RANGS = 5;
 const COLONNES = 20;
 const MAX_ARBRES_DESSINES = RANGS * COLONNES;

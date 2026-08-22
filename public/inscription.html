@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Riseva — réserver une place pour la saison</title>
+<title>Riseva, réserver une place pour la saison</title>
 <link rel="icon" href="/brand/riseva-mark.png">
 <link rel="stylesheet" href="/styles/polices.css">
 <link rel="stylesheet" href="/styles/tokens.css">
@@ -98,11 +98,11 @@
 import { brancher } from "/app/formulaires.js";
 brancher(document.getElementById("f"), {
   table: "preinscription",
-  sujet: "Riseva — préinscription entreprise",
+  sujet: "Riseva, préinscription entreprise",
   ligne: (d) => ({ entreprise: d.ent, contact: d.mail, effectif: Number(d.eff) || null }),
-  resume: (d) => `Entreprise : ${d.ent || "—"}\nEffectif : ${d.eff || "—"}\n`
-               + `Contact : ${d.nom} (${d.fonction || "—"}) — ${d.mail}`
-               + (d.tel ? ` — ${d.tel}` : "")
+  resume: (d) => `Entreprise : ${d.ent || ","}\nEffectif : ${d.eff || ","}\n`
+               + `Contact : ${d.nom} (${d.fonction || ","}), ${d.mail}`
+               + (d.tel ? `, ${d.tel}` : "")
                + (d.mot ? `\n\n${d.mot}` : ""),
   merci: (d) => ({ titre: "Préinscription enregistrée",
     texte: `Merci ${(d.nom || "").split(" ")[0]}. Nous revenons vers vous sous quarante-huit heures `

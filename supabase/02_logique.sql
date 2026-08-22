@@ -2151,7 +2151,7 @@ returns table (
   etablissement uuid, site text, ville text, effectif integer,
   situe boolean, rayon integer, attendu integer, verdict text,
   ouvertes integer, places integer, plus_proche integer, mediane integer,
-  benevolat integer, materiel integer, financier integer,
+  benevolat integer, animal integer, materiel integer, financier integer,
   semaine integer, weekend integer, sans_date integer,
   non_situees integer, a_relancer integer, signalee_le timestamptz)
 language plpgsql stable security definer set search_path = '' as $$
@@ -2192,7 +2192,9 @@ begin
       -- La médiane et non la moyenne : une annonce à quatre-vingts kilomètres
       -- tirerait la moyenne et ferait croire à un désert autour du site.
       percentile_cont(0.5) within group (order by p.km)::int     as med,
-      count(*) filter (where p.type = 'benevolat_demi_journee')::int as bene,
+      count(*) filter (where p.type in ('benevolat_demi_journee','benevolat_journee',
+                                        'mecenat_competence'))::int as bene,
+      count(*) filter (where p.type in ('parrainage_animal','adoption_animal'))::int as ani,
       count(*) filter (where p.type = 'don_materiel')::int           as mat,
       count(*) filter (where p.type = 'don_financier')::int          as fin,
       count(*) filter (where p.jour between 1 and 5)::int            as sem,
@@ -2221,11 +2223,11 @@ begin
                                      * private.offre_min_pour_cent())) then 'mince'
       -- Tout en semaine ouvrée et aucun don de matériel : un salarié en poste
       -- ou en équipe ne peut pas s'y rendre. Ce n'est pas un problème d'envie.
-      when agg.sem > 0 and agg.we = 0 and agg.mat = 0 then 'inaccessible'
+      when agg.sem > 0 and agg.we = 0 and agg.mat = 0 and agg.ani = 0 then 'inaccessible'
       else 'suffisante'
     end,
     agg.n, agg.places, agg.proche, agg.med,
-    agg.bene, agg.mat, agg.fin, agg.sem, agg.we, agg.sd,
+    agg.bene, agg.ani, agg.mat, agg.fin, agg.sem, agg.we, agg.sd,
     (select count(*)::int from brut where km is null),
     relance.n,
     (select s.le from public.sourcing s
@@ -2240,7 +2242,7 @@ returns table (
   etablissement uuid, site text, ville text, effectif integer,
   situe boolean, rayon integer, attendu integer, verdict text,
   ouvertes integer, places integer, plus_proche integer, mediane integer,
-  benevolat integer, materiel integer, financier integer,
+  benevolat integer, animal integer, materiel integer, financier integer,
   semaine integer, weekend integer, sans_date integer,
   non_situees integer, a_relancer integer, signalee_le timestamptz)
 language sql stable security definer set search_path = '' as $$

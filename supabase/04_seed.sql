@@ -10,9 +10,13 @@ values ('11111111-1111-4111-8111-111111111111', 'Saison 2027',
         '2027-01-01', '2027-12-31', 'ouverte', 3500, 4000, 500);
 
 insert into bareme (saison, type, points, unite) values
-  ('11111111-1111-4111-8111-111111111111', 'don_financier',          1,   '10 € versés'),
   ('11111111-1111-4111-8111-111111111111', 'benevolat_demi_journee', 150, 'demi-journée'),
-  ('11111111-1111-4111-8111-111111111111', 'don_materiel',           100, 'don validé');
+  ('11111111-1111-4111-8111-111111111111', 'benevolat_journee',      300, 'journée'),
+  ('11111111-1111-4111-8111-111111111111', 'mecenat_competence',     200, 'demi-journée'),
+  ('11111111-1111-4111-8111-111111111111', 'parrainage_animal',      250, 'animal parrainé un an'),
+  ('11111111-1111-4111-8111-111111111111', 'adoption_animal',        400, 'animal adopté'),
+  ('11111111-1111-4111-8111-111111111111', 'don_materiel',           100, 'don validé'),
+  ('11111111-1111-4111-8111-111111111111', 'don_financier',          1,   '10 € versés');
 
 insert into entreprise (id, nom, secteur, ville, effectif, ca, cout_jour_moyen,
                         siret, adresse, lat, lon)

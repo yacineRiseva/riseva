@@ -47,7 +47,7 @@ def photos(html):
     Une vitrine autonome dont les images pointent vers des chemins absolus ne
     montre rien : c'est le cas d'usage — un double-clic, sans serveur — qui est
     perdu, et il n'y a aucun message d'erreur pour le dire."""
-    for dossier in ("photos", "captures", "video"):
+    for dossier in ("photos", "photos/vignettes", "captures", "video"):
         for f in sorted((R/dossier).glob("*.jpg")):
             cle = f"/{dossier}/" + f.name
             if cle in html:
@@ -78,7 +78,7 @@ for source, cible in [("index.html", "riseva-site.html"),
 
 # ---- application ------------------------------------------------------
 bundle = "\n".join(strip_modules((R/"app"/f).read_text(encoding="utf-8"))
-                   for f in ["data.js","ui.js","app.js"])
+                   for f in ["qr.js","data.js","ui.js","app.js"])
 # Les logos vivent aussi dans les gabarits que le script fabrique — la barre
 # latérale, l'en-tête des documents imprimables. Ils sont substitués ici, sur le
 # script, parce que la substitution faite sur le HTML ne l'atteint plus depuis
@@ -91,6 +91,16 @@ app = re.sub(r'\s*<script src="/app/config.js"[^>]*></script>', "", app)
 # sens, les gabarits de documents que app.js porte dans ses chaînes deviennent des
 # cibles pour les substitutions faites sur le HTML.
 app = inline(app, ["polices.css","tokens.css","base.css","components.css","app.css"])
+# Les vignettes des annonces vivent dans le script, pas dans le HTML : elles sont
+# fabriquees par `vignette()` au moment du rendu. Sans cette substitution, un
+# fichier autonome affiche une carte sur deux avec un rectangle casse.
+# Les vignettes ne sont jamais ecrites en clair dans le script : leur chemin est
+# construit a l'execution. On remplit donc le tableau que `ui.js` laisse vide.
+_vig = ",".join(
+    '"%s":"data:image/jpeg;base64,%s"' % (f.stem,
+        base64.b64encode(f.read_bytes()).decode())
+    for f in sorted((R/"photos"/"vignettes").glob("*.jpg")))
+bundle = bundle.replace("const VIGNETTES = {};", "const VIGNETTES = {%s};" % _vig)
 app = app.replace('<script type="module" src="/app/app.js"></script>',
                   f"<script type=\"module\">\n{bundle}\n</script>")
 (OUT/"riseva-app.html").write_text(app, encoding="utf-8")

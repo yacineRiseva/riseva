@@ -59,6 +59,16 @@ def main():
     else:
         print("  ok   les cinq polices sont servies par Riseva")
 
+    titre("Codes QR")
+    # L'affiche porte un code QR fabriqué ici, sans rien appeler dehors. Un
+    # encodeur écrit à la main produit très facilement un carré parfaitement
+    # crédible que personne ne lit : le seul test qui vaut est un aller-retour,
+    # avec un décodeur qui n'est pas le nôtre.
+    code, sortie = lancer("python3 scripts/test_qr.py")
+    print(sortie.strip())
+    if code:
+        echecs.append("codes QR")
+
     titre("Base de données")
     code, sortie = lancer("service postgresql status")
     if "down" in sortie:

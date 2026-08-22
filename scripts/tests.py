@@ -148,26 +148,43 @@ def main():
         # qui le détaille avec un exemple chiffré. L'accueil en donne les trois
         # valeurs en une phrase — assez pour comprendre l'ordre de grandeur, pas
         # assez pour croire qu'on a lu la règle.
-        bar = norm(p.inner_text(".fmt-bareme"))
+        # `inner_text` rend le texte tel qu'il s'affiche, capitales de la feuille
+        # de style comprises : les points sont écrits « 150 PTS » à l'écran.
+        bar = norm(p.inner_text(".fmt-bloc")).lower()
         verifie("le barème annoncé est celui du code",
-                "150 pts" in bar and "100 pts" in bar and "1 pt" in bar)
+                "150 pts" in bar and "100 pts" in bar and "1 pt" in bar
+                and "250 pts" in bar and "400 pts" in bar)
         verifie("l'accueil renvoie au règlement pour le calcul complet",
                 "règlement" in bar and "écrêtage" in bar)
         corps = norm(p.inner_text("body"))
         # La vitrine ne vend que ce qui fonctionne, et ne montre aucun résultat.
-        verifie("l'accueil annonce les trois formats",
-                "Trois formats" in corps and "attend son prestataire" not in corps)
+        verifie("l'accueil annonce tout ce qu'une association peut proposer",
+                "Ce qu'une association peut proposer" in corps
+                and "Parrainage d'un animal" not in corps  # le libellé du produit
+                and "parrainage d'un animal" in corps.lower()
+                and "adoption d'un animal" in corps.lower()
+                and "attend son prestataire" not in corps)
         verifie("le don en argent est annoncé sans intermédiaire",
                 "sans transiter par Riseva" in corps and "aucune commission" in corps
                 and "Riseva n'encaisse rien" in corps)
         verifie("les points d'un don ne sont crédités qu'après confirmation",
                 "quand l'association confirme la réception, et pas avant" in corps)
-        verifie("l'accueil dit qu'il n'y a encore aucun résultat",
-                "Riseva démarre" in corps
-                and "aucun résultat client n'est encore publié" in corps
-                and "serait faux" in corps)
-        verifie("les écrans montrés sont annoncés comme une démonstration",
-                "jeu de démonstration" in corps)
+        # L'aveu tenait une section entière, avec un titre « Ce qu'on ne promet
+        # pas » et une colonne de tout ce que Riseva ne fait pas. Énumérer ses
+        # propres manques en grand sur une page qui vend est un mauvais calcul :
+        # le lecteur retient la liste, pas la nuance. Ce qui doit être dit l'est
+        # toujours, mais à l'endroit où on va le chercher, c'est-à-dire la FAQ.
+        verifie("la page ne se défend plus par une section entière",
+                "Ce qu'on ne promet pas" not in corps
+                and "Rien encore, et nous n'allons pas l'inventer" not in corps
+                and "Ce que Riseva ne prétend pas faire" not in corps)
+        verifie("mais la FAQ dit toujours qu'il n'y a pas encore de résultat",
+                "Riseva a-t-elle déjà des résultats" in corps
+                and "jeu de démonstration" in corps)
+        verifie("et la FAQ dit toujours ce que Riseva ne fait pas",
+                "ne certifie pas un impact" in corps
+                and "ne produit pas de bilan carbone" in corps
+                and "aucune déclaration à votre place" in corps)
         # La vitrine ne porte plus une seule photo de banque d'images. Seize cadres
         # souriants en open space illustraient un produit dont le métier est le
         # ramassage de déchets en rivière et les refuges animaliers ; et une légende
@@ -183,25 +200,26 @@ def main():
         # de les faire passer pour des preuves.
         verifie("elle montre aussi de quoi on parle",
                 len([x for x in vues if "/photos/" in (x or "")]) >= 3, str(vues))
+        # Les mentions posées sous chaque image ont été retirées. Elles étaient
+        # honnêtes et elles étaient contre-productives : « image générée, ce
+        # n'est pas une mission Riseva » sous chaque photographie transforme la
+        # page en avertissement continu, et le lecteur finit par lire la mention
+        # au lieu de regarder ce qu'on lui montre. La règle qui compte reste,
+        # et elle est vérifiée plus bas : aucune image ne prétend être la trace
+        # d'un résultat, aucune ne nomme personne.
         legendesP = p.evaluate(
-            """()=>[...document.querySelectorAll('.photo')].map(f=>f.textContent)""")
-        verifie("chaque illustration dit ce qu'elle est et qu'elle ne prouve rien",
-                legendesP and all(("Image générée" in x or "libres de droit" in x)
-                                  and "pas une mission Riseva" in x
-                                  for x in legendesP), str(legendesP)[:200])
+            """()=>[...document.querySelectorAll('.photo')].map(f=>f.textContent.trim())""")
+        verifie("les illustrations ne portent plus de mention sous elles",
+                all(x == "" for x in legendesP), str(legendesP)[:200])
         # La boucle vidéo : muette, sans contrôle de son, avec son affiche servie
         # tout de suite. Une page qui parle sans qu'on le lui demande se fait
         # fermer, et un rectangle vide pendant le chargement est un premier écran
         # perdu.
-        vid = p.evaluate("""()=>[...document.querySelectorAll('.video video')].map(v=>({
-            muted:v.muted, boucle:v.loop, ctrl:v.controls,
-            poster:!!v.getAttribute('poster'),
-            srcs:[...v.querySelectorAll('source')].map(s=>s.type)}))""")
-        verifie("la boucle vidéo est muette, sans contrôles, et porte son affiche",
-                vid and all(v["muted"] and v["boucle"] and not v["ctrl"] and v["poster"]
-                            for v in vid), str(vid))
-        verifie("elle est servie dans deux formats, sans dépendre d'un décodeur unique",
-                vid and all(len(v["srcs"]) >= 2 for v in vid), str(vid))
+        # La boucle vidéo a été retirée : au format où elle tenait, une rivière
+        # dans la brume se lit comme une photographie qui bouge un peu, donc
+        # comme un défaut d'affichage plutôt que comme du mouvement voulu.
+        verifie("aucune vidéo ne se lance toute seule sur la vitrine",
+                p.eval_on_selector_all("video", "v=>v.length") == 0)
         # Aucun visage identifiable, aucune association nommée sur une image :
         # une illustration qui nomme quelqu'un devient une affirmation le
         # concernant.
@@ -212,18 +230,70 @@ def main():
         # Et chacune dit d'où elle vient : une capture sans cette mention se lit
         # comme un résultat obtenu, et Riseva n'en a aucun.
         legendes = p.evaluate(
-            """()=>[...document.querySelectorAll('.shot')].map(f=>f.textContent)""")
-        verifie("chaque capture est annoncée comme une démonstration",
-                legendes and all("démonstration" in x or "fictives" in x
-                                 or "confirme" in x for x in legendes),
+            """()=>[...document.querySelectorAll('.shot figcaption')]
+                     .map(f=>f.textContent.trim())""")
+        verifie("chaque capture porte un titre court, pas une phrase",
+                legendes and all(0 < len(x) <= 62 for x in legendes),
                 str(legendes)[:300])
         # Le contenu ne doit dépendre d'aucun défilement : une animation peut
         # accompagner une apparition, jamais la conditionner.
-        caches = p.evaluate("""()=>[...document.querySelectorAll('.rv,.rl')]
-            .filter(e=>getComputedStyle(e).opacity !== '1').length""")
-        verifie("rien n'attend un défilement pour s'afficher", caches == 0, str(caches))
+        # Les apparitions au défilement sont revenues, et la règle qui les
+        # encadre n'a pas bougé : une animation accompagne un contenu, elle ne
+        # le conditionne jamais. Elles sont donc écrites « .js .rv ». Sans
+        # script, la classe n'existe pas, la règle ne s'applique pas, et la page
+        # s'affiche entière. On le vérifie en retirant la classe.
+        caches = p.evaluate("""()=>{
+            const h=document.documentElement, avait=h.classList.contains('js');
+            h.classList.remove('js');
+            const n=[...document.querySelectorAll('.rv,.rl')]
+              .filter(e=>getComputedStyle(e).opacity !== '1').length;
+            if (avait) h.classList.add('js');
+            return n; }""")
+        verifie("sans script, rien n'attend un défilement pour s'afficher",
+                caches == 0, str(caches))
         verifie("le seuil du classement est dit sur la vitrine",
                 "dix entreprises" in corps)
+        # ── les affiches ────────────────────────────────────────────────────
+        # C'est le seul objet Riseva qu'un salarié voit sans ouvrir un écran, et
+        # la section qui le montre avait disparu. Elle montre l'affiche telle
+        # qu'elle sort de la plateforme, pas une photo d'affiche posée sur un mur.
+        aff = norm(p.inner_text("#affiches"))
+        verifie("la vitrine montre l'affiche et ce qu'elle porte",
+                "code QR" in aff and "lien d'inscription" in aff
+                and "quatre moments de la saison" in aff)
+        verifie("l'affiche montrée est une vraie sortie de la plateforme",
+                p.eval_on_selector_all("#affiches img[src*='/captures/affiche']",
+                                       "l=>l.length") == 1)
+        # ── ce que ça change ────────────────────────────────────────────────
+        # Trois effets, et chacun porte son chiffre. Dans la version précédente
+        # celui du milieu n'en avait pas : au lieu de trois colonnes, l'œil
+        # voyait deux colonnes et un trou.
+        chiffres3 = p.eval_on_selector_all("#change .ret > li",
+            "l=>l.map(e=>!!e.querySelector('.ret-fact'))")
+        verifie("chacun des trois effets porte un chiffre",
+                len(chiffres3) == 3 and all(chiffres3), str(chiffres3))
+        ordre = p.eval_on_selector_all("#change .ret h3", "l=>l.map(e=>e.textContent)")
+        verifie("les allégations viennent avant les équipes qui se parlent",
+                len(ordre) == 3 and "allégations" in ordre[1] and "équipes" in ordre[2],
+                str(ordre))
+        # ── plus de prénom nulle part ───────────────────────────────────────
+        # Les pages parlent au nom d'une équipe. Une vitrine qui met en avant une
+        # personne seule vend une dépendance, pas un service.
+        for page in ("/", "/associations.html", "/inscription.html"):
+            p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(250)
+            verifie(f"aucun prénom de fondateur sur {page}",
+                    "Yacine" not in p.inner_text("body"))
+        p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
+        # ── plus un seul tiret cadratin ─────────────────────────────────────
+        # Ils ne sont pas fautifs, ils sont reconnaissables : sur une page
+        # française, une incise entre tirets cadratins à chaque paragraphe est
+        # le premier signe qui fait dire « c'est écrit par une machine ».
+        for page in ("/", "/associations.html"):
+            p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(250)
+            n = p.inner_text("body").count("\u2014")
+            verifie(f"aucun tiret cadratin sur {page}", n == 0, str(n))
+        p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
+        corps = norm(p.inner_text("body"))
         # Les quatre chiffres du premier écran sont des faits extérieurs, datés
         # et sourcés, ou des propriétés du produit qui ne dépendent que de nous.
         # Un chiffre de performance client à cet endroit serait le premier
@@ -441,9 +511,9 @@ def main():
           return { n:t.length,
                    trie: t.slice(1).every((o,i)=> rang[o.verdict] >= rang[t[i].verdict]),
                    verdicts: t.map(o=>o.verdict),
-                   sommes: t.map(o => o.parFormat.benevolat_demi_journee
-                                    + o.parFormat.don_materiel
-                                    + o.parFormat.don_financier === o.ouvertes),
+                   sommes: t.map(o => o.parFormat.temps + o.parFormat.animal
+                                    + o.parFormat.materiel
+                                    + o.parFormat.argent === o.ouvertes),
                    jours: t.map(o => o.semaine + o.weekend + o.sansDate === o.ouvertes),
                    rayon: t.every(o => o.rayon === d.DB.RAYON_OFFRE_KM),
                    attendus: t.map(o => [o.site.effectif, o.attendu]) };
@@ -856,12 +926,12 @@ def main():
 
         print("\nLes formulaires publics")
         # Un formulaire qui dit « envoyé » sans rien envoyer est un mensonge poli.
-        p.goto(f"{BASE}/associations.html#yacine", wait_until="networkidle")
+        p.goto(f"{BASE}/associations.html#commencer", wait_until="networkidle")
         p.fill("#fa-asso", "Les Amis du Bocage"); p.fill("#fa-ville", "Rennes")
         p.fill("#fa-mot", "des bras un samedi matin")
         p.fill("#fa-mail", "contact@bocage.org")
         p.click("#formAsso [type=submit]"); p.wait_for_timeout(600)
-        corps = norm(p.inner_text("#yacine")).replace("\u2019", "'")
+        corps = norm(p.inner_text("#commencer")).replace("\u2019", "'")
         verifie("sans base configurée, le formulaire ne prétend pas avoir envoyé",
                 "n'est pas encore relié" in corps and "enregistré" not in corps)
         verifie("il propose un envoi réel par courriel",
@@ -965,16 +1035,35 @@ def main():
         # trois grands chiffres : mettre en scene l'absence de resultats lui
         # donnait autant de place qu'a une preuve. Il reste au meme endroit, et il
         # dit toujours la meme chose.
-        pr = norm(p.inner_text("#preuve"))
-        verifie("l'accueil dit qu'il n'y a encore rien à montrer",
-                "aucun résultat client n'est encore publié" in pr
-                and "jeu de démonstration" in pr
-                and "sans retouche" in pr)
+        pr = norm(p.inner_text("#faq"))
+        verifie("la FAQ dit qu'il n'y a encore rien à montrer",
+                "jeu de démonstration" in pr
+                and "La première saison démarre en janvier" in pr)
         cumul = p.evaluate("""async()=>{const m=await import('/app/data.js');
                     const r=m.DB.impactReseau();
                     return [r.confirmees, r.closesSansReponse, r.missions]}""")
         verifie("le cumul distingue les confirmations des clôtures d'office",
                 cumul[0] + cumul[1] == cumul[2] and cumul[1] > 0, str(cumul))
+
+        print("\nL'affiche et son code QR")
+        # L'affiche est le seul support papier du produit. Un lien de cinquante
+        # caracteres recopie a la main au-dessus d'une machine a cafe n'est
+        # jamais recopie : sans code QR, c'est une affiche qu'on regarde.
+        connecte(p, "u2", "#/supports")
+        with p.context.expect_page() as onglet:
+            p.click("#affiche")
+        aff = onglet.value
+        aff.wait_for_load_state("domcontentloaded"); aff.wait_for_timeout(300)
+        verifie("l'affiche porte le logo de Riseva",
+                aff.eval_on_selector_all("img[src*='riseva-full']", "l=>l.length") == 1)
+        verifie("elle porte un code QR dessine sur place, pas une image appelee dehors",
+                aff.eval_on_selector_all("svg.qr path", "l=>l.length") == 1)
+        verifie("elle porte le lien d'inscription en clair aussi",
+                "rejoindre.html?code=" in aff.inner_text(".lien"))
+        verifie("le code QR est fabrique a partir de ce lien-la",
+                aff.evaluate("()=>document.querySelector('svg.qr path')"
+                             ".getAttribute('d').length") > 400)
+        aff.close()
 
         print("\nEnregistrement automatique")
         connecte(p, "u7", "#/mesannonces")
@@ -1583,7 +1672,7 @@ def main():
                 "2025/1710" in vt and "réserve" not in vt.lower()[:200])
         verifie("elle prévient que le texte est en cours de reprise",
                 "acte délégué" in vt)
-        verifie("les onze rubriques sont là", all(f"B{n} —" in vt for n in range(1, 12)))
+        verifie("les onze rubriques sont là", all(f"B{n} ·" in vt for n in range(1, 12)))
         verifie("ce que Riseva sait est rempli",
                 "Renseignée par Riseva" in vt and "Missions confirmées par les associations" in vt)
         verifie("les résultats retenus sont les confirmés, pas les estimations",

@@ -101,7 +101,14 @@ end $$;
 -- un moyen de savoir qui a fait quoi.
 create type role_utilisateur as enum ('admin','entreprise_admin','salarie','association','site_referent','cse');
 create type etat_collecte    as enum ('attendu','declare','approuve','clos_sans_reponse');
-create type type_annonce     as enum ('don_financier','benevolat_demi_journee','don_materiel');
+-- Sept formats, et l'ordre compte : il est repris tel quel partout où la liste
+-- s'affiche. Les trois premiers sont du temps, les deux suivants concernent un
+-- animal de refuge, puis le matériel et l'argent. Un refuge demande d'abord des
+-- parrains et des adoptants ; ne pas les inscrire au barème revenait à lui dire
+-- que sa demande principale ne compte pas.
+create type type_annonce     as enum ('benevolat_demi_journee','benevolat_journee',
+                                      'mecenat_competence','parrainage_animal',
+                                      'adoption_animal','don_materiel','don_financier');
 create type etat_annonce     as enum ('brouillon','ouverte','close');
 create type etat_mission     as enum ('engagee','a_valider','validee','validee_auto','refusee');
 create type etat_saison      as enum ('brouillon','ouverte','close');

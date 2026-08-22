@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Riseva — rejoindre mon entreprise</title>
+<title>Riseva, rejoindre mon entreprise</title>
 <link rel="icon" href="/brand/riseva-mark.png">
 <link rel="stylesheet" href="/styles/polices.css">
 <link rel="stylesheet" href="/styles/tokens.css">
@@ -20,8 +20,11 @@ import { h, esc, nb, toast } from "/app/ui.js";
 const code = new URLSearchParams(location.search).get("code") || "";
 const root = document.getElementById("root");
 
+const reseau = DB.impactReseau();
+
 const cadre = (contenu) => h(`<div class="login">
   <aside class="login__aside grain">
+    <div class="login__lueur" aria-hidden="true"></div>
     <svg class="login__river" viewBox="0 0 520 300" aria-hidden="true">
       <path d="M0 220 C 110 120, 190 270, 300 180 S 450 70, 520 150" fill="none" stroke="var(--lime)" stroke-width="4"/>
       <path d="M0 265 C 120 165, 200 305, 320 220 S 460 120, 520 195" fill="none" stroke="var(--brand)" stroke-width="4" opacity=".55"/>
@@ -32,13 +35,25 @@ const cadre = (contenu) => h(`<div class="login">
       <p style="margin-top:var(--s5);color:rgba(223,230,208,.62);max-width:38ch">
         Des associations publient de vrais besoins près de chez vous. Vous y répondez quand
         vous voulez, et chaque action compte pour votre entreprise.</p>
-      <ul class="stack" style="--gap:var(--s3);margin-top:var(--s8);font-size:var(--t-sm);color:rgba(223,230,208,.72)">
-        ${Object.values(BAREME).map(b => `<li class="row">
-          <span class="dot" style="color:var(--lime)"></span>
-          ${esc(b.label)} — ${nb(b.points)} point${b.points > 1 ? "s" : ""} par ${esc(b.unite)}</li>`).join("")}
+      <ul class="login__formats">
+        ${Object.values(BAREME).map(b => `<li>
+          <span class="login__ic"></span>
+          <span class="login__lab">${esc(b.label)}</span>
+          <span class="login__pts mono">+${nb(b.points)}</span></li>`).join("")}
       </ul>
+      <p class="login__note">Vous choisissez ce que vous faites, et quand. Personne ne vous
+        désigne, et se retirer ne demande aucune justification. Ce que vous donnez à titre
+        personnel n'est jamais montré à votre employeur.</p>
     </div>
-    <p style="font-size:var(--t-xs);color:rgba(223,230,208,.68)">© 2026 Riseva</p>
+    <div class="login__pied">
+      <div class="login__chiffres">
+        <div><b>${nb(reseau.associations || 0)}</b><span>associations vérifiées</span></div>
+        <div><b>${nb(reseau.missions || 0)}</b><span>missions confirmées</span></div>
+        <div><b>${nb(reseau.heures || 0)}</b><span>heures de bénévolat</span></div>
+      </div>
+      <p style="font-size:var(--t-xs);color:rgba(223,230,208,.62);margin-top:var(--s5)">
+        © 2026 Riseva</p>
+    </div>
   </aside>
   <div class="login__form"><div class="login__box" id="boite"></div></div>
 </div>`);
@@ -74,7 +89,7 @@ else if (!inv.active) erreur("Ce lien a été désactivé", "Votre entreprise l'
 else if (!inv.pour_cse && !inv.pour_referent && (restantesLien <= 0 || si.restants <= 0))
                   erreur("Toutes les places sont prises", "L'abonnement de votre entreprise est complet. Parlez-en à la personne qui gère Riseva chez vous.");
 /* L'accès du CSE : nominatif lui aussi, et en lecture seule. On dit ce qu'il ouvre
-   et surtout ce qu'il n'ouvre pas — un élu qui découvrirait après coup qu'il ne voit
+   et surtout ce qu'il n'ouvre pas, un élu qui découvrirait après coup qu'il ne voit
    pas les noms se demanderait ce qu'on lui cache, alors que c'est exactement
    l'inverse. */
 else if (inv.pour_cse){
@@ -132,12 +147,12 @@ else if (inv.pour_cse){
   });
 }
 /* Un lien de référent est nominatif : il porte le nom et l'adresse de la personne
-   visée. On les affiche, on ne les fait pas saisir — et surtout on n'accepte pas
+   visée. On les affiche, on ne les fait pas saisir, et surtout on n'accepte pas
    une autre adresse, sinon « nominatif » ne veut plus rien dire. */
 else if (inv.pour_referent){
   boite.appendChild(h(`<div>
     <p class="eyebrow">Référent de site</p>
-    <h1 style="margin-top:var(--s4);font-size:var(--t-h2)">Piloter ${esc(etab.nom)} — ${esc(etab.ville)}</h1>
+    <h1 style="margin-top:var(--s4);font-size:var(--t-h2)">Piloter ${esc(etab.nom)}, ${esc(etab.ville)}</h1>
     <p class="muted" style="margin-top:var(--s3);font-size:var(--t-sm)">
       ${esc(ent.nom)} vous confie ce site. Ce lien a été émis pour
       <strong style="color:var(--ink)">${esc(inv.email)}</strong> et n'ouvre qu'un seul compte.</p>
@@ -176,7 +191,7 @@ else if (inv.pour_referent){
       <span class="badge badge--ok" style="height:28px"><span class="dot"></span>Compte créé</span>
       <h1 style="margin-top:var(--s5);font-size:var(--t-h2)">Bienvenue ${esc(u.nom.split(" ")[0])}</h1>
       <p class="muted" style="margin-top:var(--s4)">
-        Vous pilotez ${esc(etab.nom)} — ${esc(etab.ville)}. Première chose à faire : créer le lien
+        Vous pilotez ${esc(etab.nom)}, ${esc(etab.ville)}. Première chose à faire : créer le lien
         d'inscription de vos salariés.</p>
       <a class="btn btn--primary btn--lg" style="margin-top:var(--s8)" href="/app/#/tableau">
         Ouvrir mon tableau de bord</a>
@@ -186,9 +201,9 @@ else if (inv.pour_referent){
 else {
   boite.appendChild(h(`<div>
     <p class="eyebrow">Inscription</p>
-    <h1 style="margin-top:var(--s4);font-size:var(--t-h2)">Rejoindre ${esc(ent.nom)}${etab ? ` — ${esc(etab.ville)}` : ""}</h1>
+    <h1 style="margin-top:var(--s4);font-size:var(--t-h2)">Rejoindre ${esc(ent.nom)}${etab ? `, ${esc(etab.ville)}` : ""}</h1>
     <p class="muted" style="margin-top:var(--s3);font-size:var(--t-sm)">
-      ${restantesLien} place${restantesLien > 1 ? "s" : ""} encore disponible${restantesLien > 1 ? "s" : ""} sur ce lien${etab ? `, sur le quota de ${esc(etab.nom)} — ${esc(etab.ville)}` : ""}.</p>
+      ${restantesLien} place${restantesLien > 1 ? "s" : ""} encore disponible${restantesLien > 1 ? "s" : ""} sur ce lien${etab ? `, sur le quota de ${esc(etab.nom)}, ${esc(etab.ville)}` : ""}.</p>
     <form class="stack" style="--gap:var(--s4);margin-top:var(--s8)" id="f">
       <div class="field"><label for="nom">Nom et prénom</label>
         <input class="input" id="nom" required autocomplete="name"></div>
@@ -199,7 +214,7 @@ else {
           : ""}</div>
       <!-- Pas de case « j'accepte » : la base légale retenue est l'intérêt légitime,
            pas le consentement. Un consentement qu'on ne peut pas refuser sans perdre
-           l'accès n'est pas un consentement libre — le demander quand même, c'est se
+           l'accès n'est pas un consentement libre, le demander quand même, c'est se
            donner l'apparence de la conformité en la vidant. On informe, clairement,
            avant l'inscription, et on rappelle le droit d'opposition. -->
       <div class="card card--flat" style="background:var(--paper-sunk);border-color:transparent">

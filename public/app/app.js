@@ -1,4 +1,5 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, DELAI_VALIDATION_JOURS, FISCAL, cerfaPour, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, KITS_SAISON, ETATS_EXPEDITION, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, DELAI_VALIDATION_JOURS, FISCAL, cerfaPour, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, KITS_SAISON, ETATS_EXPEDITION, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements, estArgent, estTemps, estPrive, heuresPour } from "./data.js";
+import { qrSvg } from "./qr.js";
 import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, ecusson, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
@@ -116,14 +117,20 @@ const MENUS = {
 /* ------------------------------------------------------------------ */
 function vueConnexion(){
   const comptes = [
-    ["u2", "Espace entreprise",  "Claire Fontaine — Vaudrey Ciments, administratrice"],
-    ["u4", "Espace salarié",     "Sonia Delaunay — Vaudrey Ciments"],
-    ["u7", "Espace association", "Élise Tournier — Refuge des Quatre Vents"],
-    ["u12","Accès CSE",          "Farid Amrani — élu, lecture seule"],
+    ["u2", "Espace entreprise",  "Claire Fontaine, Vaudrey Ciments, administratrice"],
+    ["u4", "Espace salarié",     "Sonia Delaunay, Vaudrey Ciments"],
+    ["u7", "Espace association", "Élise Tournier, Refuge des Quatre Vents"],
+    ["u12","Accès CSE",          "Farid Amrani, élu, lecture seule"],
     ["u1", "Espace Riseva",      "Administration de la plateforme"]
   ];
+  /* Le panneau de gauche portait un titre et deux lignes, au milieu de six cents
+     pixels de vert. Un écran de connexion est le premier écran du produit, et un
+     grand aplat vide s'y lit comme une page qui n'a pas fini de charger. Il porte
+     maintenant ce que le produit propose, et ce que le réseau a déjà fait. */
+  const r = DB.impactReseau();
   const el = h(`<div class="login">
     <aside class="login__aside grain">
+      <div class="login__lueur" aria-hidden="true"></div>
       <svg class="login__river" viewBox="0 0 520 300" aria-hidden="true">
         <path d="M0 220 C 110 120, 190 270, 300 180 S 450 70, 520 150" fill="none" stroke="var(--lime)" stroke-width="4"/>
         <path d="M0 265 C 120 165, 200 305, 320 220 S 460 120, 520 195" fill="none" stroke="var(--brand)" stroke-width="4" opacity=".55"/>
@@ -131,11 +138,27 @@ function vueConnexion(){
       <img src="/brand/riseva-full-white.png" alt="Riseva">
       <div style="position:relative">
         <h2 style="color:var(--paper);max-width:16ch">Une saison. Des actes. Des chiffres.</h2>
-        <p style="margin-top:var(--s5);color:rgba(223,230,208,.62);max-width:38ch">
+        <p style="margin-top:var(--s5);color:rgba(223,230,208,.66);max-width:40ch">
           Les associations publient ce dont elles ont besoin, vos équipes y répondent,
           et le rapport s'écrit tout seul.</p>
+        <ul class="login__formats">
+          ${Object.entries(BAREME).map(([k, b]) => `<li>
+            <span class="login__ic">${ICONS[b.icone] || ""}</span>
+            <span class="login__lab">${esc(b.label)}</span>
+            <span class="login__pts mono">+${nb(b.points)}</span></li>`).join("")}
+        </ul>
+        <p class="login__note">Le barème est public et identique pour toutes les
+          entreprises. C'est l'association qui confirme, jamais l'entreprise.</p>
       </div>
-      <p style="font-size:var(--t-xs);color:rgba(223,230,208,.4)">© 2026 Riseva</p>
+      <div class="login__pied">
+        <div class="login__chiffres">
+          <div><b>${nb(r.associations || 0)}</b><span>associations vérifiées</span></div>
+          <div><b>${nb(r.missions || 0)}</b><span>missions confirmées</span></div>
+          <div><b>${nb(r.heures || 0)}</b><span>heures de bénévolat</span></div>
+        </div>
+        <p style="font-size:var(--t-xs);color:rgba(223,230,208,.62);margin-top:var(--s5)">
+          © 2026 Riseva · données de démonstration</p>
+      </div>
     </aside>
     <div class="login__form"><div class="login__box">
       <p class="eyebrow">Connexion</p>
@@ -434,8 +457,9 @@ function tableauEntreprise(u){
     ? Math.round(fact.contrat.montant_ht / validees.length) : null;
   const heures = (surTempsDeTravail) => validees.reduce((n, m) => {
     const a = DB.annonceDe(m);
-    if (!a || a.type !== "benevolat_demi_journee") return n;
-    return n + (!!a.temps_travail === surTempsDeTravail ? m.quantite * 4 : 0);
+    if (!a || !estTemps(a.type)) return n;
+    return n + (!!a.temps_travail === surTempsDeTravail
+              ? heuresPour(a.type, m.quantite) : 0);
   }, 0);
   const heuresTT = heures(true), heuresPerso = heures(false);
 
@@ -507,7 +531,7 @@ function tableauEntreprise(u){
       <div class="stack" style="--gap:var(--s3)">
         ${sites.map(x => `<div>
           <div class="between" style="font-size:var(--t-sm);margin-bottom:6px;gap:var(--s3);flex-wrap:wrap">
-            <span>${x.rang ? `<b>${x.rang}.</b> ` : ""}${esc(x.nom)} — ${esc(x.ville)}
+            <span>${x.rang ? `<b>${x.rang}.</b> ` : ""}${esc(x.nom)}, ${esc(x.ville)}
               <span class="badge ${x.statut.cle === "fort" ? "badge--ok"
                 : x.statut.cle === "actif" ? "badge--info"
                 : x.statut.cle === "lancement" ? "badge--warn" : "badge--neutre"}"
@@ -804,7 +828,7 @@ function listeAnnonces(annonces, u){
     const asso = DB.association(a.asso) || {};
     const b = BAREME[a.type];
     const distance = u.org ? DB.distanceAnnonce(u.org, a) : null;
-    const restant = a.type === "don_financier"
+    const restant = estArgent(a.type)
       ? `${eur(a.restant)} restants`
       : `${a.restant} place${a.restant > 1 ? "s" : ""} sur ${a.quantite}`;
     const imp = a.impact && UNITES[a.impact.unite] ? a.impact : null;
@@ -816,17 +840,17 @@ function listeAnnonces(annonces, u){
 
     const card = h(`<article class="annonce">
       <div class="annonce__haut">
-        ${vignette(a)}
+        ${vignette(a, { cause: asso.cause })}
         <span class="annonce__asso">
           <span class="annonce__pastille" aria-hidden="true">${initiales(asso.nom || "?")}</span>
           ${esc(asso.nom || "")}
         </span>
         <span class="annonce__pts" title="Barème de la saison, identique pour toutes les entreprises">
-          <span class="annonce__ptsN">+${a.type === "don_financier" ? b.points : nb(b.points)}</span>
+          <span class="annonce__ptsN">+${estArgent(a.type) ? b.points : nb(b.points)}</span>
           ${/* Le libellé sort du barème : « points par demi-journée » collé sur un don
                 de matériel annonçait une unité qui n'existe pas pour ce format. */""}
           <span class="annonce__ptsL">${
-            `pt${b.points > 1 ? "s" : ""} / ${a.type === "don_financier" ? "10 €" : esc(b.unite)}`}</span>
+            `pt${b.points > 1 ? "s" : ""} / ${estArgent(a.type) ? "10 €" : esc(b.unite)}`}</span>
         </span>
       </div>
       <div class="annonce__corps">
@@ -835,7 +859,7 @@ function listeAnnonces(annonces, u){
           ${a.temps_travail ? `<span class="badge badge--info"
             title="Mécénat de compétences, valorisable fiscalement">Temps de travail</span>` : ""}
           ${/* Ce chiffre est un objectif, pas un résultat. Écrit sans le dire, il se
-                lisait comme un bilan — et « 0 colis préparés » sur une annonce qui
+                lisait comme un bilan, et « 0 colis préparés » sur une annonce qui
                 cherche à en financer trois cents donnait l'impression d'une
                 association qui n'a rien fait. */
             imp && objectif > 0 ? `<span class="badge" title="Objectif annoncé par l'association">
@@ -916,7 +940,7 @@ function ouvrirEngagement(a, u){
   }
   /* Un don en argent ne suit pas le même chemin : on n'y « positionne » personne,
      on annonce un virement et on attend que l'association le voie arriver. */
-  if (a.type === "don_financier") return ouvrirDon(a, u);
+  if (estArgent(a.type)) return ouvrirDon(a, u);
   /* Une annonce sur le temps de travail dont l'association ne déclare plus son
      éligibilité au mécénat ne se propose pas : hors du régime de l'article
      L. 8241-3, la mise à disposition gratuite est un prêt de main-d'œuvre
@@ -925,7 +949,7 @@ function ouvrirEngagement(a, u){
     const asso = DB.association(a.asso) || {};
     modal("Cette mission ne peut pas se faire sur le temps de travail", h(`<div>
       <p class="muted" style="font-size:var(--t-sm)">
-        ${esc(asso.nom || "Cette association")} ne déclare pas — ou ne déclare plus — son
+        ${esc(asso.nom || "Cette association")} ne déclare pas, ou ne déclare plus, son
         éligibilité au mécénat de compétences. L'article <strong>L. 8241-3</strong> du code du
         travail n'autorise la mise à disposition gratuite de salariés qu'au profit des organismes
         visés aux a à g du 1 de l'article 238 bis du code général des impôts. En dehors de ce
@@ -939,7 +963,7 @@ function ouvrirEngagement(a, u){
     return;
   }
   const b = BAREME[a.type];
-  const financier = a.type === "don_financier";
+  const financier = estArgent(a.type);
   const corps = h(`<div class="stack" style="--gap:var(--s5)">
     <p class="muted" style="font-size:var(--t-sm)">${esc(a.description)}</p>
     <div class="field">
@@ -950,7 +974,7 @@ function ouvrirEngagement(a, u){
     </div>
     ${financier ? `<p class="hint">Le paiement se fait sur la page de l'association.
       L'argent ne transite pas par Riseva et le reçu fiscal vous est envoyé automatiquement.</p>` : ""}
-    ${a.type === "benevolat_demi_journee" ? `<p class="hint">Riseva n'assure pas les missions de
+    ${estTemps(a.type) ? `<p class="hint">Riseva n'assure pas les missions de
       bénévolat. En cas d'incident, la relation reste entre votre entreprise et l'association.</p>` : ""}
     ${a.temps_travail ? `<div class="encadreMini">
       <p><strong>Mission sur le temps de travail.</strong> Votre employeur vous met à disposition
@@ -1089,7 +1113,7 @@ function vueAnnuaire(u){
       <div class="between" style="margin-bottom:var(--s5)">
         <h3>${nb(assos.length)} associations partenaires en France</h3>
         ${/* « Vérifiées par Riseva » pouvait s'entendre comme une garantie
-              d'impact, ou pire, d'éligibilité fiscale — que Riseva ne certifie
+              d'impact, ou pire, d'éligibilité fiscale, que Riseva ne certifie
               pas. On dit ce qui est réellement contrôlé, et on ouvre la liste. */""}
         <button class="btn btn--quiet btn--sm" id="quoiVerifie">
           Existence juridique et coordonnées contrôlées</button>
@@ -1255,8 +1279,8 @@ function vueMissions(u){
     const tr = h(`<tr class="${m.masquee ? "is-anonyme" : ""}">
       <td><strong>${m.masquee ? "Don personnel d'un salarié" : esc(a.titre)}</strong><br>
         <span class="muted" style="font-size:var(--t-xs)">${esc(BAREME[a.type].label)}</span></td>
-      <td class="muted">${m.masquee ? "—" : esc(asso.nom)}</td>
-      <td class="muted">${m.masquee ? "—" : esc(s ? s.nom : "—")}</td>
+      <td class="muted">${m.masquee ? "," : esc(asso.nom)}</td>
+      <td class="muted">${m.masquee ? "," : esc(s ? s.nom : ",")}</td>
       <td class="muted tnum">${dateCourte(m.date)}</td>
       <td class="tnum"><strong>${nb(m.points)}</strong></td>
       <td><span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].label}</span></td>
@@ -1360,7 +1384,7 @@ function vueClassement(u){
 
   const dessine = () => {
     const cl = DB.classement({ mode, categorie: categorie || null, pour: u.org });
-    /* Deux seuils, et il ne faut pas les confondre — c'est la confusion des deux
+    /* Deux seuils, et il ne faut pas les confondre, c'est la confusion des deux
        qui rendait cet écran vide pendant toute la première saison.
 
        Un RANG est un fait : dès qu'il y a trois entreprises, il y a une première,
@@ -1392,7 +1416,7 @@ function vueClassement(u){
        barre comparative et « vous êtes 2e » après avoir écrit trois fois que le
        classement n'est pas significatif, c'est laisser le lecteur retenir une
        seule chose : qu'il est dernier. On montre son score, et l'avancement de
-       la cohorte — le seul objectif qui existe vraiment à ce stade. */
+       la cohorte, le seul objectif qui existe vraiment à ce stade. */
     if (!classable){
       /* Un titre « Classement de la saison » qui ouvre une page sans classement
          est une promesse non tenue, et c'est la première chose qu'on lit. */
@@ -1691,11 +1715,11 @@ function vueEquipe(u){
   const ligne = (g) => {
     const tr = h(`<tr class="${g.anonyme ? "is-anonyme" : ""}">
       <td><span class="row" style="gap:10px">
-        <span class="avatar ${g.anonyme ? "avatar--anon" : ""}">${g.anonyme ? "—" : initiales(g.nom)}</span>
+        <span class="avatar ${g.anonyme ? "avatar--anon" : ""}">${g.anonyme ? "," : initiales(g.nom)}</span>
         <span><strong>${esc(g.nom)}</strong>${g.anonyme
           ? `<br><span class="muted" style="font-size:var(--t-xs)">retiré le ${dateFR(g.retire_le || new Date().toISOString())}</span>` : ""}</span>
       </span></td>
-      <td class="muted">${g.anonyme ? "—" : esc(g.email)}</td>
+      <td class="muted">${g.anonyme ? "," : esc(g.email)}</td>
       <td class="tnum">${nb(DB.pointsVisiblesEmployeur(g.id))}</td>
       <td><span class="badge ${g.anonyme ? "" : (g.actif ? "badge--ok" : "badge--warn")}">${
         g.anonyme ? "Anonymisé" : (g.actif ? "Actif" : "Suspendu")}</span>${
@@ -1957,14 +1981,14 @@ function vueRapports(u){
         ${/* Le coût par mission a sa place ici, dans un document de pilotage, avec
               sa formule sous les yeux — pas en quatrième KPI d'accueil, où quatre
               missions suffisent à le faire varier du simple au double. */
-          kpi("Coût SaaS par mission", cout ? eur(cout.valeur) : "—",
+          kpi("Coût SaaS par mission", cout ? eur(cout.valeur) : ",",
             cout ? `${eur(cout.abonnement)} HT d'abonnement / ${nb(cout.missions)} missions`
                  : "aucune mission comptabilisée")}
       </div>
       <p class="hint" style="margin-top:var(--s4)">
         « Coût SaaS par mission » rapporte le seul abonnement Riseva au nombre de missions
         comptabilisées. Il <strong>n'inclut pas</strong> le temps de vos salariés, la valeur du
-        matériel donné, les dons versés, ni les frais engagés sur place — ce ne sont pas nos
+        matériel donné, les dons versés, ni les frais engagés sur place, ce ne sont pas nos
         chiffres, et nous ne les inventerons pas. Il est aussi très instable tant que le nombre de
         missions est petit : quatre missions de plus le divisent par deux.
       </p>
@@ -2045,7 +2069,7 @@ function vueRapports(u){
     const tr = h(`<tr>
       <td><strong>${esc(x.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${
         x.portee === "annuel" ? "Bilan complet de la saison" : "Version courte, remise avec les trophées"}</span></td>
-      <td class="muted">${dateCourte(x.periode.debut)} — ${dateCourte(x.periode.fin)}</td>
+      <td class="muted">${dateCourte(x.periode.debut)}, ${dateCourte(x.periode.fin)}</td>
       <td class="tnum">${x.etat === "genere" ? nb(x.points) : "—"}</td>
       <td><span class="badge ${x.etat === "genere" ? "badge--ok" : ""}">${
         x.etat === "genere" ? "Généré le " + dateCourte(x.genere_le) : "À la clôture"}</span></td>
@@ -2138,9 +2162,9 @@ function vueAbonnement(u){
                 c.statut === "actif" ? "Actif" : "Suspendu"}</span></div>
             <div class="between"><span class="muted">Signé le</span><span>${dateFR(c.signe_le)}</span></div>
             <div class="between"><span class="muted">Période</span>
-              <span>${dateFR(c.debut)} — ${dateFR(c.fin)}</span></div>
+              <span>${dateFR(c.debut)}, ${dateFR(c.fin)}</span></div>
             <div class="between"><span class="muted">Acompte versé</span>
-              <span class="tnum">${eur(c.acompte)} HT — ${eur(Math.round(c.acompte * (1 + FACTURATION.tva)))} TTC</span></div>
+              <span class="tnum">${eur(c.acompte)} HT, ${eur(Math.round(c.acompte * (1 + FACTURATION.tva)))} TTC</span></div>
             <div class="between"><span class="muted">Places incluses</span><span class="tnum">${si.total}</span></div>
             ${c.fondateur ? `<div class="between"><span class="muted">Tarif</span>
               <span class="badge badge--ok">Fondateur, ${Math.round(TARIFS.fondateur.taux * 100)} % de remise</span></div>` : ""}
@@ -2235,7 +2259,7 @@ function vueAbonnement(u){
   };
   /* Ce que réclame un contrôleur de gestion : de quoi imputer la dépense site par
      site. La clé retenue est le nombre de comptes ouverts, parce que c'est ce qui
-     est facturé — pas l'effectif, qui ne l'est pas. Elle est écrite en haut du
+     est facturé, pas l'effectif, qui ne l'est pas. Elle est écrite en haut du
      fichier, sinon personne ne sait ce qu'il additionne. */
   el.querySelector("#csvR")?.addEventListener("click", () => {
     const etabs = DB.etablissements(u.org).map(et => ({
@@ -2309,7 +2333,7 @@ function ouvrirPreuve(u){
     <td class="m">${methode}</td></tr>`;
 
   const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
-<title>Dossier de traçabilité — ${esc(e.nom)}, ${esc(sa.nom)}</title>
+<title>Dossier de traçabilité, ${esc(e.nom)}, ${esc(sa.nom)}</title>
 <style>
   body{font:13.5px/1.6 -apple-system,Segoe UI,Inter,sans-serif;color:#2C3026;background:#F2F0E9;
     margin:0;padding:40px 20px}
@@ -2336,15 +2360,15 @@ function ouvrirPreuve(u){
 </style></head><body>
 <div class="noprint"><button onclick="window.print()">Imprimer ou enregistrer en PDF</button></div>
 <div class="p">
-  <h1>Dossier de traçabilité — pièces, sources et méthode</h1>
-  <p class="st">${esc(e.nom)} — ${esc(sa.nom)} — arrêté au ${dateFR(new Date().toISOString())}
-  — empreinte ${empreinte(ms)}</p>
+  <h1>Dossier de traçabilité, pièces, sources et méthode</h1>
+  <p class="st">${esc(e.nom)}, ${esc(sa.nom)}, arrêté au ${dateFR(new Date().toISOString())}
+ , empreinte ${empreinte(ms)}</p>
   <p class="st" style="margin-top:10px">Destiné à la direction et à l'expert-comptable. Chaque
   chiffre est donné avec sa méthode de calcul. Les données brutes correspondantes sont
   exportables au format CSV depuis l'espace client.</p>
   <div class="note alerte" style="margin-top:14px">
     <strong>Ce document n'est pas un rapport d'audit.</strong> Il rassemble des données
-    <strong>déclarées</strong> — par vos salariés, par les associations — que Riseva horodate,
+    <strong>déclarées</strong>, par vos salariés, par les associations, que Riseva horodate,
     recoupe et met en forme, mais <strong>n'audite pas</strong>. Chaque ligne porte son statut :
     <em>confirmée</em> quand une association a répondu, <em>estimée</em> quand la mission a été
     clôturée sans confirmation au bout de quatorze jours. L'empreinte ci-dessus identifie le jeu
@@ -2376,7 +2400,7 @@ function ouvrirPreuve(u){
           `${ind.participation.num} salariés ayant au moins une action validée, divisés par ${ind.participation.den} de l'effectif de référence. Une inscription seule ne compte pas.`)}
       ${l("Actions validées", nb(ind.reperes.X),
           "Combinaisons uniques salarié × association × format × date. Deux versements au même organisme le même jour ne font qu'une action.")}
-      ${l("Concentration", (ind.concentration.valeur ?? "—") + " %",
+      ${l("Concentration", (ind.concentration.valeur ?? ",") + " %",
           "Part des actions portée par les 10 % de salariés les plus actifs. Une valeur élevée signale un dispositif tenu par quelques personnes.")}
     </tbody>
   </table>
@@ -2496,7 +2520,7 @@ function ouvrirFacture(u, fa){
   const champ = (x) => x || `<span class="v">[à compléter]</span>`;
 
   const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
-<title>Facture ${esc(fa.ref)} — Riseva</title>
+<title>Facture ${esc(fa.ref)}, Riseva</title>
 <style>
   body{font:14px/1.6 -apple-system,Segoe UI,Inter,sans-serif;color:#2C3026;background:#F2F0E9;
     margin:0;padding:44px 20px}
@@ -2620,7 +2644,7 @@ function vueParametres(u){
       <h3 style="font-size:var(--t-lg)">Votre logo</h3>
       <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
         Il apparaît à côté de votre nom dans le classement, sur vos rapports et sur les
-        affiches que nous vous envoyons. Sans logo, vos initiales font l'affaire — l'écran
+        affiches que nous vous envoyons. Sans logo, vos initiales font l'affaire, l'écran
         n'est jamais vide.</p>
       <div class="row" style="gap:var(--s5);align-items:center;margin-top:var(--s5)">
         <span id="apercuLogo">${ecusson(e.nom, { logo: e.logo, taille: 56 })}</span>
@@ -2636,7 +2660,7 @@ function vueParametres(u){
           </div>
           <p class="hint" id="logoAide">Carré de préférence, 256 pixels suffisent. Il n'est jamais
             étiré : s'il ne remplit pas le carré, il est centré. Une entreprise dans la moitié
-            basse du classement n'affiche ni son nom ni son logo aux autres — le logo suit le nom,
+            basse du classement n'affiche ni son nom ni son logo aux autres, le logo suit le nom,
             sinon l'anonymat annoncé n'en serait pas un.</p>
         </div>
       </div>
@@ -2740,7 +2764,7 @@ function vueParametres(u){
 
   /* Le fichier est lu dans le navigateur et rangé en clair dans l'entreprise : pas
      d'envoi vers un service tiers pour une image de 6 Ko, et pas de dépendance de
-     plus. Au-delà de 200 Ko on refuse — un logo qui pèse plus qu'une page entière
+     plus. Au-delà de 200 Ko on refuse, un logo qui pèse plus qu'une page entière
      ralentit chaque écran où il apparaît, et il en apparaît partout. */
   const majApercu = (logo) => {
     el.querySelector("#apercuLogo").innerHTML = ecusson(e.nom, { logo, taille: 56 });
@@ -2805,7 +2829,7 @@ function vueParametres(u){
       const who = a.utilisateur ? DB.utilisateur(a.utilisateur) : null;
       t.querySelector("tbody").appendChild(h(`<tr>
         <td class="muted tnum" style="width:70px">${dateCourte(a.date)}</td>
-        <td><strong>${esc(libelles[a.quoi] || a.quoi)}</strong>${who ? ` — ${esc(who.nom)}` : ""}</td>
+        <td><strong>${esc(libelles[a.quoi] || a.quoi)}</strong>${who ? `, ${esc(who.nom)}` : ""}</td>
         <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs);text-align:right">${esc(a.code || "")}</td>
       </tr>`));
     });
@@ -2822,7 +2846,7 @@ function vueParametres(u){
     versCSV("riseva-export-complet.csv",
       ["Type", "Libellé", "Association", "Salarié", "Date", "Quantité", "Points", "État"],
       [...ms.map(m => { const a = DB.annonceDe(m), sal = DB.utilisateur(m.salarie);
-          return ["mission", a.titre, (DB.association(a.asso) || {}).nom, sal ? sal.nom : "—",
+          return ["mission", a.titre, (DB.association(a.asso) || {}).nom, sal ? sal.nom : ",",
                   m.date, m.quantite, m.points, ETATS_MISSION[m.etat].label]; }),
        ...DB.salaries(u.org).map(g => ["salarié", g.nom, "", g.email || "", "", "", DB.pointsVisiblesEmployeur(g.id),
           g.anonyme ? "anonymisé" : (g.actif ? "actif" : "suspendu")]),
@@ -2848,7 +2872,7 @@ function tableauAsso(u){
      association, et celle à laquelle le tableau de bord ne répondait pas. */
   const aVenir = ms.filter(m => m.etat === "engagee")
     .sort((a, b) => String(a.date).localeCompare(String(b.date)));
-  const placesRestantes = annonces.filter(a => a.etat === "ouverte" && a.type !== "don_financier")
+  const placesRestantes = annonces.filter(a => a.etat === "ouverte" && !estArgent(a.type))
     .reduce((n, a) => n + a.restant, 0);
   const reaAsso = DB.realisations({ asso: aid });
 
@@ -2990,7 +3014,7 @@ function tableauAsso(u){
 
   /* Ce que l'association vient chercher ici : ce que les entreprises ont
      réellement produit chez elle, et ce qui l'attend côté reçus. Le tableau de
-     bord ne montrait que ses propres annonces — une liste qu'elle connaît déjà. */
+     bord ne montrait que ses propres annonces, une liste qu'elle connaît déjà. */
   const rea = bandeauRealisations(DB.realisations({ asso: aid }), {
     /* C'est l'association qui réalise. Les entreprises apportent des moyens.
        Écrire l'inverse, c'est lui dire que son travail sert d'abord à fabriquer
@@ -3014,7 +3038,7 @@ function tableAnnoncesAsso(annonces, u){
        financière : chaque format a son mot. */
     const tr = h(`<tr>
       <td><strong>${esc(a.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${dateFR(a.date)} · ${esc(a.lieu || "")}${
-        engagees ? ` · ${engagees} ${a.type === "benevolat_demi_journee"
+        engagees ? ` · ${engagees} ${estTemps(a.type)
           ? "participant" + (engagees > 1 ? "s inscrits" : " inscrit")
           : a.type === "don_materiel"
             ? "don" + (engagees > 1 ? "s proposés" : " proposé")
@@ -3022,7 +3046,7 @@ function tableAnnoncesAsso(annonces, u){
       <td class="muted">${esc(BAREME[a.type].label)}</td>
       ${/* « 4 / 6 » se lit comme une note. Ce qui compte pour une association, c'est
             combien il reste, et dans quelle unité. */""}
-      <td class="tnum">${a.type === "don_financier"
+      <td class="tnum">${estArgent(a.type)
         ? eur(a.restant) + " à réunir"
         : a.type === "don_materiel"
           ? nb(a.restant) + " sur " + nb(a.quantite) + " encore attendus"
@@ -3112,7 +3136,7 @@ function formAnnonce(u, existante = null){
     : new Date(Date.now() + 12 * 864e5).toISOString().slice(0, 10);
   const eligible = DB.eligibleMecenat(u.org);
   const majTT = () => {
-    const visible = corps.querySelector("#type").value === "benevolat_demi_journee";
+    const visible = estTemps(corps.querySelector("#type").value);
     corps.querySelector("#ttWrap").style.display = visible ? "" : "none";
     if (visible && !eligible){
       const c = corps.querySelector("#tt");
@@ -3262,10 +3286,10 @@ function vueAValider(u){
     const tr = h(`<tr>
       <td>${m.etat === "a_valider" ? `<input type="checkbox" aria-label="Sélectionner la mission « ${esc(a.titre)} » de ${esc(sal ? sal.nom : 'un salarié')}" style="accent-color:var(--forest-700);width:16px;height:16px">` : ""}</td>
       <td><strong>${esc(a.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(BAREME[a.type].label)} · ${nb(m.points)} pts</span></td>
-      <td class="muted">${esc(e ? e.nom : "—")}</td>
-      <td class="muted">${esc(sal ? sal.nom : "—")}</td>
+      <td class="muted">${esc(e ? e.nom : ",")}</td>
+      <td class="muted">${esc(sal ? sal.nom : ",")}</td>
       <td class="muted tnum">${dateCourte(m.date)}</td>
-      <td>${jours === null ? '<span class="muted">—</span>'
+      <td>${jours === null ? '<span class="muted">,</span>'
             : `<span class="badge ${jours <= 3 ? "badge--warn" : ""}">${jours} j</span>`}</td>
       <td><span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].labelAsso}</span></td>
       <td style="text-align:right"></td></tr>`);
@@ -3466,10 +3490,10 @@ function vueAdminAssos(){
                :               ["Validée", "badge--ok"];
     const tr = h(`<tr>
       <td><strong>${esc(a.nom)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(a.ville || "")} · ${esc(a.resume || "")}</span></td>
-      <td class="muted">${esc(a.cause || "—")}</td>
-      <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(a.siren || a.rna || "—")}</td>
+      <td class="muted">${esc(a.cause || ",")}</td>
+      <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(a.siren || a.rna || ",")}</td>
       <td>${badgeControle(a.id)}</td>
-      <td class="muted tnum">${a.verifiee_le ? dateCourte(a.verifiee_le) : "—"}</td>
+      <td class="muted tnum">${a.verifiee_le ? dateCourte(a.verifiee_le) : ","}</td>
       <td class="tnum">${DB.annonces({ asso: a.id }).length}</td>
       <td><span class="badge ${etat[1]}">${etat[0]}</span></td>
       <td style="text-align:right"></td></tr>`);
@@ -3491,7 +3515,7 @@ function vueAdminAssos(){
           <div class="stack" style="--gap:var(--s3);margin-top:var(--s4)">
             <label class="checkline"><input type="checkbox" class="v" ${auto ? "checked disabled" : ""}>
               <span>Existence juridique confirmée${auto
-                ? ` — <strong>${esc(ETATS_CORRESPONDANCE[ct.etat].label.toLowerCase())}</strong>, contrôle du ${dateCourte(ct.le)}`
+                ? `, <strong>${esc(ETATS_CORRESPONDANCE[ct.etat].label.toLowerCase())}</strong>, contrôle du ${dateCourte(ct.le)}`
                 : " (RNA ou SIREN, statuts)"}.</span></label>
             <label class="checkline"><input type="checkbox" class="v"><span>Référent et signataire des reçus identifiés.</span></label>
             <label class="checkline"><input type="checkbox" class="v"><span>Objet réel cohérent avec l'activité annoncée.</span></label>
@@ -3706,7 +3730,7 @@ function vueAdminSaison(){
         il ne s'applique donc qu'à partir de la saison suivante.</p>
       <div class="stack" style="--gap:var(--s4);margin-top:var(--s6)">
         ${Object.entries(BAREME).map(([k, b]) => `
-          <div class="field"><label>${esc(b.label)} — par ${esc(b.unite)}</label>
+          <div class="field"><label>${esc(b.label)}, par ${esc(b.unite)}</label>
             <input class="input" type="number" min="1" data-bareme="${k}" value="${b.points}"></div>`).join("")}
       </div>
       <button class="btn btn--ghost" style="margin-top:var(--s6)" id="saveB">Enregistrer le barème</button>
@@ -3735,7 +3759,7 @@ function vueAdminSaison(){
    administrateur », l'écrêtage de l'entreprise, le rang de la société, les
    missions de tout le monde. Rien de tout cela ne lui demande quoi que ce soit
    et rien ne lui appartient. Ici, on lui montre ce qu'il a fait, ce qui l'attend,
-   et où son entreprise en est — dans cet ordre. */
+   et où son entreprise en est, dans cet ordre. */
 function tableauSalarie(u){
   const mes = DB.missions({ salarie: u.id });
   const validees = mes.filter(m => ["validee", "validee_auto"].includes(m.etat));
@@ -3760,7 +3784,7 @@ function tableauSalarie(u){
             <span class="notif__point notif__point--alerte"></span>
             <span>${aDeclarer.length} mission${aDeclarer.length > 1 ? "s" : ""} passée${
               aDeclarer.length > 1 ? "s" : ""} que vous n'avez pas encore déclarée${
-              aDeclarer.length > 1 ? "s" : ""} — sans déclaration, elle${
+              aDeclarer.length > 1 ? "s" : ""}, sans déclaration, elle${
               aDeclarer.length > 1 ? "s ne comptent" : " ne compte"} pas</span>
             <span class="rappel__go">${ICONS.arrow || "→"}</span></a>
         </div></div>
@@ -3778,9 +3802,8 @@ function tableauSalarie(u){
     <div class="kpis">
       ${kpi("Mes points", nb(mesPoints), `${nb(validees.length)} mission${
         validees.length > 1 ? "s" : ""} validée${validees.length > 1 ? "s" : ""}`, "", "kpi--tete grain")}
-      ${kpi("Demi-journées de bénévolat", nb(validees
-        .filter(m => (DB.annonceDe(m) || {}).type === "benevolat_demi_journee")
-        .reduce((n, m) => n + m.quantite, 0)))}
+      ${kpi("Heures de bénévolat", nb(validees.reduce(
+        (n, m) => n + heuresPour((DB.annonceDe(m) || {}).type, m.quantite), 0)))}
       ${kpi("Associations soutenues", nb(new Set(validees
         .map(m => (DB.annonceDe(m) || {}).asso).filter(Boolean)).size))}
       ${kpi("Missions à venir", nb(aVenir.length),
@@ -3916,8 +3939,8 @@ function vueActivite(u){
       ${kpi("Mes points", nb(mesPoints), `${part} % du total de l'entreprise`, "", "kpi--tete grain")}
       ${kpi("Missions réalisées", nb(validees.length), ms.length - validees.length + " en cours")}
       ${kpi("Rang dans l'équipe", rangFR(monRang), "sur " + equipe.length)}
-      ${kpi("Demi-journées", nb(validees.filter(m => (DB.annonceDe(m) || {}).type === "benevolat_demi_journee")
-        .reduce((n, m) => n + m.quantite, 0)), "de bénévolat")}
+      ${kpi("Heures", nb(validees.reduce(
+        (n, m) => n + heuresPour((DB.annonceDe(m) || {}).type, m.quantite), 0)), "de bénévolat")}
     </div>
 
     <div id="realisMoi"></div>
@@ -4090,7 +4113,7 @@ function vueMoteur(){
     ["Fermeture des annonces périmées", "Une annonce dont la date est dépassée depuis plus de sept jours est fermée. C'est l'engagement de fraîcheur pris envers les clients.", dernier.annonces_fermees],
     ["Extinction des intentions de don", "Une intention de virement que personne n'a honorée s'éteint au bout de trente jours. Rien n'est crédité, rien n'est reproché : sans échéance, le « reste à financer » d'une annonce serait faux en permanence.", dernier.intentions_expirees],
     ["Génération des rapports", "Chaque période close produit son rapport, sans que personne le demande.", dernier.rapports],
-    ["Recalcul du classement", "Refait chaque lundi. Aucun rang n'est stocké : il se déduit des points, ce qui interdit tout écart entre l'affiché et le réel.", dernier.classement ? "à jour" : "—"]
+    ["Recalcul du classement", "Refait chaque lundi. Aucun rang n'est stocké : il se déduit des points, ce qui interdit tout écart entre l'affiché et le réel.", dernier.classement ? "à jour" : ","]
   ];
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <section class="card card--dark grain">
@@ -4113,7 +4136,7 @@ function vueMoteur(){
           ${regles.map(([t, d, v]) => `<tr>
             <td style="width:36%"><strong>${esc(t)}</strong><br>
               <span class="tnum" style="color:var(--forest-800);font-weight:600">${
-                v === undefined ? "—" : (typeof v === "number" ? nb(v) : esc(v))}</span></td>
+                v === undefined ? "," : (typeof v === "number" ? nb(v) : esc(v))}</span></td>
             <td class="muted">${esc(d)}</td></tr>`).join("")}
         </tbody></table>
         <hr class="sep">
@@ -4244,7 +4267,7 @@ function vueMecenat(u){
       { libelle: "Associations bénéficiaires ayant déclaré leur éligibilité au mécénat",
         ok: missionsTT.length > 0
             && missionsTT.every(m => DB.eligibleMecenat((DB.annonceDe(m) || {}).asso)) },
-      { libelle: "Heures réellement effectuées saisies pour chaque mission — pas la durée conventionnelle",
+      { libelle: "Heures réellement effectuées saisies pour chaque mission, pas la durée conventionnelle",
         ok: lignes.length > 0 && lignes.every(x => x.heuresReelles) },
       { libelle: "Convention de mise à disposition signée par les trois parties",
         ok: lignes.length > 0 && lignes.every(x => !!x.convention) },
@@ -4268,7 +4291,7 @@ function vueMecenat(u){
         <div>
           <h3 style="font-size:var(--t-lg)">${pretFiscal.pret
             ? "Contrôles complets"
-            : `Calcul incomplet — ${pretFiscal.ok} contrôle${pretFiscal.ok > 1 ? "s" : ""} sur ${pretFiscal.total}`}</h3>
+            : `Calcul incomplet, ${pretFiscal.ok} contrôle${pretFiscal.ok > 1 ? "s" : ""} sur ${pretFiscal.total}`}</h3>
           <p class="muted" style="font-size:var(--t-sm);margin-top:6px;color:var(--ink-600)">
             ${pretFiscal.pret
               ? "Les pièces sont réunies. Le montant reste une estimation : votre expert-comptable l'arrête."
@@ -4336,7 +4359,7 @@ function vueMecenat(u){
               <span style="font-size:var(--t-xs)">le plus élevé entre ${eur(FISCAL.plafond_plancher)}
               et ${(FISCAL.plafond_taux_ca * 1000)} pour mille du chiffre d'affaires,
               soit ${pct(FISCAL.plafond_taux_ca * 100)} %${v.plafondCalculable ? ""
-                : " — il porte sur tous vos versements de l'exercice, pas seulement sur ceux-ci"}</span></td>
+                : ", il porte sur tous vos versements de l'exercice, pas seulement sur ceux-ci"}</span></td>
               <td class="tnum" style="text-align:right">${eurOuNon(v.plafondEntreprise)}</td></tr>
           <tr><td class="muted">Excédent reporté sur les exercices suivants</td>
               <td class="tnum" style="text-align:right">${eurOuNon(v.reportable)}</td></tr>
@@ -4393,7 +4416,7 @@ function vueMecenat(u){
           Chaque salarié reçoit son propre reçu, au modèle ${esc(FISCAL.cerfa_particulier)}, et
           peut déduire 66 % de son don de son impôt sur le revenu, <strong style="color:var(--ink)">dans
           la limite de 20 % de son revenu imposable</strong> (article 200 du CGI). Au plus
-          ${eur(v.reductionSalaries)} au total si ce plafond n'est atteint par personne — Riseva
+          ${eur(v.reductionSalaries)} au total si ce plafond n'est atteint par personne, Riseva
           ne connaît pas leurs revenus et ne peut donc pas l'appliquer. L'excédent éventuel se
           reporte sur les cinq années suivantes. Pour eux, pas pour vous.</p>
         <div class="row" style="gap:var(--s2);margin-top:var(--s6);flex-wrap:wrap">
@@ -4447,7 +4470,7 @@ function vueMecenat(u){
   el.querySelector("#conv").onclick = () => {
     const toutes = DB.missions({ entreprise: u.org }).filter(m => {
       const a = DB.annonceDe(m);
-      return a && a.type === "benevolat_demi_journee" && a.temps_travail
+      return a && estTemps(a.type) && a.temps_travail
              && ["engagee", "a_valider", "validee", "validee_auto"].includes(m.etat);
     });
     /* Deux conditions, et la convention affirme les deux. La première est le régime :
@@ -4491,14 +4514,14 @@ function vueMecenat(u){
       <div class="encadreMini">
         <p><strong>Deux régimes, et ils ne se valent pas.</strong></p>
         <p>Mettre un salarié à disposition d'une association, c'est un <strong>prêt de
-        main-d'œuvre</strong>, jamais une prestation de service — et la durée n'y change rien :
+        main-d'œuvre</strong>, jamais une prestation de service, et la durée n'y change rien :
         une demi-journée relève du même régime que six mois. Le prêt à but lucratif est interdit
         (article L. 8241-1). Ici on se place sous l'<strong>article L. 8241-3</strong>, qui
         autorise le prêt gratuit au profit des organismes visés aux a à g du 1 de l'article
         238 bis du CGI, sans condition d'effectif et pour trois ans au plus.</p>
         <p>Ce régime écarte l'article L. 8241-2 : <strong>pas d'avenant au contrat de travail</strong>.
         Il exige en revanche une convention conforme à l'article R. 8241-2, l'<strong>accord exprès
-        et écrit du salarié</strong> pour cette mission-là — Riseva l'enregistre à l'engagement —
+        et écrit du salarié</strong> pour cette mission-là, Riseva l'enregistre à l'engagement ,
         et l'information du CSE sur les postes concernés. Un refus ne peut jamais être sanctionné.</p>
       </div>
     </div>`);
@@ -4526,11 +4549,11 @@ function vueMecenat(u){
       ["Mission", "Association", "Format", "Sur le temps de travail", "Salarié", "Date",
        "Quantité", "Valorisation"],
       ms.map(m => { const a = DB.annonceDe(m), sal = DB.utilisateur(m.salarie);
-        const val = a.type === "benevolat_demi_journee" && a.temps_travail
+        const val = estTemps(a.type) && a.temps_travail
           ? m.quantite * v.coutDemiJournee
-          : (a.type === "don_financier" ? m.quantite : 0);
+          : (estArgent(a.type) ? m.quantite : 0);
         return [a.titre, (DB.association(a.asso) || {}).nom, BAREME[a.type].label,
-                a.temps_travail ? "oui" : "non", sal ? sal.nom : "—", m.date, m.quantite, val]; }));
+                a.temps_travail ? "oui" : "non", sal ? sal.nom : ",", m.date, m.quantite, val]; }));
     toast("Export téléchargé.");
   };
   return el;
@@ -4552,10 +4575,10 @@ function ouvrirConvention(u, m){
   const valorisation = m.quantite * v.coutDemiJournee;
   const champ = (x) => x || `<span class="v">[à compléter]</span>`;
   const art = (n, titre, corps) =>
-    `<h2>Article ${n} — ${titre}</h2>${corps}`;
+    `<h2>Article ${n}, ${titre}</h2>${corps}`;
 
   const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
-<title>Convention de mise à disposition — ${esc(e.nom)} et ${esc(asso.nom)}</title>
+<title>Convention de mise à disposition, ${esc(e.nom)} et ${esc(asso.nom)}</title>
 <style>
   body{font:15px/1.62 -apple-system,Segoe UI,Inter,sans-serif;color:#2C3026;background:#F2F0E9;
     margin:0;padding:48px 24px}
@@ -4584,7 +4607,7 @@ function ouvrirConvention(u, m){
 <div class="noprint"><button onclick="window.print()">Imprimer ou enregistrer en PDF</button></div>
 <div class="p">
   <h1>Convention de mise à disposition de personnel</h1>
-  <p class="st">Mécénat de compétences — article L. 8241-3 du code du travail</p>
+  <p class="st">Mécénat de compétences, article L. 8241-3 du code du travail</p>
   <p class="st">Préparée le ${dateFR(new Date().toISOString())} à partir des données Riseva.
   À relire, compléter et signer avant la mission. Les champs
   <span class="v">[à compléter]</span> ne sont pas connus de la plateforme.</p>
@@ -4651,8 +4674,8 @@ function ouvrirConvention(u, m){
     <table>
       <tr><td>Date prévue</td><td>${dateFR(m.date)}</td></tr>
       <tr><td>Heures prévues, pauses comprises</td><td>${champ("")}</td></tr>
-      <tr><td>Durée</td><td>${m.quantite} demi-journée${m.quantite > 1 ? "s" : ""},
-        soit ${m.quantite * 4} heures</td></tr>
+      <tr><td>Durée</td><td>${m.quantite} ${esc((BAREME[a.type] || {}).unite || "unité")}${
+        m.quantite > 1 ? "s" : ""}, soit ${heuresPour(a.type, m.quantite)} heures</td></tr>
       <tr><td>Lieu exact ou distanciel</td><td>${esc(a.lieu || "")}</td></tr>
       <tr><td>Déplacements prévus</td><td>${champ("")}</td></tr>
     </table>
@@ -4766,7 +4789,7 @@ function ouvrirConvention(u, m){
       <div>Le Salarié<br>${esc(sal ? sal.nom : "")}</div>
     </div>`)}
 
-  <p class="pied">Document préparé par Riseva — version ${dateFR(new Date().toISOString())},
+  <p class="pied">Document préparé par Riseva, version ${dateFR(new Date().toISOString())},
   mission ${esc(m.id)}. Riseva n'est pas partie à la présente convention, ne la signe pas, et
   n'en garantit ni la validité juridique ni les conséquences fiscales. Faites-la relire par
   votre conseil avant la première signature.</p>
@@ -4800,7 +4823,7 @@ function vueRecus(u){
       <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
         ${/* Les deux lignes sont tirées de la même fonction que le reçu lui-même.
               Recopier ici le numéro à la main aurait laissé l'écran promettre un
-              modèle et le document en produire un autre — et c'est l'association
+              modèle et le document en produire un autre, et c'est l'association
               qui signe, donc c'est elle que l'article 1740 A du CGI sanctionne. */
           [cerfaPour("salarie"), cerfaPour("entreprise")].map((c, i) => `
           <div class="row" style="align-items:flex-start;gap:var(--s3)">
@@ -4882,11 +4905,11 @@ function vueRecus(u){
   };
   el.querySelector("#csvR").onclick = () => {
     const ms = DB.missions({ asso: aid })
-                 .filter(m => (DB.annonceDe(m) || {}).type === "don_financier"
+                 .filter(m => estArgent((DB.annonceDe(m) || {}).type)
                            && (m.etat === "validee" || m.etat === "validee_auto"));
     versCSV("riseva-dons.csv", ["Date", "Entreprise", "Donateur", "Montant", "Annonce"],
       ms.map(m => { const an = DB.annonceDe(m), sal = DB.utilisateur(m.salarie);
-        return [m.date, (DB.entreprise(m.entreprise) || {}).nom, sal ? sal.nom : "—",
+        return [m.date, (DB.entreprise(m.entreprise) || {}).nom, sal ? sal.nom : ",",
                 m.quantite, an.titre]; }));
     toast("Export téléchargé.");
   };
@@ -4925,7 +4948,7 @@ function vuePreferences(u){
           <span class="muted" style="font-size:var(--t-xs)">Votre prénom seul, et seulement pour
           les salariés de votre entreprise. Jamais votre nom, jamais pour une autre entreprise,
           jamais pour un don en argent. Une mission auprès d'une association peut en dire long
-          sur vos convictions ou votre santé — c'est pour ça que ce réglage est à vous, décoché
+          sur vos convictions ou votre santé, c'est pour ça que ce réglage est à vous, décoché
           par défaut, et modifiable à tout moment.</span></span></label>` : ""}
 
       <button class="btn btn--primary" style="margin-top:var(--s8)" id="save">Enregistrer</button>
@@ -5063,7 +5086,7 @@ function vueEnsemble(u){
         Object.keys(r.realisations.estimeParUnite).length ? `<div class="ensemble__estime">
         ${/* « En plus » invitait à additionner l'estimé au confirmé, ce que tout
               le reste du produit s'interdit. */""}
-        <span class="ensemble__estimeT">Résultats estimés — non confirmés</span>
+        <span class="ensemble__estimeT">Résultats estimés, non confirmés</span>
         <span class="ensemble__estimeL">${Object.entries(r.realisations.estimeParUnite)
           .sort((a, b) => b[1] - a[1]).slice(0, 4)
           .map(([k, v]) => `${nb(v)} ${esc((UNITES[k] || {}).pl || k)}`).join(" · ")}</span>
@@ -5123,7 +5146,7 @@ function vueGroupe(u){
             dans une liasse. On renvoie donc au détail, société par société. */
         kpi("Sociétés au calcul fiscal complet",
             `${nb(c.societes.filter(x => x.plafondCalculable).length)} / ${nb(c.societes.length)}`,
-            "la réduction d'impôt s'apprécie société par société — voir le détail plus bas")}
+            "la réduction d'impôt s'apprécie société par société, voir le détail plus bas")}
     </div>
 
     <section class="card">
@@ -5131,7 +5154,7 @@ function vueGroupe(u){
         <div><h3>Sociétés et établissements</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
           Le groupe consolide, il ne fusionne pas. Chaque société garde son SIREN, son
-          contrat, son plafond de mécénat et ses salariés — deux sociétés d'un même
+          contrat, son plafond de mécénat et ses salariés, deux sociétés d'un même
           groupe sont deux responsables de traitement distincts.</p></div>
         <div class="row" style="gap:var(--s2)">
           <button class="btn btn--primary btn--sm" id="rapG">Rapport consolidé</button>
@@ -5151,7 +5174,7 @@ function vueGroupe(u){
           <div><h3>Entre vos sites</h3>
           <p class="muted" style="font-size:var(--t-sm);margin-top:4px;max-width:52ch">
             Un <strong>challenge d'engagement associatif</strong>, pas une mesure de
-            performance RSE d'un site — et sans aucune incidence sur l'évaluation de qui
+            performance RSE d'un site, et sans aucune incidence sur l'évaluation de qui
             que ce soit. Normalisé par l'effectif, sinon le siège écrase l'agence. Compare
             des sites, <strong>jamais des personnes</strong>.</p></div>
         </div>
@@ -5161,7 +5184,7 @@ function vueGroupe(u){
             <span class="muted">Désactivé par défaut : un rang fabrique un dernier. Même
             activé, un site reste hors classement tant qu'il n'a pas
             ${DB.SEUIL_CLASSEMENT.mobilises} salariés mobilisés et
-            ${DB.SEUIL_CLASSEMENT.missions} missions validées — en dessous, on mesure le
+            ${DB.SEUIL_CLASSEMENT.missions} missions validées, en dessous, on mesure le
             hasard des petits nombres et la date de démarrage.</span></span>
         </label>
         <div class="stack" style="--gap:var(--s3);margin-top:var(--s5)" id="rang"></div>
@@ -5178,7 +5201,7 @@ function vueGroupe(u){
         <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
           ${INDICATEURS.calcules.filter(d => ["tf1", "tg", "turnover"].includes(d.cle))
             .map(d => `<div class="between"><span class="muted">${esc(d.libelle)}</span>
-              <span class="tnum">${ind.calcules[d.cle] === null ? "—"
+              <span class="tnum">${ind.calcules[d.cle] === null ? ","
                 : nb2(ind.calcules[d.cle]) + (d.unite ? " " + d.unite : "")}</span></div>`).join("")}
         </div>
         <p class="hint" style="margin-top:var(--s5)">
@@ -5198,22 +5221,22 @@ function vueGroupe(u){
   c.societes.forEach(soc => {
     tb.appendChild(h(`<tr>
       <td><strong>${esc(soc.nom)}</strong></td>
-      <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(soc.siren || "—")}</td>
+      <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(soc.siren || ",")}</td>
       <td class="tnum" style="text-align:right">${nb(soc.effectif || 0)}</td>
       <td class="tnum" style="text-align:right">${nb(soc.etablissements.reduce((n, x) => n + x.comptes, 0))}</td>
       <td class="tnum" style="text-align:right">${nb(soc.missions)}</td>
       <td class="tnum" style="text-align:right"><strong>${nb(soc.points)}</strong></td>
-      <td class="tnum" style="text-align:right">${soc.effectif ? pct(soc.points / soc.effectif, 2) : "—"}</td>
+      <td class="tnum" style="text-align:right">${soc.effectif ? pct(soc.points / soc.effectif, 2) : ","}</td>
     </tr>`));
     soc.etablissements.forEach(et => {
       tb.appendChild(h(`<tr>
-        <td style="padding-left:var(--s6)" class="muted">${esc(et.nom)} — ${esc(et.ville)}</td>
+        <td style="padding-left:var(--s6)" class="muted">${esc(et.nom)}, ${esc(et.ville)}</td>
         <td></td>
         <td class="tnum muted" style="text-align:right">${nb(et.effectif || 0)}</td>
         <td class="tnum muted" style="text-align:right">${nb(et.comptes)} / ${nb(et.quota || 0)}</td>
         <td class="tnum muted" style="text-align:right">${nb(et.missions)}</td>
         <td class="tnum muted" style="text-align:right">${nb(et.points)}</td>
-        <td class="tnum muted" style="text-align:right">${et.effectif ? pct(et.parSalarie, 2) : "—"}</td>
+        <td class="tnum muted" style="text-align:right">${et.effectif ? pct(et.parSalarie, 2) : ","}</td>
       </tr>`));
     });
   });
@@ -5224,7 +5247,7 @@ function vueGroupe(u){
                 actif:"badge--info", fort:"badge--ok" };
   rang.forEach(x => box.appendChild(h(`<div>
     <div class="between" style="font-size:var(--t-sm);margin-bottom:6px;gap:var(--s3);flex-wrap:wrap">
-      <span>${x.rang ? `<b>${x.rang}.</b> ` : ""}${esc(x.nom)} — ${esc(x.ville)}
+      <span>${x.rang ? `<b>${x.rang}.</b> ` : ""}${esc(x.nom)}, ${esc(x.ville)}
         <span class="badge ${TON[x.statut.cle]}" style="margin-left:6px">${esc(x.statut.label)}</span></span>
       <span class="tnum muted">${nb(x.mobilises)} mobilisé${x.mobilises > 1 ? "s" : ""} ·
         ${nb(x.missions)} mission${x.missions > 1 ? "s" : ""} ·
@@ -5317,12 +5340,12 @@ function ouvrirRapportGroupe(u){
     `<tr><td>${cle}</td><td class="v">${valeur}</td><td class="m">${methode}</td></tr>`;
 
   const corps = `
-  <h1>Rapport consolidé — ${esc(c.groupe.nom)}</h1>
-  <p class="st">${esc(sa.nom)} — arrêté au ${dateFR(new Date().toISOString())}
-     — empreinte ${empreinte(missions)}</p>
+  <h1>Rapport consolidé, ${esc(c.groupe.nom)}</h1>
+  <p class="st">${esc(sa.nom)}, arrêté au ${dateFR(new Date().toISOString())}
+    , empreinte ${empreinte(missions)}</p>
   <div class="note alerte">
     <strong>Ce document n'est pas un rapport d'audit.</strong> Il rassemble des données
-    <strong>déclarées</strong> — par les salariés, par les associations, par les sites — que
+    <strong>déclarées</strong>, par les salariés, par les associations, par les sites, que
     Riseva horodate, recoupe et met en forme, mais <strong>n'audite pas</strong>. Le périmètre
     de consolidation est celui du groupe : il n'a pas d'existence fiscale, et les réductions
     d'impôt ci-dessous sont calculées <strong>société par société</strong>, jamais sur un
@@ -5348,12 +5371,12 @@ function ouvrirRapportGroupe(u){
       ${c.societes.map(soc => `
         <tr><td colspan="6"><strong>${esc(soc.nom)}</strong></td></tr>
         ${soc.etablissements.map(x => `<tr>
-          <td class="m" style="padding-left:18px">${esc(x.nom)} — ${esc(x.ville)}</td>
+          <td class="m" style="padding-left:18px">${esc(x.nom)}, ${esc(x.ville)}</td>
           <td class="v">${nb(x.effectif)}</td>
           <td class="v">${nb(x.missions)}</td>
           <td class="v">${nb(x.confirmees)}</td>
           <td class="v">${nb(x.points)}</td>
-          <td class="v">${x.effectif ? nb2(Math.round(x.parSalarie * 100) / 100) : "—"}</td>
+          <td class="v">${x.effectif ? nb2(Math.round(x.parSalarie * 100) / 100) : ","}</td>
         </tr>`).join("")}`).join("")}
       <tr><td><strong>Consolidé</strong></td>
         <td class="v">${nb(c.effectif)}</td>
@@ -5400,7 +5423,7 @@ function ouvrirRapportGroupe(u){
 
   <h2>4. Indicateurs sociaux et sécurité</h2>
   ${!ind ? `<p class="m">Aucune campagne de collecte.</p>` : `
-  <p class="st">${esc(camp.libelle)} — valeurs <strong>approuvées</strong> de
+  <p class="st">${esc(camp.libelle)}, valeurs <strong>approuvées</strong> de
      ${ind.sites} site${ind.sites > 1 ? "s" : ""} sur ${ind.attendus}, soit
      ${nb(ind.effectifCouvert)} salariés sur ${nb(ind.effectifTotal)}
      (${nb2(Math.round(ind.partEffectif * 1000) / 10)} % de l'effectif du périmètre).
@@ -5413,7 +5436,7 @@ function ouvrirRapportGroupe(u){
       ${INDICATEURS.calcules.map(d => l(d.libelle,
           ind.calcules[d.cle] === null ? `<span class="manque">non calculé</span>`
             : nb2(ind.calcules[d.cle]) + (d.unite ? " " + d.unite : ""),
-          d.formule + " — rapport de sommes sur le périmètre, jamais moyenne des taux."
+          d.formule + ", rapport de sommes sur le périmètre, jamais moyenne des taux."
             + (d.note ? " " + d.note : ""))).join("")}
     </tbody>
   </table>
@@ -5422,10 +5445,10 @@ function ouvrirRapportGroupe(u){
     <thead><tr><th>Établissement</th><th>État</th><th>Saisi par</th><th>Approuvé par</th></tr></thead>
     <tbody>
       ${e.sites.map(x => `<tr>
-        <td>${esc(x.etablissement.nom)} — ${esc(x.etablissement.ville)}</td>
+        <td>${esc(x.etablissement.nom)}, ${esc(x.etablissement.ville)}</td>
         <td class="m ${x.etat === "clos_sans_reponse" || x.etat === "attendu" ? "manque" : ""}">${ETIQ[x.etat]}</td>
-        <td class="m">${x.saisiPar ? esc(x.saisiPar.nom) : "—"}</td>
-        <td class="m">${x.approuvePar ? esc(x.approuvePar.nom) : "—"}</td>
+        <td class="m">${x.saisiPar ? esc(x.saisiPar.nom) : ","}</td>
+        <td class="m">${x.approuvePar ? esc(x.approuvePar.nom) : ","}</td>
       </tr>`).join("")}
     </tbody>
   </table>
@@ -5433,7 +5456,7 @@ function ouvrirRapportGroupe(u){
     ${nb(ind.attendus - ind.sites)} site${ind.attendus - ind.sites > 1 ? "s n'ont" : " n'a"} pas de
     valeur approuvée pour cette période, soit
     ${nb(ind.effectifTotal - ind.effectifCouvert)} salariés sur ${nb(ind.effectifTotal)}. Les taux
-    ci-dessus ne portent donc <strong>pas</strong> sur l'ensemble du périmètre — et deux sites sur
+    ci-dessus ne portent donc <strong>pas</strong> sur l'ensemble du périmètre, et deux sites sur
     quatre ne veut pas dire la moitié du groupe. Nous ne comblons pas les trous avec la période
     précédente : un chiffre absent reste absent.
   </div>` : ""}
@@ -5448,7 +5471,7 @@ function ouvrirRapportGroupe(u){
     arrêté : deux éditions qui portent la même empreinte contiennent les mêmes faits.
   </p>`;
 
-  ouvrirDoc(`Rapport consolidé — ${esc(c.groupe.nom)}`, corps);
+  ouvrirDoc(`Rapport consolidé, ${esc(c.groupe.nom)}`, corps);
   toast("Rapport de groupe ouvert dans un nouvel onglet.");
 }
 
@@ -5462,7 +5485,7 @@ function vueSites(u){
       <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);max-width:76ch">
         Vous allouez un quota de comptes à un site, puis vous envoyez un lien
         <strong>nominatif</strong> à la personne qui pilotera ce site. C'est elle, ensuite,
-        qui produit le lien d'inscription de ses salariés — dans la limite de son quota,
+        qui produit le lien d'inscription de ses salariés, dans la limite de son quota,
         et sans jamais pouvoir dépasser. Un lien de salarié ne confère jamais de droit
         d'administration : c'est ce qui fait qu'un lien qui fuite reste sans conséquence.
       </p>
@@ -5507,7 +5530,7 @@ function vueSites(u){
       const tr = h(`<tr>
         <td><strong>${esc(et.nom)}</strong><br>
           <span class="muted" style="font-size:var(--t-xs)">${esc(et.ville)}</span></td>
-        <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(et.siret || "—")}</td>
+        <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(et.siret || ",")}</td>
         <td class="tnum" style="text-align:right">${nb(et.effectif || 0)}</td>
         <td class="tnum" style="text-align:right">${nb(si.pris)}</td>
         <td style="text-align:right;width:110px">
@@ -5542,7 +5565,7 @@ function formReferent(et){
       Le lien est <strong style="color:var(--ink)">nominatif</strong> : il porte le nom et
       l'adresse de la personne visée, il expire dans trente jours, et il n'ouvre qu'un
       seul compte. Il donne à cette personne les droits sur
-      <strong style="color:var(--ink)">${esc(et.nom)} — ${esc(et.ville)}</strong>, et sur rien d'autre.
+      <strong style="color:var(--ink)">${esc(et.nom)}, ${esc(et.ville)}</strong>, et sur rien d'autre.
     </p>
     <div class="field"><label for="rf-nom">Prénom et nom</label>
       <input class="input" id="rf-nom" value="${esc(et.referent || "")}"></div>
@@ -5550,7 +5573,7 @@ function formReferent(et){
       <input class="input" id="rf-mail" type="email" value="${esc(et.referent_mail || "")}"></div>
     <div id="rf-out"></div>
   </div>`);
-  modal(`Référent de ${et.nom} — ${et.ville}`, corps, [
+  modal(`Référent de ${et.nom}, ${et.ville}`, corps, [
     { label: "Annuler", classe: "btn--ghost" },
     { label: "Créer le lien", classe: "btn--primary", onClick: () => {
         try {
@@ -5599,14 +5622,14 @@ function vueIndicateurs(u){
           <h3>Collecte des indicateurs</h3>
           <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
             Ce qui coûte cher, ce n'est pas le calcul : c'est d'obtenir les chiffres de
-            chaque site. Même mécanisme que pour les missions — on demande, on rappelle,
+            chaque site. Même mécanisme que pour les missions, on demande, on rappelle,
             et si personne ne répond la période se clôt <strong>sans réponse</strong>,
             plutôt que d'être comblée avec celle d'avant.</p>
         </div>
         <div class="field" style="min-width:220px">
           <label for="camp">Période</label>
           <select class="select" id="camp">
-            ${cs.map(c => `<option value="${c.id}" ${c.id === cid ? "selected" : ""}>${esc(c.libelle)}${c.etat === "close" ? " — close" : ""}</option>`).join("")}
+            ${cs.map(c => `<option value="${c.id}" ${c.id === cid ? "selected" : ""}>${esc(c.libelle)}${c.etat === "close" ? ", close" : ""}</option>`).join("")}
           </select>
         </div>
       </div>
@@ -5641,7 +5664,7 @@ function vueIndicateurs(u){
         <h3>Ce que ça donne, une fois consolidé</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
           Un taux de périmètre est un <strong>rapport de sommes</strong> : total des accidents
-          divisé par total des heures. Pas la moyenne des taux de chaque site — l'écart entre
+          divisé par total des heures. Pas la moyenne des taux de chaque site, l'écart entre
           les deux est réel et ne se voit pas à l'œil.</p>
         ${brouillon.provisoire ? `<div class="card card--flat"
           style="background:var(--warn-bg);border-color:transparent;margin-top:var(--s5)">
@@ -5661,10 +5684,10 @@ function vueIndicateurs(u){
               ${d.note ? `<br><span class="muted" style="font-size:var(--t-xs)">${esc(d.note)}</span>` : ""}</td>
             <td class="tnum" style="text-align:right">${ind && ind.calcules[d.cle] !== null
               ? nb2(ind.calcules[d.cle]) + (d.unite ? " " + d.unite : "")
-              : `<span class="muted">—</span>`}</td>
+              : `<span class="muted">,</span>`}</td>
             ${brouillon.provisoire ? `<td class="tnum muted" style="text-align:right">${
               brouillon.calcules[d.cle] !== null
-                ? nb2(brouillon.calcules[d.cle]) + (d.unite ? " " + d.unite : "") : "—"}</td>` : ""}
+                ? nb2(brouillon.calcules[d.cle]) + (d.unite ? " " + d.unite : "") : ","}</td>` : ""}
           </tr>`).join("")}
         </tbody></table>
         <p class="hint" style="margin-top:var(--s4)">
@@ -5691,11 +5714,11 @@ function vueIndicateurs(u){
   e.sites.filter(x => !monSite || x.etablissement.id === monSite).forEach(x => {
     const [lib, cls] = ETIQ[x.etat];
     const tr = h(`<tr>
-      <td><strong>${esc(x.etablissement.nom)}</strong> — ${esc(x.etablissement.ville)}<br>
+      <td><strong>${esc(x.etablissement.nom)}</strong>, ${esc(x.etablissement.ville)}<br>
         <span class="muted" style="font-size:var(--t-xs)">${esc(DB.entreprise(x.etablissement.societe)?.nom || "")}</span></td>
       <td><span class="badge ${cls}">${lib}</span></td>
-      <td class="muted">${x.saisiPar ? esc(x.saisiPar.nom) : "—"}</td>
-      <td class="muted">${x.approuvePar ? esc(x.approuvePar.nom) : "—"}</td>
+      <td class="muted">${x.saisiPar ? esc(x.saisiPar.nom) : ","}</td>
+      <td class="muted">${x.approuvePar ? esc(x.approuvePar.nom) : ","}</td>
       <td style="text-align:right;white-space:nowrap"></td>
     </tr>`);
     const cell = tr.querySelector("td:last-child");
@@ -5765,13 +5788,24 @@ const STYLE_AFFICHE = `
   .lede{font-size:17px;line-height:1.55;color:#4A4F42;max-width:44ch;margin:0}
   .box{border:2px solid #131510;border-radius:14px;padding:8mm 9mm;background:#FAF9F5}
   .box p{margin:0 0 4mm;font-size:13.5px;color:#4A4F42}
-  .lien{font:600 20px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace;
+  .lien{font:600 17px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;
     letter-spacing:-.01em;word-break:break-all;color:#131510}
   .pied{display:flex;justify-content:space-between;align-items:flex-end;gap:10mm;
     font-size:12px;color:#63675C}
-  .fmts{display:flex;gap:6mm;margin:8mm 0 0;padding:0;list-style:none;flex-wrap:wrap}
+  .fmts{display:flex;gap:5mm;margin:9mm 0 0;padding:0;list-style:none;flex-wrap:wrap}
   .fmts li{font-size:13px;color:#131510;font-weight:600;border:1px solid #CFD1C6;
     border-radius:999px;padding:2mm 5mm}
+  .marque{display:flex;justify-content:space-between;align-items:center;margin:0 0 12mm}
+  .marque img{height:11mm;width:auto}
+  .marque span{font:600 11px/1 -apple-system,Segoe UI,Inter,sans-serif;letter-spacing:.14em;
+    text-transform:uppercase;color:#63675C}
+  .appel{display:flex;gap:9mm;align-items:center}
+  .appel .qr{flex:0 0 auto;width:34mm;height:34mm;border-radius:6px}
+  .appel .txt{min-width:0}
+  .trois{display:grid;grid-template-columns:repeat(3,1fr);gap:6mm;margin:10mm 0 0}
+  .trois div{border-top:2px solid #131510;padding-top:3mm}
+  .trois b{display:block;font-size:22px;line-height:1;letter-spacing:-.02em}
+  .trois span{display:block;font-size:12px;color:#4A4F42;margin-top:2mm}
   @media print{body{background:#fff}.a4{box-shadow:none;margin:0}.noprint{display:none}}
   .noprint{text-align:center;padding:14px}
   .noprint button{font:inherit;background:#131510;color:#F2F0E9;border:0;border-radius:12px;
@@ -5792,29 +5826,41 @@ function ouvrirAffiche(u){
   const rea = DB.impactReseau();
   const w = window.open("", "_blank");
   if (!w){ toast("Autorisez les fenêtres pour ouvrir l'affiche."); return; }
+  const qr = qrSvg(lien, 128, "Code QR vers la page d'inscription");
   w.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
-<title>Affiche Riseva — ${esc(e.nom || "")}</title><style>${STYLE_AFFICHE}</style></head><body>
+<title>Affiche Riseva, ${esc(e.nom || "")}</title><style>${STYLE_AFFICHE}</style></head><body>
 <div class="noprint"><button onclick="window.print()">Imprimer en A3 ou A4</button></div>
 <div class="a4"><div class="mq"></div>
   <div class="in">
-    <p class="eb">${esc(e.nom || "")} · ${esc(sa.nom)}</p>
+    <div class="marque">
+      <img src="/brand/riseva-full.png" alt="Riseva">
+      <span>${esc(e.nom || "")} · ${esc(sa.nom)}</span>
+    </div>
     <h1>Une demi-journée. <em>Une association.</em> Près d'ici.</h1>
     <p class="lede">Des associations près de nos sites publient ce dont elles ont besoin :
       des bras, du matériel, parfois un coup de main financier. Vous choisissez ce que vous
-      voulez faire, quand vous le voulez. Ce que vous faites compte pour l'entreprise, et rien
-      de ce que vous donnez à titre personnel n'est visible par elle.</p>
+      voulez faire, quand vous le voulez. Ce que vous faites compte pour l'entreprise, et ce
+      que vous donnez à titre personnel ne lui est jamais montré.</p>
     <ul class="fmts">
       <li>Une demi-journée de bénévolat</li>
       <li>Du matériel qui repart utile</li>
       <li>Un don, sans passer par nous</li>
     </ul>
+    <div class="trois">
+      <div><b>2 min</b><span>pour créer son compte</span></div>
+      <div><b>Sur place</b><span>près de son site de travail</span></div>
+      <div><b>Libre</b><span>on se propose, on n'est jamais désigné</span></div>
+    </div>
   </div>
-  <div class="in box">
-    <p><strong>Pour participer</strong>, ouvrez ce lien depuis votre poste ou votre téléphone :</p>
-    <div class="lien">${esc(lien)}</div>
+  <div class="in box appel">
+    ${qr}
+    <div class="txt">
+      <p><strong>Scannez, ou ouvrez ce lien</strong> depuis votre poste ou votre téléphone :</p>
+      <div class="lien">${esc(lien)}</div>
+    </div>
   </div>
   <div class="in pied">
-    <span>Riseva — ${nb(rea.associations || 0)} associations vérifiées${
+    <span>Riseva · ${nb(rea.associations || 0)} associations vérifiées${
       rea.missions ? ` · ${nb(rea.missions)} missions confirmées à ce jour` : ""}</span>
     <span>riseva.fr</span>
   </div>
@@ -5922,7 +5968,7 @@ function vueExpeditions(){
       const b = h(`<button class="btn btn--forest btn--sm">Marquer expédié</button>`);
       b.onclick = () => {
         const corps = h(`<div class="stack" style="--gap:var(--s4)">
-          <p class="muted" style="font-size:var(--t-sm)">${esc(x.kit.nom)} — ${esc(x.entreprise.nom)},
+          <p class="muted" style="font-size:var(--t-sm)">${esc(x.kit.nom)}, ${esc(x.entreprise.nom)},
             ${nb(x.sites)} site${x.sites > 1 ? "s" : ""}.</p>
           <div class="field"><label for="sv">Numéro de suivi (facultatif)</label>
             <input class="input" id="sv" placeholder="6A12345678901"></div>
@@ -5957,7 +6003,7 @@ function vueExpeditions(){
         <td>${esc(e.nom || "")}</td>
         <td>${esc(k.nom || x.kit)}</td>
         <td class="muted tnum">${dateCourte(x.expedie_le)}</td>
-        <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(x.suivi || "—")}</td>
+        <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(x.suivi || ",")}</td>
         <td>${x.recu_le ? `<span class="badge badge--ok">${dateCourte(x.recu_le)}</span>`
                         : `<span class="badge badge--attente">en attente</span>`}</td></tr>`));
     });
@@ -6002,7 +6048,7 @@ function vueSecurite(u){
           <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
             Déclarés un par un, au moment où ils arrivent. Les taux de la période s'en déduisent :
             plus de tableau à remplir en fin de campagne, et plus deux chiffres qui divergent.
-            <strong style="color:var(--ink)">Aucun nom, aucune donnée de santé</strong> — ni
+            <strong style="color:var(--ink)">Aucun nom, aucune donnée de santé</strong>, ni
             identité, ni siège de la lésion, ni diagnostic.</p>
         </div>
         <div class="row" style="--gap:var(--s3);align-items:flex-end">
@@ -6017,7 +6063,7 @@ function vueSecurite(u){
         ${kpi("Avec arrêt", nb(t.at_avec_arret), `${nb(t.jours_arret)} journées perdues`, "", "kpi--tete grain")}
         ${kpi("Soins sans arrêt", nb(t.at_sans_arret), "événements pris en charge")}
         ${kpi("Trajet", nb(t.at_trajet), "comptés à part")}
-        ${kpi("Sans soin", nb(t.sans_soin), "presqu'accidents — le seul indicateur qui permet d'agir avant")}
+        ${kpi("Sans soin", nb(t.sans_soin), "presqu'accidents, le seul indicateur qui permet d'agir avant")}
       </div>
       ${sy.sites_sans_registre.length ? `<div class="card card--flat"
         style="background:var(--warn-bg);border-color:transparent;margin-top:var(--s5)">
@@ -6042,7 +6088,7 @@ function vueSecurite(u){
           lésion, ni votre numéro de risque.</li>
           <li>Le <strong>registre des accidents du travail bénins</strong> de l'article L. 441-4,
           si vous en tenez un. Son contenu est fixé par décret et comprend l'identité de la
-          victime, la nature des lésions et les témoins — précisément ce que nous refusons de
+          victime, la nature des lésions et les témoins, précisément ce que nous refusons de
           collecter. C'est un autre document, tenu ailleurs.</li>
           <li>Le <strong>document unique d'évaluation des risques</strong> (article R. 4121-1) et
           sa mise à jour. Le plan d'actions ci-dessous l'alimente utilement, il ne le constitue
@@ -6118,8 +6164,8 @@ function vueSecurite(u){
     const tr = h(`<tr>
       <td><strong>${esc(x.etablissement.nom)}</strong>
         <br><span class="muted" style="font-size:var(--t-xs)">${esc(x.etablissement.ville || "")}</span></td>
-      <td class="tnum" style="text-align:right">${x.registre ? nb(x.at_avec_arret) : "—"}</td>
-      <td class="tnum" style="text-align:right">${x.registre ? nb(x.jours_arret) : "—"}</td>
+      <td class="tnum" style="text-align:right">${x.registre ? nb(x.at_avec_arret) : ","}</td>
+      <td class="tnum" style="text-align:right">${x.registre ? nb(x.jours_arret) : ","}</td>
       <td></td></tr>`);
     const cell = tr.lastElementChild;
     const b = h(`<button class="btn btn--sm ${x.registre ? "btn--ghost" : "btn--forest"}">${
@@ -6190,8 +6236,8 @@ function vueSecurite(u){
         <td>${esc(NATURES_EVENEMENT[e.nature].label)}</td>
         <td>${esc(TYPES_EVENEMENT[e.type] || e.type)}
           ${e.circonstances ? `<br><span class="muted" style="font-size:var(--t-xs)">${esc(e.circonstances)}</span>` : ""}</td>
-        <td class="muted">${esc(e.zone || "—")}</td>
-        <td class="tnum" style="text-align:right">${e.jours_arret || "—"}</td>
+        <td class="muted">${esc(e.zone || ",")}</td>
+        <td class="tnum" style="text-align:right">${e.jours_arret || ","}</td>
         <td><span class="badge ${g.badge}">${esc(g.label)}</span></td>
         <td style="text-align:right"></td></tr>`);
       const bar = tr.lastElementChild;
@@ -6245,7 +6291,7 @@ function formEvenement(u, sites, monSite){
     <div class="row" style="--gap:var(--s4);align-items:stretch">
       <div class="field" style="flex:1"><label for="ev-site">Site</label>
         <select class="select" id="ev-site">
-          ${sites.map(x => `<option value="${x.id}"${x.id === monSite ? " selected" : ""}>${esc(x.nom)} — ${esc(x.ville || "")}</option>`).join("")}
+          ${sites.map(x => `<option value="${x.id}"${x.id === monSite ? " selected" : ""}>${esc(x.nom)}, ${esc(x.ville || "")}</option>`).join("")}
         </select></div>
       <div class="field" style="flex:1"><label for="ev-date">Date de l'événement</label>
         <input class="input" type="date" id="ev-date" max="2026-08-20" value="2026-08-20"></div>
@@ -6381,7 +6427,7 @@ function vueCSE(u){
     <section class="card card--dark grain">
       <div class="between" style="flex-wrap:wrap;gap:var(--s4)">
         <div>
-          <p class="eyebrow" style="color:var(--lime)">Accès CSE — lecture seule</p>
+          <p class="eyebrow" style="color:var(--lime)">Accès CSE, lecture seule</p>
           <h3 style="margin-top:var(--s2)">${esc(d.entreprise.nom)} · ${esc(d.saison.nom)}</h3>
           <p class="muted" style="margin-top:6px;font-size:var(--t-sm);color:#C5CDBB">
             Ce que Riseva détient déjà sur la situation sociale et la sécurité, sous forme
@@ -6403,12 +6449,12 @@ function vueCSE(u){
       ${kpi("Sites suivis", nb(d.sites.length),
             d.sites.map(x => x.nom).join(" · "), "", "kpi--tete grain")}
       ${kpi("Participation",
-            d.participation ? pct(d.participation.taux) + " %" : "—",
+            d.participation ? pct(d.participation.taux) + " %" : ",",
             d.participation
               ? `${nb(d.participation.engages)} salariés engagés sur ${nb(d.participation.effectif)}`
               : `masquée : moins de ${d.seuil} personnes concernées`)}
       ${kpi("Rapports disponibles", nb(d.rapports.length), "trimestriels et annuel")}
-      ${kpi("Période de collecte", d.campagne ? esc(d.campagne.libelle) : "—",
+      ${kpi("Période de collecte", d.campagne ? esc(d.campagne.libelle) : ",",
             d.campagne ? `du ${dateCourte(d.campagne.debut)} au ${dateCourte(d.campagne.fin)}` : "")}
     </div>
 
@@ -6482,7 +6528,7 @@ function vueCSE(u){
             (x.nombre / secu.pareto[0].nombre) * 100}%"></i></div>
         </div>`).join("")}</div>
       <p class="hint" style="margin-top:var(--s4)">${nb(secu.total.sans_soin)} événement${
-        secu.total.sans_soin > 1 ? "s" : ""} sans soin — les presqu'accidents ne comptent dans
+        secu.total.sans_soin > 1 ? "s" : ""} sans soin, les presqu'accidents ne comptent dans
         aucun taux : les compter ferait monter la fréquence au moment où la prévention
         s'améliore.</p>
     </section>` : ""}
@@ -6511,8 +6557,8 @@ function vueCSE(u){
       <th>Rapport</th><th>Période</th><th>Arrêté le</th><th></th></tr></thead><tbody></tbody></table>`);
     d.rapports.forEach(x => {
       const tr = h(`<tr><td><strong>${esc(x.titre)}</strong></td>
-        <td class="muted">${dateCourte(x.periode.debut)} — ${dateCourte(x.periode.fin)}</td>
-        <td class="muted tnum">${x.genere_le ? dateCourte(x.genere_le) : "—"}</td>
+        <td class="muted">${dateCourte(x.periode.debut)}, ${dateCourte(x.periode.fin)}</td>
+        <td class="muted tnum">${x.genere_le ? dateCourte(x.genere_le) : ","}</td>
         <td style="text-align:right"></td></tr>`);
       const b = h(`<button class="btn btn--ghost btn--sm">Lire</button>`);
       b.onclick = () => apercuRapportCSE(u.org, x);
@@ -6558,9 +6604,9 @@ function ouvrirDictionnaire(cid){
       </tr></thead><tbody>
         ${d.saisis.map(x => `<tr>
           <td><strong>${esc(x.libelle)}</strong>${x.unite ? `<br><span class="muted" style="font-size:var(--t-xs)">${esc(x.unite)} · ${esc(x.niveau)}</span>` : ""}</td>
-          <td class="muted" style="font-size:var(--t-xs)">${esc(x.source || "—")}</td>
-          <td class="muted" style="font-size:var(--t-xs)">${esc(x.inclut || "—")}</td>
-          <td class="muted" style="font-size:var(--t-xs)">${esc(x.exclut || "—")}</td>
+          <td class="muted" style="font-size:var(--t-xs)">${esc(x.source || ",")}</td>
+          <td class="muted" style="font-size:var(--t-xs)">${esc(x.inclut || ",")}</td>
+          <td class="muted" style="font-size:var(--t-xs)">${esc(x.exclut || ",")}</td>
         </tr>`).join("")}
       </tbody></table>
     </div>
@@ -6690,7 +6736,7 @@ function formIndicateurs(u, cid, et){
   box.querySelectorAll("input").forEach(i => i.addEventListener("input", majEcarts));
   majEcarts();
 
-  modal(`${et.nom} — ${et.ville}`, corps, [
+  modal(`${et.nom}, ${et.ville}`, corps, [
     { label: "Annuler", classe: "btn--ghost" },
     { label: "Enregistrer", classe: "btn--primary", onClick: () => {
         try { DB.saisirIndicateurs(cid, et.id, lire(), u.id,
@@ -6754,7 +6800,7 @@ function tableauSite(u){
       <p class="muted" style="font-size:var(--t-sm);margin-top:4px;color:var(--ink-600);max-width:76ch">
         Ces personnes se sont inscrites avec votre lien. Une adresse professionnelle ne dit pas
         sur quel site quelqu'un travaille : tant que vous n'avez pas confirmé, elles peuvent tout
-        consulter mais pas s'engager — leurs points iraient au mauvais endroit.</p>
+        consulter mais pas s'engager, leurs points iraient au mauvais endroit.</p>
       <table class="table" style="margin-top:var(--s5)"><tbody id="conf"></tbody></table>
     </section>` : ""}
 
@@ -6762,7 +6808,7 @@ function tableauSite(u){
       <div class="between" style="flex-wrap:wrap;gap:var(--s4)">
         <div><h3 style="font-size:var(--t-lg)">Indicateurs à saisir</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:4px;color:var(--ink-600)">
-          ${esc(camp.libelle)} — il reste ${DB.joursAvant(camp.echeance)} jours. Sans réponse,
+          ${esc(camp.libelle)}, il reste ${DB.joursAvant(camp.echeance)} jours. Sans réponse,
           la période sera close sans vos chiffres, et le rapport le dira.</p></div>
         <a class="btn btn--primary btn--sm" href="#/indicateurs">Saisir</a>
       </div></section>` : ""}
@@ -6796,8 +6842,8 @@ function tableauSite(u){
           const as = DB.association(a2.asso) || {};
           return `<tr>
             <td class="muted tnum">${dateCourte(m.date)}</td>
-            <td><strong>${esc(sal2.nom || "—")}</strong></td>
-            <td class="muted">${esc(as.nom || "—")}<br>
+            <td><strong>${esc(sal2.nom || ",")}</strong></td>
+            <td class="muted">${esc(as.nom || ",")}<br>
               <span style="font-size:var(--t-xs)">${esc(a2.titre || "")}</span></td>
             <td><span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].label}</span></td>
           </tr>`; }).join("")}
@@ -6808,7 +6854,7 @@ function tableauSite(u){
       <div class="between" style="margin-bottom:var(--s5)">
         <h3>Inviter vos salariés</h3></div>
       <p class="muted" style="font-size:var(--t-sm)">
-        Ce lien ouvre des comptes sur <strong style="color:var(--ink)">${esc(et.nom)} — ${esc(et.ville)}</strong>,
+        Ce lien ouvre des comptes sur <strong style="color:var(--ink)">${esc(et.nom)}, ${esc(et.ville)}</strong>,
         dans la limite de votre quota. Il ne donne aucun droit d'administration.</p>
       ${inv ? `<div class="copyline" style="margin-top:var(--s5)">
         <input class="input" id="lienSite" readonly aria-label="Lien d'inscription de votre site"
@@ -6879,7 +6925,7 @@ function vueMateriel(u){
           Depuis la loi relative à la lutte contre le gaspillage, les invendus non
           alimentaires ne peuvent plus être éliminés : ils doivent être réemployés,
           réutilisés ou recyclés, et le don à une association est la voie prévue par le
-          texte. Ce registre est la trace de ces dons — quoi, combien, à qui, quand, et
+          texte. Ce registre est la trace de ces dons, quoi, combien, à qui, quand, et
           qui l'a confirmé.</p></div>
         <button class="btn btn--ghost btn--sm" id="csvM">Exporter</button>
       </div>
@@ -6901,7 +6947,7 @@ function vueMateriel(u){
       </p>
       <ul class="stack" style="--gap:var(--s3);margin-top:var(--s4);font-size:var(--t-sm);
         list-style:none;color:var(--ink-600)">
-        ${DB.CATEGORIES_MATERIEL.map(c => `<li><strong style="color:var(--ink)">${esc(c.label)}</strong> — ${esc(c.methode)}</li>`).join("")}
+        ${DB.CATEGORIES_MATERIEL.map(c => `<li><strong style="color:var(--ink)">${esc(c.label)}</strong>, ${esc(c.methode)}</li>`).join("")}
       </ul>
       <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s4);max-width:78ch;color:var(--ink-600)">
         Retenir la valeur catalogue fabriquerait une réduction d'impôt indue, et c'est ce qu'un
@@ -6972,7 +7018,7 @@ function formValeurMateriel(x){
     <p class="muted" style="font-size:var(--t-sm)">
       La méthode de valorisation dépend de la nature comptable du bien, et
       <strong style="color:var(--ink)">elle relève de votre responsabilité</strong>. Riseva
-      enregistre ce que vous déclarez et rappelle la méthode qui s'applique — elle n'en choisit
+      enregistre ce que vous déclarez et rappelle la méthode qui s'applique, elle n'en choisit
       aucune à votre place. Si vous ne savez pas, laissez vide : le registre écrira
       « à valoriser » plutôt qu'un chiffre inventé.
     </p>
@@ -7048,8 +7094,8 @@ function vueDossier(u){
   const confirmees = ms.filter(m => m.etat === "validee").length;
   const assos = new Set(ms.map(m => (DB.annonceDe(m) || {}).asso).filter(Boolean)).size;
   const mob = new Set(ms.map(m => m.salarie)).size;
-  const heures = ms.filter(m => (DB.annonceDe(m) || {}).type === "benevolat_demi_journee")
-    .reduce((n, m) => n + m.quantite * FISCAL.heures_demi_journee, 0);
+  const heures = ms.reduce(
+    (n, m) => n + heuresPour((DB.annonceDe(m) || {}).type, m.quantite), 0);
   const mat = DB.registreMateriel(u.org);
   const v = DB.valorisationMecenat(u.org);
   const gid = e.groupe || null;
@@ -7065,8 +7111,8 @@ function vueDossier(u){
   const vc = (cle) => ind && ind.calcules[cle] !== null && ind.calcules[cle] !== undefined
     ? ind.calcules[cle] : null;
 
-  const RISEVA = "Riseva — dérivé des missions";
-  const SITE   = camp ? `Déclaré par les sites — ${camp.libelle}` : "Déclaré par les sites";
+  const RISEVA = "Riseva, dérivé des missions";
+  const SITE   = camp ? `Déclaré par les sites, ${camp.libelle}` : "Déclaré par les sites";
   const VOUS   = "Vous, dans Paramètres";
 
   const lignes = [
@@ -7088,7 +7134,7 @@ function vueDossier(u){
     ]],
     ["Égalité et inclusion", [
       ["Part des femmes dans l'effectif", vc("part_femmes") !== null ? nb2(vc("part_femmes")) + " %" : null, SITE],
-      ["Bénéficiaires de l'obligation d'emploi présents sur les sites", vi("boeth") !== null ? nb(vi("boeth")) : null, SITE + " — comptage interne"],
+      ["Bénéficiaires de l'obligation d'emploi présents sur les sites", vi("boeth") !== null ? nb(vi("boeth")) : null, SITE + ", comptage interne"],
       ["Taux d'emploi OETH (annuel, par SIREN)", null, null],
       ["Index d'égalité professionnelle", null, null],
       ["Écart de rémunération femmes-hommes", null, null]
@@ -7105,7 +7151,7 @@ function vueDossier(u){
       ["Heures de bénévolat", heures ? nb(heures) : null, RISEVA],
       ["Dons de matériel", mat.total ? nb(mat.total) : null, RISEVA],
       ["Valeur des dons de matériel déclarée par l'entreprise", mat.valeur ? eur(mat.valeur) : null, VOUS],
-      ["Mécénat de compétences valorisé", v.competencesRetenu ? eur(v.competencesRetenu) : null, "Riseva — au coût déclaré"]
+      ["Mécénat de compétences valorisé", v.competencesRetenu ? eur(v.competencesRetenu) : null, "Riseva, au coût déclaré"]
     ]],
     ["Environnement", [
       ["Émissions de gaz à effet de serre", null, null],
@@ -7123,7 +7169,7 @@ function vueDossier(u){
         <div><h3>Ce que vous pouvez répondre, et ce que vous ne pouvez pas</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:4px;max-width:78ch">
           Un client important vous envoie un questionnaire et attend une réponse sous huit
-          jours. Voici ce que Riseva sait, avec sa provenance — et surtout ce qu'elle ne sait
+          jours. Voici ce que Riseva sait, avec sa provenance, et surtout ce qu'elle ne sait
           pas, parce que c'est sur ces lignes-là qu'on se fait reprendre en rendez-vous.</p></div>
         <button class="btn btn--ghost btn--sm" id="csvD">Exporter</button>
       </div>
@@ -7133,7 +7179,7 @@ function vueDossier(u){
               "le reste vit ailleurs que dans Riseva", "", "kpi--tete grain")}
         ${kpi("Période des indicateurs", camp ? esc(camp.libelle) : "aucune",
               camp ? "dernière période close" : "aucune campagne close")}
-        ${kpi("Périmètre approuvé", ind ? `${ind.sites} / ${ind.attendus} sites` : "—",
+        ${kpi("Périmètre approuvé", ind ? `${ind.sites} / ${ind.attendus} sites` : ",",
               ind ? `${nb(ind.effectifCouvert)} salariés sur ${nb(ind.effectifTotal)}`
                   : "aucune période close")}
         ${kpi("Arrêté au", dateCourte(new Date().toISOString()), "à régénérer avant chaque envoi")}
@@ -7151,7 +7197,7 @@ function vueDossier(u){
       <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);max-width:78ch;color:var(--ink-600)">
         Riseva ne se déclare ni auditeur, ni organisme de contrôle, et n'écrit nulle part
         « conforme ». Ce tableau rassemble des données <strong style="color:var(--ink)">déclarées</strong>
-        — par vos salariés, par les associations, par vos sites — horodatées et sourcées ligne
+       , par vos salariés, par les associations, par vos sites, horodatées et sourcées ligne
         à ligne. Ce qui n'y figure pas n'est pas un oubli : c'est ce que Riseva ne collecte
         pas, et le dire vous protège mieux qu'une case remplie au jugé.
       </p>
@@ -7234,7 +7280,7 @@ function bonDeVirement(intention, asso){
       <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
       <strong>Riseva ne reçoit pas cet argent</strong> et ne prélève rien : il va de votre
       compte à celui de l'association, sans intermédiaire. C'est pour ça qu'il n'y a pas de
-      bouton « payer » ici — et c'est aussi pour ça que l'association touche la totalité
+      bouton « payer » ici, et c'est aussi pour ça que l'association touche la totalité
       de votre don.</p>
       <p class="hint" style="margin-top:var(--s3)">Sans virement d'ici au
       ${dateFR(intention.expire_le)}, cette annonce s'éteint d'elle-même. Rien ne vous
@@ -7325,9 +7371,9 @@ function vueDonsAsso(u){
       compte, avec une référence que nous leur donnons. Vous touchez la totalité du don, le
       jour où votre banque le crédite. Riseva ne prélève rien et ne peut rien retenir : nous
       n'encaissons pas, donc nous n'avons pas d'agrément d'établissement de paiement à
-      obtenir — et vous n'avez pas de délai de reversement à subir.</p>
+      obtenir, et vous n'avez pas de délai de reversement à subir.</p>
       ${manque.length ? `<ul class="liste-ecarts" style="margin-top:var(--s4)">${
-        manque.map(m => `<li><strong>${esc(m.quoi)}</strong> — ${esc(m.pourquoi)}</li>`).join("")}</ul>`
+        manque.map(m => `<li><strong>${esc(m.quoi)}</strong>, ${esc(m.pourquoi)}</li>`).join("")}</ul>`
       : `<p class="muted" style="margin-top:var(--s3)"><strong>Tout est en place.</strong></p>`}
     </section>
 
@@ -7345,7 +7391,7 @@ function vueDonsAsso(u){
           page publique, à côté de votre dénomination. Vérifiez-le : une erreur ici envoie
           l'argent ailleurs.</p>
         </div>` : `<p class="muted" style="margin-top:var(--s4)">Sans IBAN, la page publique
-          n'affiche aucun moyen de vous donner de l'argent — plutôt qu'un bouton qui ne mène
+          n'affiche aucun moyen de vous donner de l'argent, plutôt qu'un bouton qui ne mène
           nulle part.</p>`}
       </section>
 
@@ -7355,7 +7401,7 @@ function vueDonsAsso(u){
         <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s4)">
           Si vous avez déjà un formulaire de don <strong>HelloAsso</strong>, collez son adresse :
           vos donateurs pourront payer par carte en un clic, sans commission. Nous ne vous
-          demandons ni clé, ni mot de passe, ni accès à votre compte — juste l'adresse publique
+          demandons ni clé, ni mot de passe, ni accès à votre compte, juste l'adresse publique
           de votre formulaire.</p>
         ${DB.lienHelloAsso(u.org) ? `<p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);word-break:break-all">
           <a href="${esc(DB.lienHelloAsso(u.org))}" target="_blank" rel="noopener noreferrer">${esc(DB.lienHelloAsso(u.org))}</a></p>`
@@ -7379,7 +7425,7 @@ function vueDonsAsso(u){
       <p class="muted" style="font-size:var(--t-sm);margin-top:6px">Rapprochez chaque ligne de
       votre relevé bancaire par sa référence, puis confirmez le montant réellement crédité.
       C'est vous qui avez le relevé : c'est votre chiffre qui fait foi. Rien n'est validé
-      automatiquement — un silence ne vaut pas encaissement.</p>
+      automatiquement, un silence ne vaut pas encaissement.</p>
       <div id="att" style="margin-top:var(--s5)"></div>
     </section>
 
@@ -7560,7 +7606,7 @@ function blocRegistre(asso, { admin = false, apres = null } = {}){
     const carte = h(`<div class="card card--flat" style="padding:var(--s4)">
       <div class="row" style="justify-content:space-between;align-items:flex-start">
         <div>
-          <strong>${esc(f.nom || "—")}</strong>
+          <strong>${esc(f.nom || ",")}</strong>
           <div class="muted" style="font-size:var(--t-xs);margin-top:2px">
             ${esc(f.siren || "")}${f.rna ? " · " + esc(f.rna) : ""}
             ${f.adresse ? " · " + esc(f.adresse) : ""}</div>
@@ -7573,7 +7619,7 @@ function blocRegistre(asso, { admin = false, apres = null } = {}){
         <span class="badge ${et.badge}">${esc(et.label)}</span>
       </div>
       ${c.ecarts.length ? `<ul class="liste-ecarts" style="margin-top:var(--s3)">${
-        c.ecarts.map(e => `<li><span class="muted">${esc(e.champ)}</span> —
+        c.ecarts.map(e => `<li><span class="muted">${esc(e.champ)}</span> ,
           déclaré « ${esc(e.attendu)} », registre « ${esc(e.registre)} »</li>`).join("")}</ul>` : ""}
       <div class="row" style="margin-top:var(--s4);--gap:var(--s3)"></div>
     </div>`);
@@ -7650,7 +7696,7 @@ function badgeControle(aid){
   const c = DB.dernierControle(aid);
   if (!c) return `<span class="badge badge--attente">Jamais contrôlée</span>`;
   const et = ETATS_CORRESPONDANCE[c.etat] || ETATS_CORRESPONDANCE.different;
-  return `<span class="badge ${et.badge}" title="${esc(et.label)} — ${dateCourte(c.le)}">${
+  return `<span class="badge ${et.badge}" title="${esc(et.label)}, ${dateCourte(c.le)}">${
     esc(et.label)}</span>`;
 }
 
@@ -7694,7 +7740,7 @@ function vueDossierAsso(u){
       ${d.manque.length ? `<div style="margin-top:var(--s5)">
         <p class="muted" style="font-size:var(--t-sm)">Il reste :</p>
         <ul class="liste-ecarts" style="margin-top:var(--s2)">${d.manque.map(m =>
-          `<li><strong>${esc(m.quoi)}</strong> — ${esc(m.pourquoi)}</li>`).join("")}</ul>
+          `<li><strong>${esc(m.quoi)}</strong>, ${esc(m.pourquoi)}</li>`).join("")}</ul>
       </div>` : `<p class="muted" style="margin-top:var(--s4)">Rien à faire de plus.</p>`}
     </section>
 
@@ -7749,7 +7795,7 @@ function vueVSME(u){
     <section class="card" style="margin-top:var(--s5)">
       <div class="between" style="flex-wrap:wrap;gap:var(--s3);align-items:flex-start">
         <div>
-          <h3 style="font-size:var(--t-lg)">${esc(r.cle)} — ${esc(r.titre)}</h3>
+          <h3 style="font-size:var(--t-lg)">${esc(r.cle)} · ${esc(r.titre)}</h3>
           <p class="muted" style="font-size:var(--t-xs);margin-top:2px">${esc(r.pilier)}</p>
         </div>
         ${pastille(r.renseignee ? r.couvert : "non")}
@@ -7779,7 +7825,7 @@ function vueVSME(u){
             <select class="select" id="vc">
               ${camps.map(c => `<option value="${c.id}"${
                 f.campagne && c.id === f.campagne.id ? " selected" : ""}>${esc(c.libelle)}${
-                c.etat === "close" ? "" : " — en cours"}</option>`).join("")}
+                c.etat === "close" ? "" : ", en cours"}</option>`).join("")}
             </select>
           </div>
         </div>
@@ -7823,7 +7869,7 @@ function vueVSME(u){
           l.texte !== undefined ? l.texte
             : (l.valeur === null || l.valeur === undefined ? "non renseigné" : l.valeur),
           l.unite || ""])
-      : [[r.cle, r.titre, r.pilier, "non", "—", "non renseigné", ""]]));
+      : [[r.cle, r.titre, r.pilier, "non", ",", "non renseigné", ""]]));
   return el;
 }
 
@@ -7858,7 +7904,7 @@ const VERDICTS_OFFRE = {
   inaccessible: { badge:"badge--warn", mot:"horaires incompatibles",
                   dit:"Tout ce qui est proposé tombe en semaine ouvrée, et aucun don de "
                     + "matériel n'est ouvert. Un salarié en poste ou en équipe ne peut "
-                    + "pas s'y rendre — ce n'est pas un problème d'envie." },
+                    + "pas s'y rendre, ce n'est pas un problème d'envie." },
   mince:        { badge:"badge--warn", mot:"offre trop mince",
                   dit:"Il y a moins d'annonces à portée que ce que l'effectif de ce site "
                     + "demanderait. Ce n'est pas une prédiction sur ce qui va se passer : "
@@ -7876,7 +7922,7 @@ function offreLocaleBloc(u, sites){
     return `
       <div class="offre">
         <div class="between" style="align-items:baseline;flex-wrap:wrap;gap:var(--s3)">
-          <h4 style="font-size:var(--t-md)">${esc(o.site.nom)} — ${esc(o.site.ville)}
+          <h4 style="font-size:var(--t-md)">${esc(o.site.nom)}, ${esc(o.site.ville)}
             <span class="muted" style="font-weight:400;font-size:var(--t-sm)">
               ${nb(o.site.effectif)} salariés</span></h4>
           <span class="badge ${v.badge}">${v.mot}</span>
@@ -7885,7 +7931,7 @@ function offreLocaleBloc(u, sites){
         <div class="offre__chiffres">
           <div><b>${nb(o.ouvertes)}</b><span>annonce${o.ouvertes > 1 ? "s" : ""} ouverte${
             o.ouvertes > 1 ? "s" : ""} à moins de ${nb(o.rayon)} km</span></div>
-          <div><b>${o.plusProche === null ? "—" : km(o.plusProche)}</b><span>la plus proche</span></div>
+          <div><b>${o.plusProche === null ? "," : km(o.plusProche)}</b><span>la plus proche</span></div>
           ${o.ouvertes >= 4
             ? `<div><b>${km(o.mediane)}</b><span>distance médiane</span></div>`
             : `<div><b>${nb(o.places)}</b><span>place${o.places > 1 ? "s" : ""} encore
@@ -7894,9 +7940,9 @@ function offreLocaleBloc(u, sites){
             <span>hors semaine ouvrée</span></div>
         </div>
         <p class="hint" style="margin-top:var(--s3)">${esc(v.dit)}</p>
-        ${o.parFormat.don_materiel === 0 ? `<p class="hint">
+        ${o.parFormat.materiel === 0 ? `<p class="hint">
           Aucun don de matériel ouvert à portée. Ce format n'est pas une solution de
-          rechange pour un salarié qui n'a pas de créneau — le matériel appartient à
+          rechange pour un salarié qui n'a pas de créneau, le matériel appartient à
           l'entreprise, la décision aussi. C'est en revanche la seule voie qui reste
           ouverte à l'entreprise elle-même quand les horaires bloquent.</p>` : ""}
         ${o.verdict !== "suffisante" ? `
@@ -8101,7 +8147,7 @@ function vueAdoption(u){
             Il ne nomme personne, et il ne le fera pas. Vous voyez des marches et des
             nombres, jamais la liste de ceux qui ne sont pas venus. Un outil qui produit
             cette liste-là cesse d'être un outil d'engagement et devient un outil de
-            surveillance — et le premier salarié qui le comprend est le dernier à
+            surveillance, et le premier salarié qui le comprend est le dernier à
             s'inscrire.</p>
           <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);color:var(--ink-600)">
             Un taux bas ne mesure pas non plus la bonne volonté de vos équipes. Il mesure

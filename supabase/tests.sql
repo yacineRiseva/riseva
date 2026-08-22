@@ -136,6 +136,53 @@ begin
     (select max(greatest(0, least(pts, v_brut - pts))) from t_pts) * 2 <= v_ret);
 end $$;
 
+-- ── le barème étendu ────────────────────────────────────────────────────────
+-- Sept formats, dont deux qui concernent un animal de refuge. Ce que ces
+-- assertions protègent n'est pas la liste elle-même mais ses deux propriétés :
+-- chaque format de la saison a un barème, et un seul, et l'argent reste le seul
+-- format compté par tranche de dix euros.
+do $$
+declare v_n integer; v_pts integer;
+begin
+  select count(*) into v_n from public.bareme
+    where saison = '11111111-1111-4111-8111-111111111111';
+  perform pg_temp.dit('les sept formats de la saison ont chacun leur barème', v_n = 7);
+
+  perform pg_temp.dit('le refuge a ses deux formats, et ils valent quelque chose', (
+    select count(*) = 2 and min(points) >= 100 from public.bareme
+      where saison = '11111111-1111-4111-8111-111111111111'
+        and type in ('parrainage_animal','adoption_animal')));
+
+  perform pg_temp.dit('adopter vaut plus que parrainer, et parrainer plus qu''un don de matériel',
+    (select points from public.bareme where type = 'adoption_animal'
+       and saison = '11111111-1111-4111-8111-111111111111')
+    > (select points from public.bareme where type = 'parrainage_animal'
+         and saison = '11111111-1111-4111-8111-111111111111')
+    and (select points from public.bareme where type = 'parrainage_animal'
+           and saison = '11111111-1111-4111-8111-111111111111')
+      > (select points from public.bareme where type = 'don_materiel'
+           and saison = '11111111-1111-4111-8111-111111111111'));
+
+  -- Une journée entière compte deux demi-journées, pas une seule.
+  perform pg_temp.dit('une journée entière vaut le double d''une demi-journée',
+    (select points from public.bareme where type = 'benevolat_journee'
+       and saison = '11111111-1111-4111-8111-111111111111')
+    = 2 * (select points from public.bareme where type = 'benevolat_demi_journee'
+             and saison = '11111111-1111-4111-8111-111111111111'));
+
+  -- Un parrainage se compte à l'unité. S'il tombait dans la branche des dons en
+  -- argent, un animal parrainé rapporterait vingt-cinq points au lieu de deux
+  -- cent cinquante, et personne ne s'en apercevrait avant le premier client.
+  v_pts := private.points_pour('11111111-1111-4111-8111-111111111111',
+                               'parrainage_animal', 1);
+  perform pg_temp.dit('un animal parrainé se compte à l''unité, pas par tranche de dix euros',
+    v_pts = 250);
+  v_pts := private.points_pour('11111111-1111-4111-8111-111111111111',
+                               'don_financier', 250);
+  perform pg_temp.dit('l''argent reste le seul format compté par tranche de dix euros',
+    v_pts = 25);
+end $$;
+
 do $$
 begin
   perform pg_temp.dit('le barème manquant lève une exception, il ne renvoie pas zéro', (

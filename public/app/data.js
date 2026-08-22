@@ -3,11 +3,53 @@
    et `supabase` (client CDN, activé dès que /app/config.js fournit une URL et une clé anon).
    Le reste de l'application ne parle qu'à l'objet `DB` exporté ici. */
 
+/* ------------------------------------------------------------------ */
+/* Le barème : sept façons d'aider, et ce que chacune vaut             */
+/* ------------------------------------------------------------------ */
+/* Il n'y en avait que trois, et elles disaient toutes la même chose : du temps,
+   des objets, de l'argent. Une association de terrain propose autre chose. Un
+   refuge cherche des parrains et des adoptants avant de chercher des bras, et
+   c'est même sa demande principale : un animal parrainé, c'est une année de
+   soins financée ; un animal adopté, c'est une place qui se libère pour le
+   suivant. Ne pas les inscrire au barème revenait à dire aux refuges que ce
+   qu'ils demandent vraiment ne compte pas.
+ 
+   Trois attributs pilotent tout le reste du code, et remplacent les tests sur
+   le nom du format qui étaient écrits partout :
+ 
+   `famille` : temps, animal, materiel, argent. C'est elle qui décide si une
+   mission compte des heures, si elle entre dans l'assiette du mécénat, et si
+   les prénoms des collègues peuvent s'afficher à côté.
+ 
+   `heures` : les heures qu'une unité représente. La valorisation du mécénat de
+   compétence les utilise directement, au lieu de convertir des demi-journées
+   avec une constante qui ne vaut que pour un seul format.
+ 
+   `prive` : ce qui touche à la vie personnelle ne s'affiche pas à côté d'un
+   nom. Un virement et une adoption sont deux décisions qu'on prend chez soi. */
 export const BAREME = {
-  don_financier:          { label: "Don financier",   unite: "10 € versés",  points: 1,   icone: "coins" },
-  benevolat_demi_journee: { label: "Bénévolat",       unite: "demi-journée", points: 150, icone: "hands" },
-  don_materiel:           { label: "Don de matériel", unite: "don validé",   points: 100, icone: "box"  }
+  benevolat_demi_journee: { label: "Bénévolat, demi-journée", unite: "demi-journée",
+                            points: 150, famille: "temps",   heures: 4, icone: "hands" },
+  benevolat_journee:      { label: "Bénévolat, journée",      unite: "journée",
+                            points: 300, famille: "temps",   heures: 8, icone: "hands" },
+  mecenat_competence:     { label: "Mécénat de compétence",   unite: "demi-journée",
+                            points: 200, famille: "temps",   heures: 4, icone: "hands" },
+  parrainage_animal:      { label: "Parrainage d'un animal",  unite: "animal parrainé un an",
+                            points: 250, famille: "animal",  prive: true, icone: "paw" },
+  adoption_animal:        { label: "Adoption d'un animal",    unite: "animal adopté",
+                            points: 400, famille: "animal",  prive: true, icone: "paw" },
+  don_materiel:           { label: "Don de matériel",         unite: "don validé",
+                            points: 100, famille: "materiel", icone: "box" },
+  don_financier:          { label: "Don financier",           unite: "10 € versés",
+                            points: 1,   famille: "argent",  prive: true, icone: "coins" }
 };
+
+/* Les trois questions qu'on posait au format en le nommant, posées maintenant à
+   ses attributs. Un format ajouté demain répond tout seul aux trois. */
+export const estArgent   = (t) => (BAREME[t] || {}).famille === "argent";
+export const estTemps    = (t) => (BAREME[t] || {}).famille === "temps";
+export const estPrive    = (t) => Boolean((BAREME[t] || {}).prive);
+export const heuresPour  = (t, q = 1) => ((BAREME[t] || {}).heures || 0) * q;
 
 /* ------------------------------------------------------------------ */
 /* Les dons en argent : par virement, et sans jamais y toucher         */
@@ -232,7 +274,7 @@ export const ANNUAIRE = {
   url: "https://recherche-entreprises.api.gouv.fr/search",
   source: "Annuaire des Entreprises (DINUM)",
   licence: "Licence Ouverte 2.0",
-  attribution: "Données : Annuaire des Entreprises — INSEE, INPI, DILA, sous Licence Ouverte 2.0",
+  attribution: "Données : Annuaire des Entreprises, INSEE, INPI, DILA, sous Licence Ouverte 2.0",
   page: "https://annuaire-entreprises.data.gouv.fr",
   /* Le service annonce sept requêtes par seconde. On reste très en dessous :
      une frappe au clavier ne doit pas déclencher une rafale. */
@@ -457,7 +499,7 @@ export function comparerFiche(declaree, fiche){
   let etat = score >= 0.5 ? "proche" : "different";
   if (score === 1) etat = "exact";
   if (etat !== "exact")
-    ecarts.push({ champ:"dénomination", attendu:nomDeclare || "—", registre:fiche.nom || "—" });
+    ecarts.push({ champ:"dénomination", attendu:nomDeclare || ",", registre:fiche.nom || "," });
 
   const cp = String(declaree.adresse || "").match(/\b\d{5}\b/);
   if (cp && fiche.code_postal && cp[0] !== fiche.code_postal)
@@ -775,7 +817,7 @@ export const NATURES_EVENEMENT = {
 
 export const GRAVITES_EVENEMENT = {
   sans_soin:       { label:"Sans soin",             ordre:1, badge:"badge--info",
-                     aide:"Presqu'accident ou événement sans conséquence. Ne compte dans aucun taux — mais c'est le seul indicateur qui permet d'agir avant." },
+                     aide:"Presqu'accident ou événement sans conséquence. Ne compte dans aucun taux, mais c'est le seul indicateur qui permet d'agir avant." },
   soin_sans_arret: { label:"Soins, sans arrêt",     ordre:2, badge:"badge--attente",
                      aide:"A nécessité des soins, sans arrêt de travail." },
   avec_arret:      { label:"Avec arrêt",            ordre:3, badge:"badge--alerte",
@@ -946,7 +988,7 @@ export const VSME = {
   sections: [
     { cle:"B1", pilier:"général", titre:"Base d'établissement",
       couvert:"partiel",
-      apporte:"Le périmètre — société, établissements rattachés, effectif de référence — "
+      apporte:"Le périmètre, société, établissements rattachés, effectif de référence, "
         + "et la période de collecte.",
       manque:"Le choix du module, les options retenues et les éventuelles omissions : "
         + "c'est une décision de l'entreprise, pas une donnée." },
@@ -986,7 +1028,7 @@ export const VSME = {
         + "la catégorie choisie, elle ne valorise pas à la place de votre comptable.",
       manque:"Les tonnages de déchets produits et traités, et les flux entrants.",
       ailleurs:"Vos bordereaux de suivi de déchets et le registre de votre prestataire." },
-    { cle:"B8", pilier:"social", titre:"Effectifs — caractéristiques générales",
+    { cle:"B8", pilier:"social", titre:"Effectifs, caractéristiques générales",
       couvert:"partiel",
       indicateurs:["effectif_fin", "entrees", "sorties", "femmes", "boeth"],
       manque:"La répartition par type de contrat et par pays.",
@@ -1186,7 +1228,7 @@ const seed = {
     { id:"a2", nom:"Racines Vives", ville:"Clermont-Ferrand", cause:"Reforestation",
       resume:"Replantation de haies bocagères et de forêts mixtes sur des parcelles agricoles.",
       adresse:"3 route des Prés, 63200 Riom", lat:45.8938, lon:3.1128,
-      nom_juridique:"Racines Vives — association loi 1901", site:"https://racines-vives.org",
+      nom_juridique:"Racines Vives, association loi 1901", site:"https://racines-vives.org",
       reseaux:[{ nom:"Instagram", url:"https://instagram.com/racinesvives" },
                { nom:"LinkedIn", url:"https://linkedin.com/company/racines-vives" }],
       contact_public:"contact@racines-vives.org",
@@ -1266,12 +1308,28 @@ const seed = {
   annonces: [
     { id:"an1", asso:"a1", type:"benevolat_demi_journee", temps_travail:false,
       impact:{ unite:"animal", par_unite:7 }, titre:"Sortie de 42 animaux et entretien des box",
-      description:"Nous manquons de bras le samedi matin. Six personnes suffisent pour sortir nos 42 pensionnaires — chiens et chats — et remettre les box en état.",
+      description:"Nous manquons de bras le samedi matin. Six personnes suffisent pour sortir nos 42 pensionnaires, chiens et chats, et remettre les box en état.",
       quantite:6, restant:4, date:J(9), lieu:"Saint-Étienne", etat:"ouverte" },
     { id:"an2", asso:"a2", type:"benevolat_demi_journee", temps_travail:true,
       impact:{ unite:"arbre", par_unite:40 }, titre:"Plantation de 400 arbres à Beaumont",
       description:"Chantier de plantation sur une parcelle de deux hectares. Aucune compétence particulière requise, on fournit le matériel.",
       quantite:10, restant:7, date:J(16), lieu:"Beaumont (63)", etat:"ouverte" },
+    { id:"an25", asso:"a1", type:"parrainage_animal",
+      impact:{ unite:"animal", par_unite:1 }, titre:"Parrainer un de nos pensionnaires pour un an",
+      description:"Douze de nos chiens sont là depuis plus de deux ans et ne seront probablement jamais adoptés. Un parrainage couvre leur nourriture, leurs vaccins et leurs soins courants sur douze mois. Vous recevez des nouvelles et vous pouvez venir le voir quand vous voulez.",
+      quantite:12, restant:9, date:null, lieu:"Saint-Étienne", etat:"ouverte" },
+    { id:"an26", asso:"a1", type:"adoption_animal",
+      impact:{ unite:"animal", par_unite:1 }, titre:"Adopter un chat adulte",
+      description:"Vingt-trois chats adultes attendent une famille. Ils sont identifiés, stérilisés et vaccinés. L'adoption se fait après une visite et un entretien, et nous restons joignables ensuite.",
+      quantite:23, restant:18, date:null, lieu:"Saint-Étienne", etat:"ouverte" },
+    { id:"an27", asso:"a9", type:"mecenat_competence", temps_travail:true,
+      impact:{ unite:"eleve", par_unite:12 }, titre:"Remettre notre comptabilité à jour",
+      description:"Nous cherchons quelqu'un qui sait tenir une compta associative. Deux demi-journées suffiraient à repartir sur des bases propres avant l'assemblée générale.",
+      quantite:2, restant:2, date:J(21), lieu:"Toulouse", etat:"ouverte" },
+    { id:"an28", asso:"a7", type:"benevolat_journee",
+      impact:{ unite:"dechet_kg", par_unite:180 }, titre:"Grande collecte sur l'estran, journée entière",
+      description:"Une journée complète, marée basse le matin et l'après-midi. On fournit les sacs, les gants et le repas de midi.",
+      quantite:14, restant:11, date:J(30), lieu:"Saint-Nazaire", etat:"ouverte" },
     { id:"an3", asso:"a3", type:"don_materiel", impact:{ unite:"kit", par_unite:1 },
       titre:"Dix kits de terrain : waders et gants",
       description:"Nos kits sont hors d'usage. Un kit, c'est une paire de waders taille 40 à 46 et une paire de gants épais.",
@@ -1558,7 +1616,7 @@ function engendrerReseau(base){
     for (let k = 0; k < combien; k++){
       const a = supports[Math.floor(r() * supports.length)];
       const bareme = (BAREME[a.type] || {}).points || 0;
-      const quantite = a.type === "don_financier"
+      const quantite = estArgent(a.type)
         ? (2 + Math.floor(r() * 24)) * 10
         : 1 + Math.floor(r() * 3);
       const repond = r() > 0.12;             /* la plupart des associations répondent */
@@ -1568,7 +1626,7 @@ function engendrerReseau(base){
         annonce: a.id, entreprise: e.id, salarie: equipe[Math.floor(r() * equipe.length)],
         etat: repond ? "validee" : "validee_auto",
         quantite,
-        points: a.type === "don_financier"
+        points: estArgent(a.type)
           ? Math.floor((quantite / 10) * bareme)
           : quantite * bareme,
         date, declaree_le: date, tranchee_le: date, reseau: true
@@ -1829,7 +1887,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
     pointsPour(type, quantite){
       const b = BAREME[type];
       if (!b) return 0;
-      return type === "don_financier"
+      return estArgent(type)
         ? Math.floor((quantite / 10) * b.points)
         : quantite * b.points;
     },
@@ -1839,7 +1897,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       /* Demander de l'argent sans avoir dit où le verser, c'est publier un besoin
          auquel personne ne peut répondre. La règle est ici, pas seulement dans
          l'écran : une annonce créée par une autre voie tomberait dessus aussi. */
-      if (a.type === "don_financier" && !api.donsOuverts(a.asso))
+      if (estArgent(a.type) && !api.donsOuverts(a.asso))
         throw new Error("Renseignez d'abord le compte bancaire de l'association : "
           + "sans IBAN, personne ne peut répondre à une demande d'argent.");
       if (a.temps_travail && !api.eligibleMecenat(a.asso))
@@ -1912,7 +1970,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       /* Un don en argent ne s'« engage » pas : il s'annonce, se vire, et se
          confirme par l'association qui l'a reçu. Le laisser passer par ici aurait
          crédité des points sur une promesse. */
-      if (a.type === "don_financier")
+      if (estArgent(a.type))
         throw new Error("Un don en argent passe par une intention de virement, pas par un engagement.");
       if (quantite > a.restant) throw new Error("Quantité supérieure au besoin restant");
       /* L'éligibilité se revérifie ICI, pas seulement à la publication. L'article
@@ -2254,9 +2312,9 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
           return {
             mission: m.id, date: m.date, nature: m.nature || a.titre,
             quantite: m.quantite, unite: (a.impact || {}).unite || "don",
-            association: asso.nom || "—", ville: asso.ville || "",
-            etablissement: et ? `${et.nom} — ${et.ville}` : "—",
-            salarie: sal.nom || "—",
+            association: asso.nom || ",", ville: asso.ville || "",
+            etablissement: et ? `${et.nom}, ${et.ville}` : ",",
+            salarie: sal.nom || ",",
             valeurDeclaree: m.valeur_declaree ?? null,
             categorie: m.categorie_comptable || null,
             reference: m.reference_actif || null,
@@ -3082,8 +3140,8 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
           assos.add(a.asso);
           if (a.lieu) villes.add(a.lieu);
           const q = Number(m.quantite) || 0;
-          if (a.type === "benevolat_demi_journee") heures += q * 4;
-          if (a.type === "don_financier") euros += q;
+          heures += heuresPour(a.type, q);
+          if (estArgent(a.type)) euros += q;
         }
       });
       return {
@@ -3278,10 +3336,11 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
            : Math.round((dists[dists.length / 2 - 1] + dists[dists.length / 2]) / 2))
         : null;
 
-      const parFormat = { benevolat_demi_journee: 0, don_materiel: 0, don_financier: 0 };
+      const parFormat = { temps: 0, animal: 0, materiel: 0, argent: 0 };
       let semaine = 0, weekend = 0, sansDate = 0;
       proches.forEach(a => {
-        if (parFormat[a.type] !== undefined) parFormat[a.type] += 1;
+        const f = (BAREME[a.type] || {}).famille;
+        if (parFormat[f] !== undefined) parFormat[f] += 1;
         if (a.jour == null) sansDate += 1;
         else if (a.jour === 0 || a.jour === 6) weekend += 1;
         else semaine += 1;
@@ -3305,13 +3364,17 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       let verdict = "suffisante";
       if (!proches.length) verdict = "aucune";
       else if (proches.length < attendu) verdict = "mince";
-      else if (semaine && !weekend && !parFormat.don_materiel) verdict = "inaccessible";
+      /* Une offre qui n'existe qu'en semaine et qui ne propose rien qui se fasse
+         à distance est inaccessible à qui travaille en poste. Le matériel, le
+         parrainage et l'adoption ne demandent pas d'être libre un mardi. */
+      else if (semaine && !weekend && !parFormat.materiel && !parFormat.animal)
+        verdict = "inaccessible";
 
       /* Un besoin de financement se compte en euros, pas en places : additionner
          4 000 € restants et 6 ordinateurs donnerait 4 006 places, c'est-à-dire un
          chiffre qui ne veut rien dire et qui flatte. */
       const places = proches
-        .filter(a => a.type !== "don_financier")
+        .filter(a => !estArgent(a.type))
         .reduce((n, a) => n + (Number(a.restant) || 0), 0);
 
       return {
@@ -3383,8 +3446,8 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         `Bonjour,\n\n`
         + `Nous sommes ${soc.nom || "une entreprise"}, sur le site de ${et.nom}${lieu}. `
         + `Nous participons à Riseva, une plateforme sur laquelle des associations publient `
-        + `des besoins concrets — une demi-journée de bras, du matériel, un besoin de `
-        + `financement — auxquels nos salariés peuvent répondre.\n\n`
+        + `des besoins concrets, une demi-journée de bras, du matériel, un besoin de `
+        + `financement, auxquels nos salariés peuvent répondre.\n\n`
         + `Si cela vous intéresse, l'inscription est gratuite et le restera, il n'y a `
         + `aucune exclusivité, et Riseva ne prélève aucune commission sur vos dons : `
         + `un virement va du donateur à votre compte, sans passer par elle.\n\n`
@@ -3431,7 +3494,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
        l'assiette de mécénat de son propre payeur. */
     estDonPersonnel(m){
       const a = api.annonceDe(m);
-      if (!a || a.type !== "don_financier") return false;
+      if (!a || !estArgent(a.type)) return false;
       if (m.origine) return m.origine !== "entreprise";
       return m.pour_le_compte_de !== "entreprise";
     },
@@ -3940,7 +4003,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
          Le bénévolat et le matériel se font à plusieurs, sur place, au vu de tous ;
          un virement ne se fait pas à plusieurs. */
       const a = api.annonce(aid);
-      if (!a || a.type === "don_financier") return vide;
+      if (!a || estArgent(a.type)) return vide;
       const ms = s.missions.filter(m => m.annonce === aid
         && ["engagee", "a_valider", "validee", "validee_auto"].includes(m.etat));
       const miens = ms.filter(m => m.entreprise === u.org);
@@ -4015,7 +4078,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
 
       ms.forEach(m => {
         const a = api.annonceDe(m); if (!a) return;
-        if (a.type === "don_financier"){
+        if (estArgent(a.type)){
           /* Un salarié qui donne de sa poche donne en son nom. Le reçu est établi à son
              nom, au modèle des particuliers, et le montant n'entre PAS dans l'assiette de
              l'entreprise : l'article 238 bis vise les versements effectués par l'entreprise.
@@ -4024,7 +4087,11 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
           else donsEntreprise += Number(m.quantite) || 0;
           return;
         }
-        if (a.type !== "benevolat_demi_journee") return;
+        /* Seuls les formats de temps entrent dans l'assiette du mécénat de
+           compétence : un parrainage ou une adoption n'est pas une mise à
+           disposition de personnel, et le valoriser en coût salarial serait
+           fabriquer une réduction d'impôt qui n'existe pas. */
+        if (!estTemps(a.type)) return;
         if (!a.temps_travail || !api.eligibleMecenat(a.asso)){
           demiJourneesPerso += m.quantite; return;
         }
@@ -4036,19 +4103,18 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
            précision que personne n'a mesurée — et, ici, 14 % de valorisation en trop. */
         const reelles = Number(m.heures) > 0;
         if (!reelles) heuresEstimees = true;
-        const heures = reelles ? Number(m.heures)
-                               : m.quantite * FISCAL.heures_demi_journee;
+        const heures = reelles ? Number(m.heures) : heuresPour(a.type, m.quantite);
         const cout = reelles ? heures * coutHeure
-                             : m.quantite * coutDemiJournee;
+                             : heures / FISCAL.heures_demi_journee * coutDemiJournee;
         const asso = api.association(a.asso) || {};
         const sal = api.utilisateur(m.salarie) || {};
         const ligne = parSalarie[m.salarie] || (parSalarie[m.salarie] = {
-          salarie: m.salarie, nom: sal.nom || "—", heures: 0, cout: 0, lignes: []
+          salarie: m.salarie, nom: sal.nom || ",", heures: 0, cout: 0, lignes: []
         });
         ligne.heures += heures;
         ligne.cout   += cout;
         ligne.lignes.push({
-          mission: m.id, date: m.date, association: asso.nom || "—",
+          mission: m.id, date: m.date, association: asso.nom || ",",
           heures, heuresReelles: reelles, cout: Math.round(cout),
           convention: m.convention_signee_le || null,
           confirmee: m.etat === "validee",
@@ -4064,14 +4130,16 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       enAttenteMs.forEach(m => {
         const a = api.annonceDe(m); if (!a) return;
         const asso = api.association(a.asso) || {};
-        if (a.type === "don_financier"){
+        if (estArgent(a.type)){
           if (api.estDonPersonnel(m)) return;
           enAttente.dons += Number(m.quantite) || 0;
           enAttente.valeur += Number(m.quantite) || 0;
-        } else if (a.type === "benevolat_demi_journee"
+        } else if (estTemps(a.type)
                    && a.temps_travail && api.eligibleMecenat(a.asso)){
-          enAttente.demiJournees += Number(m.quantite) || 0;
-          enAttente.valeur += (Number(m.quantite) || 0) * coutDemiJournee;
+          const dj = heuresPour(a.type, Number(m.quantite) || 0)
+                     / FISCAL.heures_demi_journee;
+          enAttente.demiJournees += dj;
+          enAttente.valeur += dj * coutDemiJournee;
         } else return;
         if (asso.nom && !enAttente.associations.includes(asso.nom))
           enAttente.associations.push(asso.nom);
@@ -4167,7 +4235,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       let montant = 0, nombre = 0;
       ms.forEach(m => {
         const a = api.annonceDe(m);
-        if (a && a.type === "don_financier"){ montant += Number(m.quantite) || 0; nombre++; }
+        if (a && estArgent(a.type)){ montant += Number(m.quantite) || 0; nombre++; }
       });
       return { montant, nombre, saison: s.saison.nom };
     },
@@ -4261,7 +4329,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
     declarerIntentionDon({ annonce, montant, origine = "salarie", salarie = null, entreprise = null }){
       const an = s.annonces.find(x => x.id === annonce);
       if (!an || an.etat !== "ouverte") throw new Error("Annonce indisponible");
-      if (an.type !== "don_financier") throw new Error("Cette annonce n'attend pas de l'argent");
+      if (!estArgent(an.type)) throw new Error("Cette annonce n'attend pas de l'argent");
       const m = Math.round(Number(montant) || 0);
       if (m < DON.montant_min) throw new Error(`Le minimum est de ${DON.montant_min} €.`);
       if (!api.donsOuverts(an.asso))
@@ -4758,7 +4826,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
           if (s.envois.some(x => x.cle === cle)) return;
           s.envois.unshift({ id: id("en"), cle, type: "rapport",
             entreprise: e.id, destinataire: dest ? dest.email : null,
-            sujet: `${r.titre} — ${e.nom}`,
+            sujet: `${r.titre}, ${e.nom}`,
             detail: `Période du ${r.periode.debut} au ${r.periode.fin}, ${r.points} points retenus.`,
             date: r.genere_le || aujourdhui, etat: dest ? "envoyé" : "sans destinataire" });
           fait.rapports++;
@@ -4858,7 +4926,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         });
         if (sec.cle === "B1"){
           lignes.push({ cle:"perimetre", libelle:"Périmètre de la fiche", unite:"",
-                        texte: `${e.nom}${e.siren ? ` (SIREN ${e.siren})` : ""} — `
+                        texte: `${e.nom}${e.siren ? ` (SIREN ${e.siren})` : ""}, `
                           + `${sites.length} établissement${sites.length > 1 ? "s" : ""}` });
           const jf = (d) => String(d || "").split("-").reverse().join("/");
           lignes.push({ cle:"periode", libelle:"Période", unite:"",
@@ -4976,7 +5044,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       const assos = new Set(validees.map(m => (api.annonceDe(m) || {}).asso).filter(Boolean)).size;
       const heures = validees.reduce((n, m) => {
         const a = api.annonceDe(m);
-        return n + (a && a.type === "benevolat_demi_journee" ? m.quantite * 4 : 0);
+        return n + (a ? heuresPour(a.type, m.quantite) : 0);
       }, 0);
 
       const tranchees = s.missions.filter(m => ids.includes(m.entreprise)
@@ -5028,8 +5096,9 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       let demiJournees = 0, euros = 0, materiel = 0;
       ms.forEach(m => {
         const a = api.annonceDe(m); if (!a) return;
-        if (a.type === "benevolat_demi_journee") demiJournees += m.quantite;
-        if (a.type === "don_financier") euros += Number(m.quantite) || 0;
+        if (estTemps(a.type))
+          demiJournees += heuresPour(a.type, m.quantite) / FISCAL.heures_demi_journee;
+        if (estArgent(a.type)) euros += Number(m.quantite) || 0;
         if (a.type === "don_materiel") materiel += m.quantite;
       });
       return {
@@ -5084,7 +5153,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       ms.forEach(m => {
         const a = api.annonceDe(m); if (!a) return;
         parType[a.type] = (parType[a.type] || 0) + m.points;
-        if (a.type === "don_financier") euros += m.quantite;
+        if (estArgent(a.type)) euros += m.quantite;
       });
       const salaries = api.salaries(eid);
       return {
@@ -5094,7 +5163,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         salariesEngages: salaries.filter(u => api.pointsVisiblesEmployeur(u.id) > 0).length,
         salariesTotal: salaries.length,
         trimestres: api.trimestres(eid),
-        demiJournees: ms.filter(m => (api.annonceDe(m)||{}).type === "benevolat_demi_journee")
+        demiJournees: ms.filter(m => estTemps((api.annonceDe(m)||{}).type))
                         .reduce((n,m) => n + m.quantite, 0),
         associations: new Set(ms.map(m => (api.annonceDe(m)||{}).asso)).size
       };
@@ -5469,9 +5538,8 @@ function versOffre(r){
     rayon: r.rayon, attendu: r.attendu, verdict: r.verdict,
     ouvertes: r.ouvertes, places: r.places,
     plusProche: r.plus_proche, mediane: r.mediane,
-    parFormat: { benevolat_demi_journee: r.benevolat,
-                 don_materiel: r.materiel,
-                 don_financier: r.financier },
+    parFormat: { temps: r.benevolat, animal: r.animal,
+                 materiel: r.materiel, argent: r.financier },
     semaine: r.semaine, weekend: r.weekend, sansDate: r.sans_date,
     nonSituees: r.non_situees,
     /* La liste nominative des associations à rappeler n'est pas rendue par la

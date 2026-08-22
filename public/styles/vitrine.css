@@ -230,7 +230,11 @@ p{text-wrap:pretty;}
   font-size:17.5px;font-weight:700;letter-spacing:-.045em;
   flex:none;
 }
-.nav-brand img{height:19px;width:auto;display:block;}
+/* Le logo était rendu à dix-neuf pixels de haut : à cette taille, le monogramme
+   se referme et la marque se lit comme un pictogramme quelconque posé dans un
+   coin. Il occupe maintenant la hauteur qu'un logo occupe sur un site qui vend. */
+.nav-brand img{height:29px;width:auto;display:block;}
+@media (max-width:640px){.nav-brand img{height:24px;}}
 
 .nav-links{
   display:flex;align-items:center;gap:clamp(14px,1.9vw,30px);
@@ -1765,7 +1769,7 @@ section{
   letter-spacing:-.045em;color:var(--paper);
   display:flex;align-items:center;gap:9px;margin-bottom:13px;
 }
-.foot-brand img{height:22px;width:auto;display:block;}
+.foot-brand img{height:30px;width:auto;display:block;}
 .foot p{font-size:14px;line-height:1.62;max-width:34ch;}
 .foot ul{list-style:none;display:grid;gap:8px;font-size:14px;}
 .foot a{transition:color .3s;}
@@ -2461,3 +2465,235 @@ section{
   background:var(--paper-3);
 }
 @media (max-width:760px){ .video video{max-height:260px;} }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REFONTE 2026 · ce que trois relectures de design ont désigné en même temps
+
+   La page était composée comme un rapport annuel : crème, titre, texte, image,
+   crème, titre, texte, image. Chaque bloc était propre et aucun ne dominait,
+   et c'est exactement ce qui la faisait lire comme un document plutôt que
+   comme un produit. Les trois avis convergent sur les mêmes leviers, et ce
+   sont eux qui sont appliqués ici.
+
+   Ce qui a été écarté, et pourquoi. Le glassmorphisme, les bordures lumineuses
+   et l'empilement de sections collantes ont été proposés par une seule des
+   trois lectures ; les deux autres les rangent au contraire parmi les procédés
+   qui font daté par accumulation. Une identité qui tient sur crème, encre et
+   forêt n'a pas besoin de flou : elle a besoin d'écarts d'échelle et d'un seul
+   vrai moment.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root{
+  /* Une seule échelle de rayons, quatre valeurs, et rien entre les deux.
+     Les rayons de 2 à 12 pixels mélangés étaient la première cause de l'effet
+     « vieillot » : un logiciel de 2026 arrondit franchement ou pas du tout. */
+  --r-sm:12px; --r-md:18px; --r-lg:28px; --r-xl:44px;
+
+  /* Trois comportements de mouvement, et trois seulement, pour toute la page :
+     `micro` répond à un geste, `reveal` accompagne une apparition, `scene`
+     est le grand moment unique. Donner à chaque section son propre effet est
+     ce qui fait qu'un site ressemble à une démonstration d'agence. */
+  --e-micro:cubic-bezier(.2,.8,.2,1);   --d-micro:160ms;
+  --e-reveal:cubic-bezier(.22,1,.36,1); --d-reveal:520ms;
+  --e-scene:cubic-bezier(.16,1,.3,1);   --d-scene:900ms;
+}
+
+/* ── le fond ────────────────────────────────────────────────────────────────
+   À la place des rubans verts qui traversaient la page de haut en bas : deux
+   halos très diffus, fixes, qui cassent l'aplat sans jamais devenir une forme
+   qu'on remarque. Un décor qu'on remarque est un décor qui vieillit. */
+body{
+  background:
+    radial-gradient(900px 650px at 92% 2%,  rgba(109,190,69,.13), transparent 64%),
+    radial-gradient(820px 640px at -8% 24%, rgba(31,92,74,.075),  transparent 68%),
+    radial-gradient(760px 700px at 106% 62%,rgba(31,92,74,.055),  transparent 70%),
+    var(--paper);
+  background-attachment:fixed;
+}
+.vd .band,.va .band{background-color:#F3F4EE;
+  background-image:linear-gradient(180deg,#F1F3EC,#F6F6F0);}
+
+/* ── l'échelle typographique ────────────────────────────────────────────────
+   Le titre de premier niveau passait de trente à quarante-six pixels. À cette
+   taille il a le même poids visuel que la liste posée à côté, et une page où
+   tout pèse pareil se lit comme une brochure. Les gros doivent être vraiment
+   gros, les petits vraiment petits. */
+.vd .h1--doc,.va .h1--doc{
+  font-size:clamp(40px,5.6vw,84px);
+  line-height:.94;
+  letter-spacing:-.042em;
+  font-weight:600;
+  max-width:15ch;
+  margin:clamp(16px,1.6vw,22px) 0 clamp(26px,2.8vw,38px);
+}
+.vd section h2,.va section h2{
+  font-size:clamp(34px,4.2vw,66px);
+  line-height:.96;
+  letter-spacing:-.038em;
+  max-width:16ch;
+}
+.vd section h3,.va section h3{
+  font-size:clamp(20px,1.85vw,28px);line-height:1.12;letter-spacing:-.028em;
+}
+/* Douze pixels est le plancher que la recette de contraste impose : en dessous,
+   une capitale espacée devient un motif décoratif qu'on ne lit plus. */
+.vd .eyebrow,.va .eyebrow,.vd .s-head .eyebrow,.va .s-head .eyebrow{
+  font-size:12px;letter-spacing:.14em;
+}
+/* Quarante-cinq caractères : au-delà, un paragraphe de vitrine cesse d'être lu
+   et devient un mur qu'on saute. */
+.vd .s-note,.va .s-note{max-width:45ch;}
+.vd .doc-intro p,.va .doc-intro p{max-width:46ch;font-size:clamp(16px,1.15vw,18.5px);}
+
+/* ── les surfaces ───────────────────────────────────────────────────────────
+   Quatre états, pas davantage : papier, papier teinté, forêt, encre. Le bloc
+   forêt est détaché de ses bords et fortement arrondi, ce qui le fait lire
+   comme un objet posé sur la page et non comme une bande de fond. */
+.vd .band-moss,.va .band-moss{
+  /* Une couleur pleine SOUS le dégradé, et pas seulement le dégradé. Un
+     `background` qui ne porte qu'une image laisse `background-color` à
+     `transparent` : tout outil qui calcule un contraste remonte alors au fond
+     de la page, trouve du crème, et déclare illisible un texte clair qui est en
+     réalité posé sur du vert très sombre. La vérification a besoin d'une
+     couleur, pas d'une intention. */
+  background-color:var(--forest-900);
+  background-image:linear-gradient(165deg,var(--forest-800),var(--forest-900) 62%);
+  color:rgba(242,240,233,.80);
+  border-radius:var(--r-xl);
+  margin-inline:clamp(10px,2.2vw,34px);
+  padding-block:clamp(64px,6.6vw,104px);
+  overflow:hidden;
+}
+.vd .band-moss h2,.va .band-moss h2,
+.vd .band-moss h3,.va .band-moss h3,
+.vd .band-moss h4,.va .band-moss h4{color:var(--paper-2);}
+.vd .band-moss .s-note,.va .band-moss .s-note,
+.vd .band-moss p,.va .band-moss p,
+.vd .band-moss li,.va .band-moss li{color:rgba(242,240,233,.80);}
+/* Deux classes et un élément perdent contre deux classes et deux éléments : la
+   règle du bloc forêt était moins spécifique que celle des colonnes de texte, et
+   c'est de l'encre noire qui restait posée sur du vert très sombre. Ce genre de
+   défaut ne se voit pas en relisant la feuille, seulement en mesurant. */
+.vd .band-moss b,.va .band-moss b,
+.vd .band-moss strong,.va .band-moss strong,
+.vd .band-moss .duo--texte .col > p b,
+.va .band-moss .duo--texte .col > p b{color:var(--paper-2);}
+.vd .band-moss .duo--texte .col > p,
+.va .band-moss .duo--texte .col > p,
+.vd .band-moss .trois3 p,.va .band-moss .trois3 p,
+.vd .band-moss .trois li,.va .band-moss .trois li{color:rgba(242,240,233,.80);}
+.vd .band-moss .eyebrow,.va .band-moss .eyebrow{color:var(--lime);}
+.vd .band-moss a,.va .band-moss a{color:var(--lime);}
+.vd .band-moss .obj,.va .band-moss .obj{
+  background:rgba(242,240,233,.06);border-color:rgba(242,240,233,.16);
+}
+.vd .band-moss .obj-l,.va .band-moss .obj-l{color:var(--lime);}
+.vd .band-moss .obj-q,.va .band-moss .obj-q{color:var(--paper-2);}
+.vd .band-moss .fmt-bloc,.va .band-moss .fmt-bloc{
+  background:rgba(242,240,233,.05);border-color:rgba(242,240,233,.16);
+}
+.vd .band-moss .fmt-lignes li,.va .band-moss .fmt-lignes li{
+  border-color:rgba(242,240,233,.14);
+}
+.vd .band-moss .fmt-lignes span,.va .band-moss .fmt-lignes span{color:var(--lime);}
+.vd .band-moss .fmt-bareme,.va .band-moss .fmt-bareme{
+  border-color:rgba(242,240,233,.18);color:rgba(242,240,233,.72);
+}
+.vd .band-moss .shot,.va .band-moss .shot{border-color:rgba(242,240,233,.18);}
+.vd .band-moss .trois li,.va .band-moss .trois li{border-color:rgba(242,240,233,.18);}
+
+/* ── les captures ───────────────────────────────────────────────────────────
+   Un cadre d'un pixel autour d'une capture la fait lire comme une image collée
+   dans un traitement de texte. Une ombre portée large et un rayon franc la
+   font lire comme un écran. */
+.vd .shot,.va .shot{
+  border:1px solid rgba(19,21,16,.08);
+  border-radius:var(--r-lg);
+  box-shadow:0 2px 6px rgba(11,38,32,.05), 0 34px 70px -34px rgba(11,38,32,.34);
+}
+.vd .shot img,.va .shot img{border-bottom:0;}
+.vd .shot figcaption,.va .shot figcaption{
+  border-top:1px solid var(--line-soft);
+}
+.vd .photo,.va .photo{border-radius:var(--r-lg);}
+.vd .photo--bande,.va .photo--bande{border-radius:var(--r-xl);}
+
+/* ── le mouvement ───────────────────────────────────────────────────────────
+   Une amplitude de dix-huit pixels, une durée d'un demi-seconde, une courbe
+   qui freine fort à la fin. Rien ne rebondit, rien ne clignote, et rien ne
+   boucle : un mouvement qui se répète indéfiniment finit par être le seul
+   élément que l'œil regarde. */
+.js .vd .rv,.js .va .rv{
+  opacity:0;transform:translateY(18px) scale(.988);
+  transition:opacity var(--d-reveal) var(--e-reveal),
+             transform var(--d-reveal) var(--e-reveal);
+}
+.js .vd .rv.in,.js .va .rv.in{opacity:1;transform:none;}
+.vd .rv.d1,.va .rv.d1{transition-delay:70ms;}
+.vd .rv.d2,.va .rv.d2{transition-delay:140ms;}
+.vd .rv.d3,.va .rv.d3{transition-delay:210ms;}
+/* Quatre au maximum : au-delà, la dernière carte arrive une seconde après la
+   première et le lecteur a déjà commencé à lire. */
+.vd .rv.d4,.va .rv.d4,.vd .rv.d5,.va .rv.d5,
+.vd .rv.d6,.va .rv.d6,.vd .rv.d7,.va .rv.d7{transition-delay:280ms;}
+
+.vd .btn,.va .btn,.vd .tlink,.va .tlink{
+  transition:background var(--d-micro) var(--e-micro),
+             color var(--d-micro) var(--e-micro),
+             transform var(--d-micro) var(--e-micro),
+             box-shadow var(--d-micro) var(--e-micro);
+}
+.vd .btn:hover,.va .btn:hover{transform:translateY(-2px);}
+
+/* ── le seul grand moment : la scène produit ────────────────────────────────
+   La capture du tableau de bord entre dans le premier écran, inclinée et
+   reculée, et se redresse à mesure qu'on descend. C'est la transition entre la
+   promesse écrite dans le titre et la preuve : le produit se présente de
+   lui-même, une fois, et la page redevient calme ensuite.
+
+   Elle est pilotée par `animation-timeline: view()`, donc sans une ligne de
+   JavaScript et sans écouteur de défilement. Là où la propriété n'existe pas,
+   la règle entière est ignorée et la capture s'affiche droite : l'état final
+   est l'état par défaut, jamais l'inverse. */
+.vd .scene{
+  perspective:1400px;
+  margin:clamp(34px,4vw,58px) 0 clamp(30px,3.4vw,46px);
+}
+.vd .scene .shot{
+  transform-origin:50% 0%;
+  will-change:transform;
+}
+@supports (animation-timeline: view()){
+  @media (prefers-reduced-motion:no-preference) and (min-width:900px){
+    .vd .scene .shot{
+      animation:redresser linear both;
+      animation-timeline:view();
+      animation-range:entry 0% cover 34%;
+    }
+    @keyframes redresser{
+      from{transform:perspective(1400px) rotateX(11deg) scale(.90) translateY(26px);}
+      to  {transform:perspective(1400px) rotateX(0deg)  scale(1)   translateY(0);}
+    }
+  }
+}
+
+/* ── la grille fantôme, sur la scène seulement ──────────────────────────────
+   Une trame de soixante-douze pixels, masquée à ses quatre bords, derrière la
+   capture. Elle évoque la structure d'un outil. Sur toute la page elle ferait
+   papier millimétré ; sur une seule zone elle donne le fond d'un écran. */
+.vd .scene::before{
+  content:'';position:absolute;inset:-6% -4% -14%;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(19,21,16,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(19,21,16,.05) 1px, transparent 1px);
+  background-size:72px 72px;
+  -webkit-mask-image:radial-gradient(closest-side, #000 40%, transparent 100%);
+  mask-image:radial-gradient(closest-side, #000 40%, transparent 100%);
+}
+.vd .scene{position:relative;}
+.vd .scene .shot{position:relative;z-index:1;}
+
+@media (prefers-reduced-motion:reduce){
+  .vd .rv,.va .rv{opacity:1;transform:none;transition:none;}
+  .vd .scene .shot{animation:none;transform:none;}
+}

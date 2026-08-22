@@ -113,13 +113,47 @@ def main():
             # survole. On coupe donc au nombre d'éléments qui se lisent.
             if haut:
                 im = im.crop((0, 0, im.width, min(im.height, haut * 2)))
-            # Deux fois la largeur d'affichage, jamais plus : au-delà on paie des
-            # octets qu'aucun écran ne restitue.
-            large = min(1440, im.width // 2)
+            # Une capture cadrée sur un élément fait 1 100 à 1 200 pixels de large
+            # en double densité. La ramener de moitié la ramène à la largeur d'un
+            # texte courant, et elle s'affiche alors floue dès qu'on l'agrandit un
+            # peu. On garde donc la pleine résolution pour celles-là, et on ne
+            # divise que les captures de fenêtre entière, qui partent de 2 880.
+            large = im.width if im.width <= 1440 else min(1440, im.width // 2)
             im = im.resize((large, round(im.height * large / im.width)), Image.LANCZOS)
             im.save(SORTIE / f"{nom}.jpg", quality=82, optimize=True, progressive=True)
             brut.unlink()
             ecrites.append((nom, (SORTIE / f'{nom}.jpg').stat().st_size // 1024))
+
+        # ── l'affiche ──────────────────────────────────────────────────────
+        # Le seul support imprimé du produit, et il se fabrique dans
+        # l'application avec le lien d'inscription de l'entreprise dedans.
+        # Le montrer en photo posée sur un mur serait une mise en scène ; le
+        # montrer tel qu'il sort de la machine est la même image en plus vrai.
+        try:
+            p.goto(f"{BASE}/app/", wait_until="domcontentloaded")
+            p.evaluate("()=>localStorage.removeItem('riseva.etat')")
+            p.evaluate("()=>localStorage.setItem('riseva.session',"
+                       "JSON.stringify({uid:'u2'}))")
+            p.goto(f"{BASE}/app/?c=1#/supports", wait_until="networkidle")
+            p.wait_for_timeout(600)
+            with p.expect_popup() as pop:
+                p.click("#affiche")
+            a = pop.value
+            a.wait_for_load_state("domcontentloaded")
+            a.add_style_tag(content=FONTE + ".noprint{display:none}")
+            a.wait_for_timeout(400)
+            brut = SORTIE / "affiche.png"
+            a.locator(".a4").screenshot(path=str(brut))
+            im = Image.open(brut).convert("RGB")
+            large = min(1000, im.width)
+            im = im.resize((large, round(im.height * large / im.width)), Image.LANCZOS)
+            im.save(SORTIE / "affiche.jpg", quality=84, optimize=True, progressive=True)
+            brut.unlink()
+            ecrites.append(("affiche", (SORTIE / "affiche.jpg").stat().st_size // 1024))
+            a.close()
+        except Exception as exc:
+            erreurs.append(f"affiche : {exc}")
+
         b.close()
     for nom, ko in ecrites:
         print(f"  {nom:<18} {ko} Ko")

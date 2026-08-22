@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Riseva — page association</title>
+<title>Riseva, page association</title>
 <link rel="icon" href="/brand/riseva-mark.png">
 <link rel="stylesheet" href="/styles/polices.css">
 <link rel="stylesheet" href="/styles/tokens.css">
@@ -57,7 +57,7 @@ const hero = h(`<section class="assoHero"><div class="wrap">
   ${a.verifiee_le ? `<p class="hint" style="margin-top:var(--s6);max-width:62ch">
     Riseva a vérifié le ${dateFR(a.verifiee_le)} l'existence juridique de l'association, l'identité
     de son référent, la cohérence de son objet et ses coordonnées.
-    <a href="/charte-associations.html" style="color:var(--forest-800)">Ce que Riseva vérifie</a> —
+    <a href="/charte-associations.html" style="color:var(--forest-800)">Ce que Riseva vérifie</a> ,
     et ce qu'elle ne vérifie pas : l'éligibilité fiscale et l'impact des missions.</p>` : ""}
 </div></section>`);
 root.appendChild(hero);
@@ -76,7 +76,7 @@ if (rea.liste.length){
     <div class="wrap">
       ${/* « Grâce au réseau Riseva » attribuait à la plateforme le travail de
             l'association. Elle réalise, l'entreprise apporte des moyens, Riseva
-            organise la rencontre — et c'est tout. */""}
+            organise la rencontre, et c'est tout. */""}
       <p class="eyebrow">Résultats déclarés par ${esc(a.nom)}</p>
       <div class="realis__grid" style="margin-top:var(--s8)">
         ${rea.liste.map(x => `<div class="realis__c">
