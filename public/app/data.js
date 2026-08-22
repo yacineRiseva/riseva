@@ -567,6 +567,7 @@ export const TARIFS = {
     "Quatre envois d'affiches et de supports au cours de la saison.",
     "Les rapports trimestriels et le rapport annuel, produits et envoyés sans rien demander.",
     "La gestion RSE interne : indicateurs, registre des événements de sécurité, plan d'actions, consolidation multi-sites.",
+    "La fiche de durabilité VSME : ce que Riseva sait, rangé dans les rubriques de la norme européenne volontaire, avec la liste de ce qu'elle ne couvre pas.",
     "L'accès du CSE en lecture, sur des données agrégées.",
     "Zéro commission sur les dons : Riseva n'encaisse pas."
   ],
@@ -887,6 +888,110 @@ export const UNITES = {
    quelque chose à faire, alors qu'elle attend l'association ; et « validée sans
    retour » disait exactement le contraire de la règle — personne n'a validé.
    `label` est ce que voit celui qui attend, `labelAsso` ce que voit celle qui agit. */
+/* ------------------------------------------------------------------ */
+/* La norme volontaire de durabilité (VSME)                           */
+/* ------------------------------------------------------------------ */
+/* Le problème que ça résout, et il est réel : une PME qui n'est soumise à
+   aucune obligation de reporting reçoit quand même un questionnaire ESG de son
+   donneur d'ordre, de sa banque ou d'un acheteur public. Chacun a le sien, et
+   chacun demande la même chose autrement. La norme VSME est la réponse
+   européenne à ce désordre — une grille commune, volontaire, pensée pour les
+   entreprises non cotées.
+
+   Ce que Riseva en fait, et surtout ce qu'elle n'en fait pas. Elle NE PRODUIT
+   PAS un rapport VSME : elle n'a ni les consommations d'énergie, ni les
+   émissions, ni l'eau, ni les écarts de rémunération, et un rapport à moitié
+   rempli présenté comme complet serait pire qu'aucun rapport. Elle fait une
+   chose utile et bornée : ranger ce qu'elle sait déjà dans les rubriques de la
+   norme, et dire noir sur blanc lesquelles restent vides et où aller les
+   chercher. Le client arrive au rendez-vous avec la moitié du questionnaire
+   déjà remplie et la liste exacte de ce qui manque.
+
+   Statut du texte, parce qu'il bouge : la norme est publiée comme recommandation
+   (UE) 2025/1710 du 30 juillet 2025, et la Commission a mis en consultation en
+   mai 2026 un projet d'acte délégué qui la reprendra. Les rubriques B1 à B11
+   sont stables, le détail des points de donnée peut encore évoluer. On date donc
+   la référence, et la fiche le dit. */
+export const VSME = {
+  reference: "Recommandation (UE) 2025/1710 du 30 juillet 2025",
+  verifie_le: "2026-08-22",
+  reserve: "La Commission a mis en consultation en mai 2026 un projet d'acte délégué "
+    + "reprenant cette norme. Les rubriques B1 à B11 sont stables ; le détail des points "
+    + "de donnée peut encore évoluer. Cette fiche est datée pour cette raison.",
+  /* couvert : "oui" — Riseva a la donnée et elle est fiable ;
+     "partiel" — Riseva a une partie de la rubrique, jamais toute ;
+     "non"     — Riseva ne collecte pas, et le dit plutôt que de laisser un blanc. */
+  sections: [
+    { cle:"B1", pilier:"général", titre:"Base d'établissement",
+      couvert:"partiel",
+      apporte:"Le périmètre — société, établissements rattachés, effectif de référence — "
+        + "et la période de collecte.",
+      manque:"Le choix du module, les options retenues et les éventuelles omissions : "
+        + "c'est une décision de l'entreprise, pas une donnée." },
+    { cle:"B2", pilier:"général", titre:"Pratiques, politiques et actions de transition",
+      couvert:"oui",
+      apporte:"C'est le cœur de Riseva : les missions réalisées et confirmées, les "
+        + "associations partenaires, les résultats constatés sur le terrain, le mécénat "
+        + "de compétences valorisé, et le plan d'actions de sécurité avec ses échéances.",
+      manque:"Rien pour cette rubrique, hors politiques formalisées que l'entreprise "
+        + "seule peut décrire." },
+    { cle:"B3", pilier:"environnement", titre:"Énergie et émissions de gaz à effet de serre",
+      couvert:"non",
+      manque:"Consommations d'énergie et émissions des scopes 1, 2 et 3.",
+      ailleurs:"Un outil de bilan carbone, ou la méthode Bilan Carbone® de l'ADEME. "
+        + "Riseva ne collecte pas cette donnée et ne l'estimera pas à votre place." },
+    { cle:"B4", pilier:"environnement", titre:"Pollution de l'air, de l'eau et des sols",
+      couvert:"non",
+      manque:"Rejets et polluants déclarés.",
+      ailleurs:"Vos déclarations réglementaires si vous êtes une installation classée." },
+    { cle:"B5", pilier:"environnement", titre:"Biodiversité",
+      couvert:"non",
+      manque:"Sites en zone sensible, surfaces artificialisées.",
+      ailleurs:"Riseva sait qu'un chantier de plantation a eu lieu et combien d'arbres "
+        + "ont été mis en terre. C'est une action, pas un indicateur d'impact sur la "
+        + "biodiversité : les deux ne se remplacent pas et nous ne les confondrons pas." },
+    { cle:"B6", pilier:"environnement", titre:"Eau",
+      couvert:"non",
+      manque:"Prélèvements et consommation.",
+      ailleurs:"Vos factures d'eau, relevé par site." },
+    { cle:"B7", pilier:"environnement",
+      titre:"Utilisation des ressources, économie circulaire et déchets",
+      couvert:"partiel",
+      apporte:"Les dons de matériel réemployé passés par Riseva : nature, quantité et "
+        + "valeur nette comptable, avec l'association qui les a reçus. C'est du réemploi "
+        + "documenté, opposable, et daté.",
+      manque:"Les tonnages de déchets produits et traités, et les flux entrants.",
+      ailleurs:"Vos bordereaux de suivi de déchets et le registre de votre prestataire." },
+    { cle:"B8", pilier:"social", titre:"Effectifs — caractéristiques générales",
+      couvert:"partiel",
+      indicateurs:["effectif_fin", "entrees", "sorties", "femmes", "boeth"],
+      manque:"La répartition par type de contrat et par pays.",
+      ailleurs:"Votre DSN les contient déjà." },
+    { cle:"B9", pilier:"social", titre:"Santé et sécurité au travail",
+      couvert:"oui",
+      indicateurs:["at_avec_arret", "at_sans_arret", "at_trajet", "jours_arret",
+                   "heures_travaillees"],
+      calcules:["tf1", "tf2", "tg", "if_"],
+      apporte:"Les accidents déclarés site par site, consolidés au niveau de la société, "
+        + "avec les taux calculés sur les heures réellement travaillées.",
+      manque:"Les décès et les maladies professionnelles reconnues. Riseva ne les "
+        + "collecte pas : ce sont des données de santé, et un registre de pilotage n'a "
+        + "pas à en porter." },
+    { cle:"B10", pilier:"social",
+      titre:"Rémunération, négociation collective et formation",
+      couvert:"partiel",
+      indicateurs:["formation_heures", "formation_benef"],
+      manque:"L'écart de rémunération entre femmes et hommes, le respect du salaire "
+        + "minimum et le taux de couverture par une convention collective.",
+      ailleurs:"L'index d'égalité professionnelle si vous y êtes soumis, et votre paie." },
+    { cle:"B11", pilier:"gouvernance", titre:"Condamnations et amendes pour corruption",
+      couvert:"non",
+      manque:"Le nombre de condamnations et le montant des amendes.",
+      ailleurs:"Votre direction juridique. Si la réponse est zéro, elle se déclare quand "
+        + "même : une case vide et un zéro ne disent pas la même chose." }
+  ]
+};
+
 export const ETATS_MISSION = {
   engagee:      { label: "Engagée",     labelAsso: "Engagée",     badge: "badge--info"   },
   a_valider:    { label: "En attente de l'association",
@@ -1223,7 +1328,19 @@ const seed = {
     { id:"an23", asso:"a13", type:"don_materiel", impact:{ unite:"kit", par_unite:1 },
       titre:"Quatre-vingts kits grand froid",
       description:"Un kit, c'est un duvet confort -5 °C et une trousse d'hygiène. Neufs de préférence : ils partent en une semaine.",
-      quantite:80, restant:56, date:J(33), lieu:"Paris", etat:"ouverte" }
+      quantite:80, restant:56, date:J(33), lieu:"Paris", etat:"ouverte" },
+    /* Une association qui a coché le temps de travail quand elle déclarait son
+       éligibilité au mécénat, et qui ne la déclare plus. L'annonce reste ouverte —
+       le besoin, lui, existe toujours — mais la mise à disposition ne peut plus se
+       faire à son profit : hors du régime de l'article L. 8241-3, un prêt de
+       main-d'œuvre gratuit redevient illicite, et c'est l'entreprise qui en répond.
+       Ce cas est dans la démonstration exprès : c'est celui qu'un produit sérieux
+       doit attraper, et celui qu'un produit bavard laisse passer. */
+    { id:"an24", asso:"a3", type:"benevolat_demi_journee", temps_travail:true,
+      impact:{ unite:"metre_berge", par_unite:180 },
+      titre:"Nettoyage des berges, secteur aval",
+      description:"Deux kilomètres de berges après la crue. Bottes indispensables, gants fournis.",
+      quantite:12, restant:12, date:J(26), lieu:"Roanne", etat:"ouverte" }
   ],
   /* Une campagne de collecte : une période, une échéance, et un état par site.
      C'est le même mécanisme que la validation d'une mission — on demande, on
@@ -1726,6 +1843,21 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       if (a.type === "don_financier")
         throw new Error("Un don en argent passe par une intention de virement, pas par un engagement.");
       if (quantite > a.restant) throw new Error("Quantité supérieure au besoin restant");
+      /* L'éligibilité se revérifie ICI, pas seulement à la publication. L'article
+         L. 8241-3 n'autorise le prêt gratuit qu'au profit des organismes visés aux
+         a à g du 1 de l'article 238 bis. Si l'association a perdu cette qualité
+         entre la publication et l'engagement — déclaration retirée, contrôle
+         négatif — la mise à disposition retombe sous l'interdiction de l'article
+         L. 8241-1, et c'est un délit pour l'entreprise cliente, pas une erreur de
+         saisie. Une annonce ouverte n'est pas une autorisation permanente. */
+      if (a.temps_travail && !api.eligibleMecenat(a.asso)){
+        const asso = api.association(a.asso) || {};
+        throw new Error(`${asso.nom || "Cette association"} ne déclare plus son éligibilité `
+          + "au mécénat de compétences. Une mise à disposition sur le temps de travail ne peut "
+          + "pas se faire à son profit : hors du régime de l'article L. 8241-3, un prêt de "
+          + "main-d'œuvre gratuit redevient illicite. La mission reste possible sur le temps "
+          + "personnel, en bénévolat.");
+      }
       /* Une mise à disposition sur le temps de travail exige l'accord exprès, écrit et
          spécifique du salarié (article R. 8241-2). Accepter les conditions générales
          une fois pour toutes ne vaut pas consentement à cette mission-là, à ces dates-là. */
@@ -4113,6 +4245,128 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
        Une action validée est une combinaison unique salarié × association × format × date,
        réalisée dans P et acceptée avant C. Deux versements au même organisme le même jour
        ne font qu'une action. */
+    /* La fiche VSME : ce que Riseva sait, rangé dans les rubriques de la norme.
+       Ce n'est pas un rapport de durabilité et la fiche le dit en toutes lettres.
+       Trois règles tiennent son honnêteté :
+       1. une rubrique non couverte est écrite « non couverte », jamais laissée
+          vide et jamais remplie d'un zéro — un blanc se lit « rien à déclarer »,
+          ce qui est un mensonge par omission ;
+       2. les chiffres viennent des observations APPROUVÉES de la campagne. Une
+          saisie non relue n'entre pas dans un document qui part chez un client ;
+       3. la fiche porte la date de vérification de la norme, parce que le texte
+          est en cours de reprise par acte délégué. */
+    ficheVSME(sid, { campagne = null } = {}){
+      const e = api.entreprise(sid); if (!e) return null;
+      const sites = api.etablissements(sid);
+      const cam = campagne ? api.campagne(campagne)
+        : api.campagnes(e.groupe || undefined).find(c => c.etat === "close")
+          || api.campagnes(e.groupe || undefined)[0] || null;
+      const ind = cam ? api.indicateursDe({ campagne: cam.id, societe: sid,
+                                            approuvesSeulement: true }) : null;
+      const val = (cle) => {
+        if (!ind) return null;
+        const d = INDICATEURS.calcules.find(x => x.cle === cle);
+        const v = d ? ind.calcules[cle] : ind.somme[cle];
+        return v === undefined || v === null ? null : v;
+      };
+      /* Une somme de zéros n'est pas une donnée : si aucun site n'a répondu, la
+         rubrique est « non renseignée », pas « zéro accident ». */
+      const renseigne = !!(ind && ind.sites > 0);
+
+      const reel = api.realisations({ entreprise: sid });
+      const mecenat = api.valorisationMecenat(sid);
+      const materiel = s.missions.filter(m => m.entreprise === sid
+        && ["validee", "validee_auto"].includes(m.etat)
+        && (api.annonceDe(m) || {}).type === "don_materiel");
+      const secu = api.syntheseSecurite({ societe: sid,
+        debut: cam ? cam.debut : s.saison.debut, fin: cam ? cam.fin : s.saison.fin });
+      const plan = api.actions({ societe: sid });
+
+      const rubriques = VSME.sections.map(sec => {
+        const lignes = [];
+        (sec.indicateurs || []).forEach(cle => {
+          const d = INDICATEURS.saisis.find(x => x.cle === cle);
+          lignes.push({ cle, libelle: d ? d.libelle : cle, unite: d ? d.unite : "",
+                        valeur: renseigne ? val(cle) : null });
+        });
+        (sec.calcules || []).forEach(cle => {
+          const d = INDICATEURS.calcules.find(x => x.cle === cle);
+          lignes.push({ cle, libelle: d ? d.libelle : cle, unite: "",
+                        valeur: renseigne ? val(cle) : null, calcule: true });
+        });
+        if (sec.cle === "B1"){
+          lignes.push({ cle:"perimetre", libelle:"Périmètre de la fiche", unite:"",
+                        texte: `${e.nom}${e.siren ? ` (SIREN ${e.siren})` : ""} — `
+                          + `${sites.length} établissement${sites.length > 1 ? "s" : ""}` });
+          const jf = (d) => String(d || "").split("-").reverse().join("/");
+          lignes.push({ cle:"periode", libelle:"Période", unite:"",
+                        texte: cam ? `${cam.libelle}, du ${jf(cam.debut)} au ${jf(cam.fin)}`
+                                   : "aucune campagne de collecte" });
+        }
+        if (sec.cle === "B2"){
+          /* Uniquement le confirmé. L'estimé a sa place sur un tableau de bord,
+             pas dans une fiche que le client transmet à sa banque : c'est là que
+             la différence entre « on a compté » et « on suppose » se paie. */
+          const unites = (reel.liste || []).map(x =>
+            `${Math.round(x.quantite)} ${x.quantite > 1 ? x.pl : x.un}`);
+          lignes.push({ cle:"missions", libelle:"Missions confirmées par les associations",
+                        unite: reel.missions > 1 ? "missions" : "mission",
+                        valeur: reel.missions });
+          lignes.push({ cle:"resultats",
+                        libelle:"Résultats constatés sur le terrain, hors estimations",
+                        unite:"", texte: unites.length ? unites.join(" · ")
+                                                       : "aucun résultat confirmé" });
+          lignes.push({ cle:"mecenat", libelle:"Mécénat de compétences valorisé",
+                        unite:"€", valeur: mecenat.competencesRetenu });
+          lignes.push({ cle:"heures", libelle:"Heures mises à disposition sur le temps de travail",
+                        unite:"heures", valeur: Math.round(mecenat.heuresTT) });
+          const ouvertes = plan.filter(a => a.etat !== "abandonnee").length;
+          lignes.push({ cle:"actions", libelle:"Actions de prévention ouvertes au plan",
+                        unite: ouvertes > 1 ? "actions" : "action", valeur: ouvertes });
+          const faites = plan.filter(a => a.etat === "faite").length;
+          lignes.push({ cle:"actions_faites", libelle:"dont menées à leur terme",
+                        unite: faites > 1 ? "actions" : "action", valeur: faites });
+        }
+        if (sec.cle === "B7"){
+          const valeurNette = materiel.reduce((n, m) => n + (Number(m.valeur_nette) || 0), 0);
+          lignes.push({ cle:"reemploi", libelle:"Dons de matériel réemployé",
+                        unite: materiel.length > 1 ? "dons" : "don",
+                        valeur: materiel.length });
+          lignes.push({ cle:"reemploi_valeur",
+                        libelle:"Valeur nette comptable du matériel réemployé",
+                        unite:"€", valeur: valeurNette || null });
+          lignes.push({ cle:"reemploi_nature", libelle:"Nature du matériel", unite:"",
+                        texte: materiel.map(m => m.nature).filter(Boolean).join(" · ")
+                               || "non détaillée" });
+        }
+        if (sec.cle === "B9"){
+          const avec = sites.length - (secu.sites_sans_registre || []).length;
+          lignes.push({ cle:"sites_registre", libelle:"Sites tenant le registre dans Riseva",
+                        unite: avec > 1 ? "sites" : "site", valeur: avec });
+        }
+        return { ...sec, lignes,
+                 /* Une rubrique annoncée couverte dont toutes les lignes sont
+                    vides ne l'est pas : on le dégrade plutôt que de l'afficher. */
+                 renseignee: lignes.some(l => l.texte
+                   || (l.valeur !== null && l.valeur !== undefined)) };
+      });
+
+      return {
+        entreprise: e, sites, campagne: cam, indicateurs: ind,
+        norme: VSME, rubriques,
+        couvertes: rubriques.filter(r => r.couvert !== "non" && r.renseignee).length,
+        total: rubriques.length,
+        /* Ce que la fiche N'EST PAS. Cette phrase n'est pas une précaution
+           d'avocat : sans elle, un acheteur pourrait croire tenir un rapport de
+           durabilité, et l'entreprise croire s'être acquittée de quelque chose. */
+        avertissement: "Cette fiche n'est pas un rapport de durabilité et ne vaut pas "
+          + "publication au sens de la norme VSME. C'est un relevé de ce que Riseva "
+          + "détient, rangé dans les rubriques de la norme pour vous éviter de le "
+          + "recopier. Les rubriques marquées « non couverte » ne sont pas à zéro : "
+          + "elles ne sont pas renseignées, et il faut aller les chercher ailleurs."
+      };
+    },
+
     indicateurs(eid){
       const entreprises = eid ? [api.entreprise(eid)].filter(Boolean) : s.entreprises;
       const ids = entreprises.map(e => e.id);

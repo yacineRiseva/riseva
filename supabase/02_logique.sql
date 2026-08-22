@@ -752,6 +752,18 @@ begin
                   where ab.entreprise = v_ent and ab.saison = v_a.saison) then
     raise exception 'Aucun abonnement pour la saison de cette annonce' using errcode = '42501';
   end if;
+  -- L'éligibilité se revérifie ICI, pas seulement à la publication. L'article
+  -- L. 8241-3 n'autorise le prêt gratuit qu'au profit des organismes visés aux a à g
+  -- du 1 de l'article 238 bis. Si l'association a perdu cette qualité entre la
+  -- publication et l'engagement, la mise à disposition retombe sous l'interdiction
+  -- de l'article L. 8241-1 : c'est un délit pour l'entreprise cliente, pas une
+  -- erreur de saisie. Une annonce ouverte n'est pas une autorisation permanente.
+  if v_a.temps_travail and not exists (
+       select 1 from public.association asso
+        where asso.id = v_a.association and asso.eligible_mecenat) then
+    raise exception 'Cette association ne déclare plus son éligibilité au mécénat de compétences : hors du régime de l''article L. 8241-3, la mise à disposition serait un prêt de main-d''oeuvre illicite'
+      using errcode = '42501';
+  end if;
   -- Une mise à disposition sur le temps de travail exige l'accord exprès, écrit et
   -- spécifique du salarié à CETTE mission (article R. 8241-2 du code du travail).
   -- Une acceptation générale des conditions d'utilisation ne le remplace pas. Sans

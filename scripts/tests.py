@@ -322,7 +322,11 @@ def main():
 
         print("\nConsentement et éligibilité")
         connecte(p, "u4", "#/annonces")
-        p.evaluate("""()=>{const o=[...document.querySelectorAll('.annonce')].find(x=>/Temps de travail/.test(x.innerText));
+        # Explicitement une annonce sur le temps de travail portée par une association
+        # ÉLIGIBLE : depuis que le régime de L. 8241-3 est vérifié à l'engagement, une
+        # annonce hors régime n'ouvre plus le formulaire mais un refus motivé.
+        p.evaluate("""()=>{const o=[...document.querySelectorAll('.annonce')]
+            .find(x=>/Temps de travail/.test(x.innerText) && !/secteur aval/.test(x.innerText));
           o.querySelector('[data-go]').click()}""")
         p.wait_for_timeout(300)
         verifie("le consentement est demandé", p.is_visible(".modal #consent"))
@@ -334,6 +338,43 @@ def main():
         p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Confirmer/.test(b.textContent)).click()")
         p.wait_for_timeout(400)
         verifie("avec consentement, l'engagement passe", "positionné" in p.inner_text(".toast"))
+
+        # Une annonce sur le temps de travail portée par une association qui ne
+        # déclare pas son éligibilité : hors L. 8241-3, c'est un prêt illicite.
+        connecte(p, "u4", "#/annonces")
+        ouvert = p.evaluate("""()=>{
+          const o = [...document.querySelectorAll('.annonce')]
+            .find(x => /secteur aval/.test(x.innerText));
+          if (!o) return false; o.querySelector('[data-go]').click(); return true;
+        }""")
+        p.wait_for_timeout(350)
+        verifie("l'annonce de démonstration hors régime existe bien", ouvert)
+        md = norm(p.inner_text(".modal"))
+        verifie("une mise à disposition hors régime est refusée avant le formulaire",
+                "ne peut pas se faire sur le temps de travail" in norm(p.inner_text(".modal-titre, .modal h2, .modal")))
+        verifie("le refus cite l'article et dit pourquoi",
+                "L. 8241-3" in md and "prêt de main-d'œuvre gratuit redevient illicite" in md)
+        verifie("il n'y a plus de formulaire d'engagement derrière",
+                not p.is_visible(".modal #q"))
+        verifie("et il propose la seule voie qui reste : le temps personnel",
+                "sur votre temps personnel" in md and "bénévolat" in md)
+        rej = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          try { d.DB.engager({ annonce:'an24', entreprise:'e1', salarie:'u3',
+            quantite:1, consentement:true }); return null; }
+          catch (e){ return e.message; }
+        }""")
+        verifie("le modèle refuse aussi, pas seulement l'écran",
+                rej is not None and "L. 8241-3" in rej, str(rej))
+
+        connecte(p, "u2", "#/mecenat")
+        p.click("#conv"); p.wait_for_timeout(350)
+        cv = norm(p.inner_text(".modal"))
+        verifie("la convention ne propose pas les missions hors régime",
+                "ne déclare pas leur éligibilité au mécénat" in cv
+                or "ne déclare pas leur éligibilité" in cv, cv[:300])
+        p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Annuler/.test(b.textContent)).click()")
+        p.wait_for_timeout(200)
 
         connecte(p, "u7", "#/mesannonces")
         p.evaluate("()=>document.querySelector('#np').click()"); p.wait_for_timeout(300)
@@ -1158,6 +1199,47 @@ def main():
         verifie("et ils portent leur provenance", "déduit du registre" in md)
         p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Annuler/.test(b.textContent)).click()")
         p.wait_for_timeout(200)
+
+        print("\nLa fiche de durabilité VSME")
+        connecte(p, "u2", "#/vsme")
+        vt = norm(p.inner_text(".content"))
+        verifie("la fiche dit d'abord ce qu'elle n'est pas",
+                "n'est pas un rapport de durabilité" in vt
+                and "ne vaut pas publication" in vt)
+        verifie("elle cite la norme et la date de sa vérification",
+                "2025/1710" in vt and "réserve" not in vt.lower()[:200])
+        verifie("elle prévient que le texte est en cours de reprise",
+                "acte délégué" in vt)
+        verifie("les onze rubriques sont là", all(f"B{n} —" in vt for n in range(1, 12)))
+        verifie("ce que Riseva sait est rempli",
+                "Renseignée par Riseva" in vt and "Missions confirmées par les associations" in vt)
+        verifie("les résultats retenus sont les confirmés, pas les estimations",
+                "hors estimations" in vt)
+        verifie("ce qu'elle ne sait pas est dit, pas laissé vide",
+                "Non couverte" in vt and "Ce que Riseva n'a pas" in vt)
+        verifie("une rubrique non couverte n'est jamais montrée à zéro",
+                "Consommations d'énergie et émissions des scopes 1, 2 et 3" in vt
+                and "ne l'estimera pas à votre place" in vt)
+        verifie("la sécurité y remonte avec ses taux calculés",
+                "Accidents du travail avec arrêt" in vt and "(calculé)" in vt)
+        verifie("les décès et maladies professionnelles sont explicitement hors périmètre",
+                "décès et les maladies professionnelles" in vt)
+        verifie("le réemploi de matériel alimente la rubrique économie circulaire",
+                "Valeur nette comptable du matériel réemployé" in vt)
+        vf = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const f = d.DB.ficheVSME('e1');
+          const vides = f.rubriques.filter(r => !r.renseignee).map(r => r.cle);
+          const b9 = f.rubriques.find(r => r.cle === 'B9');
+          return { couvertes:f.couvertes, total:f.total, vides,
+                   b9: b9.lignes.map(l => [l.cle, l.valeur]) };
+        }""")
+        verifie("la couverture annoncée correspond aux rubriques réellement remplies",
+                vf["couvertes"] == vf["total"] - len(vf["vides"]), str(vf["vides"]))
+        verifie("les quatre rubriques environnementales pures restent vides",
+                set(["B3", "B4", "B5", "B6"]).issubset(set(vf["vides"])), str(vf["vides"]))
+        verifie("la sécurité ne sort pas des valeurs nulles",
+                all(v is not None for _, v in vf["b9"]), str(vf["b9"]))
 
         print("\nLe CSE, en lecture seule")
         connecte(p, "u12", "#/tableau")

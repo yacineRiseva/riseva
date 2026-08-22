@@ -896,6 +896,27 @@ function ouvrirEngagement(a, u){
   /* Un don en argent ne suit pas le même chemin : on n'y « positionne » personne,
      on annonce un virement et on attend que l'association le voie arriver. */
   if (a.type === "don_financier") return ouvrirDon(a, u);
+  /* Une annonce sur le temps de travail dont l'association ne déclare plus son
+     éligibilité au mécénat ne se propose pas : hors du régime de l'article
+     L. 8241-3, la mise à disposition gratuite est un prêt de main-d'œuvre
+     illicite. On le dit avant le formulaire, pas après l'échec. */
+  if (a.temps_travail && !DB.eligibleMecenat(a.asso)){
+    const asso = DB.association(a.asso) || {};
+    modal("Cette mission ne peut pas se faire sur le temps de travail", h(`<div>
+      <p class="muted" style="font-size:var(--t-sm)">
+        ${esc(asso.nom || "Cette association")} ne déclare pas — ou ne déclare plus — son
+        éligibilité au mécénat de compétences. L'article <strong>L. 8241-3</strong> du code du
+        travail n'autorise la mise à disposition gratuite de salariés qu'au profit des organismes
+        visés aux a à g du 1 de l'article 238 bis du code général des impôts. En dehors de ce
+        régime, un prêt de main-d'œuvre gratuit redevient illicite, et c'est votre employeur
+        qui en répond.</p>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+        Rien n'empêche d'y aller <strong>sur votre temps personnel</strong> : ce serait du
+        bénévolat, et le bénévolat ne demande l'autorisation de personne. Nous avons prévenu
+        l'association ; si elle est bien d'intérêt général, elle n'a qu'un réglage à corriger.</p>
+    </div>`), [{ label:"J'ai compris" }]);
+    return;
+  }
   const b = BAREME[a.type];
   const financier = a.type === "don_financier";
   const corps = h(`<div class="stack" style="--gap:var(--s5)">
@@ -4233,16 +4254,22 @@ function vueMecenat(u){
       return a && a.type === "benevolat_demi_journee" && a.temps_travail
              && ["engagee", "a_valider", "validee", "validee_auto"].includes(m.etat);
     });
-    /* L'article R. 8241-2 exige l'accord exprès et écrit du salarié pour CETTE mise à
-       disposition. Éditer une convention qui affirme cet accord sans en avoir la trace,
-       c'est fabriquer une pièce fausse — et c'est le prêt de main-d'œuvre illicite qui
-       attend au bout. Sans consentement enregistré, la mission n'est pas proposée. */
-    const ms = toutes.filter(m => m.consentement && m.consentement.donne_le);
-    const sansAccord = toutes.length - ms.length;
+    /* Deux conditions, et la convention affirme les deux. La première est le régime :
+       l'article L. 8241-3 n'autorise le prêt gratuit qu'au profit des organismes des
+       a à g du 1 de l'article 238 bis. Éditer une convention qui s'en réclame pour une
+       association qui n'en relève pas, c'est signer un prêt de main-d'œuvre illicite.
+       La seconde est l'accord exprès et écrit du salarié (R. 8241-2) : sans trace, la
+       convention affirmerait un consentement que personne ne peut produire. */
+    const eligibles = toutes.filter(m => DB.eligibleMecenat((DB.annonceDe(m) || {}).asso));
+    const horsRegime = toutes.length - eligibles.length;
+    const ms = eligibles.filter(m => m.consentement && m.consentement.donne_le);
+    const sansAccord = eligibles.length - ms.length;
     if (!ms.length){
-      toast(toutes.length
-        ? "Aucune de ces missions ne porte l'accord écrit du salarié : la convention ne peut pas l'affirmer."
-        : "Aucune mission sur le temps de travail pour l'instant.");
+      toast(horsRegime && !eligibles.length
+        ? "Ces missions concernent des associations qui ne déclarent pas leur éligibilité au mécénat : il n'y a pas de convention à éditer."
+        : toutes.length
+          ? "Aucune de ces missions ne porte l'accord écrit du salarié : la convention ne peut pas l'affirmer."
+          : "Aucune mission sur le temps de travail pour l'instant.");
       return;
     }
     const corps = h(`<div>
@@ -4253,6 +4280,12 @@ function vueMecenat(u){
         ${sansAccord} mission${sansAccord > 1 ? "s ne sont pas proposées" : " n'est pas proposée"} :
         l'accord écrit du salarié n'y est pas enregistré. La convention l'affirmerait sans preuve,
         et l'article R. 8241-2 en fait une condition de validité.</p>` : ""}
+      ${horsRegime ? `<p class="hint" style="margin-top:var(--s3)">
+        ${horsRegime} mission${horsRegime > 1 ? "s concernent des associations qui ne déclarent"
+          : " concerne une association qui ne déclare"} pas leur éligibilité au mécénat.
+        Hors du régime de l'article L. 8241-3, une mise à disposition gratuite redevient un prêt
+        de main-d'œuvre illicite : il n'y a pas de convention à éditer, et le temps donné reste
+        du bénévolat.</p>` : ""}
       <div class="field" style="margin-top:var(--s5)"><label>Mission</label>
         <select class="select" id="mi">
           ${ms.map(m => { const a = DB.annonceDe(m), sal = DB.utilisateur(m.salarie);
@@ -7448,6 +7481,124 @@ function vueDossierAsso(u){
   return el;
 }
 
+/* ------------------------------------------------------------------ */
+/* La fiche VSME                                                       */
+/* ------------------------------------------------------------------ */
+/* Une PME qui n'est soumise à rien reçoit quand même le questionnaire ESG de son
+   donneur d'ordre, de sa banque et de l'acheteur public — trois questionnaires
+   différents qui demandent la même chose. La norme VSME est la grille commune
+   européenne. Riseva ne produit pas de rapport VSME : elle range ce qu'elle sait
+   dans les rubriques de la norme et dit lesquelles restent vides. Le client
+   arrive avec la moitié du questionnaire remplie et la liste de ce qui manque —
+   ce qui vaut mieux qu'un document complet dont la moitié serait inventée. */
+function vueVSME(u){
+  const f = DB.ficheVSME(u.org, {
+    campagne: sessionStorage.getItem("riseva.vsme.camp") || null });
+  if (!f) return h(`<section class="card"><p class="empty">Aucune société rattachée.</p></section>`);
+  const e = DB.entreprise(u.org);
+  const camps = DB.campagnes(e.groupe || undefined)
+    .slice().sort((a, b) => b.debut.localeCompare(a.debut));
+
+  const pastille = (c) => c === "oui"
+    ? `<span class="badge badge--ok">Renseignée par Riseva</span>`
+    : c === "partiel"
+      ? `<span class="badge badge--attente">Partiellement renseignée</span>`
+      : `<span class="badge">Non couverte</span>`;
+
+  const ligne = (l) => {
+    const vide = l.texte === undefined && (l.valeur === null || l.valeur === undefined);
+    return `<tr>
+      <td>${esc(l.libelle)}${l.calcule
+        ? ` <span class="muted" style="font-size:var(--t-xs)">(calculé)</span>` : ""}</td>
+      <td style="text-align:right" class="tnum">${
+        vide ? `<span class="muted">non renseigné</span>`
+             : (l.texte !== undefined ? esc(l.texte)
+                : `${nb(l.valeur)}${l.unite ? " " + esc(l.unite) : ""}`)}</td>
+    </tr>`;
+  };
+
+  const rub = (r) => `
+    <section class="card" style="margin-top:var(--s5)">
+      <div class="between" style="flex-wrap:wrap;gap:var(--s3);align-items:flex-start">
+        <div>
+          <h3 style="font-size:var(--t-lg)">${esc(r.cle)} — ${esc(r.titre)}</h3>
+          <p class="muted" style="font-size:var(--t-xs);margin-top:2px">${esc(r.pilier)}</p>
+        </div>
+        ${pastille(r.renseignee ? r.couvert : "non")}
+      </div>
+      ${r.apporte ? `<p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+        ${esc(r.apporte)}</p>` : ""}
+      ${r.lignes.length ? `<table class="table" style="margin-top:var(--s4)"><tbody>
+        ${r.lignes.map(ligne).join("")}</tbody></table>` : ""}
+      ${r.manque ? `<p class="hint" style="margin-top:var(--s4)">
+        <strong style="color:var(--ink)">Ce que Riseva n'a pas :</strong> ${esc(r.manque)}
+        ${r.ailleurs ? ` ${esc(r.ailleurs)}` : ""}</p>` : ""}
+    </section>`;
+
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <section class="card card--dark grain">
+      <div class="between" style="flex-wrap:wrap;gap:var(--s4);align-items:flex-start">
+        <div>
+          <p class="eyebrow" style="color:var(--lime)">Norme volontaire de durabilité</p>
+          <h3 style="margin-top:var(--s2)">Ce que Riseva remplit pour vous</h3>
+          <p class="muted" style="margin-top:6px;font-size:var(--t-sm);color:#C5CDBB;max-width:62ch">
+            ${esc(f.avertissement)}</p>
+        </div>
+        <div class="stack" style="--gap:var(--s3);align-items:flex-end">
+          <span class="badge badge--ok">${f.couvertes} rubriques sur ${f.total}</span>
+          <div class="field" style="margin:0">
+            <label for="vc" style="color:#C5CDBB">Période</label>
+            <select class="select" id="vc">
+              ${camps.map(c => `<option value="${c.id}"${
+                f.campagne && c.id === f.campagne.id ? " selected" : ""}>${esc(c.libelle)}${
+                c.etat === "close" ? "" : " — en cours"}</option>`).join("")}
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    ${f.campagne && f.indicateurs && f.indicateurs.sites < f.indicateurs.attendus
+      ? `<section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
+      <p style="font-size:var(--t-sm);color:var(--ink-600)">
+        <strong style="color:var(--ink)">${f.indicateurs.sites} site${
+          f.indicateurs.sites > 1 ? "s ont" : " a"} répondu sur ${f.indicateurs.attendus}</strong>,
+        soit ${pct(f.indicateurs.partEffectif)} % de l'effectif. Les chiffres ci-dessous ne portent
+        que sur ce périmètre-là, et une fiche qui ne le dirait pas serait fausse sans être
+        inexacte.</p>
+    </section>` : ""}
+
+    ${f.rubriques.map(rub).join("")}
+
+    <section class="card card--flat">
+      <h3 style="font-size:var(--t-md)">La référence, et sa date</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+        ${esc(f.norme.reference)}. Vérifiée le ${dateFR(f.norme.verifie_le)}.</p>
+      <p class="hint" style="margin-top:var(--s3)">${esc(f.norme.reserve)}</p>
+      <div class="row" style="gap:var(--s2);margin-top:var(--s5);flex-wrap:wrap">
+        <button class="btn btn--primary btn--sm" id="imp">Imprimer ou enregistrer en PDF</button>
+        <button class="btn btn--ghost btn--sm" id="csvV">Exporter en CSV</button>
+      </div>
+    </section>
+  </div>`);
+
+  el.querySelector("#vc").onchange = (ev) => {
+    sessionStorage.setItem("riseva.vsme.camp", ev.target.value);
+    location.reload();
+  };
+  el.querySelector("#imp").onclick = () => setTimeout(() => window.print(), 200);
+  el.querySelector("#csvV").onclick = () => versCSV("riseva-vsme.csv",
+    ["Rubrique", "Titre", "Pilier", "Couverture", "Indicateur", "Valeur", "Unité"],
+    f.rubriques.flatMap(r => r.lignes.length
+      ? r.lignes.map(l => [r.cle, r.titre, r.pilier,
+          r.renseignee ? r.couvert : "non", l.libelle,
+          l.texte !== undefined ? l.texte
+            : (l.valeur === null || l.valeur === undefined ? "non renseigné" : l.valeur),
+          l.unite || ""])
+      : [[r.cle, r.titre, r.pilier, "non", "—", "non renseigné", ""]]));
+  return el;
+}
+
 const ROUTES = {
   entreprise_admin: {
     tableau:   [tableauEntreprise, "Tableau de bord"],
@@ -7461,6 +7612,7 @@ const ROUTES = {
     mecenat:   [vueMecenat,        "Mécénat"],
     materiel:  [vueMateriel,       "Dons de matériel"],
     dossier:   [vueDossier,        "Réponses aux questionnaires clients"],
+    vsme:      [vueVSME,           "Fiche de durabilité (VSME)"],
     supports:  [vueSupports,       "Affiches et supports"],
     abonnement:[vueAbonnement,     "Abonnement"],
     parametres:[vueParametres,     "Paramètres"],

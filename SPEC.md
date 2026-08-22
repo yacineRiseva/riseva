@@ -292,6 +292,48 @@ comme une mesure scientifique, ni dans l'interface, ni dans les rapports, ni en 
   communique elle-même sur sa participation se désigne. Riseva, elle, ne publie pas la liste de
   ses clients : sans cela, « absent de la moitié haute » se lirait comme « dans la moitié basse ».
 
+## 5 bis ter. La fiche de durabilité (VSME)
+
+Le problème est réel et il n'a rien de théorique : une PME qui n'est soumise à **aucune**
+obligation de reporting reçoit quand même le questionnaire ESG de son donneur d'ordre, celui de
+sa banque et celui de l'acheteur public. Trois questionnaires qui demandent la même chose
+autrement. La norme **VSME** — recommandation (UE) 2025/1710 du 30 juillet 2025 — est la grille
+commune européenne, volontaire, pensée pour les entreprises non cotées.
+
+**Ce que Riseva fait, et la limite est la fonctionnalité.** Elle ne produit pas un rapport VSME :
+elle n'a ni consommations d'énergie, ni émissions, ni eau, ni écarts de rémunération. Elle range
+ce qu'elle sait déjà dans les onze rubriques B1 à B11 et écrit noir sur blanc lesquelles restent
+vides et où aller les chercher. Le client arrive au rendez-vous avec la moitié du questionnaire
+remplie et la liste exacte de ce qui manque — ce qui vaut mieux qu'un document complet dont la
+moitié serait inventée.
+
+| Rubrique | Couverture | Ce que Riseva apporte |
+|---|---|---|
+| B1 Base d'établissement | partielle | périmètre société/établissements, période de collecte |
+| B2 Pratiques et actions de transition | **complète** | missions confirmées, résultats constatés, mécénat valorisé, plan d'actions sécurité |
+| B3 Énergie et GES | aucune | — |
+| B4 Pollution | aucune | — |
+| B5 Biodiversité | aucune | une plantation est une action, pas un indicateur d'impact. On ne les confond pas |
+| B6 Eau | aucune | — |
+| B7 Ressources et économie circulaire | partielle | dons de matériel réemployé : nature, quantité, valeur nette comptable |
+| B8 Effectifs | partielle | effectif, entrées, sorties, femmes, bénéficiaires de l'obligation d'emploi |
+| B9 Santé et sécurité | **complète** | accidents par site, consolidés, taux calculés sur les heures réelles |
+| B10 Rémunération et formation | partielle | heures de formation, salariés formés |
+| B11 Corruption | aucune | — |
+
+Trois règles tiennent l'honnêteté de la fiche :
+
+1. une rubrique non couverte est écrite « non couverte », **jamais laissée vide et jamais remplie
+   d'un zéro** — un blanc se lit « rien à déclarer », ce qui est un mensonge par omission ;
+2. les chiffres viennent des observations **approuvées** de la campagne. Une saisie non relue
+   n'entre pas dans un document qui part chez un client ;
+3. seuls les résultats **confirmés** par les associations y figurent, jamais les estimations : la
+   différence entre « on a compté » et « on suppose » se paie précisément là.
+
+La fiche porte la date de vérification de la norme, parce que le texte bouge : la Commission a mis
+en consultation en mai 2026 un projet d'acte délégué qui la reprendra. Les rubriques B1 à B11 sont
+stables, le détail des points de donnée peut évoluer.
+
 ## 5 ter. Le goulot de validation
 
 Si les associations ne valident pas, les salariés n'ont pas leurs points, les entreprises voient

@@ -248,6 +248,37 @@ begin
 end $$;
 reset role;
 
+-- L'eligibilite au mecenat se reverifie a l'engagement, pas seulement a la
+-- publication. Une annonce ouverte n'est pas une autorisation permanente : si
+-- l'association perd sa qualite entre les deux, la mise a disposition retombe
+-- sous l'interdiction de l'article L. 8241-1 et c'est un delit pour l'entreprise.
+\echo ''
+\echo 'Une association qui n'' est plus eligible ne recoit plus de salaries'
+-- `recus_actif` tombe en meme temps : la contrainte du schema interdit d'emettre
+-- des recus sans eligibilite, et c'est bien la meme perte de qualite qu'on simule.
+update public.association set eligible_mecenat = false, recus_actif = false
+ where id = (select association from public.annonce where impact_unite = 'arbre' limit 1);
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
+select set_config('request.jwt.claim.email', 'malik@lafarge-ciments.fr', false);
+do $$
+declare v_mid uuid;
+begin
+  begin
+    select public.engager_mission(a.id, 1, null, true) into v_mid
+      from public.annonce a where a.impact_unite = 'arbre' limit 1;
+    perform pg_temp.dit(
+      'une association non eligible ne recoit plus de mise a disposition (L. 8241-3)', false);
+  exception when others then
+    perform pg_temp.dit(
+      'une association non eligible ne recoit plus de mise a disposition (L. 8241-3)',
+      sqlerrm like '%8241-3%');
+  end;
+end $$;
+reset role;
+update public.association set eligible_mecenat = true, recus_actif = true
+ where id = (select association from public.annonce where impact_unite = 'arbre' limit 1);
+
 \echo ''
 \echo 'Ce que peut faire une association'
 set role authenticated;
