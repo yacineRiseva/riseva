@@ -962,6 +962,55 @@ def main():
         verifie("chaque don porte l'état de sa réception et de son reçu",
                 "Réception" in m and "Reçu" in m and "En attente de l'association" in m)
 
+        print("\nClassement : la moitié basse n'est pas nommée")
+        connecte(p, "u2", "#/classement")
+        cl = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const l = d.DB.classement({ pour:'e1' });
+          return { total:l.length, mediane:l[0].mediane,
+                   anonymes:l.filter(x => x.anonyme).length,
+                   moi:l.find(x => x.id === 'e1'),
+                   noms:l.map(x => ({ rang:x.rang, anonyme:x.anonyme, nom:x.nomAffiche })) };
+        }""")
+        verifie("une partie du classement est anonymisée",
+                0 < cl["anonymes"] < cl["total"], str(cl["anonymes"]) + "/" + str(cl["total"]))
+        verifie("aucune entreprise anonymisée ne laisse voir son nom",
+                all(not x["anonyme"] or x["nom"].startswith("Entreprise ·") for x in cl["noms"]),
+                str(cl["noms"]))
+        verifie("l'entreprise se voit toujours elle-même, même sous la médiane",
+                cl["moi"]["anonyme"] is False and cl["moi"]["rang"] > cl["mediane"],
+                str(cl["moi"]["rang"]) + " / médiane " + str(cl["mediane"]))
+        # Toutes catégories confondues : c'est la vue où la cohorte est constituée.
+        p.select_option("#cat", ""); p.wait_for_timeout(400)
+        tab = norm(p.inner_text(".content"))
+        verifie("le tableau affiche le libellé anonymisé, pas le nom",
+                "Entreprise ·" in tab)
+        verifie("et il dit pourquoi", "moitié basse du classement" in tab)
+
+        rg = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          d.DB.reglerVisibilite('e5', 'nom');
+          const nomme = d.DB.classement({ pour:'e1' }).find(x => x.id === 'e5');
+          d.DB.reglerVisibilite('e5', 'anonyme');
+          const cache = d.DB.classement({ pour:'e1' }).find(x => x.id === 'e5');
+          d.DB.reglerVisibilite('e5', 'auto');
+          let refus = null;
+          try { d.DB.reglerVisibilite('e5', 'invisible'); } catch (e){ refus = e.message; }
+          return { nomme:nomme.anonyme, cache:cache.anonyme, rang:nomme.rang, refus };
+        }""")
+        verifie("choisir d'être nommée l'emporte, quel que soit le rang", rg["nomme"] is False)
+        verifie("choisir de ne jamais l'être l'emporte aussi, même en tête",
+                rg["cache"] is True, "rang " + str(rg["rang"]))
+        verifie("un réglage inconnu est refusé", rg["refus"] is not None)
+
+        connecte(p, "u2", "#/parametres")
+        pa = norm(p.inner_text(".content"))
+        verifie("le réglage est expliqué par ce qu'il évite",
+                "punit ceux qui participent" in pa)
+        verifie("et il ne se fait pas passer pour de l'anonymat",
+                "Ce n'est pas de l'anonymat" in pa
+                and "ne publie pas la liste de ses clients" in pa)
+
         print("\nÉcarts entre périodes et dictionnaire des données")
         connecte(p, "u2", "#/indicateurs")
         # On se place sur la campagne en cours, qui a une période précédente.

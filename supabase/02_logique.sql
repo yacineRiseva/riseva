@@ -140,9 +140,30 @@ $$;
 -- Le classement, en un seul agrégat. L'ancienne version rappelait plusieurs
 -- fonctions par entreprise, chacune rescannant les missions : coût quadratique
 -- garanti dès la centième entreprise.
+-- Nommée ou pas : la même règle qu'à l'écran, écrite une seule fois. La moitié
+-- haute se compte en arrondissant au supérieur — sur une cohorte impaire, celle
+-- du milieu est nommée.
+create or replace function private.nommable(p_visibilite text, p_rang bigint, p_cohorte bigint)
+returns boolean language sql immutable parallel safe set search_path = '' as $$
+  select case p_visibilite
+           when 'nom' then true
+           when 'anonyme' then false
+           else p_rang <= ceil(p_cohorte::numeric / 2)
+         end
+$$;
+
+-- Le classement public. Il ne rend le nom d'une entreprise que si elle accepte
+-- d'être nommée : dans la moitié haute de sa cohorte par défaut, toujours si elle
+-- l'a choisi, jamais si elle a demandé le contraire. Sa propre fiche et Riseva
+-- font exception, sinon personne ne saurait où il est.
+--
+-- L'identifiant est retiré en même temps que le nom. Le garder ne servirait qu'à
+-- une chose : le joindre à `entreprise`, dont le nom, la ville et le secteur sont
+-- lisibles publiquement. Une anonymisation qui laisse la clé primaire n'anonymise
+-- rien du tout.
 create or replace function public.classement_saison(p_saison uuid)
 returns table (
-  entreprise uuid, nom text, categorie text,
+  entreprise uuid, nom text, anonyme boolean, categorie text,
   brut bigint, retenu bigint, effectif_reference integer,
   par_salarie numeric, rang bigint, cohorte bigint)
 language sql stable security definer set search_path = '' as $$
@@ -161,7 +182,7 @@ language sql stable security definer set search_path = '' as $$
       from par_type p join brut b on b.entreprise = p.entreprise
      group by p.entreprise
   ), base as (
-    select ab.entreprise, e.nom, ab.effectif_reference,
+    select ab.entreprise, e.nom, e.secteur, e.visibilite, ab.effectif_reference,
            coalesce(b.brut, 0) as brut, coalesce(r.retenu, 0) as retenu,
            case
              when ab.effectif_reference < 50   then 'TPE'
@@ -173,13 +194,32 @@ language sql stable security definer set search_path = '' as $$
       left join brut   b on b.entreprise = ab.entreprise
       left join retenu r on r.entreprise = ab.entreprise
      where ab.saison = p_saison
+  ), classe as (
+    select b.*,
+           rank() over (partition by b.categorie
+                        order by b.retenu::numeric / b.effectif_reference desc) as rang,
+           count(*) over (partition by b.categorie) as cohorte,
+           -- Les ex æquo. Un groupe d'ex æquo à cheval sur la médiane n'est pas
+           -- nommé : départager par `row_number()` reviendrait à exposer l'un et
+           -- protéger l'autre sur un ordre arbitraire, à score identique.
+           count(*) over (partition by b.categorie,
+                          b.retenu::numeric / b.effectif_reference) as exaequo
+      from base b
   )
-  select b.entreprise, b.nom, b.categorie, b.brut, b.retenu, b.effectif_reference,
-         round(b.retenu::numeric / b.effectif_reference, 1) as par_salarie,
-         rank() over (partition by b.categorie
-                      order by b.retenu::numeric / b.effectif_reference desc) as rang,
-         count(*) over (partition by b.categorie) as cohorte
-    from base b
+  select
+    case when private.nommable(c.visibilite, c.rang + c.exaequo - 1, c.cohorte)
+              or c.entreprise = private.mon_entreprise() or private.est_admin()
+         then c.entreprise end,
+    case when private.nommable(c.visibilite, c.rang + c.exaequo - 1, c.cohorte)
+              or c.entreprise = private.mon_entreprise() or private.est_admin()
+         then c.nom
+         else 'Entreprise · ' || c.categorie || coalesce(' · ' || c.secteur, '') end,
+    not (private.nommable(c.visibilite, c.rang + c.exaequo - 1, c.cohorte)
+         or c.entreprise = private.mon_entreprise() or private.est_admin()),
+    c.categorie, c.brut, c.retenu, c.effectif_reference,
+    round(c.retenu::numeric / c.effectif_reference, 1),
+    c.rang, c.cohorte
+  from classe c
 $$;
 
 -- Un décile n'a aucun sens sur une poignée d'entreprises : sous dix, on ne le

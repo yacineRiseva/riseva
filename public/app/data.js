@@ -817,7 +817,13 @@ const seed = {
     { id:"e5", lat:43.6047, lon:1.4442, nom:"Atelier Berthier",    effectif:38,  sieges:50,  ca:3_400_000,  cout_jour_moyen:280,  secteur:"Artisanat",  ville:"Toulouse" },
     { id:"e6", lat:44.8378, lon:-0.5792, nom:"Sirius Assurances",   effectif:520, sieges:500, ca:140_000_000, cout_jour_moyen:400,  secteur:"Assurance",  ville:"Bordeaux" },
     { id:"e7", lat:48.1173, lon:-1.6778, nom:"Delmas & Fils",       effectif:87,  sieges:100, ca:12_000_000, cout_jour_moyen:300,  secteur:"BTP",        ville:"Rennes" },
-    { id:"e8", lat:48.3904, lon:-4.4861, nom:"Kervella Transport",  effectif:145, sieges:150, ca:18_000_000, cout_jour_moyen:270,  secteur:"Transport",  ville:"Brest" }
+    { id:"e8", lat:48.3904, lon:-4.4861, nom:"Kervella Transport",  effectif:145, sieges:150, ca:18_000_000, cout_jour_moyen:270,  secteur:"Transport",  ville:"Brest" },
+    /* Il faut dépasser dix entreprises pour que le classement ait un sens, et
+       la démonstration doit montrer le produit tel qu'il tourne, pas un écran
+       qui explique que la cohorte est trop petite pour être classée. */
+    { id:"e10", lat:45.7640, lon:4.8357, nom:"Verrerie du Rhône",  effectif:265, sieges:270, ca:39_000_000, cout_jour_moyen:295, secteur:"Industrie", ville:"Lyon" },
+    { id:"e11", lat:43.2965, lon:5.3698, nom:"Marseille Optique", effectif:64,  sieges:70,  ca:8_200_000,  cout_jour_moyen:285, secteur:"Santé",     ville:"Marseille" },
+    { id:"e12", lat:49.4432, lon:1.0999, nom:"Seine Emballage",   effectif:410, sieges:420, ca:61_000_000, cout_jour_moyen:305, secteur:"Industrie", ville:"Rouen" }
   ],
   contrats: [
     { entreprise:"e1", statut:"actif", signe_le:"2025-11-14", debut:"2026-01-01", fin:"2026-12-31",
@@ -1379,7 +1385,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
        - normalisé (par défaut) : points retenus rapportés au nombre de salariés,
          ce qui met une PME et un grand groupe sur le même plan ;
        - brut : le total, gardé comme lecture secondaire. */
-    classement({ mode = "normalise", categorie = null } = {}){
+    classement({ mode = "normalise", categorie = null, pour = null } = {}){
       let l = clone(s.entreprises).map(e => {
         const p = api.pointsDe(e.id);
         const sal = api.salaries(e.id).filter(u => !u.anonyme);
@@ -1405,7 +1411,37 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       });
       if (categorie) l = l.filter(e => e.categorie.id === categorie);
       const cle = mode === "brut" ? "points" : "parSalarie";
-      return l.sort((a, b) => b[cle] - a[cle]).map((e, i) => ({ ...e, rang: i + 1 }));
+      l = l.sort((a, b) => b[cle] - a[cle]).map((e, i) => ({ ...e, rang: i + 1 }));
+
+      /* La moitié basse n'est pas nommée.
+
+         Un classement d'entreprises sur l'engagement a un défaut connu : il
+         punit ceux qui participent. Une entreprise qui n'entre pas n'apparaît
+         nulle part ; une entreprise qui entre et finit dernière est nommée
+         dernière. Le calcul du dirigeant est vite fait, et il est rationnel :
+         il ne s'inscrit pas. Nommer seulement la moitié haute retire cette
+         raison de rester dehors sans retirer la raison de bien faire.
+
+         Ce que ça ne fait pas, et qui est écrit à l'écran : ce n'est pas de
+         l'anonymat. Une entreprise qui communique elle-même sur sa
+         participation se désigne. Riseva, elle, ne publie pas la liste de ses
+         clients — sans ça, « absent de la moitié haute » se lirait comme
+         « dans la moitié basse ». */
+      const mediane = Math.ceil(l.length / 2);
+      /* Les ex æquo comptent comme un bloc. Un groupe à cheval sur la médiane
+         n'est pas nommé : départager deux scores identiques par leur ordre dans
+         un tableau reviendrait à exposer l'un et protéger l'autre au hasard. */
+      const dernierRangDuGroupe = (e) =>
+        l.reduce((n, x) => (x[cle] === e[cle] ? Math.max(n, x.rang) : n), e.rang);
+      return l.map(e => {
+        const choix = e.visibilite || "auto";
+        const anonyme = e.id !== pour && (
+          choix === "anonyme" || (choix === "auto" && dernierRangDuGroupe(e) > mediane));
+        return { ...e, anonyme, mediane,
+          nomAffiche: anonyme
+            ? `Entreprise · ${e.categorie.label.toLowerCase()}${e.secteur ? " · " + e.secteur : ""}`
+            : e.nom };
+      });
     },
     rangDe(eid, options){
       return this.classement(options).findIndex(e => e.id === eid) + 1;
@@ -2865,6 +2901,23 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       return Math.max(0, Math.ceil((fin - new Date(2026, 7, 20)) / 864e5));
     },
 
+    /* Trois positions, et la valeur par défaut est celle qui protège. « auto »
+       nomme au-dessus de la médiane et pas en dessous ; « nom » accepte d'être
+       nommée quel que soit le rang ; « anonyme » refuse d'être nommée, même en
+       tête. Ce dernier cas n'est pas théorique : une entreprise peut vouloir
+       agir sans en faire une communication. */
+    VISIBILITES: {
+      auto:    { label:"Nommée si je suis dans la moitié haute", aide:"Le réglage par défaut. Un mauvais rang ne vous expose pas." },
+      nom:     { label:"Nommée quel que soit mon rang",          aide:"Vous assumez le classement dans les deux sens." },
+      anonyme: { label:"Jamais nommée",                          aide:"Votre rang reste visible pour vous seule." }
+    },
+    reglerVisibilite(eid, valeur){
+      const e = api.entreprise(eid); if (!e) return null;
+      if (!["auto", "nom", "anonyme"].includes(valeur))
+        throw new Error("Réglage de visibilité inconnu.");
+      e.visibilite = valeur; return e;
+    },
+
     majEntreprise(eid, champs){
       const e = api.entreprise(eid); if (!e) return null;
       Object.assign(e, champs); return e;
@@ -3647,7 +3700,7 @@ async function chargerPilote(){
    un mapping malin est un mapping qu'on n'ose plus relire. */
 const versEtat = {
   entreprise: (r) => ({
-    id: r.id, nom: r.nom, secteur: r.secteur, ville: r.ville,
+    id: r.id, nom: r.nom, secteur: r.secteur, ville: r.ville, visibilite: r.visibilite || "auto",
     effectif: r.effectif, sieges: r.effectif, ca: r.ca ? Number(r.ca) : null,
     cout_jour_moyen: r.cout_jour_moyen ? Number(r.cout_jour_moyen) : null,
     cout_heure_charge: r.cout_heure_charge ? Number(r.cout_heure_charge) : null,

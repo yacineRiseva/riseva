@@ -526,6 +526,76 @@ begin
 end $$;
 
 \echo ''
+\echo 'Classement : la moitié basse n''est pas nommée'
+reset role;
+do $$
+begin
+  perform pg_temp.dit('la même règle qu''à l''écran : moitié haute nommée',
+    private.nommable('auto', 1, 4) and private.nommable('auto', 2, 4)
+    and not private.nommable('auto', 3, 4));
+  perform pg_temp.dit('sur une cohorte impaire, celle du milieu est nommée',
+    private.nommable('auto', 3, 5) and not private.nommable('auto', 4, 5));
+  perform pg_temp.dit('le choix explicite l''emporte dans les deux sens',
+    private.nommable('nom', 9, 9) and not private.nommable('anonyme', 1, 9));
+end $$;
+
+-- Deux entreprises supplémentaires dans la même catégorie, sans aucun point :
+-- elles finissent derrière et ne doivent donc pas être nommées.
+do $$
+declare v_a uuid; v_b uuid;
+begin
+  insert into public.entreprise (nom, secteur, effectif) values ('Discrète SA', 'Chimie', 200)
+    returning id into v_a;
+  insert into public.entreprise (nom, secteur, effectif) values ('Fière SAS', 'Chimie', 200)
+    returning id into v_b;
+  insert into public.abonnement (entreprise, saison, montant_ht, sieges, effectif_reference)
+  values (v_a, '11111111-1111-4111-8111-111111111111', 6900, 200, 200),
+         (v_b, '11111111-1111-4111-8111-111111111111', 6900, 200, 200);
+  update public.entreprise set visibilite = 'nom' where id = v_b;
+end $$;
+
+set role anon;
+select set_config('request.jwt.claim.sub', '', false);
+do $$
+declare v_total integer; v_nommees integer; v_ids integer;
+begin
+  select count(*) into v_total
+    from public.classement_saison('11111111-1111-4111-8111-111111111111');
+  select count(*) into v_nommees
+    from public.classement_saison('11111111-1111-4111-8111-111111111111') where not anonyme;
+  perform pg_temp.dit('le classement public reste lisible par un visiteur', v_total >= 3);
+  perform pg_temp.dit('une partie seulement est nommée', v_nommees < v_total);
+  perform pg_temp.dit('une entreprise anonymisée ne rend pas son nom',
+    not exists (select 1 from public.classement_saison('11111111-1111-4111-8111-111111111111')
+                 where anonyme and nom = 'Discrète SA'));
+  -- Le point qui compte : garder l'identifiant reviendrait à le joindre à
+  -- `entreprise`, dont le nom est lisible publiquement.
+  select count(*) into v_ids
+    from public.classement_saison('11111111-1111-4111-8111-111111111111')
+   where anonyme and entreprise is not null;
+  perform pg_temp.dit('et elle ne rend pas non plus son identifiant', v_ids = 0);
+  perform pg_temp.dit('celle qui a choisi d''être nommée l''est malgré son rang',
+    exists (select 1 from public.classement_saison('11111111-1111-4111-8111-111111111111')
+             where nom = 'Fière SAS' and not anonyme));
+end $$;
+reset role;
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@lafarge-ciments.fr', false);
+do $$
+begin
+  perform pg_temp.dit('une entreprise se voit toujours elle-même, quel que soit son rang',
+    exists (select 1 from public.classement_saison('11111111-1111-4111-8111-111111111111')
+             where entreprise = '22222222-2222-4222-8222-222222222222' and not anonyme));
+end $$;
+reset role;
+
+delete from public.abonnement where entreprise in
+  (select id from public.entreprise where nom in ('Discrète SA','Fière SAS'));
+delete from public.entreprise where nom in ('Discrète SA','Fière SAS');
+
+\echo ''
 \echo 'Tarif fondateur'
 reset role;
 do $$

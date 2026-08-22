@@ -212,6 +212,28 @@ dans ce que l'entreprise a fait, pas dans son rang.
 Le score mesure un **engagement**, pas un impact environnemental. Riseva ne le présente jamais
 comme une mesure scientifique, ni dans l'interface, ni dans les rapports, ni en démarchage.
 
+### Qui est nommé, et qui ne l'est pas
+
+- **Seule la moitié haute de la cohorte est nommée.** Un classement qui expose les derniers
+  punit ceux qui participent : une entreprise qui n'entre pas n'apparaît nulle part, une
+  entreprise qui entre et finit dernière est nommée dernière. Le calcul du dirigeant est vite
+  fait, et il est rationnel. Nommer seulement la moitié haute retire la raison de rester dehors
+  sans retirer la raison de bien faire.
+- **Une entreprise se voit toujours elle-même**, à son rang réel, quel que soit ce rang.
+- **Trois réglages**, le défaut protégeant : `auto` (nommée dans la moitié haute), `nom`
+  (nommée quel que soit le rang), `anonyme` (jamais nommée, même en tête).
+- **Un groupe d'ex æquo à cheval sur la médiane n'est pas nommé.** Départager deux scores
+  identiques par leur ordre dans un tableau reviendrait à exposer l'un et protéger l'autre au
+  hasard.
+- **L'identifiant est retiré en même temps que le nom**, côté base comme à l'écran. Le garder ne
+  servirait qu'à le joindre à la table `entreprise`, dont le nom, la ville et le secteur sont
+  lisibles publiquement : une anonymisation qui laisse la clé primaire n'anonymise rien.
+- **L'export CSV suit la même règle** que l'écran, et retire l'effectif exact d'une entreprise
+  anonymisée — il la désignerait à lui seul.
+- **Ce n'est pas de l'anonymat, et il ne faut pas le vendre comme tel.** Une entreprise qui
+  communique elle-même sur sa participation se désigne. Riseva, elle, ne publie pas la liste de
+  ses clients : sans cela, « absent de la moitié haute » se lirait comme « dans la moitié basse ».
+
 ## 5 ter. Le goulot de validation
 
 Si les associations ne valident pas, les salariés n'ont pas leurs points, les entreprises voient

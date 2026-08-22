@@ -362,6 +362,7 @@ grant execute on function private.iban_ok(text) to riseva_definer;
 grant execute on function private.reference_virement() to riseva_definer;
 grant execute on function private.seuil_ecart() to riseva_definer;
 grant execute on function private.campagne_precedente(uuid) to riseva_definer;
+grant execute on function private.nommable(text, bigint, bigint) to riseva_definer;
 grant execute on function private.n(jsonb, text) to riseva_definer;
 grant execute on function private.taux_calcules(jsonb) to riseva_definer;
 grant execute on function private.ecarts_periode(uuid, uuid, jsonb) to riseva_definer;

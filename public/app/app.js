@@ -1293,7 +1293,7 @@ function vueClassement(u){
   </div>`);
 
   const dessine = () => {
-    const cl = DB.classement({ mode, categorie: categorie || null });
+    const cl = DB.classement({ mode, categorie: categorie || null, pour: u.org });
     /* Un décile n'a de sens qu'au-dessus d'une certaine cohorte. Afficher « top 10 % »
        quand deux entreprises sont classées est indéfendable. */
     const COHORTE_MIN = 10;
@@ -1356,10 +1356,12 @@ function vueClassement(u){
       const moiOrg = e.id === u.org;
       tb.appendChild(h(`<tr style="${moiOrg ? "background:var(--forest-050)" : ""}">
         <td>${e.rang}</td>
-        <td><strong>${esc(e.nom)}</strong>${moiOrg ? ` <span class="muted">(vous)</span>` : ""}${
+        <td><strong${e.anonyme ? ` class="muted"` : ""}>${esc(e.nomAffiche)}</strong>${moiOrg ? ` <span class="muted">(vous)</span>` : ""}${
           decile && e.rang <= seuil ? ` <span class="badge badge--brand" style="height:20px;margin-left:6px">top 10 %</span>` : ""}
-          <br><span class="muted" style="font-size:var(--t-xs)">${esc(e.categorie.label)} · ${e.engages}/${e.effectif} de l'effectif${
-            e.ecrete ? ` · ${nb(e.ecrete)} points écrêtés` : ""}</span></td>
+          <br><span class="muted" style="font-size:var(--t-xs)">${e.anonyme
+            ? `non nommée : moitié basse du classement`
+            : `${esc(e.categorie.label)} · ${e.engages}/${e.effectif} de l'effectif${
+                e.ecrete ? ` · ${nb(e.ecrete)} points écrêtés` : ""}`}</span></td>
         <td style="width:30%"><div class="bar"><i style="width:${(e[cle] / max) * 100}%"></i></div></td>
         <td class="tnum" style="text-align:right"><strong>${mode === "brut" ? nb(e.points) : pct(e.parSalarie)}</strong>
           <br><span class="muted" style="font-size:var(--t-xs)">${mode === "brut" ? "points" : "pts / salarié"}</span></td>
@@ -1417,11 +1419,15 @@ function vueClassement(u){
   el.querySelector("#cat").value = categorie || "";
   el.querySelector("#cat").onchange = (e) => { categorie = e.target.value; dessine(); };
   el.querySelector("#csvCl").onclick = () => {
-    const cl = DB.classement({ mode, categorie: categorie || null });
+    const cl = DB.classement({ mode, categorie: categorie || null, pour: u.org });
+    /* L'export ne contourne pas l'anonymat de l'écran : ce serait la première
+       chose que ferait quelqu'un qui veut la liste. Et l'effectif exact d'une
+       entreprise anonymisée la désignerait à lui seul. */
     versCSV("riseva-classement.csv",
       ["Rang", "Entreprise", "Catégorie", "Effectif", "Points retenus", "Points bruts",
        "Points par salarié", "Participation dans l'effectif %", "Activation des inscrits %"],
-      cl.map(e => [e.rang, e.nom, e.categorie.label, e.effectif, e.points, e.brut,
+      cl.map(e => [e.rang, e.nomAffiche, e.categorie.label,
+                   e.anonyme ? "" : e.effectif, e.points, e.brut,
                    e.parSalarie, e.participation, e.activation]));
     toast("Export téléchargé.");
   };
@@ -2422,6 +2428,24 @@ function vueParametres(u){
         </div>
       </div>
       <button class="btn btn--primary" style="margin-top:var(--s6)" id="save">Enregistrer</button>
+
+      <hr class="sep">
+      <h3 style="font-size:var(--t-lg)">Votre nom dans le classement</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+        Par défaut, seule la moitié haute du classement est nommée. Un classement qui expose
+        les derniers punit ceux qui participent, et donne une raison rationnelle de ne pas
+        s'inscrire. Votre rang, lui, vous est toujours visible.</p>
+      <div class="stack" style="--gap:var(--s3);margin-top:var(--s5)">
+        ${Object.entries(DB.VISIBILITES).map(([k, v]) => `
+          <label class="checkline"><input type="radio" name="vis" value="${k}"
+            ${(e.visibilite || "auto") === k ? "checked" : ""}>
+            <span><strong>${esc(v.label)}</strong><br>
+              <span class="muted" style="font-size:var(--t-xs)">${esc(v.aide)}</span></span></label>`).join("")}
+      </div>
+      <p class="hint" style="margin-top:var(--s4)">Ce n'est pas de l'anonymat, et il ne faut pas
+        le vendre comme tel : si vous communiquez vous-même sur votre participation, vous vous
+        désignez. Riseva, de son côté, ne publie pas la liste de ses clients — sans quoi
+        « absent de la moitié haute » se lirait comme « dans la moitié basse ».</p>
     </section>
 
     <div class="stack" style="--gap:var(--s5)">
@@ -2517,6 +2541,8 @@ function vueParametres(u){
       effectif: Number(v("eff")) || e.effectif
     });
     DB.majContrat(u.org, { plateforme_reception: v("pdp").trim(), annuaire_id: v("annu").trim() });
+    const vis = el.querySelector('input[name="vis"]:checked');
+    if (vis) DB.reglerVisibilite(u.org, vis.value);
     toast("Paramètres enregistrés."); rendre();
   };
   const libelles = { inscription:"Inscription", creation_lien:"Création du lien",

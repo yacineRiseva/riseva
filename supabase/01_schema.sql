@@ -156,6 +156,11 @@ create table entreprise (
   lat       double precision check (lat between -90 and 90),
   lon       double precision check (lon between -180 and 180),
   groupe    uuid references groupe(id) on delete set null,
+  -- Comment l'entreprise apparaît dans le classement inter-entreprises.
+  -- « auto » — le défaut — la nomme dans la moitié haute et pas en dessous : un
+  -- classement qui expose les derniers punit ceux qui participent et donne une
+  -- raison rationnelle de ne pas s'inscrire.
+  visibilite text not null default 'auto' check (visibilite in ('auto','nom','anonyme')),
   cree_le   timestamptz not null default now()
 );
 create index entreprise_groupe on entreprise (groupe) where groupe is not null;
