@@ -374,8 +374,16 @@ HERO_ENT = f"""<header class="hero" id="hero">
       <p>
         Riseva est une <b>saison d'engagement</b> d'un an. Des associations vérifiées
         publient des besoins concrets près de vos sites ; vos salariés se proposent ;
-        l'association confirme. À la fin, vous avez un rapport dont chaque ligne
-        remonte à une personne, une date et une structure.
+        l'association confirme. Vos équipes avancent vers le même objectif, et un
+        classement les situe — <b>sans nommer la moitié basse</b>, parce qu'un classement
+        qui expose les derniers punit ceux qui participent.
+      </p>
+      <p style="margin-top:1.1em">
+        Autour de cet axe, la <b>gestion RSE</b> qui va avec : indicateurs sociaux et
+        sécurité collectés site par site, registre des accidents qui alimente les taux
+        tout seul, plan d'actions, accès en lecture pour le CSE, et des rapports
+        trimestriels et annuel qui arrivent sans que vous les demandiez. Le tout dans
+        l'abonnement, sans module en supplément.
       </p>
       <div class="hero-cta">
         <a class="btn btn-lg" href="/inscription.html"><span class="dot"></span>Réserver une place</a>
@@ -577,6 +585,12 @@ GROUPE_ENT = f"""<section id="groupe" class="band-moss">
    "pas dernier. Le score est rapporté à l'effectif, sinon le siège de quatre cents personnes "
    "écrase l'agence de douze. C'est un challenge d'engagement associatif, jamais une mesure de "
    "performance d'un site, et sans incidence sur l'évaluation de qui que ce soit."),
+  ("La remontée", "Un site déclare, le siège <span class='n'>lit</span>.",
+   "Quand un site déclare un accident dans son registre, les quatre indicateurs de sécurité de "
+   "la période se recalculent — pour lui, pour sa société, pour le groupe. Personne ne relance, "
+   "personne ne recopie, et il n'existe qu'<b>un seul chiffre</b>. Un site qui ne tient pas encore "
+   "le registre n'est pas compté à zéro : il est nommé comme n'ayant rien déclaré, ce qui n'est "
+   "pas la même chose."),
 ])}
     <p class="s-note rv" style="margin-top:clamp(28px,3.4vw,44px)">
       <strong>L'offre groupe est sur devis</strong>, parce qu'elle dépend du nombre de sociétés,
@@ -593,7 +607,8 @@ SERVICES_ENT = f"""<section id="services">
         "Ce qui coûte cher à une entreprise multi-sites, ce n'est jamais le calcul : c'est de "
         "relancer quatorze sites par courriel pour obtenir un tableur mal rempli. Riseva sait "
         "déjà demander une réponse courte, rappeler, et clore honnêtement quand personne ne "
-        "répond. <strong>C'est le même mécanisme que pour les missions.</strong>")}
+        "répond. <strong>C'est le même mécanisme que pour les missions.</strong> Ces services "
+        "sont compris dans l'abonnement : ils ne se facturent pas en module.")}
 {retombees([
   ("Données sociales et <span class='it'>sécurité.</span>",
    "Douze valeurs saisies par établissement — effectif, entrées, sorties, heures travaillées, "
@@ -612,11 +627,28 @@ SERVICES_ENT = f"""<section id="services">
    "réception de l'association.",
    "Méthode",
    "La valorisation dépend de la catégorie comptable du bien et relève de votre responsabilité. Riseva rappelle la méthode applicable, n'en choisit aucune à votre place, et n'invente aucune valeur."),
+  ("Le registre des <span class='it'>événements de sécurité.</span>",
+   "Chaque site déclare ses accidents un par un, au moment où ils arrivent : nature, gravité, "
+   "type, zone, journées perdues. Les quatre indicateurs de sécurité de la période s'en "
+   "<b>déduisent</b> — pour le site comme pour le siège. Fini le tableau de fin d'année, et fini "
+   "les deux chiffres qui divergent. Un Pareto dit par où commencer, un plan d'actions dit qui "
+   "fait quoi et pour quand.",
+   "Zéro donnée de santé",
+   "Ni nom de victime, ni siège de la lésion, ni diagnostic : ce sont des données de l'article 9 du RGPD, et rien de ce qu'un préventeur utilise pour agir n'en fait partie."),
+  ("Un accès en lecture pour le <span class='it'>CSE.</span>",
+   "Les indicateurs approuvés, les rapports, la participation en agrégat, et le dictionnaire qui "
+   "dit comment chaque chiffre est calculé. Vous n'avez plus à recopier ces chiffres pour la "
+   "réunion, les élus n'ont plus à les demander.",
+   "Rien de nominatif",
+   "Aucun nom de salarié, aucune mission individuelle, aucun don personnel, et aucun agrégat sous cinq personnes. Un accès qui permettrait de savoir qui a fait quoi transformerait un droit d'information en outil de contrôle."),
   ("Un rapport consolidé qui dit ce qu'il ne <span class='it'>sait pas.</span>",
-   "Missions par site, mécénat société par société, indicateurs sociaux, qui a déclaré quoi et "
-   "qui l'a approuvé. Le périmètre est écrit en haut : combien de sites ont répondu, et lesquels "
-   "n'ont rien dit. Une empreinte permet de rapprocher deux éditions successives.",
-   None, None),
+   "Missions par site, mécénat société par société, indicateurs sociaux, événements de sécurité, "
+   "qui a déclaré quoi et qui l'a approuvé. Le périmètre est écrit en haut : combien de sites ont "
+   "répondu, et lesquels n'ont rien dit. Chaque campagne produit son <b>dictionnaire des "
+   "données</b> — définitions, inclusions, exclusions, formules, agrégation — daté et versionné, "
+   "parce qu'un chiffre sans la règle qui l'a produit est indéfendable six mois plus tard.",
+   "Il part tout seul",
+   "Trimestriel et annuel, envoyés dès la clôture de la période, une fois et une seule. Vous n'avez rien à demander."),
 ])}
 
     <div class="roles" style="margin-top:clamp(34px,4.4vw,56px)">
@@ -1318,10 +1350,11 @@ CORPS_ASSO = "\n\n".join([
 
 def main():
     a = page(fichier="index.html", canonique="/",
-             titre="Riseva — une saison d'engagement pour vos équipes",
+             titre="Riseva — la plateforme RSE qui commence par les associations",
              description="Des associations vérifiées publient des besoins concrets près de vos "
-                         "sites, vos salariés y répondent, et vous repartez avec un rapport dont "
-                         "chaque ligne remonte à une personne et à une date.",
+                         "sites, vos équipes y répondent autour d'un même objectif, et la gestion "
+                         "RSE suit : indicateurs sociaux, registre de sécurité multi-sites, accès "
+                         "CSE, rapports trimestriels et annuel envoyés tout seuls.",
              corps=CORPS_ENT, nav_html=NAV_ENT, pied_html=PIED_ENT)
     b = page(fichier="associations.html", canonique="/associations.html",
              titre="Riseva — pour les associations",

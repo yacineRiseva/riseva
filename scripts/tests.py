@@ -121,6 +121,12 @@ def main():
         verifie("l'acompte est justifié par ce qu'il paie",
                 "premier envoi d'affiches" in prixT)
 
+        verifie("l'accueil positionne la plateforme RSE sans lâcher l'axe associatif",
+                "gestion RSE" in t and "associations vérifiées" in t)
+        verifie("il annonce que la moitié basse du classement n'est pas nommée",
+                "sans nommer la moitié basse" in t)
+        verifie("les services RSE sont annoncés comme compris",
+                "sans module en supplément" in t)
         verifie("le dossier est annoncé avant la signature",
                 "règlement de la saison" in t and "conditions de vente" in t)
         verifie("le barème annoncé est celui du code",
