@@ -599,3 +599,26 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
   }, { threshold: 0.6 });
   els.forEach(function(el){ obs.observe(el); });
 })();
+
+/* ══════════════════════════════════════════════════════════════
+   LA BOUCLE VIDEO, COUPEE POUR QUI L'A DEMANDE
+
+   L'attribut `autoplay` du HTML ne connait pas la preference du
+   systeme. Un visiteur qui a demande moins d'animation — parce que
+   le mouvement lui donne le vertige, ou simplement parce qu'il en a
+   assez — recevrait quand meme une boucle de dix secondes. On la
+   met donc en pause et on laisse l'affiche : la premiere image du
+   film est deja servie, la page ne perd rien.
+   ══════════════════════════════════════════════════════════════ */
+(function(){
+  if(!matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  [].slice.call(document.querySelectorAll('.video video')).forEach(function(v){
+    v.autoplay = false;
+    v.removeAttribute('autoplay');
+    try { v.pause(); } catch(e){}
+    /* Et on retire les sources : sans elles, l'affiche reste affichee et
+       aucun octet de video n'est telecharge pour rien. */
+    [].slice.call(v.querySelectorAll('source')).forEach(function(s){ s.remove(); });
+    try { v.load(); } catch(e){}
+  });
+})();

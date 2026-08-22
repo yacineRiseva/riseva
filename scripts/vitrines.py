@@ -471,6 +471,34 @@ def photo(nom, alt, legende, classe="", eager=False):
       </figure>"""
 
 
+def video(nom, alt, legende, credit, classe=""):
+    """Une boucle vidéo muette, avec sa première image en attendant.
+
+    Trois conditions, et elles ne sont pas négociables. MUETTE et sans contrôle
+    de son : une page qui parle sans qu'on le lui demande se fait fermer.
+    L'AFFICHE est la première image du film, servie tout de suite : sans elle,
+    le bloc est un rectangle vide pendant le chargement, et c'est le premier
+    écran. Et POUR QUI A DEMANDÉ MOINS D'ANIMATION, la vidéo ne se lance pas du
+    tout — l'affiche reste, la page ne perd rien.
+
+    Le fichier pèse moins qu'une des photographies de cette page : dix secondes
+    en 1 440 de large, sans piste audio, deux formats pour n'obliger aucun
+    navigateur à un décodeur qu'il n'a pas."""
+    poster = PUBLIC / "video" / f"{nom}.jpg"
+    w, h = dimensions(poster)
+    return f"""<figure class="photo video{classe}">
+        <video width="{w}" height="{h}" poster="/video/{nom}.jpg"
+               autoplay muted loop playsinline preload="metadata"
+               aria-label="{alt}">
+          <source src="/video/{nom}.webm" type="video/webm">
+          <source src="/video/{nom}.mp4" type="video/mp4">
+        </video>
+        <figcaption class="mono">{legende}
+          <span class="photo-src">{credit} &mdash; ce n'est pas une mission Riseva</span>
+        </figcaption>
+      </figure>"""
+
+
 def chiffres(items):
     """Les quelques nombres qui portent l'argument, en grand.
 
@@ -658,6 +686,11 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
                "C'est la vraie question, et nous n'avons pas de réseau éprouvé à vous vendre : "
                "il n'existe pas encore. Ce que nous garantissons est écrit dans les engagements "
                "de service, y compris l'acompte remboursé si le démarrage n'est pas constaté.")}
+
+    {video("riviere",
+           "Une rivière à l'aube, brume dérivant lentement sur l'eau, arbres sur la berge",
+           "Une berge à l'aube — le genre de terrain sur lequel les associations publient",
+           "Images libres de droit, Tom Fisk / Pexels", " photo--bande")}
 
     <div class="photos3">
       {photo("refuge", "Un chien recueilli, allongé dans un box de refuge",
@@ -1169,9 +1202,10 @@ HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
       </dl>
     </div>
 
-    {photo("riviere-aube",
-           "Une petite rivière française à l'aube, brume sur l'eau, saules sur la berge",
-           "Ce que vos bénévoles voient en arrivant", " photo--bande", eager=True)}
+    {video("riviere",
+           "Une rivière à l'aube, brume dérivant lentement sur l'eau, arbres sur la berge",
+           "Ce que vos bénévoles voient en arrivant",
+           "Images libres de droit, Tom Fisk / Pexels", " photo--bande")}
 
     {chiffres([
       ("0 €", "à payer, aujourd'hui et après. Les associations ne paient jamais rien sur "

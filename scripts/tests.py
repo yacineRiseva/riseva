@@ -185,9 +185,23 @@ def main():
                 len([x for x in vues if "/photos/" in (x or "")]) >= 3, str(vues))
         legendesP = p.evaluate(
             """()=>[...document.querySelectorAll('.photo')].map(f=>f.textContent)""")
-        verifie("chaque illustration dit qu'elle est générée et qu'elle ne prouve rien",
-                legendesP and all("Image générée" in x and "pas une mission Riseva" in x
+        verifie("chaque illustration dit ce qu'elle est et qu'elle ne prouve rien",
+                legendesP and all(("Image générée" in x or "libres de droit" in x)
+                                  and "pas une mission Riseva" in x
                                   for x in legendesP), str(legendesP)[:200])
+        # La boucle vidéo : muette, sans contrôle de son, avec son affiche servie
+        # tout de suite. Une page qui parle sans qu'on le lui demande se fait
+        # fermer, et un rectangle vide pendant le chargement est un premier écran
+        # perdu.
+        vid = p.evaluate("""()=>[...document.querySelectorAll('.video video')].map(v=>({
+            muted:v.muted, boucle:v.loop, ctrl:v.controls,
+            poster:!!v.getAttribute('poster'),
+            srcs:[...v.querySelectorAll('source')].map(s=>s.type)}))""")
+        verifie("la boucle vidéo est muette, sans contrôles, et porte son affiche",
+                vid and all(v["muted"] and v["boucle"] and not v["ctrl"] and v["poster"]
+                            for v in vid), str(vid))
+        verifie("elle est servie dans deux formats, sans dépendre d'un décodeur unique",
+                vid and all(len(v["srcs"]) >= 2 for v in vid), str(vid))
         # Aucun visage identifiable, aucune association nommée sur une image :
         # une illustration qui nomme quelqu'un devient une affirmation le
         # concernant.

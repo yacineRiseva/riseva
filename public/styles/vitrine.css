@@ -2449,3 +2449,15 @@ section{
 @media (prefers-reduced-motion:reduce){
   .photo--bande img{animation:none;transform:none;}
 }
+
+/* ── la boucle video ────────────────────────────────────────────────────── */
+/* Muette, sans controle, en boucle. Elle se cadre exactement comme une bande
+   photo pour que le rythme de la page ne change pas selon qu'on regarde l'une
+   ou l'autre. Et pour qui a demande moins d'animation, elle ne se lance pas :
+   l'affiche — la premiere image du film — reste, et la page ne perd rien. */
+.video video{
+  display:block;width:100%;height:auto;
+  max-height:420px;object-fit:cover;object-position:center 55%;
+  background:var(--paper-3);
+}
+@media (max-width:760px){ .video video{max-height:260px;} }
