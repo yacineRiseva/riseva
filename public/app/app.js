@@ -5767,6 +5767,29 @@ function vueSecurite(u){
           n'ont rien déclaré ici, et leurs chiffres continuent d'être saisis à la main dans la
           campagne. La différence est tout ce qui compte.</p>
       </div>` : ""}
+
+      <div class="encadreMini" style="margin-top:var(--s5)">
+        <p><strong>Ce registre ne remplace aucune de vos obligations légales.</strong></p>
+        <p>C'est un outil de pilotage : il compte, il classe, il déduit vos taux et il consolide
+        vos sites. Il ne vaut ni déclaration, ni registre réglementaire. Trois choses continuent
+        de vous incomber entièrement, et une seule d'entre elles oubliée coûte plus cher que tout
+        ce que Riseva vous fait gagner :</p>
+        <ul style="margin:var(--s3) 0 0;padding-left:20px;font-size:var(--t-sm)">
+          <li>La <strong>déclaration à la caisse primaire dans les 48 heures</strong> ouvrées de
+          tout accident du travail (article R. 441-3 du code de la sécurité sociale). Riseva ne
+          la fait pas et ne peut pas la faire : elle ne connaît ni le nom de la victime, ni la
+          lésion, ni votre numéro de risque.</li>
+          <li>Le <strong>registre des accidents du travail bénins</strong> de l'article L. 441-4,
+          si vous en tenez un. Son contenu est fixé par décret et comprend l'identité de la
+          victime, la nature des lésions et les témoins — précisément ce que nous refusons de
+          collecter. C'est un autre document, tenu ailleurs.</li>
+          <li>Le <strong>document unique d'évaluation des risques</strong> (article R. 4121-1) et
+          sa mise à jour. Le plan d'actions ci-dessous l'alimente utilement, il ne le constitue
+          pas : Riseva n'évalue pas les risques à la place de l'employeur.</li>
+        </ul>
+        <p style="margin-top:var(--s3)">Nous préférons vous le dire ici, en haut de l'écran, plutôt
+        que de vous laisser le découvrir au moment d'un contrôle.</p>
+      </div>
     </section>
 
     <div class="two">
@@ -6102,6 +6125,14 @@ function vueCSE(u){
           <p class="muted" style="margin-top:6px;font-size:var(--t-sm);color:#C5CDBB">
             Ce que Riseva détient déjà sur la situation sociale et la sécurité, sous forme
             agrégée. L'employeur n'a rien à recopier, vous n'avez rien à demander.</p>
+          <p class="muted" style="margin-top:var(--s3);font-size:var(--t-xs);color:#A8B29B">
+            <strong style="color:#DCE4CE">Cet accès s'ajoute à vos droits, il ne les remplace
+            pas.</strong> Vos prérogatives d'information et de consultation, la base de données
+            économiques, sociales et environnementales, et vos droits en matière de santé et de
+            sécurité vous sont dus par votre employeur au titre du code du travail. Aucun contrat
+            entre Riseva et votre entreprise ne peut les restreindre, et ce que vous voyez ici
+            n'en épuise ni le contenu ni le calendrier. Si un chiffre manque ou paraît faux,
+            c'est à l'employeur qu'il faut le demander : Riseva n'est que l'outil.</p>
         </div>
         <span class="badge badge--ok">${nb(d.points)} points retenus</span>
       </div>

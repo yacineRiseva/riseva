@@ -475,6 +475,7 @@ grant execute on function private.n(jsonb, text) to riseva_definer;
 grant execute on function private.taux_calcules(jsonb) to riseva_definer;
 grant execute on function private.ecarts_periode(uuid, uuid, jsonb) to riseva_definer;
 grant execute on function private.jeton_mission(uuid) to riseva_definer;
+grant execute on function private.trace_de_personne(text, uuid) to riseva_definer;
 grant usage on schema extensions to riseva_definer;
 grant select, insert, update, delete on all tables in schema public to riseva_definer;
 grant select, insert, update, delete on all tables in schema private to riseva_definer;

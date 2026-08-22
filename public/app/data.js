@@ -3736,6 +3736,36 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
     },
     evenement: (evid) => s.evenements.find(e => e.id === evid) || null,
 
+    /* Trois motifs universels — adresse, téléphone, numéro de sécurité sociale —
+       et une liste que Riseva est seule à connaître : les noms des salariés de
+       cette société. « Meunier » est un métier avant d'être un patronyme, on ne
+       compare donc qu'à cette liste, et seulement au-delà de quatre lettres pour
+       ne pas rejeter « Le Mans » à cause d'un salarié qui s'appelle Le. */
+    traceDePersonne(texte, etid){
+      /* Deux lectures du même texte, et il faut les deux : les motifs à ponctuation
+         se cherchent sur le texte tel quel (normaliserNom mange le « @ » et les
+         points, et une adresse cesse d'en être une), les noms se cherchent sur le
+         texte réduit aux lettres. */
+      const brut = String(texte || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                                      .toLowerCase();
+      const t = normaliserNom(texte).toLowerCase();
+      if (!t) return null;
+      if (/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/.test(brut)) return "une adresse électronique";
+      if (/(^|[^0-9])0[1-9]([ .-]?[0-9]{2}){4}([^0-9]|$)/.test(brut))
+        return "un numéro de téléphone";
+      if (/(^|[^0-9])[12][0-9]{2}(0[1-9]|1[0-2])[0-9]{5,8}([^0-9]|$)/.test(brut))
+        return "un numéro de sécurité sociale";
+      const et = api.etablissement(etid) || {};
+      const mots = new Set();
+      s.utilisateurs
+        .filter(u => u.org && u.org === et.societe && !u.anonyme)
+        .forEach(u => normaliserNom(u.nom).toLowerCase().split(/\s+/)
+          .forEach(m => { if (m.length >= 4) mots.add(m); }));
+      for (const m of mots)
+        if (new RegExp(`(^|[^a-z0-9])${m}([^a-z0-9]|$)`).test(t))
+          return "le nom d'une personne de votre société";
+      return null;
+    },
     declarerEvenement(etid, champs, uid){
       const et = api.etablissement(etid);
       if (!et) throw new Error("Site inconnu");
@@ -3753,9 +3783,18 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       if (champs.gravite !== "avec_arret" && jours > 0)
         throw new Error("Des journées d'arrêt sur un accident sans arrêt : l'un des deux est faux.");
       const circ = String(champs.circonstances || "").trim().slice(0, MAX_CIRCONSTANCES);
+      const zone = String(champs.zone || "").trim().slice(0, 80);
+      /* Le seul endroit du registre où quelqu'un peut écrire ce que le schéma
+         refuse de stocker. On refuse la ligne plutôt que de la nettoyer en
+         silence : nettoyer apprendrait que le champ accepte tout, puisqu'il ne
+         dit rien. Même règle qu'en base (private.trace_de_personne). */
+      const trace = api.traceDePersonne(circ, etid) || api.traceDePersonne(zone, etid);
+      if (trace)
+        throw new Error("Ce registre ne reçoit ni identité ni donnée de santé, et votre texte "
+          + `contient ${trace}. Décrivez la situation, pas la personne.`);
       const ev = { id: id("ev"), etablissement: etid, date: d,
                    nature: champs.nature, gravite: champs.gravite, type: champs.type,
-                   zone: String(champs.zone || "").trim().slice(0, 80) || null,
+                   zone: zone || null,
                    jours_arret: jours, circonstances: circ || null,
                    declare_par: uid || null,
                    declare_le: new Date(2026, 7, 20).toISOString().slice(0, 10),

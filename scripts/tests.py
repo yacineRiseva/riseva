@@ -1071,6 +1071,11 @@ def main():
                 and "ni siège de la lésion" in sc)
         verifie("les presqu'accidents sont suivis à part des taux",
                 "presqu'accidents" in sc)
+        verifie("le registre dit qu'il ne remplace aucune obligation légale",
+                "ne remplace aucune de vos obligations légales" in sc)
+        verifie("il nomme les trois obligations qui restent à l'employeur",
+                "R. 441-3" in sc and "L. 441-4" in sc and "R. 4121-1" in sc,
+                "déclaration 48 h à la caisse, registre des accidents bénins, document unique")
         verifie("un site sans registre n'est pas un site sans accident",
                 "n'ont pas « zéro accident »" in sc or "n'a pas « zéro accident »" in sc)
         verifie("le Pareto dit par où commencer",
@@ -1093,9 +1098,21 @@ def main():
           try { d.DB.annulerEvenement('ev1', ''); } catch (e){ sansMotif = e.message; }
           try { d.DB.ajouterAction({ etablissement:'et2', quoi:'X', responsable:'',
             echeance:'2026-09-01' }); } catch (e){ sansResp = e.message; }
+          const nomme = (txt) => { try {
+            d.DB.declarerEvenement('et2', { date:'2026-08-01', nature:'travail',
+              gravite:'sans_soin', type:'chute_plain_pied', circonstances:txt }, 'u2');
+            return null;
+          } catch (e){ return e.message; } };
+          const traces = {
+            mail: nomme('prevenu par jean.martin@exemple.fr'),
+            tel: nomme('appeler le 06 12 34 56 78'),
+            nir: nomme('assure 1850675123456'),
+            nom: nomme('chute de Ferhat dans l escalier'),
+            propre: nomme('chute de plain-pied sur sol humide, quai de chargement')
+          };
           return { total:sy.total, derive, sansRegistre,
                    sansRegistreNoms:sy.sites_sans_registre,
-                   pareto:sy.pareto[0], futur, incoherent, sansMotif, sansResp };
+                   pareto:sy.pareto[0], futur, incoherent, sansMotif, sansResp, traces };
         }""")
         verifie("les indicateurs du site sont déduits du registre, sans double saisie",
                 sec["derive"] is not None and sec["derive"]["at_avec_arret"] >= 0, str(sec["derive"]))
@@ -1106,6 +1123,19 @@ def main():
         verifie("trajet et travail ne se mélangent pas dans la consolidation",
                 sec["total"]["at_trajet"] >= 1 and sec["total"]["jours_arret"] > 0, str(sec["total"]))
         verifie("une déclaration à une date future est refusée", sec["futur"] is not None)
+        tr = sec["traces"]
+        verifie("une adresse électronique n'entre pas au registre",
+                tr["mail"] is not None and "adresse électronique" in tr["mail"], str(tr["mail"]))
+        verifie("un numéro de téléphone non plus",
+                tr["tel"] is not None and "téléphone" in tr["tel"], str(tr["tel"]))
+        verifie("un numéro de sécurité sociale non plus",
+                tr["nir"] is not None and "sécurité sociale" in tr["nir"], str(tr["nir"]))
+        verifie("le nom d'un salarié de la société non plus",
+                tr["nom"] is not None and "nom d'une personne" in tr["nom"], str(tr["nom"]))
+        verifie("mais une description de la situation passe",
+                tr["propre"] is None, str(tr["propre"]))
+        verifie("le refus dit quoi faire, pas seulement non",
+                tr["nom"] is not None and "Décrivez la situation, pas la personne" in tr["nom"])
         verifie("un accident avec arrêt sans jour d'arrêt est refusé",
                 sec["incoherent"] is not None)
         verifie("on n'annule pas une déclaration sans motif", sec["sansMotif"] is not None)
@@ -1136,6 +1166,9 @@ def main():
                 "lecture seule" in cs.lower())
         verifie("il montre les indicateurs approuvés, pas les brouillons",
                 "Uniquement les valeurs approuvées" in cs)
+        verifie("l'accès n'est pas présenté comme se substituant aux droits du CSE",
+                "s'ajoute à vos droits, il ne les remplace pas" in cs
+                and "Aucun contrat entre Riseva et votre entreprise ne peut les restreindre" in cs)
         verifie("la participation est masquée sous le seuil de restitution",
                 "moins de 5 personnes" in cs)
         verifie("il dit ce qu'il ne montre pas",

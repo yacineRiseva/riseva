@@ -1568,6 +1568,54 @@ language sql stable set search_path = '' as $$
                 and private.mon_etablissement() = p_etablissement)))
 $$;
 
+-- Le champ « circonstances » est le seul endroit du registre où quelqu'un peut
+-- écrire ce que le schéma refuse de stocker : un prénom, un nom, un numéro. La
+-- limite de trois cents caractères décourage le récit, elle ne l'empêche pas.
+-- Ce garde-fou-là refuse la ligne au lieu de la nettoyer en silence : nettoyer
+-- apprendrait à l'utilisateur que le champ accepte tout, puisqu'il ne dit rien.
+--
+-- Deux familles, et elles n'ont pas la même nature. Les motifs universels —
+-- adresse électronique, numéro à dix chiffres, numéro de sécurité sociale — se
+-- reconnaissent seuls. Les noms, eux, ne se reconnaissent pas dans l'absolu :
+-- « Meunier » est un métier avant d'être un patronyme. Mais Riseva connaît les
+-- salariés de cette société, et c'est très exactement la liste de ceux dont
+-- l'apparition dans un registre d'accidents transformerait une donnée de gestion
+-- en donnée de santé. On ne compare donc qu'à cette liste, et seulement pour des
+-- noms d'au moins quatre lettres, pour ne pas rejeter un site « Le Mans » à
+-- cause d'un salarié qui s'appelle Le.
+create or replace function private.trace_de_personne(p_texte text, p_etablissement uuid)
+returns text
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_t text := public.sans_accents(lower(coalesce(p_texte, '')));
+  v_nom text;
+begin
+  if v_t = '' then return null; end if;
+  if v_t ~ '[[:alnum:]._%+-]+@[[:alnum:].-]+\.[a-z]{2,}' then
+    return 'une adresse électronique';
+  end if;
+  if v_t ~ '(^|[^0-9])0[1-9]([ .-]?[0-9]{2}){4}([^0-9]|$)' then
+    return 'un numéro de téléphone';
+  end if;
+  if v_t ~ '(^|[^0-9])[12][0-9]{2}(0[1-9]|1[0-2])[0-9]{5,8}([^0-9]|$)' then
+    return 'un numéro de sécurité sociale';
+  end if;
+  for v_nom in
+    select distinct mot from (
+      select unnest(string_to_array(public.sans_accents(lower(p.nom)), ' ')) as mot
+        from public.profil p
+        join private.appartenance ap on ap.profil = p.id
+        join public.etablissement et on et.societe = ap.entreprise
+       where et.id = p_etablissement and not ap.pseudonymise
+    ) m where length(mot) >= 4
+  loop
+    if v_t ~ ('(^|[^[:alnum:]])' || v_nom || '([^[:alnum:]]|$)') then
+      return 'le nom d''une personne de votre société';
+    end if;
+  end loop;
+  return null;
+end $$;
+
 create or replace function public.declarer_evenement(
   p_etablissement uuid, p_date date, p_nature text, p_gravite text,
   p_type text, p_zone text default null, p_jours integer default 0,
@@ -1581,6 +1629,15 @@ begin
   if p_date is null or p_date > current_date then
     raise exception 'Un événement ne se déclare pas à une date future' using errcode = '22023';
   end if;
+  declare v_trace text;
+  begin
+    v_trace := coalesce(private.trace_de_personne(p_circonstances, p_etablissement),
+                        private.trace_de_personne(p_zone, p_etablissement));
+    if v_trace is not null then
+      raise exception 'Ce registre ne reçoit ni identité ni donnée de santé, et votre texte contient %. Décrivez la situation, pas la personne.', v_trace
+        using errcode = '22023';
+    end if;
+  end;
   insert into public.evenement_securite
     (etablissement, date, nature, gravite, type_evenement, zone, jours_arret,
      circonstances, declare_par)

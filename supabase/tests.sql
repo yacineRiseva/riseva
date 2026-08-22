@@ -1265,6 +1265,45 @@ begin
 end $$;
 
 \echo ''
+\echo 'Le registre refuse ce qu'' il ne doit pas stocker'
+do $$
+declare v_site uuid; v_nom text;
+begin
+  reset role;
+  select et.id into v_site from public.etablissement et
+   where et.registre_actif limit 1;
+  if v_site is null then
+    select et.id into v_site from public.etablissement et limit 1;
+    update public.etablissement set registre_actif = true where id = v_site;
+  end if;
+  -- Le nom d'un salarié de la société, tel qu'il est réellement en base.
+  select split_part(p.nom, ' ', 2) into v_nom
+    from public.profil p
+    join private.appartenance ap on ap.profil = p.id
+    join public.etablissement et on et.societe = ap.entreprise
+   where et.id = v_site and length(split_part(p.nom, ' ', 2)) >= 4
+   limit 1;
+
+  perform pg_temp.dit('une adresse electronique est refusee dans les circonstances',
+    private.trace_de_personne('prevenu par jean.martin@exemple.fr', v_site) is not null);
+  perform pg_temp.dit('un numero de telephone est refuse',
+    private.trace_de_personne('appeler le 06 12 34 56 78', v_site) is not null);
+  perform pg_temp.dit('un numero de securite sociale est refuse',
+    private.trace_de_personne('assure 1850675123456', v_site) is not null);
+  if v_nom is not null then
+    perform pg_temp.dit('le nom d''un salarie de la societe est refuse',
+      private.trace_de_personne('chute de ' || v_nom || ' dans l''escalier', v_site) is not null);
+    perform pg_temp.dit('et l''accent ne suffit pas a le faire passer',
+      private.trace_de_personne('chute de ' || upper(v_nom) || ', escalier', v_site) is not null);
+  end if;
+  perform pg_temp.dit('une description sans personne passe',
+    private.trace_de_personne('chute de plain-pied sur sol humide, quai de chargement', v_site)
+      is null);
+  perform pg_temp.dit('un mot qui contient un nom sans etre ce nom passe',
+    private.trace_de_personne('sol glissant devant la zone de conditionnement', v_site) is null);
+end $$;
+
+\echo ''
 \echo 'Le lien de reponse envoye aux associations'
 do $$
 declare
