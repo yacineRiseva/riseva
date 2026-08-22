@@ -116,8 +116,8 @@ const MENUS = {
 /* ------------------------------------------------------------------ */
 function vueConnexion(){
   const comptes = [
-    ["u2", "Espace entreprise",  "Claire Fontaine — Lafarge Ciments, administratrice"],
-    ["u4", "Espace salarié",     "Sonia Delaunay — Lafarge Ciments"],
+    ["u2", "Espace entreprise",  "Claire Fontaine — Vaudrey Ciments, administratrice"],
+    ["u4", "Espace salarié",     "Sonia Delaunay — Vaudrey Ciments"],
     ["u7", "Espace association", "Élise Tournier — Refuge des Quatre Vents"],
     ["u12","Accès CSE",          "Farid Amrani — élu, lecture seule"],
     ["u1", "Espace Riseva",      "Administration de la plateforme"]

@@ -178,7 +178,7 @@ Un compte salarié occupe une place. La plateforme refuse toute création de com
 
 ### Inscription par lien
 L'entreprise ne saisit aucune liste. À la création de son compte, elle reçoit **un lien unique**
-contenant un code (`LAFARGE-7QK2`). Elle le diffuse comme elle veut : intranet, mail interne,
+contenant un code (`VAUDREY-7QK2`). Elle le diffuse comme elle veut : intranet, mail interne,
 affiche. Chaque salarié crée son compte lui-même en trente secondes.
 
 - Un seul lien actif à la fois par entreprise.

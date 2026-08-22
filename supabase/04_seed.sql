@@ -16,11 +16,11 @@ insert into bareme (saison, type, points, unite) values
 
 insert into entreprise (id, nom, secteur, ville, effectif, ca, cout_jour_moyen,
                         siret, adresse, lat, lon)
-values ('22222222-2222-4222-8222-222222222222', 'Lafarge Ciments', 'Industrie', 'Lyon',
-        210, 48000000, 340, '39312091000020', '12 rue des Docks, 69009 Lyon', 45.7333, 4.8137);
+values ('22222222-2222-4222-8222-222222222222', 'Vaudrey Ciments', 'Industrie', 'Lyon',
+        210, 48000000, 340, '90800005200005', '12 rue des Docks, 69009 Lyon', 45.7333, 4.8137);
 
 insert into private.domaine_entreprise (entreprise, domaine)
-values ('22222222-2222-4222-8222-222222222222', 'lafarge-ciments.fr');
+values ('22222222-2222-4222-8222-222222222222', 'vaudrey-ciments.fr');
 
 -- 210 salariés, trois sites : tranche « 200 à 499 », 6 900 € HT, trois sites
 -- compris, moins 10 % au tarif fondateur = 6 210 €. Acompte de 40 % = 2 484 €.

@@ -393,19 +393,19 @@ def main():
         verifie("l'historique est anonymisé aussi", "Salarié retiré" in p.inner_text("tbody"))
 
         print("\nLien d'inscription")
-        p.goto(f"{BASE}/rejoindre.html?code=LAFARGE-7QK2", wait_until="networkidle")
+        p.goto(f"{BASE}/rejoindre.html?code=VAUDREY-7QK2", wait_until="networkidle")
         p.wait_for_timeout(300)
-        verifie("le nom de l'entreprise s'affiche", "Lafarge" in p.inner_text("h1"))
-        p.fill("#nom", "Test Automatique"); p.fill("#mail", "test.auto@lafarge-ciments.fr")
+        verifie("le nom de l'entreprise s'affiche", "Vaudrey" in p.inner_text("h1"))
+        p.fill("#nom", "Test Automatique"); p.fill("#mail", "test.auto@vaudrey-ciments.fr")
         p.click("button[type=submit]"); p.wait_for_timeout(400)
         verifie("le compte est créé", "Bienvenue" in p.inner_text("h1"))
         p.goto(f"{BASE}/rejoindre.html?code=INEXISTANT-0000", wait_until="networkidle")
         p.wait_for_timeout(300)
         verifie("un code inconnu est refusé", "n'existe pas" in p.inner_text("body"))
         # domaine de messagerie : le lien ne doit pas laisser entrer n'importe qui
-        p.goto(f"{BASE}/rejoindre.html?code=LAFARGE-7QK2", wait_until="networkidle")
+        p.goto(f"{BASE}/rejoindre.html?code=VAUDREY-7QK2", wait_until="networkidle")
         p.wait_for_timeout(300)
-        verifie("le domaine autorisé est annoncé", "lafarge-ciments.fr" in p.inner_text("body"))
+        verifie("le domaine autorisé est annoncé", "vaudrey-ciments.fr" in p.inner_text("body"))
         # La base légale est l'intérêt légitime : pas de case « j'accepte » qu'on ne
         # peut pas décocher sans perdre l'accès, mais une information avant l'entrée.
         corps = p.inner_text("body")
@@ -1038,7 +1038,7 @@ def main():
         connecte(p, "u2", "#/groupe")
         g = norm(p.inner_text(".content"))
         verifie("la vue de groupe agrège les sociétés et les sites",
-                "Lafarge Ciments" in g and "Lafarge Négoce" in g and "Marseille" in g)
+                "Vaudrey Ciments" in g and "Vaudrey Négoce" in g and "Marseille" in g)
         verifie("le consolidé est un rapport de sommes, et le dit",
                 "somme des points ÷ somme des effectifs" in g)
         verifie("la réduction d'impôt n'est pas un chiffre de groupe",
@@ -1079,7 +1079,7 @@ def main():
         # rattachement n'est pas confirmé, les points iraient au mauvais endroit.
         bloque = p.evaluate("""async()=>{const m=await import('/app/data.js');
             const i=m.DB.creerInvitation('e1', 5, 'et2');
-            const r=m.DB.rejoindre(i.code, 'Test Rattachement', 'test.rattach@lafarge-ciments.fr');
+            const r=m.DB.rejoindre(i.code, 'Test Rattachement', 'test.rattach@vaudrey-ciments.fr');
             let err='';
             try{ m.DB.engager({annonce:'an1', entreprise:'e1', salarie:r.utilisateur.id, quantite:1}) }
             catch(e){ err=e.message }
@@ -1148,7 +1148,7 @@ def main():
         # Le parcours entier : la société nomme, la personne accepte, elle ne pilote
         # que son site, et elle ne peut pas accepter avec une autre adresse.
         code = p.evaluate("""async()=>{const m=await import('/app/data.js');
-            const i=m.DB.creerInvitationReferent('et1','Inès Rocher','ines@lafarge-ciments.fr');
+            const i=m.DB.creerInvitationReferent('et1','Inès Rocher','ines@vaudrey-ciments.fr');
             await new Promise(r=>setTimeout(r,250));   // l'écriture locale est débouncée
             return i.code}""")
         p.goto(f"{BASE}/rejoindre.html?code={code}&role=referent", wait_until="networkidle")
@@ -1157,12 +1157,12 @@ def main():
         verifie("le lien de référent annonce le site qu'il confie",
                 "Piloter" in r and "Paris" in r)
         verifie("il dit à qui il a été émis et ce qu'il n'ouvre pas",
-                "ines@lafarge-ciments.fr" in r and "les autres sites" in r)
-        p.fill("#rmail", "quelquun.dautre@lafarge-ciments.fr")
+                "ines@vaudrey-ciments.fr" in r and "les autres sites" in r)
+        p.fill("#rmail", "quelquun.dautre@vaudrey-ciments.fr")
         p.click("#fr [type=submit]"); p.wait_for_timeout(300)
         verifie("il refuse une autre adresse que celle visée",
                 "autre adresse" in norm(p.inner_text(".toast")))
-        p.fill("#rmail", "ines@lafarge-ciments.fr")
+        p.fill("#rmail", "ines@vaudrey-ciments.fr")
         p.click("#fr [type=submit]"); p.wait_for_timeout(400)
         verifie("l'acceptation crée le compte du référent",
                 "Compte créé" in norm(p.inner_text(".login__box")))
@@ -1216,7 +1216,7 @@ def main():
         verifie("le client n'a rien à demander",
                 "Vous n'avez rien à demander" in rp and "une fois et une seule" in rp)
         verifie("chaque rapport généré porte sa date d'envoi et son destinataire",
-                "Envoyé le" in rp and "@lafarge-ciments.fr" in rp)
+                "Envoyé le" in rp and "@vaudrey-ciments.fr" in rp)
         env = p.evaluate("""async () => {
           const d = await import('/app/data.js');
           const avant = d.DB.envois({ entreprise:'e1', type:'rapport' }).length;
@@ -1452,7 +1452,7 @@ def main():
         cse2 = p.evaluate("""async () => {
           const d = await import('/app/data.js');
           const avant = d.DB.sieges('e1').restants;
-          const inv = d.DB.creerInvitationCSE('e1', 'Nadia Élue', 'nadia.elue@lafarge-ciments.fr');
+          const inv = d.DB.creerInvitationCSE('e1', 'Nadia Élue', 'nadia.elue@vaudrey-ciments.fr');
           const u = d.DB.accepterInvitationCSE(inv.code);
           const dossier = d.DB.dossierCSE('e1');
           let refus = null;

@@ -33,15 +33,15 @@ select set_config('riseva.intention', '', false);
 
 -- ---------------------------------------------------------------- comptes
 insert into auth.users (id, email) values
-  ('aaaaaaaa-0000-4000-8000-000000000001', 'claire@lafarge-ciments.fr'),
-  ('aaaaaaaa-0000-4000-8000-000000000002', 'malik@lafarge-ciments.fr'),
+  ('aaaaaaaa-0000-4000-8000-000000000001', 'claire@vaudrey-ciments.fr'),
+  ('aaaaaaaa-0000-4000-8000-000000000002', 'malik@vaudrey-ciments.fr'),
   ('aaaaaaaa-0000-4000-8000-000000000003', 'elise@quatrevents.org'),
   ('aaaaaaaa-0000-4000-8000-000000000004', 'pirate@ailleurs.fr'),
-  ('aaaaaaaa-0000-4000-8000-000000000005', 'karim@lafarge-ciments.fr'),
-  ('aaaaaaaa-0000-4000-8000-000000000006', 'lea@lafarge-ciments.fr'),
-  ('aaaaaaaa-0000-4000-8000-000000000007', 'theo@lafarge-negoce.fr'),
+  ('aaaaaaaa-0000-4000-8000-000000000005', 'karim@vaudrey-ciments.fr'),
+  ('aaaaaaaa-0000-4000-8000-000000000006', 'lea@vaudrey-ciments.fr'),
+  ('aaaaaaaa-0000-4000-8000-000000000007', 'theo@vaudrey-negoce.fr'),
   ('aaaaaaaa-0000-4000-8000-000000000008', 'controle@riseva.fr'),
-  ('aaaaaaaa-0000-4000-8000-000000000009', 'cse@lafarge-ciments.fr');
+  ('aaaaaaaa-0000-4000-8000-000000000009', 'cse@vaudrey-ciments.fr');
 
 insert into profil (id, nom) values
   ('aaaaaaaa-0000-4000-8000-000000000001', 'Claire Fontaine'),
@@ -57,14 +57,14 @@ insert into profil (id, nom) values
 -- Un groupe de deux sociétés : c'est le seul montage qui prouve ce que le modèle
 -- doit tenir. Même actionnaire, deux SIREN, deux responsables de traitement.
 insert into groupe (id, nom, societe_mere) values
-  ('99999999-9999-4999-8999-999999999999', 'Groupe Lafarge',
+  ('99999999-9999-4999-8999-999999999999', 'Groupe Vaudrey',
    '22222222-2222-4222-8222-222222222222');
 
 update entreprise set groupe = '99999999-9999-4999-8999-999999999999'
  where id = '22222222-2222-4222-8222-222222222222';
 
 insert into entreprise (id, nom, secteur, ville, effectif, ca, siren, groupe) values
-  ('88888888-8888-4888-8888-888888888888', 'Lafarge Négoce', 'Négoce', 'Nantes',
+  ('88888888-8888-4888-8888-888888888888', 'Vaudrey Négoce', 'Négoce', 'Nantes',
    45, 6200000, '842100448', '99999999-9999-4999-8999-999999999999');
 
 insert into etablissement (id, societe, nom, ville, effectif, quota) values
@@ -186,7 +186,7 @@ reset role;
 \echo 'Ce que peut faire un salarié'
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
-select set_config('request.jwt.claim.email', 'malik@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'malik@vaudrey-ciments.fr', false);
 
 select pg_temp.refuse('il ne peut pas se nommer administrateur Riseva',
   'update private.appartenance set role = ''admin'' where profil = auth.uid()');
@@ -290,7 +290,7 @@ update public.association set eligible_mecenat = false, recus_actif = false
  where id = (select association from public.annonce where impact_unite = 'arbre' limit 1);
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
-select set_config('request.jwt.claim.email', 'malik@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'malik@vaudrey-ciments.fr', false);
 do $$
 declare v_mid uuid;
 begin
@@ -440,7 +440,7 @@ end $$;
 -- traitement distincts, et le lien capitalistique n'y change rien.
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
-select set_config('request.jwt.claim.email', 'claire@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
 
 select pg_temp.dit('la mère voit les établissements des deux sociétés du groupe',
   (select count(*) from public.etablissement) = 4);
@@ -465,7 +465,7 @@ reset role;
 \echo 'Ce que voit un référent de site'
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000005', false);
-select set_config('request.jwt.claim.email', 'karim@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'karim@vaudrey-ciments.fr', false);
 
 select pg_temp.dit('il voit les établissements de sa société',
   (select count(*) from public.etablissement
@@ -478,7 +478,7 @@ select pg_temp.refuse('il ne s''alloue pas de quota',
   'select public.allouer_quota(''e7000000-0000-4000-8000-000000000002'', 200)');
 select pg_temp.refuse('il ne nomme pas un autre référent',
   'select public.creer_invitation_referent(''e7000000-0000-4000-8000-000000000003'',
-                                           ''Quelqu''''un'', ''x@lafarge-ciments.fr'')');
+                                           ''Quelqu''''un'', ''x@vaudrey-ciments.fr'')');
 select pg_temp.refuse('il ne saisit pas les indicateurs d''un autre site',
   'select public.saisir_indicateurs(''c1000000-0000-4000-8000-000000000001'',
      ''e7000000-0000-4000-8000-000000000003'', ''{\"effectif_fin\": 40}''::jsonb)');
@@ -553,7 +553,7 @@ end $$;
 \echo 'Ce que voit une autre société du même groupe'
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000007', false);
-select set_config('request.jwt.claim.email', 'theo@lafarge-negoce.fr', false);
+select set_config('request.jwt.claim.email', 'theo@vaudrey-negoce.fr', false);
 
 select pg_temp.dit('la filiale ne voit que son propre établissement',
   (select count(*) from public.etablissement) = 1);
@@ -572,7 +572,7 @@ reset role;
 \echo 'L''approbation appartient à la société'
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
-select set_config('request.jwt.claim.email', 'claire@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
 do $$
 declare v_id uuid;
 begin
@@ -647,7 +647,7 @@ select pg_temp.refuse('Riseva ne confirme pas la réception à la place du clien
   'select public.confirmer_reception(current_setting(''riseva.exp'')::uuid)');
 
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
-select set_config('request.jwt.claim.email', 'claire@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
 do $$
 begin
   perform public.confirmer_reception(current_setting('riseva.exp')::uuid);
@@ -664,7 +664,7 @@ reset role;
 
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
-select set_config('request.jwt.claim.email', 'malik@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'malik@vaudrey-ciments.fr', false);
 do $$
 begin
   perform pg_temp.dit('un salarié ne lit pas les envois de son entreprise',
@@ -676,7 +676,7 @@ reset role;
 \echo 'Registre de sécurité et plan d''actions'
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000005', false);
-select set_config('request.jwt.claim.email', 'karim@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'karim@vaudrey-ciments.fr', false);
 
 do $$
 declare v_ev uuid; v_ac uuid; r record;
@@ -739,7 +739,7 @@ reset role;
 -- Un salarié ne déclare pas un accident dans Riseva : ce n'est pas le canal.
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
-select set_config('request.jwt.claim.email', 'malik@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'malik@vaudrey-ciments.fr', false);
 select pg_temp.refuse('un salarié ne déclare pas d''événement',
   'select public.declarer_evenement(''e7000000-0000-4000-8000-000000000002'',
      current_date, ''travail'', ''sans_soin'', ''machine'', null, 0, null)');
@@ -761,7 +761,7 @@ reset role;
 \echo 'Le CSE lit des agrégats, et rien d''autre'
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000009', false);
-select set_config('request.jwt.claim.email', 'cse@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'cse@vaudrey-ciments.fr', false);
 
 do $$
 begin
@@ -866,7 +866,7 @@ reset role;
 
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
-select set_config('request.jwt.claim.email', 'claire@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
 do $$
 begin
   perform pg_temp.dit('une entreprise se voit toujours elle-même, quel que soit son rang',
@@ -953,7 +953,7 @@ select pg_temp.refuse('un reçu actif sans mandat est impossible',
 -- Un salarié annonce un virement personnel.
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
-select set_config('request.jwt.claim.email', 'malik@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'malik@vaudrey-ciments.fr', false);
 
 do $$
 declare v_an uuid; v_i public.intention_don; v_pts_avant bigint; v_pts_apres bigint;
@@ -1020,7 +1020,7 @@ select pg_temp.refuse('un don confirmé ne se confirme pas deux fois',
 
 -- L'employeur ne doit rien apprendre d'un don personnel.
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
-select set_config('request.jwt.claim.email', 'claire@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
 do $$
 begin
   perform pg_temp.dit('l''employeur ne lit aucune intention de don personnel de ses salariés',
@@ -1200,7 +1200,7 @@ end $$;
 
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000007', false);
-select set_config('request.jwt.claim.email', 'theo@lafarge-negoce.fr', false);
+select set_config('request.jwt.claim.email', 'theo@vaudrey-negoce.fr', false);
 do $$
 begin
   -- Deux sociétés du même groupe : la consolidation reste ouverte, mais dans un
@@ -1243,7 +1243,7 @@ reset role;
 --    un reçu au nom d'une association et à consommer sa numérotation.
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
-select set_config('request.jwt.claim.email', 'malik@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'malik@vaudrey-ciments.fr', false);
 select pg_temp.refuse('un salarié n''émet pas de reçu fiscal au nom d''une association',
   'select public.emettre_recu((select id from public.don limit 1))');
 -- 6. `securite_du_registre` ne vérifiait pas le périmètre du site demandé.
@@ -1284,7 +1284,7 @@ reset role;
 
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
-select set_config('request.jwt.claim.email', 'claire@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
 do $$
 begin
   perform pg_temp.dit('une entreprise ne lit pas les réglages de reçus d''une association',
@@ -1489,7 +1489,7 @@ end $$;
 -- ligne posee a la main dans la table.
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
-select set_config('request.jwt.claim.email', 'malik@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'malik@vaudrey-ciments.fr', false);
 do $$
 declare v_mid uuid;
 begin
@@ -1506,7 +1506,7 @@ reset role;
 
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
-select set_config('request.jwt.claim.email', 'claire@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
 do $$
 declare v_mid uuid;
 begin
@@ -1546,7 +1546,7 @@ reset role;
 -- Elle n'est pas ouverte a tout le monde : c'est une ecriture comptable.
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
-select set_config('request.jwt.claim.email', 'malik@lafarge-ciments.fr', false);
+select set_config('request.jwt.claim.email', 'malik@vaudrey-ciments.fr', false);
 do $$
 declare v_mid uuid;
 begin

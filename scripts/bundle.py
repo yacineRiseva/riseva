@@ -64,7 +64,7 @@ rej = (R/"rejoindre.html").read_text(encoding="utf-8")
 rej = rej.replace('import { DB, BAREME } from "/app/data.js";', "")
 rej = rej.replace('import { h, esc, nb, toast } from "/app/ui.js";', "")
 rej = rej.replace('const code = new URLSearchParams(location.search).get("code") || "";',
-                  'const code = new URLSearchParams(location.search).get("code") || "LAFARGE-7QK2";')
+                  'const code = new URLSearchParams(location.search).get("code") || "VAUDREY-7QK2";')
 rej = rej.replace('<script type="module">',
                   '<script type="module">\n' + "\n".join(
                       strip_modules((R/"app"/f).read_text(encoding="utf-8"))

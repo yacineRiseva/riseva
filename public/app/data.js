@@ -1048,7 +1048,7 @@ const seed = {
        fabrique un dernier, et un dernier qui n'a pas encore de référent nommé est
        puni avant d'avoir commencé. Le groupe l'active s'il le veut, en connaissance
        de cause. Par défaut, chaque site porte un statut, pas une place. */
-    { id:"g1", nom:"Groupe Lafarge", societe_mere:"e1",
+    { id:"g1", nom:"Groupe Vaudrey", societe_mere:"e1",
       classement_sites:false, cree_le:"2025-11-14" }
   ],
 
@@ -1057,14 +1057,14 @@ const seed = {
      facture, ni plafond de mécénat — ceux-là restent à la société. */
   etablissements: [
     { id:"et1", societe:"e1", nom:"Siège",           ville:"Paris",     lat:48.8566, lon:2.3522,
-      siret:"39312091000020", effectif:60,  quota:60,
-      referent:"Claire Fontaine", referent_mail:"claire@lafarge-ciments.fr" },
+      siret:"90800005200005", effectif:60,  quota:60,
+      referent:"Claire Fontaine", referent_mail:"claire@vaudrey-ciments.fr" },
     { id:"et2", societe:"e1", nom:"Usine",           ville:"Lyon",      lat:45.7333, lon:4.8137,
-      siret:"39312091000046", effectif:110, quota:110, registre_actif:true,
-      referent:"Karim Belhadj", referent_mail:"karim@lafarge-ciments.fr" },
+      siret:"90800005200013", effectif:110, quota:110, registre_actif:true,
+      referent:"Karim Belhadj", referent_mail:"karim@vaudrey-ciments.fr" },
     { id:"et3", societe:"e1", nom:"Agence",          ville:"Marseille", lat:43.2965, lon:5.3698,
-      siret:"39312091000053", effectif:40,  quota:40,
-      referent:"Léa Mercier", referent_mail:"lea@lafarge-ciments.fr" },
+      siret:"90800005200021", effectif:40,  quota:40,
+      referent:"Léa Mercier", referent_mail:"lea@vaudrey-ciments.fr" },
     { id:"et4", societe:"e9", nom:"Plateforme",      ville:"Nantes",    lat:47.2184, lon:-1.5536,
       siret:"84210044800013", effectif:45,  quota:45,
       referent:null, referent_mail:null }
@@ -1119,18 +1119,18 @@ const seed = {
   ],
 
   entreprises: [
-    { id:"e1", lat:45.7333, lon:4.8137, nom:"Lafarge Ciments",     effectif:210, sieges:210, ca:48_000_000, cout_jour_moyen:340,
-      groupe:"g1", siren:"393120910",
-      referent:"Claire Fontaine", referent_mail:"claire@lafarge-ciments.fr", siret:"39312091000020",
-      domaines:["lafarge-ciments.fr"],
+    { id:"e1", lat:45.7333, lon:4.8137, nom:"Vaudrey Ciments",     effectif:210, sieges:210, ca:48_000_000, cout_jour_moyen:340,
+      groupe:"g1", siren:"908000052",
+      referent:"Claire Fontaine", referent_mail:"claire@vaudrey-ciments.fr", siret:"90800005200005",
+      domaines:["vaudrey-ciments.fr"],
       adresse:"12 rue des Docks, 69009 Lyon", secteur:"Industrie",  ville:"Lyon" },
     /* Deuxième société du même groupe : elle prouve ce que le modèle doit tenir.
        Son plafond de mécénat est le sien, sa facture est la sienne, et personne chez
        elle n'est visible depuis l'autre société — même actionnaire, autre responsable
        de traitement. */
-    { id:"e9", lat:47.2184, lon:-1.5536, nom:"Lafarge Négoce",      effectif:45,  sieges:45,  ca:6_200_000,  cout_jour_moyen:295,
+    { id:"e9", lat:47.2184, lon:-1.5536, nom:"Vaudrey Négoce",      effectif:45,  sieges:45,  ca:6_200_000,  cout_jour_moyen:295,
       groupe:"g1", siren:"842100448", siret:"84210044800013",
-      domaines:["lafarge-negoce.fr"],
+      domaines:["vaudrey-negoce.fr"],
       adresse:"4 quai de la Fosse, 44000 Nantes", secteur:"Négoce", ville:"Nantes" },
     { id:"e2", lat:50.6292, lon:3.0573, nom:"Groupe Vidal",        effectif:340, sieges:350, ca:62_000_000, cout_jour_moyen:290, secteur:"Logistique", ville:"Lille" },
     { id:"e3", lat:48.8566, lon:2.3522, nom:"Cabinet Marchand",    effectif:64,  sieges:75,  ca:9_800_000,  cout_jour_moyen:520,  secteur:"Conseil",    ville:"Paris" },
@@ -1449,28 +1449,28 @@ const seed = {
     /* Claire est salariée de la société mère et pilote le groupe : deux périmètres,
        un seul compte. `groupe` ouvre la consolidation, `org` reste sa société — elle
        ne devient pas administratrice des autres sociétés pour autant. */
-    { id:"u2", nom:"Claire Fontaine", email:"claire@lafarge-ciments.fr",role:"entreprise_admin", org:"e1", etablissement:"et1", groupe:"g1", actif:true, cree_le:J(-300) },
-    { id:"u3", nom:"Malik Ferhat",    email:"malik@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et2", actif:true, cree_le:J(-280) },
-    { id:"u4", nom:"Sonia Delaunay",  email:"sonia@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et3", actif:true, visible_pairs:true, cree_le:J(-275) },
-    { id:"u5", nom:"Hugo Vasseur",    email:"hugo@lafarge-ciments.fr",  role:"salarie",          org:"e1", etablissement:"et1", actif:true, visible_pairs:true, cree_le:J(-190) },
-    { id:"u6", nom:"Nadia Berrada",   email:"nadia@lafarge-ciments.fr", role:"salarie",          org:"e1", etablissement:"et3", actif:false, cree_le:J(-150) },
+    { id:"u2", nom:"Claire Fontaine", email:"claire@vaudrey-ciments.fr",role:"entreprise_admin", org:"e1", etablissement:"et1", groupe:"g1", actif:true, cree_le:J(-300) },
+    { id:"u3", nom:"Malik Ferhat",    email:"malik@vaudrey-ciments.fr", role:"salarie",          org:"e1", etablissement:"et2", actif:true, cree_le:J(-280) },
+    { id:"u4", nom:"Sonia Delaunay",  email:"sonia@vaudrey-ciments.fr", role:"salarie",          org:"e1", etablissement:"et3", actif:true, visible_pairs:true, cree_le:J(-275) },
+    { id:"u5", nom:"Hugo Vasseur",    email:"hugo@vaudrey-ciments.fr",  role:"salarie",          org:"e1", etablissement:"et1", actif:true, visible_pairs:true, cree_le:J(-190) },
+    { id:"u6", nom:"Nadia Berrada",   email:"nadia@vaudrey-ciments.fr", role:"salarie",          org:"e1", etablissement:"et3", actif:false, cree_le:J(-150) },
     /* Les référents de site : ils invitent leurs propres salariés, dans la limite du
        quota que le groupe leur a alloué, et ne voient rien des autres sites. */
-    { id:"u10", nom:"Karim Belhadj",  email:"karim@lafarge-ciments.fr", role:"site_referent",    org:"e1", etablissement:"et2", actif:true, cree_le:J(-100) },
-    { id:"u11", nom:"Léa Mercier",    email:"lea@lafarge-ciments.fr",   role:"site_referent",    org:"e1", etablissement:"et3", actif:true, cree_le:J(-80) },
+    { id:"u10", nom:"Karim Belhadj",  email:"karim@vaudrey-ciments.fr", role:"site_referent",    org:"e1", etablissement:"et2", actif:true, cree_le:J(-100) },
+    { id:"u11", nom:"Léa Mercier",    email:"lea@vaudrey-ciments.fr",   role:"site_referent",    org:"e1", etablissement:"et3", actif:true, cree_le:J(-80) },
     { id:"u7", nom:"Élise Tournier",  email:"elise@quatrevents.org",    role:"association",      org:"a1", cree_le:J(-260) },
     { id:"u9", nom:"Paul Girard",     email:"paul@groupe-vidal.fr",     role:"salarie",          org:"e2", actif:true, cree_le:J(-120) },
-    { id:"u12", nom:"Farid Amrani",   email:"cse@lafarge-ciments.fr",   role:"cse",              org:"e1", actif:true, cree_le:J(-60) }
+    { id:"u12", nom:"Farid Amrani",   email:"cse@vaudrey-ciments.fr",   role:"cse",              org:"e1", actif:true, cree_le:J(-60) }
   ],
   signalements: [],
   acces: [
-    { id:"ac1", entreprise:"e1", utilisateur:"u3", quoi:"inscription", code:"LAFARGE-7QK2", date:J(-28) },
-    { id:"ac2", entreprise:"e1", utilisateur:"u4", quoi:"inscription", code:"LAFARGE-7QK2", date:J(-27) },
-    { id:"ac3", entreprise:"e1", utilisateur:"u5", quoi:"inscription", code:"LAFARGE-7QK2", date:J(-25) },
-    { id:"ac4", entreprise:"e1", utilisateur:"u2", quoi:"creation_lien", code:"LAFARGE-7QK2", date:J(-30) }
+    { id:"ac1", entreprise:"e1", utilisateur:"u3", quoi:"inscription", code:"VAUDREY-7QK2", date:J(-28) },
+    { id:"ac2", entreprise:"e1", utilisateur:"u4", quoi:"inscription", code:"VAUDREY-7QK2", date:J(-27) },
+    { id:"ac3", entreprise:"e1", utilisateur:"u5", quoi:"inscription", code:"VAUDREY-7QK2", date:J(-25) },
+    { id:"ac4", entreprise:"e1", utilisateur:"u2", quoi:"creation_lien", code:"VAUDREY-7QK2", date:J(-30) }
   ],
   invitations: [
-    { id:"i1", entreprise:"e1", code:"LAFARGE-7QK2", places:210, utilisees:4,
+    { id:"i1", entreprise:"e1", code:"VAUDREY-7QK2", places:210, utilisees:4,
       active:true, cree_le:J(-30), expire_le:J(120) }
   ],
   preinscriptions: [
