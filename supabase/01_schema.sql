@@ -82,7 +82,12 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------- types
-create type role_utilisateur as enum ('admin','entreprise_admin','salarie','association','site_referent');
+-- `cse` est un rôle de lecture. Il existe parce que le comité social et
+-- économique a un droit d'information (art. L. 2312-8 et L. 2312-9 du code du
+-- travail) et qu'il vaut mieux le servir avec des agrégats que laisser
+-- l'employeur recopier des chiffres à la main. Ce qu'il ne doit jamais devenir :
+-- un moyen de savoir qui a fait quoi.
+create type role_utilisateur as enum ('admin','entreprise_admin','salarie','association','site_referent','cse');
 create type etat_collecte    as enum ('attendu','declare','approuve','clos_sans_reponse');
 create type type_annonce     as enum ('don_financier','benevolat_demi_journee','don_materiel');
 create type etat_annonce     as enum ('brouillon','ouverte','close');
@@ -291,11 +296,15 @@ create table private.appartenance (
   maj_le       timestamptz not null default now(),
   constraint appartenance_rattachement check (
     (role = 'admin'            and entreprise is null and association is null) or
-    (role in ('entreprise_admin','salarie','site_referent') and entreprise is not null and association is null) or
+    (role in ('entreprise_admin','salarie','site_referent','cse') and entreprise is not null and association is null) or
     (role = 'association'      and association is not null and entreprise is null)),
   -- Un référent de site sans site n'est référent de rien.
   constraint appartenance_site check (
     role <> 'site_referent' or etablissement is not null),
+  -- Un accès CSE porte sur toute la société, jamais sur un site : le comité ne
+  -- se découpe pas par établissement dans ce que Riseva lui montre.
+  constraint appartenance_cse check (
+    role <> 'cse' or etablissement is null),
   -- Un compte pseudonymisé est un compte parti : il ne peut pas rester actif.
   constraint appartenance_depart check (
     not pseudonymise or (not actif and retire_le is not null))

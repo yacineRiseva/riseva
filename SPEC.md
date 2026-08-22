@@ -30,6 +30,24 @@ Un `entreprise_admin` dont le périmètre porte un **groupe** ouvre en plus la v
 des agrégats par société et par site, jamais l'identité d'un salarié d'une société dont il
 n'est pas lui-même salarié.
 
+### Le CSE, en lecture seule
+
+- Rôle `cse`, rattaché à une **société**, jamais à un site : le comité ne se découpe pas par
+  établissement dans ce que Riseva lui montre.
+- **Ce qu'il lit** : les indicateurs sociaux et sécurité **approuvés**, site par site et
+  consolidés ; les rapports trimestriels et annuel ; la participation en agrégat ; le
+  dictionnaire des données.
+- **Ce qu'il ne lit jamais** : aucun nom de salarié, aucune mission individuelle, aucun don
+  personnel, aucun agrégat portant sur moins de **cinq** personnes, aucun montant de contrat.
+  Ce n'est pas un réglage : un accès qui permettrait de savoir qui a fait quoi transformerait un
+  droit d'information en outil de contrôle, et Riseva en moyen de surveillance.
+- **Il n'écrit rien** : ni saisie, ni approbation, ni export au nom de l'entreprise. Son menu ne
+  propose donc aucune de ces actions, plutôt que des boutons désactivés.
+- L'accès est **nominatif**, ouvert par l'employeur, expire en trente jours s'il n'est pas
+  accepté, et **ne consomme aucune place** de l'abonnement.
+- Base légale du besoin : articles L. 2312-8 et L. 2312-9 du code du travail. **Riseva n'est pas
+  la BDESE** de l'entreprise et ne s'y substitue pas — c'est écrit à l'écran.
+
 ## 2 ter. Groupe, société, établissement
 
 Trois niveaux, parce que le droit français en compte trois, et parce que les écraser en un

@@ -34,6 +34,9 @@ pas les conversations. Toute nouvelle décision s'ajoute en haut de la section c
 
 | Date | Décision | Remplace |
 |---|---|---|
+| 22/08/2026 | Accès CSE en lecture seule : indicateurs approuvés, rapports, participation agrégée. Nominatif, sans place consommée, et sans rien de nominatif à l'intérieur. | Rien : c'est un ajout. Motif : le comité a un droit d'information, et il vaut mieux le servir avec des agrégats que laisser l'employeur recopier des chiffres à la main. |
+| 22/08/2026 | Le rôle `cse` est exclu explicitement de `profil_lecture`. | `private.meme_entreprise` lui aurait ouvert la liste nominative de tout l'effectif — exactement ce que cet accès ne doit pas permettre. Trouvé en écrivant la policy, pas en production. |
+| 22/08/2026 | Un lien de référent ou de CSE ne consomme pas une place de salarié. | Un contrôle de quota qui refusait un élu parce que l'entreprise avait rempli ses sièges. |
 | 20/08/2026 | L'inscription des salariés passe par un lien unique avec plafond de places, révocable et régénérable. L'entreprise ne saisit aucune liste. | La saisie manuelle un par un. |
 | 20/08/2026 | L'abonnement ouvre un nombre de places égal à l'effectif. Aucun compte au-delà, contrainte tenue par la base. | Un nombre de salariés illimité, non tenable économiquement. |
 | 20/08/2026 | Retirer un salarié l'anonymise au lieu de le supprimer : identité vidée, points conservés à l'entreprise, place rendue. | La simple désactivation, qui laissait le nom et l'adresse en base. |

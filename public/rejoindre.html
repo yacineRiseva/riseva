@@ -68,8 +68,69 @@ function erreur(titre, texte){
 if (!code)        erreur("Il manque le code", "Demandez à votre entreprise le lien d'inscription complet, il se termine par un code.");
 else if (!inv)    erreur("Ce code n'existe pas", "Vérifiez le lien, ou demandez à votre entreprise de vous le renvoyer.");
 else if (!inv.active) erreur("Ce lien a été désactivé", "Votre entreprise l'a révoqué. Elle peut vous en fournir un nouveau.");
-else if (restantesLien <= 0 || si.restants <= 0)
+/* Le quota de places compte les salariés. Un accès de référent ou de CSE n'en
+   consomme pas : refuser un élu parce que l'entreprise a rempli ses sièges
+   reviendrait à lui faire payer des comptes qu'il n'utilise pas. */
+else if (!inv.pour_cse && !inv.pour_referent && (restantesLien <= 0 || si.restants <= 0))
                   erreur("Toutes les places sont prises", "L'abonnement de votre entreprise est complet. Parlez-en à la personne qui gère Riseva chez vous.");
+/* L'accès du CSE : nominatif lui aussi, et en lecture seule. On dit ce qu'il ouvre
+   et surtout ce qu'il n'ouvre pas — un élu qui découvrirait après coup qu'il ne voit
+   pas les noms se demanderait ce qu'on lui cache, alors que c'est exactement
+   l'inverse. */
+else if (inv.pour_cse){
+  boite.appendChild(h(`<div>
+    <p class="eyebrow">Comité social et économique</p>
+    <h1 style="margin-top:var(--s4);font-size:var(--t-h2)">Lire les chiffres de ${esc(ent.nom)}</h1>
+    <p class="muted" style="margin-top:var(--s3);font-size:var(--t-sm)">
+      Ce lien a été émis pour <strong style="color:var(--ink)">${esc(inv.email)}</strong>
+      et n'ouvre qu'un seul compte.</p>
+    <div class="card card--flat" style="background:var(--paper-sunk);border-color:transparent;margin-top:var(--s6)">
+      <p style="font-size:var(--t-sm);color:var(--ink-700)">
+        <strong>Ce que vous pourrez lire.</strong> Les indicateurs sociaux et de sécurité
+        approuvés, site par site et consolidés ; les rapports trimestriels et annuel ; la
+        participation des salariés en agrégat ; et le dictionnaire qui dit comment chaque
+        chiffre est calculé.</p>
+      <p style="font-size:var(--t-sm);color:var(--ink-600);margin-top:var(--s3)">
+        <strong>Ce que vous ne verrez pas, jamais.</strong> Aucun nom de salarié, aucune mission
+        individuelle, aucun don personnel, et aucun agrégat portant sur moins de cinq personnes.
+        Ce n'est pas un réglage : un accès qui permettrait de savoir qui a fait quoi
+        transformerait un droit d'information en outil de contrôle.</p>
+      <p style="font-size:var(--t-sm);color:var(--ink-600);margin-top:var(--s3)">
+        Riseva n'est pas la base de données économiques, sociales et environnementales de
+        l'entreprise et ne s'y substitue pas.</p>
+    </div>
+    <form class="stack" style="--gap:var(--s4);margin-top:var(--s8)" id="fc">
+      <div class="field"><label for="cnom">Nom et prénom</label>
+        <input class="input" id="cnom" value="${esc(inv.nom || "")}" required autocomplete="name"></div>
+      <div class="field"><label for="cmail">Email professionnel</label>
+        <input class="input" id="cmail" type="email" value="${esc(inv.email || "")}" required autocomplete="email">
+        <p class="hint">Ce lien n'accepte que l'adresse à laquelle il a été envoyé.</p></div>
+      <button class="btn btn--primary btn--lg btn--block" type="submit">Accepter et ouvrir mon accès</button>
+      <p class="hint center">Aucun mot de passe ici : vous recevrez un lien de connexion par mail.</p>
+    </form>
+  </div>`));
+
+  boite.querySelector("#fc").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const mail = boite.querySelector("#cmail").value.trim().toLowerCase();
+    if (mail !== String(inv.email || "").toLowerCase()){
+      toast("Ce lien a été émis pour une autre adresse."); return;
+    }
+    let u;
+    try { u = DB.accepterInvitationCSE(code); }
+    catch (err){ toast(err.message); return; }
+    try { localStorage.setItem("riseva.session", JSON.stringify({ uid: u.id })); } catch {}
+    boite.innerHTML = "";
+    boite.appendChild(h(`<div>
+      <span class="badge badge--ok" style="height:28px"><span class="dot"></span>Accès ouvert</span>
+      <h1 style="margin-top:var(--s5);font-size:var(--t-h2)">Bienvenue ${esc(u.nom.split(" ")[0])}</h1>
+      <p class="muted" style="margin-top:var(--s4)">
+        Vous lisez les chiffres de ${esc(ent.nom)}. Rien à saisir, rien à valider.</p>
+      <a class="btn btn--primary btn--lg" style="margin-top:var(--s8)" href="/app/#/tableau">
+        Ouvrir mon accès</a>
+    </div>`));
+  });
+}
 /* Un lien de référent est nominatif : il porte le nom et l'adresse de la personne
    visée. On les affiche, on ne les fait pas saisir — et surtout on n'accepte pas
    une autre adresse, sinon « nominatif » ne veut plus rien dire. */

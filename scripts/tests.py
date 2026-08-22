@@ -962,6 +962,62 @@ def main():
         verifie("chaque don porte l'état de sa réception et de son reçu",
                 "Réception" in m and "Reçu" in m and "En attente de l'association" in m)
 
+        print("\nLe CSE, en lecture seule")
+        connecte(p, "u12", "#/tableau")
+        cs = norm(p.inner_text(".content"))
+        verifie("l'accès est annoncé comme une lecture seule",
+                "lecture seule" in cs.lower())
+        verifie("il montre les indicateurs approuvés, pas les brouillons",
+                "Uniquement les valeurs approuvées" in cs)
+        verifie("la participation est masquée sous le seuil de restitution",
+                "moins de 5 personnes" in cs)
+        verifie("il dit ce qu'il ne montre pas",
+                "Aucun nom de salarié" in cs and "Aucune donnée de santé" in cs)
+        verifie("et il ne se fait pas passer pour la BDESE",
+                "ne s'y substitue pas" in cs)
+        liens = p.eval_on_selector_all(".side__link[href]", "l=>l.map(a=>a.getAttribute('href'))")
+        verifie("son menu ne propose rien à saisir ni à valider",
+                all(x.split("/")[-1] in ("tableau", "ensemble", "preferences") for x in liens),
+                str(liens))
+        boutons = norm(" ".join(p.eval_on_selector_all(".content button", "b=>b.map(x=>x.textContent)")))
+        verifie("aucun bouton d'écriture sur son écran",
+                not any(m in boutons for m in ["Saisir", "Approuver", "Enregistrer", "Valider", "Publier"]),
+                boutons[:160])
+        p.evaluate("()=>{const b=[...document.querySelectorAll('button')].find(x=>/Lire/.test(x.textContent)); if(b)b.click()}")
+        p.wait_for_timeout(350)
+        if p.is_visible(".modal"):
+            rp = norm(p.inner_text(".modal"))
+            verifie("le rapport lu par le CSE ne nomme personne",
+                    "Aucun nom de salarié ne figure" in rp)
+            p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Fermer/.test(b.textContent)).click()")
+            p.wait_for_timeout(200)
+        else:
+            verifie("le rapport lu par le CSE ne nomme personne", False, "aperçu non ouvert")
+
+        # L'employeur ouvre l'accès, et cet accès ne consomme pas une place.
+        connecte(p, "u2", "#/equipe")
+        eq = norm(p.inner_text(".content"))
+        verifie("l'employeur voit à quoi sert l'accès CSE",
+                "Accès du CSE" in eq and "rien sous 5 personnes" in eq)
+        cse2 = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const avant = d.DB.sieges('e1').restants;
+          const inv = d.DB.creerInvitationCSE('e1', 'Nadia Élue', 'nadia.elue@lafarge-ciments.fr');
+          const u = d.DB.accepterInvitationCSE(inv.code);
+          const dossier = d.DB.dossierCSE('e1');
+          let refus = null;
+          try { d.DB.creerInvitationCSE('e1', '', ''); } catch (e){ refus = e.message; }
+          return { avant, apres: d.DB.sieges('e1').restants, role: u.role,
+                   sansNom: refus,
+                   nominatif: inv.nom === 'Nadia Élue',
+                   exclus: dossier.exclus.length };
+        }""")
+        verifie("un accès CSE ne consomme aucune place de salarié",
+                cse2["avant"] == cse2["apres"], f"{cse2['avant']} → {cse2['apres']}")
+        verifie("le compte créé est bien un compte CSE", cse2["role"] == "cse")
+        verifie("le lien est nominatif et le refuse sinon",
+                cse2["nominatif"] and cse2["sansNom"] is not None)
+
         print("\nClassement : la moitié basse n'est pas nommée")
         connecte(p, "u2", "#/classement")
         cl = p.evaluate("""async () => {

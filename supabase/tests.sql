@@ -40,7 +40,8 @@ insert into auth.users (id, email) values
   ('aaaaaaaa-0000-4000-8000-000000000005', 'karim@lafarge-ciments.fr'),
   ('aaaaaaaa-0000-4000-8000-000000000006', 'lea@lafarge-ciments.fr'),
   ('aaaaaaaa-0000-4000-8000-000000000007', 'theo@lafarge-negoce.fr'),
-  ('aaaaaaaa-0000-4000-8000-000000000008', 'controle@riseva.fr');
+  ('aaaaaaaa-0000-4000-8000-000000000008', 'controle@riseva.fr'),
+  ('aaaaaaaa-0000-4000-8000-000000000009', 'cse@lafarge-ciments.fr');
 
 insert into profil (id, nom) values
   ('aaaaaaaa-0000-4000-8000-000000000001', 'Claire Fontaine'),
@@ -50,7 +51,8 @@ insert into profil (id, nom) values
   ('aaaaaaaa-0000-4000-8000-000000000005', 'Karim Belhadj'),
   ('aaaaaaaa-0000-4000-8000-000000000006', 'Léa Mercier'),
   ('aaaaaaaa-0000-4000-8000-000000000007', 'Théo Rialland'),
-  ('aaaaaaaa-0000-4000-8000-000000000008', 'Riseva');
+  ('aaaaaaaa-0000-4000-8000-000000000008', 'Riseva'),
+  ('aaaaaaaa-0000-4000-8000-000000000009', 'Farid Amrani');
 
 -- Un groupe de deux sociétés : c'est le seul montage qui prouve ce que le modèle
 -- doit tenir. Même actionnaire, deux SIREN, deux responsables de traitement.
@@ -93,7 +95,9 @@ insert into private.appartenance (profil, role, entreprise, association, etablis
   ('aaaaaaaa-0000-4000-8000-000000000007', 'entreprise_admin',
    '88888888-8888-4888-8888-888888888888', null,
    'e7000000-0000-4000-8000-000000000004', null),
-  ('aaaaaaaa-0000-4000-8000-000000000008', 'admin', null, null, null, null);
+  ('aaaaaaaa-0000-4000-8000-000000000008', 'admin', null, null, null, null),
+  ('aaaaaaaa-0000-4000-8000-000000000009', 'cse',
+   '22222222-2222-4222-8222-222222222222', null, null, null);
 
 insert into campagne_indicateurs (id, groupe, periode, libelle, debut, fin, echeance) values
   ('c1000000-0000-4000-8000-000000000001', '99999999-9999-4999-8999-999999999999',
@@ -524,6 +528,58 @@ begin
   perform pg_temp.dit('la purge est consignée sans recopier ce qu''elle supprime',
     exists (select 1 from private.journal_purge where ensemble = 'acces'));
 end $$;
+
+\echo ''
+\echo 'Le CSE lit des agrégats, et rien d''autre'
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000009', false);
+select set_config('request.jwt.claim.email', 'cse@lafarge-ciments.fr', false);
+
+do $$
+begin
+  perform pg_temp.dit('il voit les sites de sa société',
+    (select count(*) from public.etablissement) > 0);
+  -- Le piège : `meme_entreprise` lui ouvrirait la liste nominative de tout
+  -- l'effectif, c'est-à-dire exactement ce que cet accès ne doit pas permettre.
+  perform pg_temp.dit('il ne lit aucun nom de salarié à part le sien',
+    (select count(*) from public.profil) <= 1);
+  perform pg_temp.dit('il ne lit aucune mission individuelle',
+    (select count(*) from public.mission) = 0);
+  perform pg_temp.dit('il ne lit aucune intention de don',
+    (select count(*) from public.intention_don) = 0);
+  perform pg_temp.dit('il ne lit que les indicateurs approuvés',
+    not exists (select 1 from public.observation_indicateur where etat <> 'approuve'));
+  perform pg_temp.dit('il lit les rapports de sa société',
+    (select count(*) from public.rapport where entreprise = '22222222-2222-4222-8222-222222222222')
+    = (select count(*) from public.rapport));
+end $$;
+
+-- Une policy filtre, elle ne lève pas : ces trois-là doivent donc ne rien
+-- rendre, et non échouer. Les tester comme des refus aurait fait passer un
+-- test vert pour la mauvaise raison.
+do $$
+begin
+  perform pg_temp.dit('il ne lit aucun don', (select count(*) from public.don) = 0);
+  perform pg_temp.dit('il ne lit ni l''abonnement ni son montant',
+    (select count(*) from public.abonnement) = 0);
+  perform pg_temp.dit('il ne lit pas le journal d''accès',
+    (select count(*) from public.acces) = 0);
+end $$;
+select pg_temp.refuse('il ne saisit pas d''indicateurs',
+  'select public.saisir_indicateurs(''c1000000-0000-4000-8000-000000000001'',
+     ''e7000000-0000-4000-8000-000000000002'', ''{"effectif_fin": 1}''::jsonb)');
+select pg_temp.refuse('il n''approuve rien',
+  'select public.approuver_indicateurs(''c1000000-0000-4000-8000-000000000001'',
+     ''e7000000-0000-4000-8000-000000000002'')');
+select pg_temp.refuse('il ne s''alloue aucun quota',
+  'select public.allouer_quota(''e7000000-0000-4000-8000-000000000002'', 10)');
+select pg_temp.refuse('il ne se promeut pas administrateur',
+  'update private.appartenance set role = ''entreprise_admin'' where profil = auth.uid()');
+reset role;
+
+select pg_temp.refuse('un accès CSE rattaché à un site est refusé par le schéma',
+  'update private.appartenance set etablissement = ''e7000000-0000-4000-8000-000000000002''
+    where profil = ''aaaaaaaa-0000-4000-8000-000000000009''');
 
 \echo ''
 \echo 'Classement : la moitié basse n''est pas nommée'

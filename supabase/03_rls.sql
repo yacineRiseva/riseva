@@ -103,7 +103,10 @@ create policy profil_lecture on public.profil for select to authenticated
   using (
     id = auth.uid()
     or private.est_admin()
-    or private.meme_entreprise(profil.id));
+    -- L'accès CSE est exclu explicitement : `meme_entreprise` suffirait à lui
+    -- ouvrir la liste nominative de tout l'effectif, ce qui est exactement ce
+    -- que cet accès ne doit pas permettre.
+    or (private.mon_role() <> 'cse' and private.meme_entreprise(profil.id)));
 -- Une seule écriture possible, et elle ne touche que le nom. Le rôle, l'entreprise
 -- et l'état du compte ne sont même pas dans cette table.
 grant update (nom) on public.profil to authenticated;
@@ -198,7 +201,11 @@ create policy observation_lecture on public.observation_indicateur for select to
     select 1 from public.etablissement et
      where et.id = observation_indicateur.etablissement
        and (et.societe = private.mon_entreprise()
-            or private.dans_mon_groupe(et.societe))));
+            or private.dans_mon_groupe(et.societe))
+       -- Le CSE ne lit que ce que la société a approuvé. Une saisie que personne
+       -- n'a relue n'entre pas dans un rapport ; elle n'a pas à entrer non plus
+       -- dans une réunion.
+       and (private.mon_role() <> 'cse' or observation_indicateur.etat = 'approuve')));
 
 grant select on public.affectation_siege to authenticated;
 create policy siege_lecture on public.affectation_siege for select to authenticated
@@ -217,7 +224,8 @@ create policy acces_lecture on public.acces for select to authenticated
 
 grant select on public.rapport to authenticated;
 create policy rapport_lecture on public.rapport for select to authenticated
-  using ((entreprise = private.mon_entreprise() and private.mon_role() = 'entreprise_admin')
+  using ((entreprise = private.mon_entreprise()
+          and private.mon_role() in ('entreprise_admin','cse'))
          or private.est_admin());
 
 -- Signalement : son auteur et Riseva. Un signalement lisible par l'association

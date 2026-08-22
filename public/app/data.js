@@ -1111,7 +1111,8 @@ const seed = {
     { id:"u10", nom:"Karim Belhadj",  email:"karim@lafarge-ciments.fr", role:"site_referent",    org:"e1", etablissement:"et2", actif:true },
     { id:"u11", nom:"Léa Mercier",    email:"lea@lafarge-ciments.fr",   role:"site_referent",    org:"e1", etablissement:"et3", actif:true },
     { id:"u7", nom:"Élise Tournier",  email:"elise@quatrevents.org",    role:"association",      org:"a1" },
-    { id:"u9", nom:"Paul Girard",     email:"paul@groupe-vidal.fr",     role:"salarie",          org:"e2", actif:true }
+    { id:"u9", nom:"Paul Girard",     email:"paul@groupe-vidal.fr",     role:"salarie",          org:"e2", actif:true },
+    { id:"u12", nom:"Farid Amrani",   email:"cse@lafarge-ciments.fr",   role:"cse",              org:"e1", actif:true }
   ],
   signalements: [],
   acces: [
@@ -2265,6 +2266,89 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       api.tracer(inv.entreprise, u.id, "referent_site", `${et.nom} ${et.ville}`);
       return u;
     },
+    /* ------------------------------------------------------------------ */
+    /* Le CSE, en lecture                                                  */
+    /* ------------------------------------------------------------------ */
+    /* Le comité social et économique a un droit d'information sur la situation
+       sociale et sur la santé et la sécurité (art. L. 2312-8 et L. 2312-9 du code
+       du travail). Riseva n'est pas la BDESE et ne prétend pas la remplacer :
+       elle donne un accès en lecture à ce qu'elle a déjà, sous une forme
+       agrégée, pour que l'employeur n'ait pas à le recopier et que le CSE n'ait
+       pas à le demander.
+
+       Ce que cet accès ne doit jamais devenir, sous aucune pression : un moyen de
+       savoir qui a fait quoi. Aucun nom de salarié, aucune mission individuelle,
+       aucun don personnel — et un seuil de restitution sous lequel un agrégat
+       désigne quelqu'un. */
+    SEUIL_RESTITUTION: 5,
+    creerInvitationCSE(eid, nom, email){
+      const e = api.entreprise(eid);
+      if (!e) throw new Error("Entreprise inconnue");
+      if (!nom || !email) throw new Error("Un accès CSE est nominatif : nom et adresse.");
+      s.invitations.filter(i => i.entreprise === eid && i.pour_cse)
+        .forEach(i => i.active = false);
+      const inv = { id:id("i"), entreprise:eid, etablissement:null,
+        code: api.codeLien(`CSE${e.nom}`), pour_cse:true,
+        nom, email, places:1, utilisees:0, active:true,
+        cree_le:new Date().toISOString().slice(0,10),
+        expire_le:new Date(Date.now() + 30 * 864e5).toISOString().slice(0,10) };
+      s.invitations.unshift(inv);
+      api.tracer(eid, null, "lien_cse", `${nom} · ${e.nom}`);
+      return inv;
+    },
+    accepterInvitationCSE(code){
+      const inv = api.invitationParCode(code);
+      if (!inv || !inv.pour_cse) throw new Error("Lien CSE invalide");
+      if (!inv.active) throw new Error("Ce lien a été révoqué");
+      const u = { id:id("u"), nom:inv.nom, email:inv.email, role:"cse",
+                  org:inv.entreprise, etablissement:null, actif:true, anonyme:false };
+      s.utilisateurs.push(u);
+      inv.utilisees = 1; inv.active = false;
+      api.tracer(inv.entreprise, u.id, "acces_cse", inv.code);
+      return u;
+    },
+    /* Ce que le CSE lit, et rien d'autre. Un seul objet : deux vues divergentes
+       du même périmètre finissent par se contredire devant les mêmes personnes. */
+    dossierCSE(eid, { campagne = null } = {}){
+      const e = api.entreprise(eid); if (!e) return null;
+      const sites = api.etablissements(eid);
+      const cs = api.campagnes((e.groupe || undefined))
+                   .slice().sort((a, b) => b.debut.localeCompare(a.debut));
+      const cid = campagne || (cs[0] || {}).id || null;
+      const ind = cid ? api.indicateursDe({ campagne: cid, societe: eid,
+                                            approuvesSeulement: true }) : null;
+      const pts = api.pointsDe(eid);
+      const sal = api.salaries(eid).filter(x => !x.anonyme);
+      const engages = sal.filter(x => api.pointsVisiblesEmployeur(x.id) > 0).length;
+      const seuil = api.SEUIL_RESTITUTION;
+      return {
+        entreprise: { id:e.id, nom:e.nom, effectif:e.effectif, secteur:e.secteur },
+        saison: s.saison,
+        campagne: cid ? api.campagne(cid) : null,
+        campagnes: cs,
+        indicateurs: ind,
+        dictionnaire: cid ? api.dictionnaire(cid) : null,
+        sites: sites.map(x => ({ nom:x.nom, ville:x.ville, effectif:x.effectif })),
+        /* La participation est un agrégat, et elle reste muette sous le seuil :
+           « un salarié engagé sur douze » dans un site de douze personnes, c'est
+           une désignation. */
+        participation: engages >= seuil
+          ? { engages, effectif: e.effectif || sal.length,
+              taux: Math.round((engages / Math.max(e.effectif || sal.length, 1)) * 1000) / 10 }
+          : null,
+        seuil,
+        points: pts.retenu,
+        rapports: api.rapports(eid).filter(r => r.etat === "genere"),
+        /* Ce que le CSE ne verra pas ici, écrit à l'écran plutôt que deviné. */
+        exclus: [
+          "Aucun nom de salarié, aucune mission individuelle, aucun don personnel.",
+          `Aucun agrégat portant sur moins de ${seuil} personnes.`,
+          "Aucune donnée de santé : ni diagnostic, ni nature de lésion, ni identité d'une victime.",
+          "Riseva n'est pas la base de données économiques, sociales et environnementales de l'entreprise et ne s'y substitue pas."
+        ]
+      };
+    },
+
     revoquerInvitation(iid){
       const i = s.invitations.find(x => x.id === iid);
       if (i){ i.active = false; api.tracer(i.entreprise, null, "revocation_lien", i.code); }

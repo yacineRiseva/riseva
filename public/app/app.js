@@ -83,6 +83,13 @@ const MENUS = {
       ["dossier",   "Mon dossier",       "report"]
     ]}
   ],
+  cse: [
+    { groupe: "Comité social et économique", items: [
+      ["tableau",   "Ce que nous lisons", "dashboard"],
+      ["ensemble",  "Tous ensemble",      "leaf"],
+      ["preferences","Préférences",       "users"]
+    ]}
+  ],
   admin: [
     { groupe: "Réseau", items: [
       ["tableau",       "Tableau de bord", "dashboard"],
@@ -108,6 +115,7 @@ function vueConnexion(){
     ["u2", "Espace entreprise",  "Claire Fontaine — Lafarge Ciments, administratrice"],
     ["u4", "Espace salarié",     "Sonia Delaunay — Lafarge Ciments"],
     ["u7", "Espace association", "Élise Tournier — Refuge des Quatre Vents"],
+    ["u12","Accès CSE",          "Farid Amrani — élu, lecture seule"],
     ["u1", "Espace Riseva",      "Administration de la plateforme"]
   ];
   const el = h(`<div class="login">
@@ -1437,6 +1445,7 @@ function vueClassement(u){
 
 function vueEquipe(u){
   const eid = u.org;
+  const cseUser = DB.utilisateurs().find(x => x.role === "cse" && x.org === eid && x.actif);
   /* Un référent de site ne voit que son site. Ce n'est pas un filtre d'affichage,
      c'est le périmètre : le reste de l'effectif de la société ne le regarde pas. */
   const monSite = u.role === "site_referent" ? u.etablissement : null;
@@ -1485,6 +1494,27 @@ function vueEquipe(u){
         <div class="bar bar--lime" style="margin-top:var(--s3);background:rgba(223,230,208,.16)">
           <i style="width:${si.total ? (si.pris / si.total) * 100 : 0}%"></i></div>
         <span class="kpi__delta">${si.restants} place${si.restants > 1 ? "s" : ""} encore disponible${si.restants > 1 ? "s" : ""}</span>
+      </section>
+
+      <section class="card">
+        <div class="between" style="margin-bottom:var(--s4)">
+          <h3>Accès du CSE</h3>
+          ${cseUser ? `<span class="badge badge--ok">Ouvert</span>`
+                    : `<span class="badge">Pas ouvert</span>`}
+        </div>
+        <p class="muted" style="font-size:var(--t-sm)">
+          Un accès en <strong style="color:var(--ink)">lecture seule</strong> aux agrégats
+          sociaux et sécurité, aux rapports et à la participation. Aucun nom de salarié, aucune
+          mission individuelle, aucun don personnel, et rien sous ${DB.SEUIL_RESTITUTION} personnes.
+          Vous n'avez plus à recopier ces chiffres, et les élus n'ont plus à les demander.</p>
+        ${cseUser ? `<p class="muted" style="font-size:var(--t-sm);margin-top:var(--s4)">
+          Ouvert à <strong style="color:var(--ink)">${esc(cseUser.nom)}</strong>
+          (${esc(cseUser.email || "")}).</p>` : ""}
+        <div class="row" style="gap:var(--s2);margin-top:var(--s5)">
+          <button class="btn btn--ghost btn--sm" id="cseLien">${
+            cseUser ? "Ouvrir un autre accès" : "Ouvrir l'accès CSE"}</button>
+        </div>
+        <div id="cseOut"></div>
       </section>
 
       <section class="card">
@@ -1649,6 +1679,35 @@ function vueEquipe(u){
   el.querySelector("#q").addEventListener("input", () => { page = 1; dessiner(); });
   el.querySelector("#etat").addEventListener("change", () => { page = 1; dessiner(); });
   dessiner();
+
+  el.querySelector("#cseLien").onclick = () => {
+    const corps = h(`<div class="stack" style="--gap:var(--s4)">
+      <p class="muted" style="font-size:var(--t-sm)">Le lien est nominatif et expire dans trente
+      jours. Il ouvre une lecture seule : ni saisie, ni validation, ni export au nom de
+      l'entreprise.</p>
+      <div class="field"><label for="cse-nom">Nom de l'élu</label>
+        <input class="input" id="cse-nom"></div>
+      <div class="field"><label for="cse-mail">Adresse professionnelle</label>
+        <input class="input" id="cse-mail" type="email"></div>
+      <div id="cse-res"></div>
+    </div>`);
+    modal("Ouvrir l'accès CSE", corps, [
+      { label:"Annuler" },
+      { label:"Créer le lien", classe:"btn--primary", onClick: () => {
+          try {
+            const inv = DB.creerInvitationCSE(eid,
+              corps.querySelector("#cse-nom").value.trim(),
+              corps.querySelector("#cse-mail").value.trim());
+            const url = lienPublic(`/rejoindre.html?code=${inv.code}&role=cse`);
+            corps.querySelector("#cse-res").innerHTML =
+              `<p class="hint" style="margin-bottom:6px">À envoyer à cette personne, et à elle seule :</p>
+               <div class="copyline"><input class="input" readonly aria-label="Lien d'accès du CSE" value="${esc(url)}"></div>
+               <p class="hint" style="margin-top:6px">Expire le ${dateFR(inv.expire_le)}.</p>`;
+            toast("Accès CSE créé.");
+          } catch (e){ toast(e.message); }
+          return false;
+        }}]);
+  };
 
   el.querySelector("#saveDom").onclick = () => {
     const l = el.querySelector("#dom").value.split(",").filter(x => x.trim());
@@ -5367,6 +5426,162 @@ function vueIndicateurs(u){
 }
 
 /* ------------------------------------------------------------------ */
+/* Le CSE, en lecture                                                  */
+/* ------------------------------------------------------------------ */
+/* Un écran, pas un espace. Le CSE n'a rien à saisir, rien à valider, rien à
+   exporter au nom de l'entreprise : il consulte. Lui donner les mêmes vues que
+   l'employeur avec des boutons désactivés serait la meilleure façon de laisser
+   croire qu'il peut agir, et de lui faire chercher pendant dix minutes pourquoi
+   il ne peut pas. */
+/* L'aperçu d'un rapport pour le CSE : les mêmes chiffres que celui de
+   l'employeur, sans le volet commercial et sans rien de nominatif. */
+function apercuRapportCSE(eid, meta){
+  const r = DB.rapport(eid, meta.portee);
+  const rea = DB.realisations({ entreprise: eid });
+  const corps = h(`<div class="stack" style="--gap:var(--s5)">
+    <p class="muted" style="font-size:var(--t-sm)">
+      ${esc(meta.titre)} · période du ${dateFR(meta.periode.debut)} au ${dateFR(meta.periode.fin)}${
+        meta.genere_le ? `, arrêté le ${dateFR(meta.genere_le)}` : ""}.</p>
+    <div class="kpis">
+      ${kpi("Points retenus", nb(r.points), "après écrêtage par format")}
+      ${kpi("Missions validées", nb(r.missions), "confirmées par les associations")}
+      ${kpi("Salariés engagés", nb(r.salariesEngages) + " / " + nb(r.salariesTotal), "sur la saison")}
+      ${kpi("Associations soutenues", nb(r.associations), "structures distinctes")}
+    </div>
+    ${rea.liste && rea.liste.length ? `<div>
+      <h4>Ce que ces missions ont produit</h4>
+      <ul class="liste-ecarts" style="margin-top:var(--s3)">${rea.liste.map(x =>
+        `<li>${nb(x.quantite)} ${esc(x.quantite > 1 ? x.pl : x.un)}${
+          x.estime ? ` <span class="muted">dont ${nb(x.estime)} estimés, faute de réponse de l'association</span>` : ""}</li>`).join("")}</ul>
+    </div>` : ""}
+    <p class="hint">Aucun nom de salarié ne figure dans ce rapport, et aucun don personnel n'y
+      est compté : les dons faits à titre privé sortent de l'assiette de l'entreprise.</p>
+  </div>`);
+  modal(esc(meta.titre), corps, [{ label:"Fermer" }]);
+}
+
+function vueCSE(u){
+  const d = DB.dossierCSE(u.org, { campagne: sessionStorage.getItem("riseva.cse.camp") || null });
+  if (!d) return h(`<section class="card"><p class="empty">Aucune entreprise rattachée à cet accès.</p></section>`);
+  const ind = d.indicateurs;
+
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <section class="card card--dark grain">
+      <div class="between" style="flex-wrap:wrap;gap:var(--s4)">
+        <div>
+          <p class="eyebrow" style="color:var(--lime)">Accès CSE — lecture seule</p>
+          <h3 style="margin-top:var(--s2)">${esc(d.entreprise.nom)} · ${esc(d.saison.nom)}</h3>
+          <p class="muted" style="margin-top:6px;font-size:var(--t-sm);color:#C5CDBB">
+            Ce que Riseva détient déjà sur la situation sociale et la sécurité, sous forme
+            agrégée. L'employeur n'a rien à recopier, vous n'avez rien à demander.</p>
+        </div>
+        <span class="badge badge--ok">${nb(d.points)} points retenus</span>
+      </div>
+    </section>
+
+    <div class="kpis">
+      ${kpi("Sites suivis", nb(d.sites.length),
+            d.sites.map(x => x.nom).join(" · "), "", "kpi--tete grain")}
+      ${kpi("Participation",
+            d.participation ? pct(d.participation.taux) + " %" : "—",
+            d.participation
+              ? `${nb(d.participation.engages)} salariés engagés sur ${nb(d.participation.effectif)}`
+              : `masquée : moins de ${d.seuil} personnes concernées`)}
+      ${kpi("Rapports disponibles", nb(d.rapports.length), "trimestriels et annuel")}
+      ${kpi("Période de collecte", d.campagne ? esc(d.campagne.libelle) : "—",
+            d.campagne ? `du ${dateCourte(d.campagne.debut)} au ${dateCourte(d.campagne.fin)}` : "")}
+    </div>
+
+    <section class="card">
+      <div class="between" style="flex-wrap:wrap;gap:var(--s4);align-items:flex-start">
+        <div>
+          <h3>Indicateurs sociaux et sécurité</h3>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+            Uniquement les valeurs <strong>approuvées</strong> par la société. Une saisie non
+            relue n'entre pas ici : elle n'entre pas non plus dans un rapport.</p>
+        </div>
+        <div class="row" style="--gap:var(--s3);align-items:flex-end">
+          <div class="field" style="min-width:220px;margin:0">
+            <label for="cseCamp">Période</label>
+            <select class="select" id="cseCamp">
+              ${d.campagnes.map(c => `<option value="${c.id}"${
+                d.campagne && c.id === d.campagne.id ? " selected" : ""}>${esc(c.libelle)}</option>`).join("")}
+            </select>
+          </div>
+          <button class="btn btn--ghost btn--sm" id="cseDico">Dictionnaire des données</button>
+        </div>
+      </div>
+      ${!ind || !ind.sites ? `<p class="empty" style="margin-top:var(--s5)">Aucune donnée approuvée sur cette période.</p>` : `
+      <p class="hint" style="margin-top:var(--s4)">Périmètre : ${nb(ind.sites)} site${ind.sites > 1 ? "s" : ""}
+        sur ${nb(ind.attendus)}, soit ${nb(ind.effectifCouvert)} salariés sur ${nb(ind.effectifTotal)}.
+        ${!ind.complet ? "Périmètre incomplet : les sites qui n'ont pas répondu ne sont pas comblés avec la période précédente." : ""}</p>
+      <table class="table" style="margin-top:var(--s5)"><thead><tr>
+        <th>Indicateur</th><th style="text-align:right">Valeur</th><th>Comment il est calculé</th>
+      </tr></thead><tbody>
+        ${INDICATEURS.calcules.map(x => `<tr>
+          <td><strong>${esc(x.libelle)}</strong></td>
+          <td class="tnum" style="text-align:right">${ind.calcules[x.cle] !== null
+            ? nb2(ind.calcules[x.cle]) + (x.unite ? " " + x.unite : "")
+            : `<span class="muted">non disponible</span>`}</td>
+          <td class="muted" style="font-size:var(--t-xs)">${esc(x.formule)}${
+            x.reglementaire ? "" : " · indicateur interne, non réglementaire"}</td>
+        </tr>`).join("")}
+        ${INDICATEURS.saisis.map(x => `<tr>
+          <td>${esc(x.libelle)}</td>
+          <td class="tnum" style="text-align:right">${ind.sommes[x.cle] != null
+            ? nb(ind.sommes[x.cle]) + (x.unite ? " " + esc(x.unite) : "")
+            : `<span class="muted">non disponible</span>`}</td>
+          <td class="muted" style="font-size:var(--t-xs)">déclaré par les sites · ${esc(x.source || "")}</td>
+        </tr>`).join("")}
+      </tbody></table>`}
+    </section>
+
+    <div class="two">
+      <section class="card">
+        <h3>Rapports de la saison</h3>
+        <div id="cseRap" style="margin-top:var(--s5)"></div>
+      </section>
+      <section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
+        <h3 style="font-size:var(--t-lg)">Ce que cet accès ne montre pas</h3>
+        <ul class="liste-ecarts" style="margin-top:var(--s4)">${
+          d.exclus.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+        <p class="hint" style="margin-top:var(--s4)">Ce n'est pas un réglage : c'est la
+          construction. Un accès qui permettrait de savoir qui a fait quoi transformerait un
+          droit d'information en outil de contrôle, et Riseva en moyen de surveillance.</p>
+      </section>
+    </div>
+  </div>`);
+
+  const r = el.querySelector("#cseRap");
+  if (!d.rapports.length) r.appendChild(vide({ titre:"Aucun rapport encore arrêté",
+    texte:"Les rapports sont produits à la clôture de chaque période." }));
+  else {
+    const tb = h(`<table class="table"><thead><tr>
+      <th>Rapport</th><th>Période</th><th>Arrêté le</th><th></th></tr></thead><tbody></tbody></table>`);
+    d.rapports.forEach(x => {
+      const tr = h(`<tr><td><strong>${esc(x.titre)}</strong></td>
+        <td class="muted">${dateCourte(x.periode.debut)} — ${dateCourte(x.periode.fin)}</td>
+        <td class="muted tnum">${x.genere_le ? dateCourte(x.genere_le) : "—"}</td>
+        <td style="text-align:right"></td></tr>`);
+      const b = h(`<button class="btn btn--ghost btn--sm">Lire</button>`);
+      b.onclick = () => apercuRapportCSE(u.org, x);
+      tr.lastElementChild.appendChild(b);
+      tb.querySelector("tbody").appendChild(tr);
+    });
+    r.appendChild(tb);
+  }
+
+  el.querySelector("#cseCamp").onchange = (ev) => {
+    sessionStorage.setItem("riseva.cse.camp", ev.target.value); rendre();
+  };
+  el.querySelector("#cseDico").onclick = () => {
+    if (d.campagne) ouvrirDictionnaire(d.campagne.id);
+    else toast("Aucune période de collecte à documenter.");
+  };
+  return el;
+}
+
+/* ------------------------------------------------------------------ */
 /* Dictionnaire des données                                           */
 /* ------------------------------------------------------------------ */
 function ouvrirDictionnaire(cid){
@@ -6522,6 +6737,11 @@ const ROUTES = {
     dossier:    [vueDossierAsso, "Mon dossier"],
     recus:      [vueRecus,     "Reçus fiscaux"],
     dons:       [vueDonsAsso,  "Dons en argent"],
+    preferences:[vuePreferences, "Préférences"]
+  },
+  cse: {
+    tableau:    [vueCSE,       "Ce que le CSE lit"],
+    ensemble:   [vueEnsemble,  "Tous ensemble"],
     preferences:[vuePreferences, "Préférences"]
   },
   admin: {
