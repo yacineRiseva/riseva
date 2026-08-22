@@ -71,6 +71,10 @@ pas les conversations. Toute nouvelle décision s'ajoute en haut de la section c
 
 | Date | Décision | Remplace |
 |---|---|---|
+| 22/08/2026 | Une association ne fournit qu'un numéro : le registre public remplit sa fiche. Chaque contrôle est daté, conserve la réponse brute du registre et vaut un an. | Une validation à cinq cases cochées de bonne foi, dont la première — « existence juridique confirmée » — était la seule qu'une machine pouvait vérifier mieux qu'un humain pressé. |
+| 22/08/2026 | Le verdict du contrôle est recalculé côté base à partir de la fiche brute, jamais reçu du navigateur. Les deux moteurs partagent la même mesure : mots utiles, sans forme juridique, recouvrement de Jaccard. | Un état envoyé par le client, qu'il suffisait de forger pour mettre en ligne n'importe quelle structure. |
+| 22/08/2026 | La clé de Luhn d'un SIREN et d'un SIRET est vérifiée en base, par contrainte. Exception La Poste comprise. | Un contrôle de forme au regex seul, qui laissait entrer des numéros impossibles — recopiés ensuite sur une facture ou un reçu fiscal. |
+| 22/08/2026 | Un contrôle « introuvable » ne sanctionne pas. Dix à quinze pour cent des associations déclarées ont un SIREN ; l'absence de résultat ne veut rien dire. | Rien : c'est la garde-fou posée en même temps que la fonctionnalité. |
 | 21/08/2026 | Les dons personnels des salariés sortent de l'assiette de l'entreprise et sont comptés à part, avec leur propre réduction à 66 % à l'IR. | Une assiette qui additionnait dons des salariés et mécénat de compétences. C'était une réduction d'impôt indue que le client aurait déclarée de bonne foi. Erreur relevée à la relecture externe du 21/08. |
 | 21/08/2026 | Le plafond par salarié est présenté avec sa règle et son incertitude : le BOFiP ne dit pas si le plafond de L. 241-3 est mensuel ou annuel. Lecture basse retenue, valeur paramétrable. | Un chiffre affirmé sans réserve. |
 | 21/08/2026 | Le décile n'est affiché qu'au-dessus de dix entreprises dans la catégorie. En dessous, le rang est donné tel quel. | « Top 10 % » sur une cohorte de deux, indéfendable devant un acheteur. |

@@ -38,7 +38,8 @@ insert into auth.users (id, email) values
   ('aaaaaaaa-0000-4000-8000-000000000004', 'pirate@ailleurs.fr'),
   ('aaaaaaaa-0000-4000-8000-000000000005', 'karim@lafarge-ciments.fr'),
   ('aaaaaaaa-0000-4000-8000-000000000006', 'lea@lafarge-ciments.fr'),
-  ('aaaaaaaa-0000-4000-8000-000000000007', 'theo@lafarge-negoce.fr');
+  ('aaaaaaaa-0000-4000-8000-000000000007', 'theo@lafarge-negoce.fr'),
+  ('aaaaaaaa-0000-4000-8000-000000000008', 'controle@riseva.fr');
 
 insert into profil (id, nom) values
   ('aaaaaaaa-0000-4000-8000-000000000001', 'Claire Fontaine'),
@@ -47,7 +48,8 @@ insert into profil (id, nom) values
   ('aaaaaaaa-0000-4000-8000-000000000004', 'Inconnu'),
   ('aaaaaaaa-0000-4000-8000-000000000005', 'Karim Belhadj'),
   ('aaaaaaaa-0000-4000-8000-000000000006', 'Léa Mercier'),
-  ('aaaaaaaa-0000-4000-8000-000000000007', 'Théo Rialland');
+  ('aaaaaaaa-0000-4000-8000-000000000007', 'Théo Rialland'),
+  ('aaaaaaaa-0000-4000-8000-000000000008', 'Riseva');
 
 -- Un groupe de deux sociétés : c'est le seul montage qui prouve ce que le modèle
 -- doit tenir. Même actionnaire, deux SIREN, deux responsables de traitement.
@@ -60,7 +62,7 @@ update entreprise set groupe = '99999999-9999-4999-8999-999999999999'
 
 insert into entreprise (id, nom, secteur, ville, effectif, ca, siren, groupe) values
   ('88888888-8888-4888-8888-888888888888', 'Lafarge Négoce', 'Négoce', 'Nantes',
-   45, 6200000, '842100447', '99999999-9999-4999-8999-999999999999');
+   45, 6200000, '842100448', '99999999-9999-4999-8999-999999999999');
 
 insert into etablissement (id, societe, nom, ville, effectif, quota) values
   ('e7000000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222',
@@ -89,7 +91,8 @@ insert into private.appartenance (profil, role, entreprise, association, etablis
    'e7000000-0000-4000-8000-000000000003', null),
   ('aaaaaaaa-0000-4000-8000-000000000007', 'entreprise_admin',
    '88888888-8888-4888-8888-888888888888', null,
-   'e7000000-0000-4000-8000-000000000004', null);
+   'e7000000-0000-4000-8000-000000000004', null),
+  ('aaaaaaaa-0000-4000-8000-000000000008', 'admin', null, null, null, null);
 
 insert into campagne_indicateurs (id, groupe, periode, libelle, debut, fin, echeance) values
   ('c1000000-0000-4000-8000-000000000001', '99999999-9999-4999-8999-999999999999',
@@ -461,6 +464,110 @@ begin
   perform pg_temp.dit('la purge est consignée sans recopier ce qu''elle supprime',
     exists (select 1 from private.journal_purge where ensemble = 'acces'));
 end $$;
+
+\echo ''
+\echo 'Contrôle au registre public'
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+do $$
+begin
+  perform pg_temp.dit('la clé de contrôle d''un SIREN est vérifiée en base',
+    private.luhn_ok('428763304') and not private.luhn_ok('428763305'));
+  perform pg_temp.dit('La Poste, qui ne satisfait pas Luhn, reste acceptée',
+    private.luhn_ok('356000000'));
+  perform pg_temp.dit('les accents ne changent pas la comparaison des noms',
+    public.sans_accents('Réfugé dès Quatre-Vents') = 'Refuge des Quatre-Vents');
+  perform pg_temp.dit('la forme juridique ne compte pas dans la comparaison',
+    private.mots_utiles('Association Refuge des Quatre Vents (loi 1901)')
+      = private.mots_utiles('REFUGE DES QUATRE VENTS'));
+  perform pg_temp.dit('le recouvrement se mesure comme dans le navigateur',
+    private.recouvrement(private.mots_utiles('Les Quatre Vents'),
+                         private.mots_utiles('Refuge des Quatre Vents')) = 2::numeric/3);
+end $$;
+
+select pg_temp.refuse('un SIREN à clé fausse n''entre pas en base',
+  'update public.association set siren = ''428763305''
+    where id = ''33333333-3333-4333-8333-333333333333''');
+
+-- Riseva contrôle. Le verdict est recalculé ici : le navigateur envoie la fiche
+-- brute du registre, jamais sa conclusion.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000008', false);
+select set_config('request.jwt.claim.email', 'controle@riseva.fr', false);
+
+do $$
+declare v_id uuid; v_etat text; v_bloq boolean;
+begin
+  v_id := public.controler_association('33333333-3333-4333-8333-333333333333',
+    jsonb_build_object('nom','REFUGE DES QUATRE VENTS','nom_raison_sociale','REFUGE DES QUATRE VENTS',
+                       'etat','A','est_association',true,'rna','W423001234'));
+  select etat, bloquant into v_etat, v_bloq from public.controle_association where id = v_id;
+  perform pg_temp.dit('un nom identique au registre donne un contrôle non bloquant',
+    v_etat = 'exact' and not v_bloq);
+
+  v_id := public.controler_association('33333333-3333-4333-8333-333333333333',
+    jsonb_build_object('nom','SOCIETE GENERALE DE TRAVAUX','etat','A','est_association',false));
+  select etat, bloquant into v_etat, v_bloq from public.controle_association where id = v_id;
+  perform pg_temp.dit('un nom sans rapport est signalé, et il bloque',
+    v_etat = 'different' and v_bloq);
+  perform pg_temp.dit('une structure non signalée comme association apparaît dans les écarts',
+    exists (select 1 from public.controle_association c,
+                 jsonb_array_elements(c.ecarts) e
+             where c.id = v_id and e->>'champ' = 'nature'));
+
+  v_id := public.controler_association('44444444-4444-4444-8444-444444444444',
+    jsonb_build_object('nom','RACINES VIVES','etat','C','est_association',true));
+  select etat into v_etat from public.controle_association where id = v_id;
+  perform pg_temp.dit('une structure fermée au registre est reconnue', v_etat = 'fermee');
+  perform pg_temp.dit('et elle sort de la vitrine sans être effacée',
+    (select not valide from public.association
+      where id = '44444444-4444-4444-8444-444444444444'));
+
+  v_id := public.controler_association('33333333-3333-4333-8333-333333333333', null, true);
+  select etat, bloquant into v_etat, v_bloq from public.controle_association where id = v_id;
+  perform pg_temp.dit('un registre injoignable est consigné, et ne bloque personne',
+    v_etat = 'panne' and not v_bloq);
+end $$;
+
+-- L'association concernée lit son dossier, et rien d'autre.
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000003', false);
+select set_config('request.jwt.claim.email', 'elise@quatrevents.org', false);
+do $$
+begin
+  perform pg_temp.dit('l''association lit les contrôles qui la concernent',
+    (select count(*) from public.controle_association) > 0);
+  perform pg_temp.dit('et aucun de ceux d''une autre association',
+    not exists (select 1 from public.controle_association
+                 where association <> '33333333-3333-4333-8333-333333333333'));
+end $$;
+
+select pg_temp.refuse('une association n''écrit pas son propre verdict',
+  'select public.controler_association(''33333333-3333-4333-8333-333333333333'',
+     jsonb_build_object(''nom'',''REFUGE DES QUATRE VENTS'',''etat'',''A''))');
+select pg_temp.refuse('elle ne renseigne pas le numéro d''une autre association',
+  'select public.enregistrer_numeros_association(
+     ''44444444-4444-4444-8444-444444444444'', ''428763304'', null)');
+select pg_temp.refuse('un SIREN à clé fausse est refusé par la RPC',
+  'select public.enregistrer_numeros_association(
+     ''33333333-3333-4333-8333-333333333333'', ''428763305'', null)');
+select pg_temp.refuse('un RNA mal formé est refusé',
+  'select public.enregistrer_numeros_association(
+     ''33333333-3333-4333-8333-333333333333'', null, ''423001234'')');
+
+do $$
+begin
+  perform public.enregistrer_numeros_association(
+    '33333333-3333-4333-8333-333333333333', '428763304', 'W423001234');
+  perform pg_temp.dit('elle renseigne les siens',
+    (select siren = '428763304' from public.association
+      where id = '33333333-3333-4333-8333-333333333333'));
+end $$;
+
+set role anon;
+select set_config('request.jwt.claim.sub', '', false);
+select pg_temp.refuse('un visiteur ne lit aucun contrôle',
+  'select count(*) from public.controle_association');
+reset role;
 
 \echo ''
 \echo 'Fonctions privilégiées'

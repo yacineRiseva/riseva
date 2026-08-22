@@ -68,6 +68,13 @@ grant select on public.association to anon, authenticated;
 create policy association_lecture on public.association for select to anon, authenticated
   using ((valide and not suspendue) or id = private.mon_association() or private.est_admin());
 
+-- Contrôle au registre : l'association concernée et Riseva. C'est son dossier,
+-- elle doit pouvoir lire ce qui a été vérifié sur elle et le corriger ; personne
+-- d'autre n'a à savoir qu'un contrôle a signalé un écart.
+grant select on public.controle_association to authenticated;
+create policy controle_lecture on public.controle_association for select to authenticated
+  using (association = private.mon_association() or private.est_admin());
+
 -- Annonce : lecture publique des annonces ouvertes d'associations en règle.
 grant select on public.annonce to anon, authenticated;
 create policy annonce_lecture on public.annonce for select to anon, authenticated
@@ -247,7 +254,10 @@ grant execute on function
   public.creer_invitation_referent(uuid, text, text),
   public.rejoindre_comme_referent(text),
   public.saisir_indicateurs(uuid, uuid, jsonb),
-  public.approuver_indicateurs(uuid, uuid)
+  public.approuver_indicateurs(uuid, uuid),
+  public.controler_association(uuid, jsonb, boolean),
+  public.enregistrer_numeros_association(uuid, text, text),
+  public.sans_accents(text)
 to authenticated;
 
 -- Le paiement n'est jamais confirmé par le navigateur. Seule la fonction Edge,
@@ -321,6 +331,16 @@ begin
 end $$;
 
 grant usage on schema private to riseva_definer;
+-- `luhn_ok` est appelée par une contrainte CHECK, donc au nom de celui qui écrit ;
+-- `verdict_registre` est appelée depuis une RPC. Ni l'une ni l'autre n'est
+-- SECURITY DEFINER — elles ne doivent rien pouvoir faire d'autre que calculer —
+-- donc elles n'appartiennent pas à `riseva_definer` et la table rase du début
+-- leur a retiré l'EXECUTE de tout le monde. On le rend, à ce seul rôle.
+grant execute on function private.luhn_ok(text) to riseva_definer;
+grant execute on function private.verdict_registre(public.association, jsonb) to riseva_definer;
+grant execute on function private.mots_utiles(text) to riseva_definer;
+grant execute on function private.recouvrement(text[], text[]) to riseva_definer;
+grant execute on function public.sans_accents(text) to riseva_definer;
 grant usage on schema extensions to riseva_definer;
 grant select, insert, update, delete on all tables in schema public to riseva_definer;
 grant select, insert, update, delete on all tables in schema private to riseva_definer;

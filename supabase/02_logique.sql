@@ -955,3 +955,131 @@ create or replace view public.entreprise_publique
 with (security_invoker = true) as
   select e.id, e.nom, e.secteur, e.ville
     from public.entreprise e;
+
+-- ---------------------------------------------------------------------------
+-- Contrôle au registre public
+-- ---------------------------------------------------------------------------
+-- Le navigateur interroge l'annuaire public — c'est une API ouverte, sans clé,
+-- et la faire transiter par le serveur n'apporterait rien qu'une dépendance de
+-- plus. En revanche la conclusion, elle, ne peut pas venir du client : elle est
+-- recalculée ici à partir de la fiche brute, sinon il suffirait d'appeler la RPC
+-- avec `etat => 'exact'` pour mettre en ligne n'importe quelle structure.
+-- Sans accents, sans dépendre d'unaccent : l'extension n'est pas toujours
+-- installable sur une base gérée, et une translation explicite se relit.
+create or replace function public.sans_accents(p text)
+returns text language sql immutable strict parallel safe set search_path = '' as $$
+  select translate(p,
+    'àáâãäåçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ',
+    'aaaaaaceeeeiiiinooooouuuuyyAAAAAACEEEEIIIINOOOOOUUUUY')
+$$;
+
+create or replace function private.mots_utiles(p text)
+returns text[] language sql immutable parallel safe set search_path = '' as $$
+  select coalesce(array(
+    select distinct m
+      from unnest(string_to_array(btrim(regexp_replace(
+             upper(public.sans_accents(coalesce(p, ''))), '[^A-Z0-9]+', ' ', 'g')), ' ')) m
+     where m <> ''
+       and m not in ('ASSOCIATION','ASSOC','ASSO','LOI','1901','DE','DU','DES','LA','LE',
+                     'LES','L','D','ET','POUR','EN','AU','AUX','UNION','COMITE')
+     order by m), '{}'::text[])
+$$;
+
+-- Recouvrement de Jaccard sur les mots utiles, la même mesure que dans le
+-- navigateur. Deux définitions différentes de « nom voisin » de part et d'autre
+-- auraient donné deux verdicts pour la même association, et c'est l'association
+-- qui aurait eu raison de ne plus rien croire.
+create or replace function private.recouvrement(a text[], b text[])
+returns numeric language sql immutable parallel safe set search_path = '' as $$
+  select case
+    when coalesce(array_length(a, 1), 0) = 0 or coalesce(array_length(b, 1), 0) = 0 then 0
+    else cardinality(array(select unnest(a) intersect select unnest(b)))::numeric
+       / cardinality(array(select unnest(a) union  select unnest(b)))::numeric
+  end
+$$;
+
+create or replace function private.verdict_registre(
+  p_association public.association, p_fiche jsonb)
+returns text language plpgsql immutable set search_path = '' as $$
+declare v_nom text[]; v_score numeric;
+begin
+  if p_fiche is null then return 'introuvable'; end if;
+  if coalesce(p_fiche->>'etat', '') = 'C' then return 'fermee'; end if;
+
+  v_nom := private.mots_utiles(coalesce(p_association.nom_juridique, p_association.nom, ''));
+  v_score := greatest(
+    private.recouvrement(v_nom, private.mots_utiles(p_fiche->>'nom')),
+    private.recouvrement(v_nom, private.mots_utiles(p_fiche->>'nom_raison_sociale')),
+    private.recouvrement(v_nom, private.mots_utiles(p_fiche->>'sigle')));
+
+  if v_score = 1 then return 'exact'; end if;
+  if v_score >= 0.5 then return 'proche'; end if;
+  return 'different';
+end $$;
+
+-- L'association déclare elle-même son immatriculation : c'est la seule chose
+-- qu'on lui demande, et elle lui évite d'envoyer le moindre justificatif.
+create or replace function public.enregistrer_numeros_association(
+  p_association uuid, p_siren text default null, p_rna text default null)
+returns void language plpgsql security definer set search_path = '' as $$
+declare v_siren text := nullif(regexp_replace(coalesce(p_siren, ''), '\D', '', 'g'), '');
+        v_rna   text := nullif(upper(btrim(coalesce(p_rna, ''))), '');
+begin
+  if p_association <> private.mon_association() and not private.est_admin() then
+    raise exception 'Réservé à l''association concernée' using errcode = '42501';
+  end if;
+  if v_siren is not null and (v_siren !~ '^[0-9]{9}$' or not private.luhn_ok(v_siren)) then
+    raise exception 'Ce numéro SIREN ne peut pas exister : la clé de contrôle est fausse'
+      using errcode = '22023';
+  end if;
+  if v_rna is not null and v_rna !~ '^W[0-9A-Z]{9}$' then
+    raise exception 'Un numéro RNA s''écrit W suivi de neuf caractères' using errcode = '22023';
+  end if;
+  update public.association a
+     set siren = coalesce(v_siren, a.siren), rna = coalesce(v_rna, a.rna)
+   where a.id = p_association;
+end $$;
+
+-- Enregistre un contrôle. Réservé à Riseva : une association qui pourrait écrire
+-- son propre verdict n'aurait plus de verdict du tout.
+create or replace function public.controler_association(
+  p_association uuid, p_fiche jsonb default null, p_panne boolean default false)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare v_a public.association; v_etat text; v_id uuid; v_ecarts jsonb := '[]'::jsonb;
+begin
+  if not private.est_admin() then
+    raise exception 'Réservé à Riseva' using errcode = '42501';
+  end if;
+  select * into v_a from public.association a where a.id = p_association;
+  if not found then raise exception 'Association inconnue' using errcode = '42704'; end if;
+
+  if p_panne then v_etat := 'panne';
+  elsif v_a.siren is null and p_fiche is null then v_etat := 'absent';
+  else v_etat := private.verdict_registre(v_a, p_fiche);
+  end if;
+
+  if p_fiche is not null and coalesce(p_fiche->>'est_association', 'false') <> 'true' then
+    v_ecarts := v_ecarts || jsonb_build_array(jsonb_build_object(
+      'champ', 'nature', 'attendu', 'association',
+      'registre', 'structure non signalée comme association'));
+  end if;
+  if p_fiche is not null and v_a.rna is not null and p_fiche->>'rna' is not null
+     and upper(v_a.rna) <> upper(p_fiche->>'rna') then
+    v_ecarts := v_ecarts || jsonb_build_array(jsonb_build_object(
+      'champ', 'RNA', 'attendu', v_a.rna, 'registre', p_fiche->>'rna'));
+  end if;
+
+  insert into public.controle_association (association, par, etat, bloquant, numero, ecarts, fiche)
+  values (p_association, auth.uid(), v_etat,
+          v_etat in ('different','fermee','introuvable'), v_a.siren, v_ecarts, p_fiche)
+  returning id into v_id;
+
+  -- Un contrôle bloquant retire l'association de la vitrine. Ce n'est pas une
+  -- sanction : c'est le refus d'exposer à des salariés une structure dont le
+  -- registre dit qu'elle est fermée ou introuvable. Rien n'est effacé, et un
+  -- contrôle refait la remet en ligne.
+  if v_etat in ('fermee','introuvable') then
+    update public.association a set valide = false where a.id = p_association;
+  end if;
+  return v_id;
+end $$;

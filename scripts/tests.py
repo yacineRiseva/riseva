@@ -908,6 +908,76 @@ def main():
         verifie("chaque don porte l'état de sa réception et de son reçu",
                 "Réception" in m and "Reçu" in m and "En attente de l'association" in m)
 
+        print("\nRegistre public et dossier de l'association")
+        connecte(p, "u7", "#/dossier")
+        dr = norm(p.inner_text(".content"))
+        verifie("l'association ne se voit demander qu'un numéro",
+                "Votre immatriculation" in dr
+                and "aucun justificatif à envoyer" in dr)
+        verifie("le champ est prérempli avec ce qu'on sait déjà",
+                p.input_value("#q-registre") == "428763304")
+        verifie("l'absence de SIREN est dite non bloquante",
+                "ce n'est pas bloquant" in dr)
+        verifie("la source du registre est citée, licence comprise",
+                "Annuaire des Entreprises" in dr and "Licence Ouverte" in dr)
+        verifie("le dossier dit ce que le contrôle ne prouve pas",
+                "Il ne prouve pas qu'elle est éligible au mécénat" in dr)
+        verifie("et que la tranche d'effectif ne sert ni au score ni au prix",
+                "ni au quota, ni au score, ni au prix" in dr)
+
+        # Le registre n'est pas joignable depuis la recette : on éprouve le
+        # moteur, pas le réseau. Ce qui compte est ce que le contrôle produit.
+        r = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const fiche = { siren:'428763304', nom:'REFUGE DES QUATRE VENTS',
+            nom_raison_sociale:'REFUGE DES QUATRE VENTS', etat:'A',
+            est_association:true, rna:'W423001234', code_postal:'42000' };
+          const bon = d.DB.controlerEnregistrement('a1', { fiche });
+          const autre = d.DB.controlerEnregistrement('a1', { fiche:
+            { ...fiche, nom:'SOCIETE GENERALE DE TRAVAUX',
+              nom_raison_sociale:'SOCIETE GENERALE DE TRAVAUX', est_association:false } });
+          const ferme = d.DB.controlerEnregistrement('a1', { fiche: { ...fiche, etat:'C' } });
+          const panne = d.DB.controlerEnregistrement('a1', { panne:true });
+          let refus = null;
+          try { d.DB.validerAssociation('a1'); } catch (e){ refus = e.message; }
+          const dossier = d.DB.dossierAdministratif('a1');
+          return { bon:bon.etat, bonBloquant:bon.bloquant, autre:autre.etat,
+                   autreBloquant:autre.bloquant, ecarts:autre.ecarts.map(x=>x.champ),
+                   ferme:ferme.etat, panne:panne.etat, panneBloquant:panne.bloquant,
+                   refus, nb:d.DB.controlesDe('a1').length,
+                   perime:dossier.controle_perime };
+        }""")
+        verifie("un nom identique au registre ne bloque rien",
+                r["bon"] == "exact" and r["bonBloquant"] is False, str(r))
+        verifie("un nom sans rapport est signalé et bloque",
+                r["autre"] == "different" and r["autreBloquant"] is True, str(r))
+        verifie("une structure non signalée comme association apparaît dans les écarts",
+                "nature" in r["ecarts"], str(r["ecarts"]))
+        verifie("une structure fermée au registre est reconnue", r["ferme"] == "fermee")
+        verifie("un registre injoignable est consigné sans bloquer personne",
+                r["panne"] == "panne" and r["panneBloquant"] is False)
+        verifie("les contrôles s'empilent, aucun ne s'écrase",
+                r["nb"] >= 4, str(r["nb"]))
+        verifie("un contrôle du jour n'est pas périmé", r["perime"] is False)
+        verifie("le dernier contrôle décide : une panne ne bloque pas la mise en ligne",
+                r["refus"] is None, str(r["refus"]))
+
+        r2 = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          d.DB.controlerEnregistrement('a1', { fiche:
+            { siren:'428763304', nom:'AUTRE CHOSE', etat:'A', est_association:true } });
+          let refus = null;
+          try { d.DB.validerAssociation('a1'); } catch (e){ refus = e.message; }
+          let cle = null;
+          try { d.DB.enregistrerNumeros('a1', { siren:'428763305' }); }
+          catch (e){ cle = e.message; }
+          return { refus, cle };
+        }""")
+        verifie("un contrôle bloquant interdit la mise en ligne",
+                r2["refus"] and "registre public" in r2["refus"], str(r2["refus"]))
+        verifie("un SIREN à clé fausse est refusé avant tout appel réseau",
+                r2["cle"] and "clé de contrôle" in r2["cle"], str(r2["cle"]))
+
         print("\nRéponses aux questionnaires clients")
         connecte(p, "u2", "#/dossier")
         dd = norm(p.inner_text(".content"))

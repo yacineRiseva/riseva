@@ -82,6 +82,273 @@ export function distanceKm(a, b){
   return Math.round(2 * R * Math.asin(Math.sqrt(x)));
 }
 
+/* ------------------------------------------------------------------ */
+/* Annuaire public : vérifier une structure sans rien demander à personne */
+/* ------------------------------------------------------------------ */
+/* API « Recherche d'entreprises » de la DINUM (data.gouv.fr). Gratuite, sans clé
+   et sans compte, sous Licence Ouverte 2.0 — l'attribution est obligatoire et
+   figure sur les écrans qui l'utilisent. Elle sert deux choses, et deux seulement :
+
+   1. remplir la fiche d'une association à sa place, à partir de son seul numéro.
+      C'est la règle qu'on s'est donnée : une association ne doit rien avoir à
+      faire d'autre que publier son besoin ;
+   2. donner à Riseva une preuve datée que la structure existe, qu'elle est
+      ouverte, et que le nom affiché est bien le sien.
+
+   Ce qu'elle ne prouve pas est écrit noir sur blanc dans ANNUAIRE_LIMITES et
+   repris à l'écran : l'éligibilité au mécénat (art. 200 et 238 bis du CGI) n'est
+   dans aucun registre public, et ne se déduit pas d'une catégorie juridique.
+
+   `minimal=true` retire les dirigeants de la réponse. Ce n'est pas un détail de
+   performance : sans ce paramètre, l'API renvoie des noms, prénoms et dates de
+   naissance de personnes physiques que Riseva n'a aucune raison de recevoir. On
+   ne filtre pas après coup ce qu'on peut ne pas demander. */
+export const ANNUAIRE = {
+  url: "https://recherche-entreprises.api.gouv.fr/search",
+  source: "Annuaire des Entreprises (DINUM)",
+  licence: "Licence Ouverte 2.0",
+  attribution: "Données : Annuaire des Entreprises — INSEE, INPI, DILA, sous Licence Ouverte 2.0",
+  page: "https://annuaire-entreprises.data.gouv.fr",
+  /* Le service annonce sept requêtes par seconde. On reste très en dessous :
+     une frappe au clavier ne doit pas déclencher une rafale. */
+  debit_max_par_seconde: 7,
+  delai_frappe_ms: 450,
+  par_page: 8,
+  /* Revérification annuelle. Une association contrôlée il y a deux ans n'est pas
+     une association contrôlée. */
+  validite_controle_jours: 365
+};
+
+export const ANNUAIRE_LIMITES = [
+  "Le registre prouve qu'une structure est immatriculée et ouverte. Il ne prouve pas qu'elle est éligible au mécénat : aucun registre public ne porte cette information.",
+  "Seules 10 à 15 % des associations déclarées ont un numéro SIREN. Les autres n'apparaissent pas ici, et leur absence ne veut rien dire.",
+  "Les tranches d'effectif de l'INSEE sont des intervalles datés de deux à trois ans, absents pour une structure sur deux. Elles ne servent ni au quota, ni au score, ni au prix.",
+  "Le nombre d'établissements donne un ordre de grandeur, jamais la liste des sites d'un client : cette liste se déclare, elle ne se devine pas.",
+  "Les associations d'Alsace-Moselle relèvent du droit local de 1908 et d'un registre distinct ; leur numéro n'est pas un RNA."
+];
+
+/* Clé de Luhn. Le SIREN et le SIRET la portent, ce qui permet de refuser une
+   coquille avant même d'interroger quoi que ce soit — un aller-retour réseau
+   évité, et surtout un message d'erreur qui dit la vérité : « ce numéro ne peut
+   pas exister », et non « nous n'avons rien trouvé ». */
+function luhn(n){
+  let somme = 0;
+  for (let i = 0; i < n.length; i++){
+    let c = Number(n[n.length - 1 - i]);
+    if (i % 2 === 1){ c *= 2; if (c > 9) c -= 9; }
+    somme += c;
+  }
+  return somme % 10 === 0;
+}
+
+export const chiffresSeuls = (v) => String(v || "").replace(/\D+/g, "");
+
+/* La Poste fait exception depuis toujours : ses numéros ne satisfont pas Luhn
+   mais la somme de leurs chiffres est divisible par cinq. Une règle écrite dans
+   la documentation de l'INSEE, pas une tolérance qu'on s'accorde. */
+const exceptionLaPoste = (n) =>
+  n.startsWith("356000000") &&
+  [...n].reduce((t, c) => t + Number(c), 0) % 5 === 0;
+
+export const sirenValide = (v) => {
+  const n = chiffresSeuls(v);
+  return n.length === 9 && (luhn(n) || exceptionLaPoste(n));
+};
+export const siretValide = (v) => {
+  const n = chiffresSeuls(v);
+  return n.length === 14 && (luhn(n) || exceptionLaPoste(n));
+};
+/* Un RNA : W puis neuf caractères. Le premier chiffre code le département de
+   dépôt, mais on ne le contrôle pas : les reprises de fichiers anciens en ont
+   assez pour qu'un contrôle strict rejette des associations parfaitement
+   réelles. */
+export const rnaValide = (v) => /^W[0-9A-Z]{9}$/i.test(String(v || "").trim());
+
+/* Tranches d'effectif de l'INSEE. Conservées pour l'affichage — un acheteur
+   reconnaît le code et s'attend à le voir — et interdites partout ailleurs.
+   `usage_interdit` n'est pas décoratif : les écrans le lisent pour afficher la
+   réserve à côté du chiffre. */
+export const TRANCHES_EFFECTIF = {
+  "NN": "Effectif non renseigné", "00": "Aucun salarié",
+  "01": "1 ou 2 salariés",      "02": "3 à 5 salariés",
+  "03": "6 à 9 salariés",       "11": "10 à 19 salariés",
+  "12": "20 à 49 salariés",     "21": "50 à 99 salariés",
+  "22": "100 à 199 salariés",   "31": "200 à 249 salariés",
+  "32": "250 à 499 salariés",   "41": "500 à 999 salariés",
+  "42": "1 000 à 1 999 salariés","51": "2 000 à 4 999 salariés",
+  "52": "5 000 à 9 999 salariés","53": "10 000 salariés et plus"
+};
+export const trancheEffectif = (code) =>
+  TRANCHES_EFFECTIF[String(code || "NN")] || "Effectif non renseigné";
+
+export const ETATS_ADMINISTRATIFS = {
+  A: { label:"En activité",  badge:"badge--ok"    },
+  C: { label:"Fermée",       badge:"badge--alerte" }
+};
+
+/* Normalisation des dénominations avant comparaison. « ASSOCIATION LES JARDINS
+   DU NORD (LOI 1901) » et « Les Jardins du Nord » sont la même structure ; les
+   traiter comme deux noms différents aurait produit un écart à chaque contrôle,
+   et un écart qui se produit toujours n'est plus lu par personne. */
+const MOTS_VIDES = new Set(["ASSOCIATION","ASSOC","ASSO","LOI","1901","DE","DU","DES",
+  "LA","LE","LES","L","D","ET","POUR","EN","AU","AUX","UNION","COMITE","COMITÉ"]);
+
+export function normaliserNom(v){
+  return String(v || "")
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim();
+}
+const motsUtiles = (v) =>
+  normaliserNom(v).split(" ").filter(m => m && !MOTS_VIDES.has(m));
+
+/* Recouvrement de Jaccard sur les mots utiles. Simple, explicable à un client,
+   et surtout symétrique : « Refuge des Quatre Vents » et « Quatre Vents Refuge »
+   se reconnaissent. */
+function recouvrement(a, b){
+  const A = new Set(motsUtiles(a)), B = new Set(motsUtiles(b));
+  if (!A.size || !B.size) return 0;
+  let commun = 0; A.forEach(m => { if (B.has(m)) commun++; });
+  return commun / (A.size + B.size - commun);
+}
+
+export const ETATS_CORRESPONDANCE = {
+  exact:       { label:"Nom identique au registre",        badge:"badge--ok",     bloquant:false },
+  proche:      { label:"Nom voisin du registre",           badge:"badge--info",   bloquant:false },
+  different:   { label:"Nom différent du registre",        badge:"badge--attente",bloquant:true  },
+  fermee:      { label:"Structure fermée au registre",     badge:"badge--alerte", bloquant:true  },
+  introuvable: { label:"Numéro introuvable au registre",   badge:"badge--alerte", bloquant:true  },
+  panne:       { label:"Registre injoignable",             badge:"badge--info",   bloquant:false },
+  absent:      { label:"Aucun numéro déclaré",             badge:"badge--attente",bloquant:false }
+};
+
+/* Une fiche, telle que Riseva la garde : ce dont on a besoin, rien de plus.
+   La réponse de l'API contient davantage ; recopier tout « au cas où » aurait
+   fait entrer dans la base des champs que personne n'affiche et que personne ne
+   sait plus justifier trois ans plus tard. */
+export function versFiche(r){
+  if (!r) return null;
+  const siege = r.siege || {};
+  const co = String(siege.coordonnees || "").split(",");
+  const comp = r.complements || {};
+  return {
+    siren: r.siren || null,
+    siret_siege: siege.siret || null,
+    nom: r.nom_complet || r.nom_raison_sociale || "",
+    nom_raison_sociale: r.nom_raison_sociale || "",
+    sigle: r.sigle || "",
+    etat: r.etat_administratif || siege.etat_administratif || null,
+    date_creation: r.date_creation || null,
+    nature_juridique: r.nature_juridique || null,
+    activite: siege.activite_principale || null,
+    adresse: siege.adresse || "",
+    code_postal: siege.code_postal || "",
+    commune: siege.libelle_commune || "",
+    lat: co[0] ? Number(co[0]) : null,
+    lon: co[1] ? Number(co[1]) : null,
+    tranche_effectif: r.tranche_effectif_salarie || null,
+    /* Ordre de grandeur seulement — voir ANNUAIRE_LIMITES. */
+    etablissements: r.nombre_etablissements ?? null,
+    etablissements_ouverts: r.nombre_etablissements_ouverts ?? null,
+    est_association: comp.est_association === true,
+    est_ess: comp.est_ess === true,
+    rna: comp.identifiant_association || null,
+    source: ANNUAIRE.source,
+    licence: ANNUAIRE.licence
+  };
+}
+
+export function requeteAnnuaire(q, { parPage = ANNUAIRE.par_page, page = 1 } = {}){
+  const p = new URLSearchParams({
+    q: String(q || "").trim(),
+    minimal: "true",
+    include: "siege,complements",
+    per_page: String(parPage),
+    page: String(page)
+  });
+  return `${ANNUAIRE.url}?${p}`;
+}
+
+/* Recherche libre : un nom, un SIREN, un SIRET. Renvoie toujours un objet, jamais
+   une exception — un registre injoignable est un incident d'exploitation, pas une
+   erreur de l'utilisateur, et il ne doit pas casser l'écran sur lequel il est. */
+export async function chercherStructure(q, { signal, parPage } = {}){
+  const texte = String(q || "").trim();
+  if (texte.length < 3) return { etat:"court", fiches:[] };
+  const n = chiffresSeuls(texte);
+  if ((n.length === 9 && !sirenValide(n)) || (n.length === 14 && !siretValide(n)))
+    return { etat:"numero_invalide", fiches:[] };
+  try {
+    const r = await fetch(requeteAnnuaire(texte, { parPage }),
+      { signal, headers: { Accept: "application/json" } });
+    if (!r.ok) return { etat:"panne", code:r.status, fiches:[] };
+    const j = await r.json();
+    return {
+      etat: "ok",
+      total: j.total_results ?? (j.results || []).length,
+      fiches: (j.results || []).map(versFiche).filter(Boolean)
+    };
+  } catch (e){
+    if (e && e.name === "AbortError") return { etat:"annulee", fiches:[] };
+    return { etat:"panne", fiches:[] };
+  }
+}
+
+/* Recherche par numéro exact. On ne renvoie une fiche que si le numéro demandé
+   est bien celui de la fiche trouvée : l'API accepte les recherches approchées,
+   et rendre « la première réponse » pour un SIREN saisi à une touche près aurait
+   validé une association avec l'immatriculation d'une autre. */
+export async function chercherParNumero(numero, { signal } = {}){
+  const n = chiffresSeuls(numero);
+  if (n.length !== 9 && n.length !== 14) return { etat:"numero_invalide", fiche:null };
+  if (n.length === 9 && !sirenValide(n)) return { etat:"numero_invalide", fiche:null };
+  if (n.length === 14 && !siretValide(n)) return { etat:"numero_invalide", fiche:null };
+  const siren = n.slice(0, 9);
+  const r = await chercherStructure(n, { signal, parPage: 5 });
+  if (r.etat !== "ok") return { etat:r.etat, fiche:null };
+  const f = r.fiches.find(x => x.siren === siren);
+  return f ? { etat:"ok", fiche:f } : { etat:"introuvable", fiche:null };
+}
+
+/* Comparaison de la fiche déclarée avec le registre. Le résultat n'applique
+   jamais rien tout seul : il produit un état et une liste d'écarts, qu'une
+   personne lit. Une plateforme qui corrigerait d'office le nom d'une association
+   d'après un registre se tromperait un jour, sans que personne ne sache quand. */
+export function comparerFiche(declaree, fiche){
+  if (!fiche) return { etat:"introuvable", ecarts:[] };
+  if (fiche.etat === "C")
+    return { etat:"fermee", ecarts:[{ champ:"état", attendu:"en activité", registre:"fermée" }] };
+
+  const ecarts = [];
+  const nomDeclare = declaree.nom_juridique || declaree.nom || "";
+  const score = Math.max(recouvrement(nomDeclare, fiche.nom),
+                         recouvrement(nomDeclare, fiche.nom_raison_sociale),
+                         fiche.sigle ? recouvrement(nomDeclare, fiche.sigle) : 0);
+  /* « Identique » se juge sur les mots utiles, pas sur la chaîne. « Association
+     Refuge des Quatre Vents » et « REFUGE DES QUATRE VENTS » sont le même nom :
+     l'un porte la forme juridique, l'autre non. Un verdict littéral aurait
+     signalé un écart à chaque contrôle, et un écart permanent n'est plus lu. */
+  let etat = score >= 0.5 ? "proche" : "different";
+  if (score === 1) etat = "exact";
+  if (etat !== "exact")
+    ecarts.push({ champ:"dénomination", attendu:nomDeclare || "—", registre:fiche.nom || "—" });
+
+  const cp = String(declaree.adresse || "").match(/\b\d{5}\b/);
+  if (cp && fiche.code_postal && cp[0] !== fiche.code_postal)
+    ecarts.push({ champ:"code postal", attendu:cp[0], registre:fiche.code_postal });
+
+  if (declaree.rna && fiche.rna
+      && normaliserNom(declaree.rna) !== normaliserNom(fiche.rna))
+    ecarts.push({ champ:"RNA", attendu:declaree.rna, registre:fiche.rna });
+
+  if (!fiche.est_association)
+    ecarts.push({ champ:"nature", attendu:"association",
+                  registre:"structure non signalée comme association" });
+
+  return { etat, score:Math.round(score * 100) / 100, ecarts };
+}
+
 export const CATEGORIES = [
   { id:"tpe", label:"Moins de 50 salariés",  min:0,   max:49 },
   { id:"pme", label:"50 à 199 salariés",     min:50,  max:199 },
@@ -296,23 +563,23 @@ const seed = {
      facture, ni plafond de mécénat — ceux-là restent à la société. */
   etablissements: [
     { id:"et1", societe:"e1", nom:"Siège",           ville:"Paris",     lat:48.8566, lon:2.3522,
-      siret:"39312091600025", effectif:60,  quota:60,
+      siret:"39312091000020", effectif:60,  quota:60,
       referent:"Claire Fontaine", referent_mail:"claire@lafarge-ciments.fr" },
     { id:"et2", societe:"e1", nom:"Usine",           ville:"Lyon",      lat:45.7333, lon:4.8137,
-      siret:"39312091600041", effectif:110, quota:110,
+      siret:"39312091000046", effectif:110, quota:110,
       referent:"Karim Belhadj", referent_mail:"karim@lafarge-ciments.fr" },
     { id:"et3", societe:"e1", nom:"Agence",          ville:"Marseille", lat:43.2965, lon:5.3698,
-      siret:"39312091600058", effectif:40,  quota:40,
+      siret:"39312091000053", effectif:40,  quota:40,
       referent:"Léa Mercier", referent_mail:"lea@lafarge-ciments.fr" },
     { id:"et4", societe:"e9", nom:"Plateforme",      ville:"Nantes",    lat:47.2184, lon:-1.5536,
-      siret:"84210044700018", effectif:45,  quota:45,
+      siret:"84210044800013", effectif:45,  quota:45,
       referent:null, referent_mail:null }
   ],
 
   entreprises: [
     { id:"e1", lat:45.7333, lon:4.8137, nom:"Lafarge Ciments",     effectif:210, sieges:210, ca:48_000_000, cout_jour_moyen:340,
-      groupe:"g1", siren:"393120916",
-      referent:"Claire Fontaine", referent_mail:"claire@lafarge-ciments.fr", siret:"39312091600025",
+      groupe:"g1", siren:"393120910",
+      referent:"Claire Fontaine", referent_mail:"claire@lafarge-ciments.fr", siret:"39312091000020",
       domaines:["lafarge-ciments.fr"],
       adresse:"12 rue des Docks, 69009 Lyon", secteur:"Industrie",  ville:"Lyon" },
     /* Deuxième société du même groupe : elle prouve ce que le modèle doit tenir.
@@ -320,7 +587,7 @@ const seed = {
        elle n'est visible depuis l'autre société — même actionnaire, autre responsable
        de traitement. */
     { id:"e9", lat:47.2184, lon:-1.5536, nom:"Lafarge Négoce",      effectif:45,  sieges:45,  ca:6_200_000,  cout_jour_moyen:295,
-      groupe:"g1", siren:"842100447", siret:"84210044700018",
+      groupe:"g1", siren:"842100448", siret:"84210044800013",
       domaines:["lafarge-negoce.fr"],
       adresse:"4 quai de la Fosse, 44000 Nantes", secteur:"Négoce", ville:"Nantes" },
     { id:"e2", lat:50.6292, lon:3.0573, nom:"Groupe Vidal",        effectif:340, sieges:350, ca:62_000_000, cout_jour_moyen:290, secteur:"Logistique", ville:"Lille" },
@@ -360,7 +627,7 @@ const seed = {
       nom_juridique:"Association Refuge des Quatre Vents", site:"https://refuge4vents.fr",
       reseaux:[{ nom:"Facebook", url:"https://facebook.com/refuge4vents" }],
       contact_public:"bonjour@refuge4vents.fr",
-      valide:true, rna:"W423001234", verifiee_le:J(-120), a_reverifier_le:J(240), suspendue:false,
+      siren:"428763304", valide:true, rna:"W423001234", verifiee_le:J(-120), a_reverifier_le:J(240), suspendue:false,
       recus:{ actif:true, eligible_mecenat:true, signataire:"Élise Tournier",
               qualite:"Présidente", prochain_numero:47, prefixe:"QV-2027-" } },
     { id:"a2", nom:"Racines Vives", ville:"Clermont-Ferrand", cause:"Reforestation",
@@ -370,7 +637,7 @@ const seed = {
       reseaux:[{ nom:"Instagram", url:"https://instagram.com/racinesvives" },
                { nom:"LinkedIn", url:"https://linkedin.com/company/racines-vives" }],
       contact_public:"contact@racines-vives.org",
-      valide:true, rna:"W631004567", verifiee_le:J(-60), a_reverifier_le:J(300), suspendue:false,
+      siren:"512291048", valide:true, rna:"W631004567", verifiee_le:J(-60), a_reverifier_le:J(300), suspendue:false,
       recus:{ actif:true, eligible_mecenat:true, signataire:"Marc Aubert",
               qualite:"Trésorier", prochain_numero:12, prefixe:"RV-2027-" } },
     { id:"a3", nom:"Rivière Propre 42", ville:"Roanne", cause:"Dépollution",
@@ -380,7 +647,7 @@ const seed = {
     { id:"a4", nom:"Le Panier Solidaire", ville:"Villeurbanne", cause:"Aide alimentaire",
       resume:"Distribution de 900 colis par mois et maraude hebdomadaire.",
       adresse:"22 rue Garibaldi, 69003 Lyon", lat:45.7578, lon:4.8515,
-      site:"", valide:true, rna:"W691002345", verifiee_le:J(-30), a_reverifier_le:J(330), suspendue:false },
+      site:"", siren:"809177421", valide:true, rna:"W691002345", verifiee_le:J(-30), a_reverifier_le:J(330), suspendue:false },
     { id:"a5", nom:"Second Souffle", ville:"Grenoble", cause:"Réemploi",
       resume:"Reconditionnement de matériel informatique pour des familles et des écoles.",
       site:"", valide:false },
@@ -625,6 +892,7 @@ const seed = {
     { id:"p3", entreprise:"Novaterre",        contact:"rse@novaterre.fr",        effectif:120, etat:"preinscrite", date:J(-6) },
     { id:"p4", entreprise:"Sirius Assurances",contact:"contact@sirius-a.fr",     effectif:520, etat:"relancee",    date:J(-3) }
   ],
+  controles: [],
   rapports_generes: [],
   moteur_journal: [],
   classement_recalcule_le: null
@@ -732,7 +1000,7 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
    est enregistré, et retrouvé au retour. Une clé de version évite de restaurer un
    état écrit par une version antérieure du modèle. */
 const CLE_ETAT = "riseva.etat";
-const VERSION_ETAT = 4;
+const VERSION_ETAT = 5;
 
 function lireEtat(){
   try {
@@ -1705,6 +1973,16 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
        Une association jamais revue depuis plus d'une saison est signalée. */
     validerAssociation(aid){
       const a = s.associations.find(x => x.id === aid);
+      /* Un contrôle bloquant — structure fermée au registre, numéro introuvable,
+         dénomination sans rapport — interdit la mise en ligne tant qu'il n'a pas
+         été refait. L'absence de contrôle, elle, n'est pas bloquante : neuf
+         associations déclarées sur dix n'ont pas de SIREN, et les exclure
+         reviendrait à ne garder que les grosses. */
+      const ct = api.dernierControle(aid);
+      if (ct && ct.bloquant)
+        throw new Error("Le registre public dit : « "
+          + ETATS_CORRESPONDANCE[ct.etat].label.toLowerCase()
+          + " ». Refaites le contrôle ou corrigez le numéro avant la mise en ligne.");
       if (a){
         a.valide = true; a.suspendue = false; a.motif_suspension = null;
         a.verifiee_le = new Date(2026, 7, 20).toISOString().slice(0, 10);
@@ -2381,6 +2659,104 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
     },
 
     /* ------------------------------------------------------------------ */
+    /* Dossier administratif d'une association                            */
+    /* ------------------------------------------------------------------ */
+    /* Riseva met des salariés d'entreprises clientes en contact avec des
+       associations, et prépare des reçus qui ouvrent droit à réduction d'impôt.
+       Le jour où l'une d'elles se révèle radiée, la question posée à Riseva ne
+       sera pas « aviez-vous un doute ? » mais « qu'aviez-vous vérifié, quand, et
+       qu'est-ce que ça disait ? ». D'où un contrôle daté, conservé, avec la
+       réponse brute du registre à côté du verdict.
+
+       Aucune conséquence automatique. Le contrôle informe, il ne décide pas :
+       une correspondance imparfaite entre un nom d'usage et une dénomination
+       déposée est le cas ordinaire, pas une fraude. */
+    enregistrerNumeros(aid, { siren, rna } = {}){
+      const a = api.association(aid); if (!a) return null;
+      if (siren !== undefined){
+        const n = chiffresSeuls(siren);
+        if (n && !sirenValide(n))
+          throw new Error("Ce numéro SIREN ne peut pas exister : la clé de contrôle est fausse.");
+        a.siren = n || null;
+      }
+      if (rna !== undefined){
+        const v = String(rna || "").trim().toUpperCase();
+        if (v && !rnaValide(v))
+          throw new Error("Un numéro RNA s'écrit W suivi de neuf caractères.");
+        a.rna = v || null;
+      }
+      return a;
+    },
+
+    controlerEnregistrement(aid, { fiche = null, panne = false, par = null } = {}){
+      const a = api.association(aid); if (!a) return null;
+      const numero = a.siren || null;
+      let etat, ecarts = [];
+      if (panne) etat = "panne";
+      else if (!numero && !fiche) etat = "absent";
+      else {
+        const c = comparerFiche(a, fiche);
+        etat = c.etat; ecarts = c.ecarts;
+      }
+      const c = {
+        id: id("ct"), association: aid, le: new Date().toISOString().slice(0, 10),
+        par, etat, ecarts,
+        bloquant: !!(ETATS_CORRESPONDANCE[etat] || {}).bloquant,
+        numero, fiche: fiche || null, source: ANNUAIRE.source
+      };
+      s.controles.unshift(c);
+      /* On ne recopie que ce que l'association n'a pas renseigné elle-même. Le
+         registre complète, il n'écrase pas : une association qui a corrigé son
+         adresse dans Riseva sait mieux que le fichier où elle reçoit son
+         courrier. */
+      if (fiche && !panne){
+        if (!a.rna && fiche.rna) a.rna = fiche.rna;
+        if (!a.nom_juridique && fiche.nom) a.nom_juridique = fiche.nom;
+        if (!a.adresse && fiche.adresse) a.adresse = fiche.adresse;
+        if (a.lat == null && fiche.lat != null){ a.lat = fiche.lat; a.lon = fiche.lon; }
+        if (!a.ville && fiche.commune)
+          a.ville = fiche.commune.charAt(0) + fiche.commune.slice(1).toLowerCase();
+      }
+      return c;
+    },
+    controlesDe: (aid) => s.controles.filter(c => c.association === aid),
+    dernierControle: (aid) => s.controles.find(c => c.association === aid) || null,
+
+    /* Ce qu'un administrateur Riseva doit avoir sous les yeux avant de mettre une
+       association en ligne, et ce que l'association voit d'elle-même. Les deux
+       lisent le même objet : deux vues divergentes du même dossier finissent
+       toujours par se contredire devant quelqu'un. */
+    dossierAdministratif(aid, { aujourdhui = "2026-08-20" } = {}){
+      const a = api.association(aid); if (!a) return null;
+      const c = api.dernierControle(aid);
+      const perime = c ? (function(){
+        const d = new Date(c.le); d.setDate(d.getDate() + ANNUAIRE.validite_controle_jours);
+        return d.toISOString().slice(0, 10) < aujourdhui;
+      })() : true;
+      const r = api.reglagesRecus(aid);
+
+      /* Ce qui manque pour que l'association puisse recevoir des dons donnant
+         lieu à reçu. Chaque ligne est une action, pas un reproche : le but est
+         qu'une présidente sache en dix secondes ce qu'il lui reste à faire. */
+      const manque = [];
+      if (!a.siren) manque.push({ quoi:"numéro SIREN", pourquoi:"permet de vérifier l'association au registre public, sans pièce à envoyer" });
+      if (!r.eligible_mecenat) manque.push({ quoi:"déclaration d'éligibilité au mécénat", pourquoi:"sans elle, aucun reçu n'est préparé (art. 200 et 238 bis du CGI)" });
+      if (!r.signataire) manque.push({ quoi:"nom du signataire", pourquoi:"un reçu non signé est irrégulier" });
+      if (!r.qualite)    manque.push({ quoi:"qualité du signataire", pourquoi:"président, trésorier : elle figure sur le reçu" });
+      if (!r.prefixe)    manque.push({ quoi:"numérotation des reçus", pourquoi:"la série doit être continue et sans doublon (BOI-IR-RICI-250-40)" });
+
+      return {
+        association: a, siren: a.siren || null, rna: a.rna || null,
+        controle: c, controle_perime: perime,
+        bloquant: !!(c && c.bloquant),
+        en_ligne: !!a.valide && !a.suspendue,
+        recus_prets: api.recusPrets(aid),
+        manque,
+        limites: ANNUAIRE_LIMITES
+      };
+    },
+
+    /* ------------------------------------------------------------------ */
     /* Moteur : ce qui se fait tout seul                                  */
     /* ------------------------------------------------------------------ */
     /* Quatre automatismes tournent sans que personne les déclenche. En production
@@ -2758,7 +3134,8 @@ const versEtat = {
     referent: r.referent_nom, referent_mail: r.referent_mail
   }),
   association: (r) => ({
-    id: r.id, nom: r.nom, rna: r.rna, cause: r.cause, ville: r.ville,
+    id: r.id, nom: r.nom, rna: r.rna, siren: r.siren, nom_juridique: r.nom_juridique,
+    cause: r.cause, ville: r.ville,
     resume: r.resume, adresse: r.adresse, lat: r.lat, lon: r.lon,
     valide: r.valide, suspendue: r.suspendue, site: r.site,
     verifiee_le: r.verifiee_le, verifiee_jusqua: r.verifiee_jusqua
@@ -2864,6 +3241,7 @@ async function chargerEtat(client){
     acces: acces.map(versEtat.acces),
     signalements: signalements.map(versEtat.signalement),
     contrats: [], preinscriptions: [], moteur_journal: [], rapports_generes: [],
+    controles: [],
     classement_recalcule_le: null
   };
 }

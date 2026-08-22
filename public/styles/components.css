@@ -188,3 +188,11 @@ tr.is-anonyme td{color:var(--ink-400)}
 .liste{padding-left:1.1em;display:flex;flex-direction:column;gap:6px;
   font-size:var(--t-sm);color:var(--ink-600)}
 .liste li{list-style:disc}
+
+/* Écarts constatés entre une fiche déclarée et le registre public, et listes de
+   même nature (ce qui manque, ce que le contrôle ne prouve pas). Des puces
+   discrètes : ce sont des faits à lire, pas des alertes à subir. */
+.liste-ecarts{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:var(--s2)}
+.liste-ecarts li{position:relative;padding-left:var(--s5);font-size:var(--t-sm);color:var(--ink-600);line-height:1.5}
+.liste-ecarts li::before{content:"";position:absolute;left:6px;top:9px;width:5px;height:5px;
+  border-radius:50%;background:var(--forest-600)}

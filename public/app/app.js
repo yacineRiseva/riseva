@@ -1,4 +1,4 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
 import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
@@ -78,7 +78,8 @@ const MENUS = {
       ["mesannonces","Mes annonces",     "megaphone"],
       ["avalider",  "Missions à valider","check"],
       ["page",      "Ma page publique",  "heart"],
-      ["recus",     "Reçus fiscaux",     "report"]
+      ["recus",     "Reçus fiscaux",     "report"],
+      ["dossier",   "Mon dossier",       "report"]
     ]}
   ],
   admin: [
@@ -3140,8 +3141,8 @@ function vueAdminAssos(){
     </section>` : ""}
     <section class="card">
       <table class="table"><thead><tr>
-        <th>Association</th><th>Cause</th><th>Identifiant</th><th>Vérifiée</th>
-        <th>Annonces</th><th>État</th><th></th>
+        <th>Association</th><th>Cause</th><th>Identifiant</th><th>Registre</th>
+        <th>Vérifiée</th><th>Annonces</th><th>État</th><th></th>
       </tr></thead><tbody></tbody></table>
     </section>
   </div>`);
@@ -3155,7 +3156,8 @@ function vueAdminAssos(){
     const tr = h(`<tr>
       <td><strong>${esc(a.nom)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(a.ville || "")} · ${esc(a.resume || "")}</span></td>
       <td class="muted">${esc(a.cause || "—")}</td>
-      <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(a.rna || "—")}</td>
+      <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(a.siren || a.rna || "—")}</td>
+      <td>${badgeControle(a.id)}</td>
       <td class="muted tnum">${a.verifiee_le ? dateCourte(a.verifiee_le) : "—"}</td>
       <td class="tnum">${DB.annonces({ asso: a.id }).length}</td>
       <td><span class="badge ${etat[1]}">${etat[0]}</span></td>
@@ -3163,22 +3165,40 @@ function vueAdminAssos(){
     const cell = tr.lastElementChild;
     if (!a.valide || retard || a.suspendue){
       const b = h(`<button class="btn btn--forest btn--sm">${a.valide ? "Revérifier" : "Valider"}</button>`);
-      b.onclick = () => modal((a.valide ? "Revérifier " : "Valider ") + a.nom,
-        `<p class="muted">Vérifiez avant de cocher, la charte nous engage :</p>
-         <div class="stack" style="--gap:var(--s3);margin-top:var(--s5)">
-           <label class="checkline"><input type="checkbox" class="v"><span>Existence juridique confirmée (RNA ou SIREN, statuts).</span></label>
-           <label class="checkline"><input type="checkbox" class="v"><span>Référent et signataire des reçus identifiés.</span></label>
-           <label class="checkline"><input type="checkbox" class="v"><span>Objet réel cohérent avec l'activité annoncée.</span></label>
-           <label class="checkline"><input type="checkbox" class="v"><span>Coordonnées vérifiées et actives.</span></label>
-           <label class="checkline"><input type="checkbox" class="v"><span>Éligibilité au mécénat déclarée par l'association elle-même.</span></label>
-         </div>
-         <p class="hint" style="margin-top:var(--s4)">Riseva ne certifie pas l'éligibilité fiscale.
-         Seule l'association peut l'affirmer.</p>`,
+      b.onclick = () => {
+        const ct = DB.dernierControle(a.id);
+        /* Le premier point de la liste n'est plus une case qu'on coche de bonne foi :
+           il est renseigné par le registre, ou il ne l'est pas. C'était le seul des
+           cinq qu'une machine pouvait vérifier mieux qu'un humain pressé. */
+        const auto = ct && ["exact","proche"].includes(ct.etat);
+        const corps = h(`<div>
+          <p class="muted">Le registre public d'abord : c'est le seul point de la liste
+          qu'une vérification à l'œil rate régulièrement.</p>
+          <div style="margin-top:var(--s4)" id="reg"></div>
+          <hr style="margin:var(--s6) 0;border:0;border-top:1px solid var(--trait)">
+          <p class="muted">Puis ce que seule une personne peut voir :</p>
+          <div class="stack" style="--gap:var(--s3);margin-top:var(--s4)">
+            <label class="checkline"><input type="checkbox" class="v" ${auto ? "checked disabled" : ""}>
+              <span>Existence juridique confirmée${auto
+                ? ` — <strong>${esc(ETATS_CORRESPONDANCE[ct.etat].label.toLowerCase())}</strong>, contrôle du ${dateCourte(ct.le)}`
+                : " (RNA ou SIREN, statuts)"}.</span></label>
+            <label class="checkline"><input type="checkbox" class="v"><span>Référent et signataire des reçus identifiés.</span></label>
+            <label class="checkline"><input type="checkbox" class="v"><span>Objet réel cohérent avec l'activité annoncée.</span></label>
+            <label class="checkline"><input type="checkbox" class="v"><span>Coordonnées vérifiées et actives.</span></label>
+            <label class="checkline"><input type="checkbox" class="v"><span>Éligibilité au mécénat déclarée par l'association elle-même.</span></label>
+          </div>
+          <p class="hint" style="margin-top:var(--s4)">Riseva ne certifie pas l'éligibilité fiscale.
+          Seule l'association peut l'affirmer, et aucun registre ne la porte.</p></div>`);
+        corps.querySelector("#reg").appendChild(blocRegistre(a, { admin:true }));
+        modal((a.valide ? "Revérifier " : "Valider ") + a.nom, corps,
         [{ label:"Annuler" },
          { label:"Valider pour une saison", classe:"btn--primary", onClick: (md) => {
-             const toutes = [...md.querySelectorAll(".v")].every(x => x.checked);
+             const toutes = [...md.querySelectorAll(".v")].every(x => x.checked || x.disabled);
              if (!toutes){ toast("Cochez les cinq points, sinon la vérification ne vaut rien."); return false; }
-             DB.validerAssociation(a.id); toast("Association vérifiée pour une saison."); rendre(); }}]);
+             try { DB.validerAssociation(a.id); }
+             catch (e){ toast(e.message); return false; }
+             toast("Association vérifiée pour une saison."); rendre(); }}]);
+      };
       cell.appendChild(b);
     }
     if (a.valide && !a.suspendue){
@@ -5760,6 +5780,189 @@ function vueDossier(u){
   return el;
 }
 
+/* ------------------------------------------------------------------ */
+/* Registre public : le bloc partagé                                   */
+/* ------------------------------------------------------------------ */
+/* Le même bloc sert à l'association qui remplit sa fiche et à Riseva qui la
+   contrôle. Deux écrans qui interrogeraient le même registre avec deux
+   normalisations et deux verdicts finiraient par se contredire devant la même
+   personne — et c'est l'association qui aurait raison de ne plus rien croire. */
+function blocRegistre(asso, { admin = false, apres = null } = {}){
+  const el = h(`<div class="stack" style="--gap:var(--s4)">
+    <div class="field">
+      <label for="q-registre">Numéro SIREN, ou nom de l'association</label>
+      <div class="row" style="--gap:var(--s3)">
+        <input class="input" id="q-registre" style="flex:1"
+               placeholder="428 763 304" value="${esc(asso.siren || asso.nom || "")}">
+        <button class="btn btn--forest" id="go-registre">Interroger le registre</button>
+      </div>
+      <p class="hint">Neuf associations déclarées sur dix n'ont pas de SIREN. Sans numéro,
+      la fiche se remplit à la main : ce n'est pas bloquant.</p>
+    </div>
+    <div id="res-registre"></div>
+    <p class="hint" style="color:var(--ink-400)">${esc(ANNUAIRE.attribution)}</p>
+  </div>`);
+
+  const res = el.querySelector("#res-registre");
+  const champ = el.querySelector("#q-registre");
+  const bouton = el.querySelector("#go-registre");
+  let encours = null;
+
+  const ligne = (f) => {
+    const c = comparerFiche(asso, f);
+    const et = ETATS_CORRESPONDANCE[c.etat] || ETATS_CORRESPONDANCE.different;
+    const carte = h(`<div class="card card--flat" style="padding:var(--s4)">
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div>
+          <strong>${esc(f.nom || "—")}</strong>
+          <div class="muted" style="font-size:var(--t-xs);margin-top:2px">
+            ${esc(f.siren || "")}${f.rna ? " · " + esc(f.rna) : ""}
+            ${f.adresse ? " · " + esc(f.adresse) : ""}</div>
+          <div class="muted" style="font-size:var(--t-xs);margin-top:2px">
+            ${f.est_association ? "Association" : "Structure non signalée comme association"}
+            ${f.est_ess ? " · économie sociale et solidaire" : ""}
+            ${f.date_creation ? " · immatriculée le " + dateCourte(f.date_creation) : ""}
+            ${f.etablissements != null ? " · " + nb(f.etablissements) + " établissement" + (f.etablissements > 1 ? "s" : "") + " au registre" : ""}</div>
+        </div>
+        <span class="badge ${et.badge}">${esc(et.label)}</span>
+      </div>
+      ${c.ecarts.length ? `<ul class="liste-ecarts" style="margin-top:var(--s3)">${
+        c.ecarts.map(e => `<li><span class="muted">${esc(e.champ)}</span> —
+          déclaré « ${esc(e.attendu)} », registre « ${esc(e.registre)} »</li>`).join("")}</ul>` : ""}
+      <div class="row" style="margin-top:var(--s4);--gap:var(--s3)"></div>
+    </div>`);
+    const barre = carte.querySelector(".row:last-child");
+    const b = h(`<button class="btn btn--sm ${admin ? "btn--primary" : "btn--forest"}">${
+      admin ? "Retenir ce contrôle" : "C'est nous : remplir ma fiche"}</button>`);
+    b.onclick = () => {
+      if (!asso.siren && f.siren) DB.enregistrerNumeros(asso.id, { siren: f.siren });
+      const ct = DB.controlerEnregistrement(asso.id, { fiche: f, par: (moi() || {}).id || null });
+      toast(ct.bloquant
+        ? "Contrôle enregistré : il signale un écart à lever."
+        : "Contrôle enregistré, fiche complétée.");
+      apres ? apres(ct) : rendre();
+    };
+    barre.appendChild(b);
+    return carte;
+  };
+
+  const chercher = async () => {
+    const q = champ.value.trim();
+    res.innerHTML = `<p class="muted">Interrogation du registre…</p>`;
+    bouton.disabled = true;
+    if (encours) encours.abort();
+    encours = new AbortController();
+    const r = await chercherStructure(q, { signal: encours.signal });
+    bouton.disabled = false;
+    res.innerHTML = "";
+    if (r.etat === "annulee") return;
+    if (r.etat === "court"){
+      res.appendChild(h(`<p class="muted">Trois caractères au minimum.</p>`)); return;
+    }
+    if (r.etat === "numero_invalide"){
+      res.appendChild(h(`<p class="muted" style="color:var(--danger)">Ce numéro ne peut pas
+        exister : sa clé de contrôle est fausse. Vérifiez la saisie.</p>`)); return;
+    }
+    if (r.etat === "panne"){
+      const bloc = h(`<div class="card card--flat" style="padding:var(--s4)">
+        <p class="muted">Le registre public est injoignable. Ce n'est pas de votre fait, et
+        rien n'est perdu.</p>
+        <div class="row" style="margin-top:var(--s3)"></div></div>`);
+      if (admin){
+        const b = h(`<button class="btn btn--ghost btn--sm">Consigner la panne</button>`);
+        b.onclick = () => { const ct = DB.controlerEnregistrement(asso.id,
+            { panne:true, par:(moi() || {}).id || null });
+          toast("Panne consignée : le contrôle reste à faire."); apres ? apres(ct) : rendre(); };
+        bloc.querySelector(".row").appendChild(b);
+      }
+      res.appendChild(bloc); return;
+    }
+    if (!r.fiches.length){
+      const bloc = h(`<div class="card card--flat" style="padding:var(--s4)">
+        <p class="muted">Rien à ce nom ni à ce numéro. Une association sans SIREN n'apparaît
+        pas ici, et son absence ne veut rien dire.</p>
+        <div class="row" style="margin-top:var(--s3)"></div></div>`);
+      if (admin){
+        const b = h(`<button class="btn btn--ghost btn--sm">Consigner « introuvable »</button>`);
+        b.onclick = () => { const ct = DB.controlerEnregistrement(asso.id,
+            { fiche:null, par:(moi() || {}).id || null });
+          toast("Contrôle enregistré."); apres ? apres(ct) : rendre(); };
+        bloc.querySelector(".row").appendChild(b);
+      }
+      res.appendChild(bloc); return;
+    }
+    r.fiches.forEach(f => res.appendChild(ligne(f)));
+  };
+
+  bouton.onclick = chercher;
+  champ.addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); chercher(); } });
+  return el;
+}
+
+/* Ce qu'un contrôle a donné, en une ligne, partout où il faut le rappeler. */
+function badgeControle(aid){
+  const c = DB.dernierControle(aid);
+  if (!c) return `<span class="badge badge--attente">Jamais contrôlée</span>`;
+  const et = ETATS_CORRESPONDANCE[c.etat] || ETATS_CORRESPONDANCE.different;
+  return `<span class="badge ${et.badge}" title="${esc(et.label)} — ${dateCourte(c.le)}">${
+    esc(et.label)}</span>`;
+}
+
+/* ------------------------------------------------------------------ */
+/* Association : mon dossier                                           */
+/* ------------------------------------------------------------------ */
+/* La règle qu'on s'est donnée : une association ne doit rien avoir à faire
+   d'autre que publier son besoin. Cet écran est le seul endroit où on lui
+   demande quelque chose, et il tient en un numéro. Tout le reste — dénomination
+   déposée, adresse, coordonnées, RNA — vient du registre public. */
+function vueDossierAsso(u){
+  const d = DB.dossierAdministratif(u.org);
+  if (!d) return h(`<section class="card"><p class="muted">Aucune association rattachée.</p></section>`);
+  const a = d.association;
+  const c = d.controle;
+
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <section class="card">
+      <h3 style="font-size:var(--t-lg)">Votre immatriculation</h3>
+      <p class="muted" style="margin-top:6px">Un numéro, et Riseva remplit le reste à votre
+      place : dénomination déposée, adresse, numéro RNA. Vous n'avez aucun justificatif à
+      envoyer, et nous ne vous en demanderons pas.</p>
+      <div style="margin-top:var(--s5)" id="registre"></div>
+    </section>
+
+    <section class="card">
+      <h3 style="font-size:var(--t-lg)">Où vous en êtes</h3>
+      <div class="stack" style="--gap:var(--s3);margin-top:var(--s4)">
+        <div class="row" style="justify-content:space-between">
+          <span>Visible par les entreprises</span>
+          <span class="badge ${d.en_ligne ? "badge--ok" : "badge--attente"}">${
+            d.en_ligne ? "Oui" : "Pas encore"}</span></div>
+        <div class="row" style="justify-content:space-between">
+          <span>Contrôle au registre public</span>
+          <span>${badgeControle(a.id)}${c ? ` <span class="muted" style="font-size:var(--t-xs)">le ${dateCourte(c.le)}</span>` : ""}</span></div>
+        <div class="row" style="justify-content:space-between">
+          <span>Reçus fiscaux</span>
+          <span class="badge ${d.recus_prets ? "badge--ok" : "badge--attente"}">${
+            d.recus_prets ? "Prêts" : "Incomplets"}</span></div>
+      </div>
+      ${d.manque.length ? `<div style="margin-top:var(--s5)">
+        <p class="muted" style="font-size:var(--t-sm)">Il reste :</p>
+        <ul class="liste-ecarts" style="margin-top:var(--s2)">${d.manque.map(m =>
+          `<li><strong>${esc(m.quoi)}</strong> — ${esc(m.pourquoi)}</li>`).join("")}</ul>
+      </div>` : `<p class="muted" style="margin-top:var(--s4)">Rien à faire de plus.</p>`}
+    </section>
+
+    <section class="card card--flat">
+      <h3 style="font-size:var(--t-md)">Ce que ce contrôle prouve, et ce qu'il ne prouve pas</h3>
+      <ul class="liste-ecarts" style="margin-top:var(--s3)">${
+        ANNUAIRE_LIMITES.map(l => `<li>${esc(l)}</li>`).join("")}</ul>
+    </section>
+  </div>`);
+
+  el.querySelector("#registre").appendChild(blocRegistre(a, { admin:false }));
+  return el;
+}
+
 const ROUTES = {
   entreprise_admin: {
     tableau:   [tableauEntreprise, "Tableau de bord"],
@@ -5806,6 +6009,7 @@ const ROUTES = {
                           d.appendChild(tableAnnoncesAsso(DB.annonces({ asso: u.org }), u)); return d; }, "Mes annonces"],
     avalider:   [vueAValider,  "Missions à valider"],
     page:       [vuePageAsso,  "Ma page publique"],
+    dossier:    [vueDossierAsso, "Mon dossier"],
     recus:      [vueRecus,     "Reçus fiscaux"],
     preferences:[vuePreferences, "Préférences"]
   },

@@ -387,6 +387,18 @@ de montant, jamais de « déclaration » prête à déposer.
 - Riseva **n'assure rien**. En cas d'incident pendant une mission de bénévolat, la responsabilité est
   entre l'entreprise et l'association. Ce point doit apparaître dans les CGU et sur la fiche mission.
 - Recrutement des associations : à faire **après** la mise en ligne de la plateforme, pas avant.
+- **Une association ne fournit qu'un numéro.** Riseva interroge le registre public
+  (Annuaire des Entreprises, licence ouverte) et remplit la fiche à sa place :
+  dénomination déposée, adresse, coordonnées, RNA. Aucun justificatif n'est
+  demandé, et il ne faut pas en demander.
+- **Un contrôle daté, jamais une sanction automatique.** Le contrôle conserve la
+  réponse brute du registre à côté de son verdict, et vaut un an. Un contrôle
+  bloquant — structure fermée, numéro introuvable, dénomination sans rapport —
+  interdit la mise en ligne tant qu'il n'a pas été refait. L'absence de contrôle,
+  elle, ne bloque rien : neuf associations déclarées sur dix n'ont pas de SIREN,
+  et les exclure reviendrait à ne garder que les grosses.
+- **Le registre ne prouve pas l'éligibilité au mécénat.** Aucun registre public ne
+  la porte. Seule l'association peut l'affirmer. Détail dans `docs/ANNUAIRE-PUBLIC.md`.
 
 ## 8. Les rapports
 

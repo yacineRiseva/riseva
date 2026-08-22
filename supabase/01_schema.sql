@@ -27,6 +27,35 @@ revoke all on schema private from public;
 -- explicitement, sinon un `db-schemas` mal configuré suffirait à tout ouvrir.
 revoke usage on schema private from anon, authenticated;
 
+-- ---------------------------------------------------------------- clés SIREN
+-- La clé de Luhn se vérifie ici, pas seulement dans le navigateur. Un SIREN qui
+-- ne peut pas exister n'a rien à faire en base : il finirait recopié sur une
+-- facture, dans un reçu fiscal, ou dans un questionnaire fournisseur, et c'est
+-- à ce moment-là qu'on le découvrirait.
+--
+-- La Poste fait exception depuis toujours : ses numéros ne satisfont pas Luhn
+-- mais la somme de leurs chiffres est divisible par cinq. C'est écrit dans la
+-- documentation de l'INSEE, ce n'est pas une tolérance qu'on s'accorde.
+create or replace function private.luhn_ok(p text)
+  returns boolean language sql immutable parallel safe
+  set search_path = ''
+as $$
+  select case
+    when p is null then true
+    when p !~ '^[0-9]+$' then false
+    when left(p, 9) = '356000000'
+      and (select sum(substr(p, i, 1)::int)
+             from generate_series(1, length(p)) i) % 5 = 0 then true
+    else (select sum(
+            case when (length(p) - i) % 2 = 1
+                 then case when substr(p, i, 1)::int * 2 > 9
+                           then substr(p, i, 1)::int * 2 - 9
+                           else substr(p, i, 1)::int * 2 end
+                 else substr(p, i, 1)::int end)
+            from generate_series(1, length(p)) i) % 10 = 0
+  end
+$$;
+
 -- ---------------------------------------------------------------- types
 create type role_utilisateur as enum ('admin','entreprise_admin','salarie','association','site_referent');
 create type etat_collecte    as enum ('attendu','declare','approuve','clos_sans_reponse');
@@ -96,8 +125,8 @@ create table entreprise (
   effectif  integer check (effectif >= 0),
   ca                numeric(15,2) check (ca >= 0),   -- integer déborde au-delà de 2,1 Md€
   cout_jour_moyen   numeric(10,2) check (cout_jour_moyen >= 0),
-  siren     text check (siren ~ '^[0-9]{9}$'),
-  siret     text check (siret ~ '^[0-9]{14}$'),
+  siren     text check (siren ~ '^[0-9]{9}$'  and private.luhn_ok(siren)),
+  siret     text check (siret ~ '^[0-9]{14}$' and private.luhn_ok(siret)),
   adresse   text check (length(adresse) <= 240),
   lat       double precision check (lat between -90 and 90),
   lon       double precision check (lon between -180 and 180),
@@ -124,7 +153,7 @@ create table etablissement (
   societe   uuid not null references entreprise(id) on delete cascade,
   nom       text not null check (length(nom) between 1 and 120),
   ville     text check (length(ville) <= 120),
-  siret     text check (siret ~ '^[0-9]{14}$'),
+  siret     text check (siret ~ '^[0-9]{14}$' and private.luhn_ok(siret)),
   -- Le dénominateur du classement entre sites. Comme pour l'entreprise, il n'est
   -- pas modifiable par le client : se déclarer trois salariés suffirait sinon à
   -- rafler le classement normalisé.
@@ -150,7 +179,14 @@ create table private.domaine_entreprise (
 create table association (
   id        uuid primary key default gen_random_uuid(),
   nom       text not null check (length(nom) between 1 and 160),
-  rna       text check (rna ~ '^W[0-9]{9}$'),
+  -- Le nom d'usage et la dénomination déposée sont rarement les mêmes. On garde
+  -- les deux : c'est la dénomination qui figure sur un reçu fiscal, et c'est le
+  -- nom d'usage que les salariés reconnaissent.
+  nom_juridique text check (length(nom_juridique) <= 200),
+  rna       text check (rna ~ '^W[0-9A-Z]{9}$'),
+  -- Facultatif, et il le restera : neuf associations déclarées sur dix n'ont pas
+  -- de SIREN. Exiger un numéro reviendrait à ne garder que les grosses.
+  siren     text check (siren ~ '^[0-9]{9}$' and private.luhn_ok(siren)),
   cause     text check (length(cause) <= 80),
   ville     text check (length(ville) <= 120),
   resume    text check (length(resume) <= 600),
@@ -214,6 +250,33 @@ create table private.appartenance (
   constraint appartenance_depart check (
     not pseudonymise or (not actif and retire_le is not null))
 );
+
+-- ------------------------------------------------- contrôle au registre public
+-- Riseva met des salariés en relation avec des associations et prépare des reçus
+-- qui ouvrent droit à réduction d'impôt. Le jour où l'une d'elles se révèle
+-- radiée, la question posée ne sera pas « aviez-vous un doute ? » mais « qu'aviez-
+-- vous vérifié, quand, et qu'est-ce que ça disait ? ». D'où une trace datée, avec
+-- la réponse brute du registre conservée à côté du verdict.
+--
+-- `fiche` est un instantané volontaire : le registre change, et un contrôle qui
+-- ne garderait que sa conclusion serait invérifiable six mois plus tard.
+create table controle_association (
+  id          uuid primary key default gen_random_uuid(),
+  association uuid not null references association(id) on delete cascade,
+  le          date not null default current_date,
+  par         uuid references profil(id) on delete set null,
+  etat        text not null check (etat in
+                ('exact','proche','different','fermee','introuvable','panne','absent')),
+  bloquant    boolean not null default false,
+  numero      text check (numero ~ '^[0-9]{9}$'),
+  -- Les écarts constatés, champ par champ. Du texte, pas des identifiants : ce
+  -- qu'on relit dans deux ans doit se comprendre sans le code qui l'a produit.
+  ecarts      jsonb not null default '[]'::jsonb,
+  fiche       jsonb,
+  source      text not null default 'Annuaire des Entreprises (DINUM)',
+  cree_le     timestamptz not null default now()
+);
+create index controle_association_asso on controle_association (association, le desc);
 
 -- ---------------------------------------------------------------- abonnement
 create table abonnement (

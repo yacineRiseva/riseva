@@ -17,7 +17,7 @@ insert into bareme (saison, type, points, unite) values
 insert into entreprise (id, nom, secteur, ville, effectif, ca, cout_jour_moyen,
                         siret, adresse, lat, lon)
 values ('22222222-2222-4222-8222-222222222222', 'Lafarge Ciments', 'Industrie', 'Lyon',
-        210, 48000000, 340, '39312091600025', '12 rue des Docks, 69009 Lyon', 45.7333, 4.8137);
+        210, 48000000, 340, '39312091000020', '12 rue des Docks, 69009 Lyon', 45.7333, 4.8137);
 
 insert into private.domaine_entreprise (entreprise, domaine)
 values ('22222222-2222-4222-8222-222222222222', 'lafarge-ciments.fr');
@@ -27,16 +27,16 @@ insert into abonnement (entreprise, saison, montant_ht, acompte_paye, sieges,
 values ('22222222-2222-4222-8222-222222222222', '11111111-1111-4111-8111-111111111111',
         3800, 500, 210, 210, '2026-11-02');
 
-insert into association (id, nom, rna, cause, ville, resume, adresse, lat, lon,
+insert into association (id, nom, rna, siren, cause, ville, resume, adresse, lat, lon,
                          valide, verifiee_le, a_reverifier_le,
                          recus_actif, eligible_mecenat, signataire, qualite, recu_prefixe)
 values
- ('33333333-3333-4333-8333-333333333333', 'Refuge des Quatre Vents', 'W423001234',
+ ('33333333-3333-4333-8333-333333333333', 'Refuge des Quatre Vents', 'W423001234', '428763304',
   'Protection animale', 'Saint-Étienne',
   'Refuge de 180 places qui recueille chiens et chats abandonnés depuis 1998.',
   '14 chemin du Bois, 42000 Saint-Étienne', 45.4397, 4.3872,
   true, current_date - 120, current_date + 240, true, true, 'Élise Tournier', 'Présidente', 'QV-2027-'),
- ('44444444-4444-4444-8444-444444444444', 'Racines Vives', 'W631004567',
+ ('44444444-4444-4444-8444-444444444444', 'Racines Vives', 'W631004567', '512291048',
   'Reforestation', 'Clermont-Ferrand',
   'Replantation de haies bocagères et de forêts mixtes sur des parcelles agricoles.',
   '3 route des Prés, 63200 Riom', 45.8938, 3.1128,

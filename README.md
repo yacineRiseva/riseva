@@ -38,6 +38,7 @@ supabase/
 supabase/05_taches.sql  ce qui tourne tout seul : validation auto, fraîcheur,
                         rapports, classement (pg_cron)
 supabase/emails/        gabarits des messages transactionnels
+docs/ANNUAIRE-PUBLIC.md ce qu'on demande au registre public, et ce qu'il ne prouve pas
 docs/DOSSIER-FOURNISSEUR.md   ce qu'un acheteur demande, et où le trouver
 docs/DPA.md             accord de sous-traitance, article 28 du RGPD
 docs/AIPD.md            analyse d'impact protection des données
