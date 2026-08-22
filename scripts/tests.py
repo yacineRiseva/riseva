@@ -138,8 +138,15 @@ def main():
                 "sans module en supplément" in t)
         verifie("le dossier est annoncé avant la signature",
                 "règlement de la saison" in t and "conditions de vente" in t)
+        # Le barème n'a plus son encadré sur l'accueil : sa place est le règlement,
+        # qui le détaille avec un exemple chiffré. L'accueil en donne les trois
+        # valeurs en une phrase — assez pour comprendre l'ordre de grandeur, pas
+        # assez pour croire qu'on a lu la règle.
+        bar = norm(p.inner_text(".fmt-bareme"))
         verifie("le barème annoncé est celui du code",
-                "150 pts" in p.inner_text("#bareme") and "100 pts" in p.inner_text("#bareme"))
+                "150 pts" in bar and "100 pts" in bar and "1 pt" in bar)
+        verifie("l'accueil renvoie au règlement pour le calcul complet",
+                "règlement" in bar and "écrêtage" in bar)
         corps = norm(p.inner_text("body"))
         # La vitrine ne vend que ce qui fonctionne, et ne montre aucun résultat.
         verifie("l'accueil annonce les trois formats",
@@ -150,7 +157,9 @@ def main():
         verifie("les points d'un don ne sont crédités qu'après confirmation",
                 "quand l'association confirme la réception, et pas avant" in corps)
         verifie("l'accueil dit qu'il n'y a encore aucun résultat",
-                "Rien encore" in corps and "mission confirmée à ce jour" in corps)
+                "Riseva démarre" in corps
+                and "aucun résultat client n'est encore publié" in corps
+                and "serait faux" in corps)
         verifie("les écrans montrés sont annoncés comme une démonstration",
                 "jeu de démonstration" in corps)
         # La vitrine ne porte plus une seule photo de banque d'images. Seize cadres
@@ -799,9 +808,15 @@ def main():
         acc = norm(p.inner_text("body"))
         verifie("aucun total de démonstration sur la page d'accueil",
                 "199 missions" not in acc and "3 042" not in acc and "31 400" not in acc)
+        # L'aveu tient maintenant en un bandeau et non en une section entiere avec
+        # trois grands chiffres : mettre en scene l'absence de resultats lui
+        # donnait autant de place qu'a une preuve. Il reste au meme endroit, et il
+        # dit toujours la meme chose.
+        pr = norm(p.inner_text("#preuve"))
         verifie("l'accueil dit qu'il n'y a encore rien à montrer",
-                "Rien encore" in p.inner_text("#preuve")
-                and "0" == norm(p.inner_text("#preuve .stake-n")).strip())
+                "aucun résultat client n'est encore publié" in pr
+                and "jeu de démonstration" in pr
+                and "sans retouche" in pr)
         cumul = p.evaluate("""async()=>{const m=await import('/app/data.js');
                     const r=m.DB.impactReseau();
                     return [r.confirmees, r.closesSansReponse, r.missions]}""")

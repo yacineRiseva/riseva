@@ -22,7 +22,27 @@ import io, pathlib, re
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent
 PUBLIC = RACINE / "public"
-RUBANS = (RACINE / "scripts" / "fragments-rubans.html").read_text(encoding="utf-8").strip()
+def _rubans():
+    """Les lianes qui traversent la page, ramenées de quatorze à deux.
+
+    Elles ne representent ni une progression, ni un reseau, ni une donnee : ce
+    sont des ornements poses dans les espaces disponibles. Quatorze, elles
+    traversent toutes les sections et deviennent le procede graphique le plus
+    artificiel du site. Deux — une en haut, une au-dessus du pied de page —
+    restent une signature. On garde donc les rubans dont l'ancrage vertical
+    tombe dans le premier dixieme ou le dernier dixieme de la page."""
+    brut = (RACINE / "scripts" / "fragments-rubans.html").read_text(encoding="utf-8").strip()
+    gardes, total = [], 0
+    for bloc in re.findall(r'<div class="rib".*?</div>', brut, re.S):
+        total += 1
+        m = re.search(r'top:([\d.]+)%', bloc)
+        if m and (float(m.group(1)) < 10 or float(m.group(1)) > 88):
+            gardes.append(bloc)
+    return ('<div class="ribbons" data-group="a" aria-hidden="true">'
+            + "".join(gardes) + '</div>')
+
+
+RUBANS = _rubans()
 
 # ---------------------------------------------------------------------------
 # La grille tarifaire n'est pas recopiée ici : elle est lue dans `data.js`, qui
@@ -419,9 +439,14 @@ def capture(nom, alt, legende, classe="", eager=False):
 
 
 def objection(question, reponse):
-    """L'objection telle qu'elle se formule vraiment, et la réponse en une phrase."""
+    """L'objection telle qu'elle se formule vraiment, et la réponse en une phrase.
+
+    Sans guillemets, et c'est tout le point : entre guillemets, la phrase se lit
+    comme une citation, donc comme un client qui l'aurait dite. Riseva n'a pas
+    encore de client. Un faux témoignage typographique reste un faux témoignage."""
     return f"""<div class="obj">
-      <p class="obj-q">« {question} »</p>
+      <p class="obj-l mono">L'objection</p>
+      <p class="obj-q">{question}</p>
       <p class="obj-r">{reponse}</p>
     </div>"""
 
@@ -444,7 +469,7 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
         <b>sans nommer la moitié basse</b> : exposer les derniers punit ceux qui participent.</p>
       <div class="hero-cta">
         <a class="btn btn-lg" href="/app/"><span class="dot"></span>Explorer la plateforme</a>
-        <a class="tlink" href="#pilotage">Voir un rapport</a>
+        <a class="tlink" href="#pilotage">Voir un rapport exemple</a>
       </div>
       <p class="doc-micro mono">Démonstration libre, données fictives. Aucun rendez-vous,
         aucune carte bancaire.</p>
@@ -501,17 +526,6 @@ SAISON_ENT = f"""<section id="saison" class="band">
    "Puis vous décidez si vous recommencez. Il n'y a pas de reconduction tacite."),
 ])}
 
-{roles("Ce que vous <span class='it'>faites</span>",
-       ["Décider de participer, et pour quel budget",
-        "Diffuser un lien et laisser chacun s'inscrire",
-        "Désigner deux personnes capables d'agir",
-        "Informer vos salariés et consulter votre CSE"],
-       "Ce que vous ne faites <span class='it'>pas</span>",
-       ["Chercher une association fiable",
-        "Éplucher ses statuts, ses comptes, son assurance",
-        "Construire un calendrier d'animation",
-        "Produire des affiches et des messages",
-        "Tenir un fichier de suivi"])}
   </div>
 </section>"""
 
@@ -537,18 +551,15 @@ EQUIPES_ENT = f"""<section id="equipes">
     </div>
 
     <ul class="trois">
-      <li><b>Chacun choisit librement.</b> Un besoin, une association, une date, un lieu, des
-        places restantes. Il se propose ; il n'est jamais désigné, et se retirer ne demande
-        aucune justification.</li>
+      <li><b>Chacun choisit librement.</b> Il se propose, il n'est jamais désigné, et se
+        retirer ne demande aucune justification.</li>
       <li><b>L'objectif se compte en personnes, pas en points.</b> Un objectif en points
-        s'atteint avec trois salariés très actifs — il récompense exactement le contraire de
-        ce qu'on cherche. Un objectif en personnes ne s'atteint qu'en allant chercher
-        quelqu'un qui n'est pas encore venu.</li>
-      <li><b>Les collègues engagés apparaissent, s'ils l'ont choisi.</b> Le nombre est
-        toujours visible : c'est lui qui lève le frein, et il ne désigne personne. Les
-        prénoms ne sortent que pour ceux qui ont coché un réglage décoché par défaut — une
-        mission auprès d'une association peut révéler une conviction ou un état de santé, et
-        ça ne se déduit pas d'un réglage par défaut. Jamais sur un don en argent.</li>
+        s'atteint avec trois salariés très actifs : il récompense le contraire de ce qu'on
+        cherche. En personnes, il ne s'atteint qu'en allant chercher quelqu'un qui n'est pas
+        encore venu.</li>
+      <li><b>Les collègues engagés apparaissent, s'ils l'ont choisi.</b> Le nombre est toujours
+        visible et ne désigne personne ; les prénoms ne sortent que pour ceux qui ont coché un
+        réglage décoché par défaut. Jamais sur un don en argent.</li>
     </ul>
 
     <p class="s-note"><a class="tlink" href="/app/">Explorer l'espace salarié</a></p>
@@ -575,13 +586,13 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
     <ul class="trois">
       <li><b>Aucun abonnement, aucune commission.</b> Une association ne paie jamais rien, et
         Riseva ne prélève rien sur ses dons.</li>
-      <li><b>Aucune obligation de produire un rapport pour vous.</b> Elle déclare ce qu'elle a
-        constaté, en une réponse courte. Le reste est notre travail, pas le sien.</li>
-      <li><b>Sans réponse sous quatorze jours</b>, la mission est clôturée automatiquement
-        sans confirmation : les points sont crédités selon le barème, mais le résultat reste
-        <b>estimé</b> et il est identifié comme <b>non confirmé</b> partout où il apparaît, y
-        compris dans vos rapports. Nous n'écrivons jamais qu'une association a confirmé ce
-        qu'elle n'a pas confirmé.</li>
+      <li><b>Une confirmation courte, sans se connecter.</b> Trois boutons dans un message
+        après la date prévue, et c'est terminé.</li>
+      <li><b>Aucun rapport à produire pour vous.</b> Sans réponse sous quatorze jours, la
+        mission est clôturée sans confirmation : les points sont crédités, mais le résultat
+        reste <b>estimé</b> et identifié comme <b>non confirmé</b> partout où il apparaît, vos
+        rapports compris. Nous n'écrivons jamais qu'une association a confirmé ce qu'elle n'a
+        pas confirmé.</li>
     </ul>
 
     <div class="fmt-bloc">
@@ -606,23 +617,13 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
       </div>
     </div>
 
-    <div id="bareme" class="bareme">
-      <div class="bareme-h">
-        <span class="mono">Le barème de la saison</span>
-        <p>Les associations ne fixent pas la valeur de leurs annonces : c'est la plateforme
-           qui l'attribue, sinon comparer deux entreprises ne voudrait plus rien dire. Le
-           calcul complet, écrêtage compris, est dans <a href="/reglement.html">le
-           règlement</a>, avec un exemple chiffré qui se refait à la main.</p>
-      </div>
-      <ol class="bareme-l">
-        <li><b>150 pts</b><span>la demi-journée de bénévolat, comptée après confirmation de
-            l'association</span></li>
-        <li><b>100 pts</b><span>par don de matériel validé</span></li>
-        <li><b>1 pt</b><span>par tranche de 10 € virée, comptée quand l'association confirme
-            avoir reçu le virement</span></li>
-      </ol>
-      <p class="bareme-n mono">Aucun format ne peut peser plus de la moitié des points retenus
-        d'une entreprise sur la saison</p>
+      <p class="fmt-bareme">Le barème est le même pour toutes les entreprises et c'est la
+        plateforme qui l'attribue, pas l'association : <b>150 pts</b> la demi-journée de
+        bénévolat, <b>100 pts</b> par don de matériel validé, <b>1 pt</b> par tranche de 10 €
+        virée — comptés après confirmation. Aucun format ne peut peser plus de la moitié des
+        points d'une entreprise sur la saison. Le calcul complet, écrêtage compris, est dans
+        <a href="/reglement.html">le règlement</a>, avec un exemple chiffré qui se refait à la
+        main.</p>
     </div>
 
     <p class="s-note"><a class="tlink" href="/asso.html?id=a1">Voir une fiche d'association</a>
@@ -717,38 +718,22 @@ PERIMETRES_ENT = f"""<section id="perimetres" class="band">
     <div class="duo duo--texte">
       <div class="col">
         <h3>Pour un groupe</h3>
-        <ul class="trois trois--court">
-          <li><b>Trois niveaux, parce que le droit en compte trois.</b> Un groupe contient des
-            <b>sociétés</b> — chacune son SIREN, son contrat, son plafond de mécénat — et
-            chaque société contient des <b>établissements</b> : un lieu, un effectif, un quota
-            de comptes, un score. Écraser les trois en une étiquette « site » produirait un
-            calcul fiscal faux.</li>
-          <li><b>Payer la facture ne donne pas accès aux personnes.</b> Le référent de
-            Marseille voit Marseille ; la direction du groupe voit des agrégats, jamais
-            l'identité d'un salarié d'une filiale dont elle n'est pas l'employeur. Ce n'est pas
-            un filtre d'affichage, c'est une frontière écrite dans la base.</li>
-          <li><b>Le classement entre sites est désactivé par défaut.</b> Un rang fabrique un
-            dernier. Quand il est activé, le score est rapporté à l'effectif — sinon le siège
-            de quatre cents personnes écrase l'agence de douze — et un site qui n'a pas commencé
-            est « en lancement », pas dernier.</li>
-        </ul>
+        <p>Trois niveaux, parce que le droit en compte trois : le groupe, les <b>sociétés</b>
+          — chacune son SIREN, son contrat, son plafond de mécénat — et leurs
+          <b>établissements</b>. Payer la facture ne donne pas accès aux personnes : la
+          direction voit des agrégats, jamais l'identité d'un salarié d'une filiale dont elle
+          n'est pas l'employeur, et c'est une frontière écrite dans la base. Le classement
+          entre sites est désactivé par défaut : un rang fabrique un dernier.</p>
         <p><a class="tlink" href="#prix">L'offre groupe est sur devis</a></p>
       </div>
       <div class="col">
         <h3>Les services RSE, compris dans l'abonnement</h3>
-        <ul class="trois trois--court">
-          <li><b>Données sociales et sécurité.</b> Douze valeurs saisies par établissement, six
-            indicateurs calculés avec leur formule à côté du chiffre. Celui qui saisit ne peut
-            pas approuver sa propre saisie, et seules les valeurs approuvées entrent dans un
-            rapport.</li>
-          <li><b>Registre des événements de sécurité, et registre des dons de matériel</b> au
-            titre de la loi anti-gaspillage. Ni nom de victime, ni siège de la lésion, ni
-            diagnostic : ce sont des données de l'article 9 du RGPD, et rien de ce qu'un
-            préventeur utilise pour agir n'en fait partie.</li>
-          <li><b>Un accès en lecture pour le CSE</b> : les indicateurs approuvés, les rapports,
-            la participation en agrégat. Rien de nominatif, et aucun agrégat sous cinq
-            personnes.</li>
-        </ul>
+        <p>Douze valeurs sociales et de sécurité saisies par établissement, six indicateurs
+          calculés avec leur formule à côté du chiffre, et celui qui saisit ne peut pas
+          approuver sa propre saisie. Un registre des événements de sécurité et un registre
+          des dons de matériel au titre de la loi anti-gaspillage — sans aucune donnée de
+          santé nominative. Et un accès en lecture pour le CSE, sans rien de nominatif ni
+          d'agrégat sous cinq personnes.</p>
         <p><a class="tlink" href="/reglement.html">Le règlement et les définitions</a></p>
       </div>
     </div>
@@ -764,28 +749,17 @@ PREUVE_ENT = f"""<section id="preuve" class="band-moss">
         "<strong>jeu de démonstration</strong> : ils montrent la forme du produit, jamais des "
         "résultats obtenus.")}
 
-    <ul class="stakes-list stakes-list--seule">
-      <li class="stake">
-        <div class="stake-n">0</div>
-        <div><h3>mission confirmée à ce jour</h3>
-          <p>Cet emplacement se remplira tout seul à partir de ce que les associations auront
-             réellement confirmé. Pas avant, et sans retouche.</p></div>
-      </li>
-      <li class="stake">
-        <div class="stake-n">—</div>
-        <div><h3>taux de réponse des associations</h3>
-          <p>Il n'existera qu'après les premiers pilotes. Nous refusons de l'estimer à partir
-             de données inventées : ce serait le seul chiffre qu'un acheteur retiendrait, et il
-             serait faux.</p></div>
-      </li>
-      <li class="stake">
-        <div class="stake-n">14 j</div>
-        <div><h3>avant clôture automatique</h3>
-          <p>C'est la seule promesse chiffrée que nous tenons dès le premier jour, parce
-             qu'elle ne dépend que de nous : passé ce délai, une mission sans réponse est
-             clôturée sans confirmation, et le résultat reste marqué comme estimé.</p></div>
-      </li>
-    </ul>
+    <div class="bandeau-vide">
+      <p><b>Riseva démarre : aucun résultat client n'est encore publié.</b> Toutes les captures
+        de cette page viennent d'un jeu de démonstration. Cet emplacement se remplira tout seul
+        à partir de ce que les associations auront réellement confirmé — pas avant, et sans
+        retouche. Le taux de réponse des associations n'existera qu'après les premiers pilotes :
+        l'estimer à partir de données inventées serait produire le seul chiffre qu'un acheteur
+        retiendrait, et il serait faux.</p>
+      <p><b>Une seule promesse chiffrée tient dès le premier jour</b>, parce qu'elle ne dépend
+        que de nous : passé <b>quatorze jours</b> sans réponse, une mission est clôturée sans
+        confirmation, et le résultat reste marqué comme estimé partout où il apparaît.</p>
+    </div>
 
     <div class="deux-col">
       <div class="col col--oui">
@@ -916,7 +890,13 @@ FAQ_ENT = faq([
 ])
 
 
-def jalons(eyebrow, titre, note, photo, alt, legende, items, ident="preuve", bande=" class=\"band-moss\""):
+def jalons(eyebrow, titre, note, items, ident="preuve", bande=" class=\"band-moss\""):
+    """Une liste de reponses numerotees, sans image a cote.
+
+    Il y avait une photo de refuge ici, avec une legende qui reconnaissait
+    honnetement qu'elle n'etait liee a aucune mission. La legende ne resolvait
+    rien : elle attirait fortement l'oeil vers une preuve inexistante, juste a
+    cote de cinq reponses qui, elles, engagent."""
     lis = ""
     for n, (chiffre, t, p, src) in enumerate(items, 1):
         cite = f"<cite>{src}</cite>" if src else ""
@@ -932,16 +912,8 @@ def jalons(eyebrow, titre, note, photo, alt, legende, items, ident="preuve", ban
     return f"""<section id="{ident}"{bande}>
   <div class="layer">
 {entete(eyebrow, titre, note)}
-    <div class="stakes">
-      <figure class="stakes-photo rv">
-        <div class="sp-layer" style="background-image:url('{photo}')" role="img"
-             aria-label="{alt}"></div>
-        <div class="sp-veil" aria-hidden="true"><span class="sp-veil-tex"></span></div>
-        <figcaption>{legende}</figcaption>
-      </figure>
-      <ul class="stakes-list">{lis}
-      </ul>
-    </div>
+    <ul class="stakes-list stakes-list--large">{lis}
+    </ul>
   </div>
 </section>"""
 
@@ -966,7 +938,7 @@ def grille_tarifaire():
     exclus = "".join(f"<li>{x}</li>" for x in TARIFS["exclus"])
     return f"""<section id="prix">
   <div class="layer">
-{entete("Le prix", "Il est écrit ici,<br>et <span class='it'>il ne bouge pas.</span>",
+{entete("Le prix", "Un tarif public,<br>avant de décider.",
         "Une saison de douze mois, tout compris. Le tarif suit votre effectif parce que c'est "
         "lui qui détermine ce que nous produisons : les comptes, les affiches, les sites à "
         "consolider, les rapports. Pas de facturation par utilisateur, pas de module en "
@@ -1239,14 +1211,6 @@ JAMAIS_ASSO = jalons(
     "Ce sont celles qu'on nous oppose en rendez-vous. Chacune est légitime, et chacune a une "
     "réponse écrite noir sur blanc dans <a href='/charte-associations.html'>la charte</a> — "
     "pas seulement sur cette page.",
-    "/photos/voix-chien.jpg", "Un chien recueilli dans un refuge",
-    # Une légende « photo d'illustration » ne rachète rien : elle confirme au
-    # lecteur que l'image ne prouve pas ce que le texte affirme. Une photographie
-    # documentaire porte un nom d'association, un lieu, une date. Faute de l'avoir,
-    # on dit ce que l'image est — et ce qu'elle n'est pas.
-    "Image d'ambiance. Ce n'est pas une mission Riseva : nous n'en avons "
-    "encore photographié aucune, et nous ne le ferons pas sans l'accord de "
-    "l'association et des personnes présentes",
     [("01", "« Vous allez vous approprier notre travail »",
       "Votre page publique porte votre nom et votre logo. Les résultats sont attribués "
       "explicitement : « résultats déclarés par votre association ». Riseva additionne, ne "
@@ -1289,9 +1253,6 @@ YACINE_ASSO = f"""<section id="yacine">
 
       <div class="rv d2">
         <div class="bulletin" id="bulletin" aria-hidden="true">
-          <div class="bl-photo">
-            <img src="/photos/bulletin.jpg" alt="" decoding="async" width="1200" height="400">
-          </div>
           <div class="bl-body">
             <div class="bl-top">
               <span class="mono">Prise de contact</span>
@@ -1391,10 +1352,31 @@ FAQ_ASSO = faq([
 # comme les catégories d'une place de marché, et une association n'est pas un
 # rayon. Le bloc « confluent » l'est aussi — sa rareté annoncée s'adresse à un
 # acheteur, pas à une bénévole.
+# Apres la FAQ, le lecteur tombait directement dans le pied de page. Une page
+# qui se termine sur une question sans reponse a offrir ne se termine pas : elle
+# s'arrete.
+BANDEAU_ASSO = """<section id="commencer" class="bandeau">
+  <div class="layer">
+    <div class="bandeau-in">
+      <div>
+        <h2>Une première annonce suffit pour commencer.</h2>
+        <p>Pas de dossier, pas d'intégration, pas d'engagement. Si formuler le besoin en
+          quelques lignes vous rebute — c'est souvent là que ça coince — nous l'écrivons avec
+          vous en un quart d'heure, et rien n'est publié tant qu'elle ne vous convient pas.</p>
+      </div>
+      <div class="bandeau-cta">
+        <a class="btn btn-lg" href="#yacine"><span class="dot"></span>Parler à Yacine</a>
+        <span class="mono">Réponse sous deux jours ouvrés. Aucune relance commerciale.</span>
+      </div>
+    </div>
+  </div>
+</section>"""
+
+
 CORPS_ASSO = "\n\n".join([
     HERO_ASSO,
     HONNETE_ASSO, COMMENT_ASSO, TEMPS_ASSO, ARGENT_ASSO, JAMAIS_ASSO,
-    YACINE_ASSO, FAQ_ASSO,
+    YACINE_ASSO, FAQ_ASSO, BANDEAU_ASSO,
 ])
 
 
