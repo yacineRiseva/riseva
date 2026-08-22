@@ -33,20 +33,29 @@ BASE = f"http://127.0.0.1:{PORT}"
 # les captures partiraient dans une fonte de repli différente de celle du site.
 FONTE = "*{font-family:'Carlito','DejaVu Sans',sans-serif !important}"
 
-# nom, route, utilisateur, hauteur retenue depuis le haut du contenu
+# nom, route, utilisateur, cadrage.
+#
+# Le cadrage est un nombre — la hauteur retenue depuis le haut de la fenêtre —
+# ou un sélecteur CSS quand la capture doit tenir dans une demi-colonne. Une
+# fenêtre de 1440 pixels réduite à 590 rend les chiffres illisibles : à cette
+# taille il faut cadrer sur l'objet, pas sur l'écran.
+# Le cadrage est décidé ici, pas à l'affichage : une page entière réduite à la
+# largeur d'une colonne ne se lit pas, et une capture illisible est une image
+# décorative de plus. On garde donc le haut de l'écran — celui qui porte les
+# indicateurs et le bloc de résultats — et on coupe le reste.
 ECRANS = [
-    ("admin-tableau",  "#/tableau",     "u2", 1180),
-    ("salarie-saison", "#/tableau",     "u5", 1180),
-    ("salarie-actions","#/annonces",    "u5", 1180),
-    ("asso-tableau",   "#/tableau",     "u7", 1000),
-    ("asso-valider",   "#/avalider",    "u7", 1000),
-    ("missions",       "#/missions",    "u2", 1100),
-    ("rapports",       "#/rapports",    "u2", 1200),
-    ("mecenat",        "#/mecenat",     "u2", 1300),
-    ("groupe",         "#/groupe",      "u2", 1200),
-    ("indicateurs",    "#/indicateurs", "u2", 1200),
-    ("classement",     "#/classement",  "u2", 1100),
-    ("materiel",       "#/materiel",    "u2", 1000),
+    ("admin-tableau",  "#/tableau",     "u2", 900),
+    ("salarie-saison", "#/tableau",     "u5", ".card--dark"),
+    ("salarie-actions","#/annonces",    "u5", ("#liste", 620)),
+    ("asso-tableau",   "#/tableau",     "u7", ".card--dark"),
+    ("asso-valider",   "#/avalider",    "u7", 860),
+    ("missions",       "#/missions",    "u2", 860),
+    ("rapports",       "#/rapports",    "u2", 900),
+    ("mecenat",        "#/mecenat",     "u2", 900),
+    ("groupe",         "#/groupe",      "u2", 900),
+    ("indicateurs",    "#/indicateurs", "u2", 900),
+    ("classement",     "#/classement",  "u2", 860),
+    ("materiel",       "#/materiel",    "u2", 860),
 ]
 
 class Silencieux(http.server.SimpleHTTPRequestHandler):
@@ -70,7 +79,7 @@ def main():
                             device_scale_factor=2, locale="fr-FR")
         p = ctx.new_page()
         p.on("pageerror", lambda e: erreurs.append(str(e)))
-        for nom, route, uid, hauteur in ECRANS:
+        for nom, route, uid, cadrage in ECRANS:
             p.goto(f"{BASE}/app/", wait_until="domcontentloaded")
             p.evaluate("()=>localStorage.removeItem('riseva.etat')")
             p.evaluate("u=>localStorage.setItem('riseva.session',JSON.stringify({uid:u}))", uid)
@@ -80,14 +89,34 @@ def main():
                        "document.head.appendChild(s)}", FONTE)
             p.wait_for_timeout(300)
             brut = SORTIE / f"{nom}.png"
-            p.screenshot(path=str(brut), clip={"x": 0, "y": 0, "width": 1440,
-                                               "height": hauteur})
+            haut = None
+            if isinstance(cadrage, tuple):
+                cadrage, haut = cadrage
+            if isinstance(cadrage, str):
+                el = p.query_selector(cadrage)
+                if el is None:
+                    erreurs.append(f"{nom} : aucun élément « {cadrage} »")
+                    continue
+                el.scroll_into_view_if_needed()
+                p.wait_for_timeout(250)
+                el.screenshot(path=str(brut))
+            else:
+                p.screenshot(path=str(brut), clip={"x": 0, "y": 0, "width": 1440,
+                                                   "height": cadrage})
             # Le PNG en double densité pèse plusieurs mégaoctets : on redescend à
             # la largeur d'affichage réelle et on encode en JPEG. Une vitrine qui
             # met huit secondes à s'afficher chez un client en zone industrielle
             # n'a pas fini de prouver quoi que ce soit.
             im = Image.open(brut).convert("RGB")
-            im = im.resize((1440, round(im.height * 1440 / im.width)), Image.LANCZOS)
+            # Une liste de vingt-trois annonces prouve moins que trois : le
+            # lecteur ne lit pas une capture de deux mètres de haut, il la
+            # survole. On coupe donc au nombre d'éléments qui se lisent.
+            if haut:
+                im = im.crop((0, 0, im.width, min(im.height, haut * 2)))
+            # Deux fois la largeur d'affichage, jamais plus : au-delà on paie des
+            # octets qu'aucun écran ne restitue.
+            large = min(1440, im.width // 2)
+            im = im.resize((large, round(im.height * large / im.width)), Image.LANCZOS)
             im.save(SORTIE / f"{nom}.jpg", quality=82, optimize=True, progressive=True)
             brut.unlink()
             ecrites.append((nom, (SORTIE / f'{nom}.jpg').stat().st_size // 1024))

@@ -84,7 +84,13 @@ def main():
 
         print("\nSite public")
         p.goto(BASE + "/", wait_until="networkidle")
-        verifie("l'accueil affiche le titre", "besoin d'un outil de plus" in p.inner_text("h1"))
+        # Les deux anciennes accroches étaient négatives : « vos équipes n'ont pas
+        # besoin d'un outil de plus » rappelle à l'acheteur qu'il pourrait ne rien
+        # acheter, et « il vous faut des bras » réduisait la relation associative à
+        # une fourniture de main-d'œuvre. Le titre dit maintenant ce qu'on vend.
+        verifie("l'accueil affiche le titre",
+                "Des actions locales pour vos équipes" in p.inner_text("h1")
+                and "résultats documentés" in p.inner_text("h1"))
         t = norm(p.inner_text(".hero"))
         verifie("le prix est visible dès l'accueil", "2 400" in t and "18 500 €" in t)
         verifie("la remise de lancement est plafonnée en nombre",
@@ -147,8 +153,30 @@ def main():
                 "Rien encore" in corps and "mission confirmée à ce jour" in corps)
         verifie("les écrans montrés sont annoncés comme une démonstration",
                 "jeu de démonstration" in corps)
-        verifie("les photos sont annoncées comme des illustrations",
-                "illustration" in corps.lower())
+        # La vitrine ne porte plus une seule photo de banque d'images. Seize cadres
+        # souriants en open space illustraient un produit dont le métier est le
+        # ramassage de déchets en rivière et les refuges animaliers ; et une légende
+        # « photo d'illustration » ne rachète pas une image qui ne prouve rien, elle
+        # confirme au lecteur qu'elle n'en est pas une. Riseva n'ayant aucune
+        # photographie réelle de chantier, la seule preuve disponible est le produit.
+        vues = p.evaluate("""()=>[...document.images].map(i=>i.getAttribute('src'))""")
+        verifie("aucune photo d'illustration sur la vitrine entreprises",
+                not [x for x in vues if "/photos/" in (x or "")], str(vues))
+        verifie("ce qu'elle montre, ce sont des captures de l'application",
+                len([x for x in vues if "/captures/" in (x or "")]) >= 5, str(vues))
+        # Et chacune dit d'où elle vient : une capture sans cette mention se lit
+        # comme un résultat obtenu, et Riseva n'en a aucun.
+        legendes = p.evaluate(
+            """()=>[...document.querySelectorAll('.shot')].map(f=>f.textContent)""")
+        verifie("chaque capture est annoncée comme une démonstration",
+                legendes and all("démonstration" in x or "fictives" in x
+                                 or "confirme" in x for x in legendes),
+                str(legendes)[:300])
+        # Le contenu ne doit dépendre d'aucun défilement : une animation peut
+        # accompagner une apparition, jamais la conditionner.
+        caches = p.evaluate("""()=>[...document.querySelectorAll('.rv,.rl')]
+            .filter(e=>getComputedStyle(e).opacity !== '1').length""")
+        verifie("rien n'attend un défilement pour s'afficher", caches == 0, str(caches))
         verifie("le seuil du classement est dit sur la vitrine",
                 "dix entreprises" in corps)
         verifie("l'offre groupe est présentée avec ses trois niveaux",
