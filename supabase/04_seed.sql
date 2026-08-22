@@ -33,7 +33,7 @@ insert into association (id, nom, rna, siren, cause, ville, resume, adresse, lat
                          valide, verifiee_le, a_reverifier_le,
                          recus_actif, eligible_mecenat, signataire, qualite, recu_prefixe,
                          mandat_recus_le, mandat_recus_nom, mandat_recus_qualite,
-                         mandat_recus_version, iban, bic, titulaire_compte)
+                         mandat_recus_version, iban, bic, titulaire_compte, helloasso)
 values
  ('33333333-3333-4333-8333-333333333333', 'Refuge des Quatre Vents', 'W423001234', '428763304',
   'Protection animale', 'Saint-Étienne',
@@ -41,14 +41,15 @@ values
   '14 chemin du Bois, 42000 Saint-Étienne', 45.4397, 4.3872,
   true, current_date - 120, current_date + 240, true, true, 'Élise Tournier', 'Présidente', 'QV-2027-',
   current_date - 40, 'Élise Tournier', 'Présidente', '2026.1',
-  'FR7530003004180001234567890', 'BREDFRPPXXX', 'Association Refuge des Quatre Vents'),
+  'FR7530003004180001234567890', 'BREDFRPPXXX', 'Association Refuge des Quatre Vents', null),
  ('44444444-4444-4444-8444-444444444444', 'Racines Vives', 'W631004567', '512291048',
   'Reforestation', 'Clermont-Ferrand',
   'Replantation de haies bocagères et de forêts mixtes sur des parcelles agricoles.',
   '3 route des Prés, 63200 Riom', 45.8938, 3.1128,
   true, current_date - 60, current_date + 300, true, true, 'Marc Aubert', 'Trésorier', 'RV-2027-',
   current_date - 40, 'Marc Aubert', 'Trésorier', '2026.1',
-  'FR5510278073000002047260146', 'CMCIFR2AXXX', 'Racines Vives');
+  'FR5510278073000002047260146', 'CMCIFR2AXXX', 'Racines Vives',
+  'https://www.helloasso.com/associations/racines-vives/formulaires/1');
 
 insert into annonce (association, saison, type, titre, description, lieu, temps_travail,
                      quantite, restant, date_prevue, etat, impact_unite, impact_par_unite)

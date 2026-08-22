@@ -1,5 +1,47 @@
 # Le don en argent : par virement, et sans jamais y toucher
 
+## Deux circuits, aucun qui passe par Riseva
+
+| Circuit | Pour le donateur | Ce qu'il exige de l'association |
+|---|---|---|
+| **HelloAsso** | Carte bancaire, immédiat | un compte HelloAsso vérifié et un formulaire de don |
+| **Virement** | Un virement depuis sa banque | un IBAN |
+
+HelloAsso a été retenu comme circuit **complémentaire**, pas comme remplacement.
+C'est plus fluide, c'est immédiat, et c'est **sans commission** : son modèle
+repose sur une contribution volontaire du donateur, modifiable et supprimable.
+
+Trois raisons de ne pas s'y limiter :
+
+1. **Il faut un compte HelloAsso vérifié.** Depuis juin 2025, une association
+   doit être vérifiée pour encaisser. Neuf petites associations sur dix n'ont pas
+   ce compte, et leur demander de l'ouvrir contredit la seule promesse qu'on leur
+   a faite : n'avoir rien à faire d'autre que publier leur besoin.
+2. **Il ne délivre pas le reçu fiscal.** La documentation d'intégration le dit :
+   les reçus sont à gérer en dehors du Checkout. Tout le travail de préparation
+   sous mandat reste donc nécessaire.
+3. **L'intégration serveur-à-serveur demande un compte partenaire**, obtenu par
+   accord formel avec HelloAsso, ce qui suppose une personne morale. Riseva n'en
+   a pas encore.
+
+D'où le choix : **l'association colle l'adresse publique de son propre
+formulaire**, et rien d'autre. Aucune clé d'API, aucun secret, aucun accès à son
+compte, aucune démarche partenaire à attendre. Le donateur paie par carte, recopie
+la référence Riseva dans le message du don, et l'association confirme la réception
+comme pour un virement.
+
+Le jour où l'accès partenaire existera, la confirmation deviendra automatique par
+webhook — et ce sera la seule chose qui changera.
+
+### Le lien est vérifié, et restreint
+
+Ce lien est présenté à des donateurs sous la phrase « donnez ici ». Un champ libre
+pointant n'importe où serait un détournement de dons offert à qui prendrait la main
+sur un compte d'association. Il est donc contraint, **dans le navigateur et par
+`CHECK` en base**, à `https://www.helloasso.com/associations/<asso>/<type>/<id>` —
+HTTPS obligatoire, domaine exact, aucun paramètre après l'identifiant. Un
+`helloasso.com.exemple.fr` est refusé.
+
 ## Pourquoi Riseva n'encaisse pas
 
 Recevoir des fonds pour les reverser à un tiers, c'est **fournir un service de

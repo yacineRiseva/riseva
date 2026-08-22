@@ -1135,10 +1135,12 @@ ARGENT_ASSO = f"""<section id="argent">
 {entete("L'argent", "Les dons vont chez vous,<br><span class='it'>pas chez nous.</span>",
         "C'est la question qui décide, alors elle passe avant les autres.")}
 {formats([
-  ("Le circuit", "Le donateur vire <span class='n'>directement</span> sur votre compte.",
-   "Vous nous donnez votre IBAN, nous l'affichons sur votre page avec une référence propre à "
-   "chaque don. L'argent va de la banque du donateur à la vôtre. <b>Nous ne le touchons "
-   "jamais</b> — ni sur un compte de passage, ni le temps d'un reversement."),
+  ("Le circuit", "Le donateur paie <span class='n'>directement</span> chez vous.",
+   "Vous avez déjà un formulaire <b>HelloAsso</b> ? Collez-en l'adresse et vos donateurs paient "
+   "par carte en un clic, sans commission — nous ne vous demandons ni clé, ni mot de passe, ni "
+   "accès à votre compte. Vous n'en avez pas ? Donnez-nous votre IBAN : le virement va de la "
+   "banque du donateur à la vôtre. Dans les deux cas, <b>nous ne touchons jamais l'argent</b> — "
+   "ni sur un compte de passage, ni le temps d'un reversement."),
   ("Ce que ça vous évite", "Aucune commission, aucun <span class='n'>délai</span>.",
    "Pas de prestataire à qui reverser un pourcentage, pas de virement hebdomadaire à attendre, "
    "pas de compte qu'un tiers peut geler. Vous recevez 100 % du don le jour où votre banque le "

@@ -307,7 +307,8 @@ grant execute on function
   public.activer_registre(uuid, boolean),
   public.ajouter_action(uuid, text, text, date, uuid),
   public.maj_action(uuid, text),
-  public.securite_du_registre(uuid, date, date)
+  public.securite_du_registre(uuid, date, date),
+  public.enregistrer_helloasso(uuid, text)
 to authenticated;
 
 -- Le paiement n'est jamais confirmé par le navigateur. Seule la fonction Edge,

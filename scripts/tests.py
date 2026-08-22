@@ -1282,6 +1282,54 @@ def main():
         verifie("un don en argent ne s'engage pas comme une demi-journée",
                 r3["engage"] and "intention de virement" in r3["engage"], str(r3["engage"]))
 
+        print("\nHelloAsso, en circuit complémentaire")
+        p.goto(f"{BASE}/asso.html?id=a2", wait_until="networkidle"); p.wait_for_timeout(500)
+        pa = norm(p.inner_text("body"))
+        verifie("la page publique propose la carte quand l'association a un formulaire",
+                "Donner par carte" in pa and "sans commission" in pa)
+        verifie("et garde le virement à côté", "Ou par virement" in pa)
+        verifie("le lien de don pointe bien chez HelloAsso",
+                p.eval_on_selector_all("a[href*='helloasso.com']", "a=>a.length") >= 1)
+        verifie("il s'ouvre sans donner la main à la page ouverte",
+                p.eval_on_selector("a[href*='helloasso.com']",
+                  "a=>a.rel.includes('noopener') && a.rel.includes('noreferrer')") is True)
+        p.goto(f"{BASE}/asso.html?id=a1", wait_until="networkidle"); p.wait_for_timeout(400)
+        verifie("sans formulaire HelloAsso, le virement suffit et rien ne manque",
+                "Donner par carte" not in norm(p.inner_text("body"))
+                and "IBAN" in norm(p.inner_text("body")))
+
+        ha = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const out = {};
+          out.circuits = d.DB.circuitsDon('a2').map(x => x.cle);
+          out.sansHa = d.DB.circuitsDon('a1').map(x => x.cle);
+          try { d.DB.enregistrerHelloAsso('a1', 'https://evil.example/associations/x/formulaires/1'); }
+          catch (e){ out.refus = e.message; }
+          try { d.DB.enregistrerHelloAsso('a1', 'http://www.helloasso.com/associations/x/formulaires/1'); }
+          catch (e){ out.refusHttp = e.message; }
+          d.DB.enregistrerHelloAsso('a1', 'https://www.helloasso.com/associations/refuge/formulaires/3');
+          out.apres = d.DB.circuitsDon('a1').map(x => x.cle);
+          out.options = d.DB.optionsDon('a2').length;
+          return out;
+        }""")
+        verifie("la carte passe devant le virement quand elle existe",
+                ha["circuits"] == ["helloasso", "virement"], str(ha["circuits"]))
+        verifie("le virement reste le socle universel",
+                ha["sansHa"] == ["virement"], str(ha["sansHa"]))
+        verifie("un lien hors du domaine HelloAsso est refusé", ha.get("refus") is not None)
+        verifie("un lien en http est refusé", ha.get("refusHttp") is not None)
+        verifie("ajouter un formulaire ouvre le circuit carte",
+                ha["apres"] == ["helloasso", "virement"], str(ha["apres"]))
+        verifie("HelloAsso n'est pas présenté comme un manque à combler",
+                ha["options"] == 0)
+
+        connecte(p, "u7", "#/dons")
+        dh = norm(p.inner_text(".content"))
+        verifie("l'association n'a ni clé ni mot de passe à fournir",
+                "ni clé, ni mot de passe" in dh)
+        verifie("et le virement reste annoncé comme suffisant",
+                "le virement fonctionne" in dh)
+
         print("\nRegistre public et dossier de l'association")
         connecte(p, "u7", "#/dossier")
         dr = norm(p.inner_text(".content"))

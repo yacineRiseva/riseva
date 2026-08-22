@@ -94,6 +94,7 @@ if (rea.liste.length){
 /* Les coordonnées bancaires viennent du moteur, jamais du gabarit : une page
    publique qui composerait elle-même un IBAN finirait par en afficher un faux. */
 const don = DB.coordonneesDon(a.id) || {};
+const ha = DB.lienHelloAsso(a.id);
 
 const corps = h(`<section class="section"><div class="wrap assoGrid">
   <div>
@@ -103,6 +104,12 @@ const corps = h(`<section class="section"><div class="wrap assoGrid">
   <aside class="card" style="padding:var(--s8);position:sticky;top:88px">
     ${DB.donsOuverts(a.id) ? `
       <h3>Lui donner de l'argent</h3>
+      ${ha ? `<a class="btn btn--brand btn--block" style="margin-top:var(--s5)" target="_blank"
+         rel="noopener noreferrer" href="${esc(ha)}">Donner par carte</a>
+      <p class="hint center" style="margin-top:var(--s3)">Par HelloAsso, sans commission.
+        L'argent va directement à ${esc(a.nom)}.</p>
+      <hr class="sep">
+      <p class="muted" style="font-size:var(--t-sm)"><strong>Ou par virement</strong></p>` : ""}
       <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
         Par virement, directement sur le compte de ${esc(a.nom)}.
         <strong>Riseva n'encaisse rien</strong> et ne prélève rien : l'argent va de votre banque

@@ -42,6 +42,51 @@ export const DON = {
   montants_suggeres: [20, 50, 100, 250]
 };
 
+/* Les circuits par lesquels l'argent peut arriver à une association. Aucun ne
+   passe par Riseva : c'est la seule chose qu'ils ont en commun, et c'est la seule
+   qui compte juridiquement.
+
+   HelloAsso a été retenu comme circuit *complémentaire*, pas comme remplacement.
+   Il est plus fluide — une carte bancaire, immédiat — et il ne prend aucune
+   commission : son modèle repose sur une contribution volontaire du donateur,
+   qui peut la mettre à zéro. Mais il suppose que l'association ait un compte
+   HelloAsso vérifié, ce que neuf petites associations sur dix n'ont pas, et il
+   ne délivre pas le reçu fiscal.
+
+   D'où l'ordre : HelloAsso quand l'association en a un, virement sinon. Le
+   virement reste le socle, parce qu'un IBAN, toute association en a un.
+
+   Ce que Riseva ne fait PAS, volontairement : détenir les clés d'API des
+   associations. L'intégration serveur-à-serveur (webhook, confirmation
+   automatique du don) suppose un compte partenaire obtenu auprès de HelloAsso,
+   qui exige une personne morale. Tant qu'elle n'existe pas, l'association colle
+   l'adresse de son propre formulaire et confirme la réception comme pour un
+   virement. Aucun secret ne transite, et rien n'attend une réponse de qui que
+   ce soit pour fonctionner. */
+export const CIRCUITS_DON = {
+  helloasso: {
+    label: "Carte bancaire, via HelloAsso",
+    aide: "Immédiat, sans commission. HelloAsso se rémunère sur une contribution volontaire du donateur, modifiable et supprimable.",
+    immediat: true,
+    exige: "un compte HelloAsso vérifié et un formulaire de don en ligne"
+  },
+  virement: {
+    label: "Virement bancaire",
+    aide: "Universel : aucune inscription nulle part, l'argent va de banque à banque.",
+    immediat: false,
+    exige: "un IBAN"
+  }
+};
+
+/* L'adresse d'un formulaire HelloAsso. On ne l'accepte que sur le domaine de
+   HelloAsso, et rien d'autre : ce lien est présenté à des donateurs sous la
+   phrase « donnez ici », et un champ libre pointant n'importe où serait un
+   détournement de dons offert à qui prendrait la main sur un compte
+   d'association. */
+const HELLOASSO_MOTIF =
+  /^https:\/\/(www\.)?helloasso\.com\/associations\/[a-z0-9-]+\/(formulaires|collectes|evenements|adhesions|boutiques)\/[a-z0-9-]+\/?$/i;
+export const lienHelloAssoValide = (v) => HELLOASSO_MOTIF.test(String(v || "").trim());
+
 /* La référence portée par le virement. Elle sert à une seule chose, et c'est la
    seule chose qui compte : permettre à l'association de rapprocher une ligne de
    son relevé bancaire d'un don annoncé sur Riseva. Elle est donc lue à voix
@@ -981,6 +1026,7 @@ const seed = {
       recus:{ actif:true, eligible_mecenat:true, signataire:"Marc Aubert",
               qualite:"Trésorier", prochain_numero:12, prefixe:"RV-2027-" },
       iban:"FR5510278073000002047260146", bic:"CMCIFR2AXXX", titulaire_compte:"Racines Vives",
+      helloasso:"https://www.helloasso.com/associations/racines-vives/formulaires/1",
       mandat_recus:{ version:"2026.1", nom:"Marc Aubert", qualite:"Trésorier", accepte_le:J(-40) } },
     { id:"a3", nom:"Rivière Propre 42", ville:"Roanne", cause:"Dépollution",
       resume:"Nettoyage des berges de la Loire et sensibilisation dans les écoles.",
@@ -3332,6 +3378,27 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       const a = api.association(aid);
       return !!(DON.ouvert && a && a.valide && !a.suspendue && a.iban && ibanValide(a.iban));
     },
+    enregistrerHelloAsso(aid, lien){
+      const a = api.association(aid); if (!a) return null;
+      const v = String(lien || "").trim();
+      if (v && !lienHelloAssoValide(v))
+        throw new Error("Ce lien n'est pas une adresse de formulaire HelloAsso. "
+          + "Elle commence par https://www.helloasso.com/associations/… et ne porte "
+          + "aucun paramètre après le nom du formulaire.");
+      a.helloasso = v || null;
+      return a;
+    },
+    lienHelloAsso: (aid) => (api.association(aid) || {}).helloasso || null,
+    /* Les circuits réellement disponibles pour une association, dans l'ordre où
+       on les propose : le plus simple pour le donateur d'abord. */
+    circuitsDon(aid){
+      const a = api.association(aid) || {};
+      if (!api.donsOuverts(aid)) return [];
+      const l = [];
+      if (a.helloasso) l.push({ cle:"helloasso", ...CIRCUITS_DON.helloasso, lien:a.helloasso });
+      l.push({ cle:"virement", ...CIRCUITS_DON.virement, ...api.coordonneesDon(aid) });
+      return l;
+    },
     coordonneesDon(aid){
       const a = api.association(aid);
       if (!a || !api.donsOuverts(aid)) return null;
@@ -3449,6 +3516,15 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       if (!api.mandatRecus(aid)) l.push({ quoi:"mandat de préparation des reçus",
         pourquoi:"seul l'organisme bénéficiaire peut délivrer un reçu ; Riseva le prépare sur mandat écrit" });
       return l;
+    },
+    /* Ce qui n'est pas un manque, mais un plus : si l'association a déjà un
+       formulaire HelloAsso, autant l'utiliser. Le lui présenter comme une case
+       à cocher obligatoire ferait croire qu'elle doit ouvrir un compte quelque
+       part, ce qui est exactement la promesse qu'on lui a faite de ne pas faire. */
+    optionsDon(aid){
+      const a = api.association(aid) || {};
+      return a.helloasso ? [] : [{ quoi:"lien HelloAsso (facultatif)",
+        pourquoi:"si vous avez déjà un formulaire de don HelloAsso, vos donateurs pourront payer par carte en un clic. Sans lui, le virement fonctionne très bien." }];
     },
 
 
@@ -4100,6 +4176,7 @@ const versEtat = {
   }),
   association: (r) => ({
     id: r.id, nom: r.nom, rna: r.rna, siren: r.siren, nom_juridique: r.nom_juridique,
+    helloasso: r.helloasso,
     cause: r.cause, ville: r.ville,
     resume: r.resume, adresse: r.adresse, lat: r.lat, lon: r.lon,
     valide: r.valide, suspendue: r.suspendue, site: r.site,

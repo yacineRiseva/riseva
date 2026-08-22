@@ -355,6 +355,15 @@ Toute formulation laissant croire que Riseva émet le reçu « au nom de » l'as
 proscrire, sur le site comme en démarchage.
 
 ### Dons aux associations — par virement direct
+- **Deux circuits, aucun ne passe par Riseva** : HelloAsso (carte, immédiat, sans commission)
+  quand l'association a déjà un formulaire, et le **virement** partout ailleurs. Le virement reste
+  le socle : un IBAN, toute association en a un.
+- **Riseva ne détient aucune clé d'API d'association.** Elle stocke l'adresse publique du
+  formulaire, contrainte au domaine helloasso.com en HTTPS, dans le navigateur et par contrainte
+  en base. Un champ libre serait un détournement de dons offert à qui prendrait la main sur un
+  compte.
+- HelloAsso **ne délivre pas le reçu fiscal** : la préparation sous mandat reste nécessaire dans
+  les deux circuits.
 - **Riseva n'encaisse jamais.** Recevoir des fonds pour les reverser à un tiers, c'est fournir un
   service de paiement au sens des articles L. 314-1 et L. 521-1 du code monétaire et financier ;
   l'exercer sans agrément est puni de trois ans et 375 000 € (art. L. 572-5). Aucun montage — compte

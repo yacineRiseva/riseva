@@ -6609,7 +6609,21 @@ function vueDossier(u){
    virement anonyme sur son relevé et ne peut rien confirmer. */
 function bonDeVirement(intention, asso){
   const c = DB.coordonneesDon(asso.id) || {};
+  const ha = DB.lienHelloAsso(asso.id);
   const el = h(`<div class="stack" style="--gap:var(--s5)">
+    ${ha ? `<div class="card card--flat" style="padding:var(--s5)">
+      <p class="muted" style="font-size:var(--t-sm)">Le plus rapide</p>
+      <strong style="font-size:var(--t-lg)">Payer par carte</strong>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s2)">
+        ${esc(asso.nom)} encaisse par HelloAsso, sans commission. <strong>Recopiez la référence
+        ci-dessous dans le message du don</strong> : c'est elle qui permet à l'association de
+        rapprocher votre versement, et à vos points d'être crédités.</p>
+      <a class="btn btn--forest btn--sm" style="margin-top:var(--s4)" target="_blank"
+         rel="noopener noreferrer" href="${esc(ha)}">Ouvrir le formulaire HelloAsso</a>
+      <p class="hint" style="margin-top:var(--s3)">Riseva ne reçoit pas cet argent non plus :
+        il va de votre carte au compte de l'association.</p>
+    </div>
+    <p class="muted" style="font-size:var(--t-sm);text-align:center;margin:0">ou par virement</p>` : ""}
     <div class="card card--flat" style="padding:var(--s5);background:var(--moss);border-color:transparent">
       <p class="muted" style="font-size:var(--t-sm)">À virer à</p>
       <strong style="font-size:var(--t-lg)">${esc(c.titulaire || asso.nom)}</strong>
@@ -6751,6 +6765,20 @@ function vueDonsAsso(u){
       </section>
 
       <section class="card">
+        <div class="between"><h3>Paiement par carte</h3>
+          <button class="btn btn--ghost btn--sm" id="majHa">${DB.lienHelloAsso(u.org) ? "Modifier" : "Ajouter"}</button></div>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s4)">
+          Si vous avez déjà un formulaire de don <strong>HelloAsso</strong>, collez son adresse :
+          vos donateurs pourront payer par carte en un clic, sans commission. Nous ne vous
+          demandons ni clé, ni mot de passe, ni accès à votre compte — juste l'adresse publique
+          de votre formulaire.</p>
+        ${DB.lienHelloAsso(u.org) ? `<p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);word-break:break-all">
+          <a href="${esc(DB.lienHelloAsso(u.org))}" target="_blank" rel="noopener noreferrer">${esc(DB.lienHelloAsso(u.org))}</a></p>`
+        : `<p class="hint" style="margin-top:var(--s3)">Sans HelloAsso, le virement fonctionne
+           très bien : c'est le circuit par défaut, et il ne demande rien à personne.</p>`}
+      </section>
+
+      <section class="card">
         <div class="between"><h3>Reçus fiscaux</h3>
           <button class="btn btn--ghost btn--sm" id="majMandat">${mandat ? "Révoquer" : "Donner mandat"}</button></div>
         ${mandat ? `<p class="muted" style="margin-top:var(--s4)">Mandat accordé le
@@ -6849,6 +6877,32 @@ function vueDonsAsso(u){
               bic: corps.querySelector("#bc").value, titulaire: corps.querySelector("#ti").value });
           } catch (e){ toast(e.message); return false; }
           toast("Compte enregistré."); rendre(); }}]);
+  };
+
+  el.querySelector("#majHa").onclick = () => {
+    const corps = h(`<div class="stack" style="--gap:var(--s4)">
+      <p class="muted" style="font-size:var(--t-sm)">Ouvrez votre formulaire de don sur HelloAsso
+      et copiez l'adresse de la barre du navigateur. Elle ressemble à
+      <span style="font-family:var(--font-mono);font-size:var(--t-xs)">https://www.helloasso.com/associations/votre-asso/formulaires/1</span>.</p>
+      <div class="field"><label for="ha">Adresse du formulaire</label>
+        <input class="input" id="ha" value="${esc(DB.lienHelloAsso(u.org) || "")}"
+               placeholder="https://www.helloasso.com/associations/…"></div>
+      <p class="hint">Seules les adresses du domaine helloasso.com sont acceptées. Ce lien est
+        présenté à des donateurs sous la phrase « donnez ici » : un champ libre pointant
+        n'importe où serait un détournement de dons offert à qui prendrait la main sur un
+        compte.</p>
+      <p class="hint">Un jour où Riseva aura obtenu un accès partenaire chez HelloAsso, la
+        confirmation des dons se fera toute seule. En attendant, vous confirmez la réception
+        comme pour un virement — et rien n'attend une réponse de qui que ce soit pour
+        fonctionner.</p>
+    </div>`);
+    modal("Formulaire HelloAsso", corps, [
+      { label:"Annuler" },
+      { label: DB.lienHelloAsso(u.org) ? "Enregistrer" : "Ajouter", classe:"btn--primary",
+        onClick: () => {
+          try { DB.enregistrerHelloAsso(u.org, corps.querySelector("#ha").value); }
+          catch (e){ toast(e.message); return false; }
+          toast("Formulaire enregistré."); rendre(); }}]);
   };
 
   el.querySelector("#majMandat").onclick = () => {

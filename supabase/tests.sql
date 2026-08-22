@@ -986,6 +986,31 @@ select pg_temp.refuse('elle ne renseigne pas le numéro d''une autre association
 select pg_temp.refuse('un SIREN à clé fausse est refusé par la RPC',
   'select public.enregistrer_numeros_association(
      ''33333333-3333-4333-8333-333333333333'', ''428763305'', null)');
+-- Le lien HelloAsso est présenté à des donateurs sous la phrase « donnez ici ».
+-- Un champ libre pointant n'importe où serait un détournement de dons offert à
+-- qui prendrait la main sur un compte d'association.
+select pg_temp.refuse('un lien de don hors du domaine HelloAsso est refusé',
+  'select public.enregistrer_helloasso(''33333333-3333-4333-8333-333333333333'',
+     ''https://evil.example/associations/x/formulaires/1'')');
+select pg_temp.refuse('un lien HelloAsso en clair (http) est refusé',
+  'select public.enregistrer_helloasso(''33333333-3333-4333-8333-333333333333'',
+     ''http://www.helloasso.com/associations/x/formulaires/1'')');
+select pg_temp.refuse('un domaine qui ressemble à HelloAsso est refusé',
+  'select public.enregistrer_helloasso(''33333333-3333-4333-8333-333333333333'',
+     ''https://helloasso.com.evil.example/associations/x/formulaires/1'')');
+do $$
+begin
+  perform public.enregistrer_helloasso('33333333-3333-4333-8333-333333333333',
+    'https://www.helloasso.com/associations/refuge-4-vents/formulaires/2');
+  perform pg_temp.dit('un vrai formulaire HelloAsso est accepté',
+    (select helloasso is not null from public.association
+      where id = '33333333-3333-4333-8333-333333333333'));
+  perform public.enregistrer_helloasso('33333333-3333-4333-8333-333333333333', '');
+  perform pg_temp.dit('et il se retire en vidant le champ',
+    (select helloasso is null from public.association
+      where id = '33333333-3333-4333-8333-333333333333'));
+end $$;
+
 select pg_temp.refuse('un RNA mal formé est refusé',
   'select public.enregistrer_numeros_association(
      ''33333333-3333-4333-8333-333333333333'', null, ''423001234'')');

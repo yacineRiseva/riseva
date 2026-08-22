@@ -1185,6 +1185,16 @@ begin
    where a.id = p_association;
 end $$;
 
+create or replace function public.enregistrer_helloasso(p_association uuid, p_lien text)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if p_association is distinct from private.mon_association() and not private.est_admin() then
+    raise exception 'Réservé à l''association concernée' using errcode = '42501';
+  end if;
+  update public.association a set helloasso = nullif(btrim(coalesce(p_lien, '')), '')
+   where a.id = p_association;
+end $$;
+
 create or replace function public.accepter_mandat_recus(
   p_association uuid, p_nom text, p_qualite text, p_version text default '2026.1')
 returns void language plpgsql security definer set search_path = '' as $$

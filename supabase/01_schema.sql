@@ -258,6 +258,14 @@ create table association (
   -- paiement (art. L. 314-1 et L. 521-1 du code monétaire et financier), ce qui
   -- exige un agrément qu'on n'a pas et qu'on ne cherche pas.
   iban              text check (private.iban_ok(iban)),
+  -- L'adresse publique du formulaire HelloAsso, quand l'association en a un.
+  -- Restreinte au domaine de HelloAsso : ce lien est présenté à des donateurs
+  -- sous la phrase « donnez ici », et un champ libre pointant n'importe où serait
+  -- un détournement de dons offert à qui prendrait la main sur un compte.
+  -- Riseva ne détient aucune clé d'API d'association : l'intégration
+  -- serveur-à-serveur suppose un compte partenaire, qui suppose une personne
+  -- morale, et rien ici n'attend cette étape pour fonctionner.
+  helloasso         text check (helloasso ~ '^https://(www\.)?helloasso\.com/associations/[a-z0-9-]+/(formulaires|collectes|evenements|adhesions|boutiques)/[a-zA-Z0-9-]+/?$'),
   bic               text check (bic ~ '^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$'),
   titulaire_compte  text check (length(titulaire_compte) <= 200),
   cree_le   timestamptz not null default now(),
