@@ -6,44 +6,76 @@
    ══════════════════════════════════════════════════════════ */
 
 /* ── 1. JETONS ────────────────────────────────────────── */
+/* Ces jetons ne sont plus indépendants : ils reprennent ceux de
+   `tokens.css`, c'est-à-dire ceux de l'application. Le site et le produit
+   avaient deux papiers différents, deux échelles de rayon et quatre familles
+   typographiques à eux deux — un client qui passait de l'un à l'autre changeait
+   visiblement de logiciel. Ils sont dupliqués ici plutôt qu'importés parce que
+   la vitrine est servie en un seul fichier, et qu'une dépendance de plus sur le
+   chemin critique d'une page publique se paie en secondes. */
 :root{
-  /* papier & encre */
-  --paper:#FCFBF8;
-  --paper-2:#F5F3EE;
-  --paper-3:#EBE8E0;
+  /* papier & encre — les valeurs de tokens.css, à l'identique */
+  --paper:#F2F0E9;
+  --paper-2:#FAF9F5;
+  --paper-3:#EAE7DE;
   --ink:#131510;
-  --ink-soft:#2C2F26;
-  --stone:#5E6259;
-  --faint:#63675C;
+  --ink-soft:#2C3026;
+  --stone:#4A4F42;
+  --faint:#62675C;
 
-  /* signal */
+  /* signal.
+     Le vert du logo devient l'accent visible du site. Le lime reste ce qu'il est
+     dans le design system : 1,1:1 sur papier, donc décor et fonds sombres
+     seulement — jamais un trait qu'on est censé remarquer sur fond clair. */
+  --brand:#6DBE45;          /* le vert du logo */
+  --brand-700:#4F9A2E;
+  --brand-800:#3B6D11;      /* le seul vert lisible en texte sur papier */
+  --forest-900:#0B2620;
+  --forest-800:#0F3D30;
+  --forest-700:#1F5C4A;
+  --forest-600:#2E7A62;
   --lime:#C9F24B;
-  --lime-dim:#B4DC3E;
+  --lime-dim:#A9D22B;
   --moss:#DFE6D0;
   --water:#3D82AD;
   --water-soft:#7FB4D4;
 
   /* traits */
-  --line:rgba(19,21,16,.13);
-  --line-soft:rgba(19,21,16,.07);
-  --line-hard:rgba(19,21,16,.28);
+  --line:rgba(19,21,16,.10);
+  --line-soft:rgba(19,21,16,.06);
+  --line-hard:rgba(19,21,16,.22);
+
+  /* formes — l'échelle de l'application : 8 / 12 / 20, et la pilule pour les
+     badges seulement. Les rayons de 2 à 5 px étaient la cause principale de
+     l'effet daté relevé par le fondateur. */
+  --r-sm:8px; --r-md:12px; --r-lg:20px; --r-pill:999px;
+
+  /* profondeur : des ombres vertes, jamais grises */
+  --sh-1:0 1px 2px rgba(11,38,32,.06);
+  --sh-2:0 1px 2px rgba(11,38,32,.05), 0 8px 20px -8px rgba(11,38,32,.14);
+  --sh-3:0 2px 4px rgba(11,38,32,.05), 0 24px 48px -20px rgba(11,38,32,.26);
 
   /* courbes */
-  --e:cubic-bezier(.16,1,.3,1);
+  --e:cubic-bezier(.22,.61,.36,1);
   --e2:cubic-bezier(.65,0,.35,1);
-  --e3:cubic-bezier(.34,1.3,.36,1);
+  --e3:cubic-bezier(.34,1.2,.36,1);
 
   /* trame */
-  --maxw:1300px;
+  --maxw:1240px;
   --gut:max(clamp(20px,4.6vw,48px), calc((100% - var(--maxw)) / 2));
   --gutv:max(clamp(20px,4.6vw,48px), calc((100vw - var(--maxw)) / 2));
-  --sp:clamp(72px,8.4vw,132px);
+  --sp:clamp(72px,8.4vw,120px);
 
-  /* familles */
-  --f-disp:'Bricolage Grotesque','Poppins',system-ui,-apple-system,sans-serif;
-  --f-body:'Instrument Sans','Poppins',system-ui,-apple-system,sans-serif;
-  --f-serif:'Fraunces','Lora',Georgia,serif;
-  --f-mono:'IBM Plex Mono','Liberation Mono',ui-monospace,'DejaVu Sans Mono',monospace;
+  /* familles.
+     Deux, plus une mono strictement technique. Il y en avait quatre : un
+     grotesque très gras pour les titres, un serif italique pour les incises,
+     une mono en capitales pour les micro-libellés, et le corps de texte. Cette
+     accumulation est ce qui faisait « vieillot » : chaque famille ajoutait une
+     époque différente sur la même page. */
+  --f-disp:'Instrument Sans','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-body:'Instrument Sans','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-serif:var(--f-disp);
+  --f-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
 }
 
 /* ── 2. BASE ──────────────────────────────────────────── */
@@ -64,7 +96,6 @@ body{
   -moz-osx-font-smoothing:grayscale;
   text-rendering:optimizeLegibility;
 }
-@media (pointer:fine){ body{cursor:none;} }
 
 a{color:inherit;text-decoration:none;}
 svg{display:block;}
@@ -87,48 +118,62 @@ body::after{
 :focus-visible{
   outline:2.5px solid var(--ink);
   outline-offset:3px;
-  border-radius:2px;
+  border-radius:var(--r-sm);
 }
 
 /* ── 3. TYPE ──────────────────────────────────────────── */
+/* L'échelle des titres est celle de l'application, pas une échelle d'affiche.
+   Un h1 à 101 px avec −0,045 em de chasse remplit une capture d'écran de
+   portfolio ; sur la page qu'un directeur RSE ouvre entre deux réunions, il crie.
+   Le logo, lui, est un monogramme monoline dans un carré, avec beaucoup de vide :
+   c'est de ce côté-là qu'on ramène le reste. */
 h1,h2,h3,h4{
   font-family:var(--f-disp);
   font-weight:600;
-  line-height:1;
-  letter-spacing:-.035em;
+  line-height:1.06;
+  letter-spacing:-.028em;
   text-wrap:balance;
 }
 h1{
-  font-size:clamp(44px,6.9vw,101px);
+  font-size:clamp(40px,1.5rem + 3.6vw,72px);
   font-weight:600;
-  line-height:.93;
-  letter-spacing:-.045em;
+  line-height:1.02;
+  letter-spacing:-.034em;
 }
 h2{
-  font-size:clamp(33px,4.35vw,61px);
-  line-height:.97;
-  letter-spacing:-.042em;
+  font-size:clamp(30px,1.2rem + 2vw,48px);
+  line-height:1.06;
+  letter-spacing:-.03em;
 }
-h3{font-size:clamp(19px,1.62vw,26px);line-height:1.14;letter-spacing:-.03em;}
-h4{font-size:clamp(16px,1.15vw,18.5px);line-height:1.2;letter-spacing:-.02em;}
+h3{font-size:clamp(19px,1.5vw,24px);line-height:1.2;letter-spacing:-.021em;}
+h4{font-size:clamp(16px,1.1vw,18px);line-height:1.25;letter-spacing:-.015em;}
 
-/* le mot en italique serif : la respiration de chaque titre */
+/* L'incise du titre. C'était un serif italique — une troisième famille, donc une
+   troisième époque sur la même ligne. C'est maintenant la même famille, en
+   italique et en vert de marque : la respiration reste, la collision disparaît. */
 .it{
-  font-family:var(--f-serif);
+  font-family:var(--f-disp);
   font-style:italic;
-  font-weight:400;
+  font-weight:600;
+  color:var(--brand-800);
   letter-spacing:-.028em;
-  font-variation-settings:'SOFT' 30,'WONK' 1;
 }
 
+/* Micro-libellé de section. Il était en capitales monospace à 10,5 px avec
+   0,155 em de chasse : lisible à la loupe, et daté d'une décennie précise.
+   Douze pixels au minimum, la chasse de l'application, et la graisse fait le
+   reste. */
 .mono{
-  font-family:var(--f-mono);
-  font-size:10.5px;
-  font-weight:400;
-  letter-spacing:.155em;
+  font-family:var(--f-body);
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:.08em;
   text-transform:uppercase;
   line-height:1.4;
 }
+/* La mono, la vraie, reste pour ce qui est un numéro : un IBAN, une référence,
+   un SIREN. Ce sont des chaînes qu'on recopie, et la chasse fixe sert à ça. */
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;}
 
 p{text-wrap:pretty;}
 
@@ -139,8 +184,8 @@ p{text-wrap:pretty;}
   margin-bottom:26px;
 }
 .eyebrow::before{
-  content:'';width:26px;height:1px;background:var(--ink);
-  opacity:.42;flex:none;
+  content:'';width:26px;height:2px;background:var(--brand);
+  border-radius:2px;flex:none;
 }
 
 /* chapeau de section : titre a gauche, note a droite */
@@ -186,7 +231,7 @@ p{text-wrap:pretty;}
   flex:none;
 }
 .nav-brand svg{width:17px;height:17px;overflow:visible;}
-.nav-brand .lf{fill:var(--lime);stroke:var(--ink);stroke-width:1.4;}
+.nav-brand .lf{fill:var(--brand);stroke:var(--ink);stroke-width:1.4;}
 
 .nav-links{
   display:flex;align-items:center;gap:clamp(14px,1.9vw,30px);
@@ -209,14 +254,13 @@ p{text-wrap:pretty;}
   --bg:var(--ink); --fg:var(--paper);
   position:relative;display:inline-flex;align-items:center;gap:10px;
   padding:13px 22px 13px 24px;
-  border:0;border-radius:999px;
+  border:0;border-radius:var(--r-pill);
   background:var(--bg);color:var(--fg);
   font-family:var(--f-body);
   font-size:13.5px;font-weight:600;letter-spacing:-.012em;
   overflow:hidden;isolation:isolate;
   transition:color .38s var(--e),transform .38s var(--e);
 }
-@media (pointer:fine){ .btn{cursor:none;} }
 .btn::before{
   content:'';position:absolute;inset:0;z-index:-1;
   background:var(--lime);
@@ -263,21 +307,10 @@ p{text-wrap:pretty;}
 .tlink:hover i{transform:rotate(45deg) translate(2.5px,-2.5px);}
 
 /* ── 6. CURSEUR ───────────────────────────────────────── */
-#cur{
-  position:fixed;top:0;left:0;z-index:9999;pointer-events:none;
-  width:9px;height:9px;border-radius:50%;
-  background:var(--ink);
-  transform:translate3d(-50%,-50%,0);
-  transition:width .34s var(--e),height .34s var(--e),
-             background-color .34s var(--e),opacity .3s;
-  will-change:transform;
-  mix-blend-mode:normal;
-}
-#cur.big{width:52px;height:52px;background:var(--lime);}
-#cur.light{background:var(--paper);}
-#cur.hide{opacity:0;}
-@media (pointer:coarse),(hover:none){ #cur{display:none;} }
-@media (pointer:fine){ a,button,input,label,summary,[data-hov]{cursor:none;} }
+/* Il n'y en a plus. Un curseur dessiné en JavaScript retire à l'utilisateur le
+   pointeur de son système : il perd les affordances qu'il connaît (le I-beam
+   sur un texte sélectionnable, la main sur un lien), et tout se met à répondre
+   avec une image de retard. C'était un effet, pas une amélioration. */
 
 /* ── 7. REVEALS ───────────────────────────────────────── */
 .rv{
@@ -369,7 +402,7 @@ p{text-wrap:pretty;}
 }
 .nav-burger span{
   position:absolute;left:11px;right:11px;height:1.5px;
-  background:var(--ink);border-radius:2px;
+  background:var(--ink);border-radius:var(--r-sm);
   transition:transform .4s var(--e),opacity .3s var(--e);
 }
 .nav-burger span:first-child{top:18px;}
@@ -471,11 +504,15 @@ section{
   from{ transform:translate3d(0,calc(var(--amp,40px) * -1),0); }
   to  { transform:translate3d(0,var(--amp,40px),0); }
 }
+/* Les lianes reprennent le trait du monogramme : une courbe monoline, en vert
+   de marque, qui traverse la page derrière le contenu. Elles étaient en lime, à
+   1,1:1 sur papier : au lieu d'une signature on voyait une rayure de surligneur
+   oubliée. */
 .ribbon{
-  fill:none;stroke-width:6;
+  fill:none;stroke-width:5;
   stroke-linecap:round;stroke-linejoin:round;
   vector-effect:non-scaling-stroke;
-  stroke-opacity:.34;
+  stroke-opacity:.26;
   /* pathLength="1" : le trace fait 1 unite quelle que soit sa vraie
      longueur, donc un seul reglage suffit pour toutes les lianes.
      Elles se tracent a leur arrivee dans l'ecran. */
@@ -506,12 +543,14 @@ section{
   margin-left:clamp(0px,15.5vw,224px);
   color:var(--ink);
 }
-.h1 .turn .it{color:var(--ink);}
-/* le mot qui porte tout : souligne d'un trait lime epais */
+.h1 .turn .it{color:var(--brand-800);}
+/* Le mot qui porte tout, souligné d'un trait. Il était en lime : 1,1:1 sur
+   papier, c'est-à-dire un trait qu'on ne voit pas et qui donne malgré tout
+   l'impression d'un surligneur fatigué. C'est maintenant le vert du logo. */
 .h1 .hit{position:relative;display:inline-block;}
 .h1 .hit::after{
-  content:'';position:absolute;left:-.04em;right:-.04em;bottom:.055em;
-  height:.115em;background:var(--lime);z-index:-1;
+  content:'';position:absolute;left:-.04em;right:-.04em;bottom:.045em;
+  height:.09em;border-radius:.05em;background:var(--brand);z-index:-1;
   transform:scaleX(0);transform-origin:left;
   transition:transform 1.05s var(--e) .55s;
 }
@@ -552,8 +591,8 @@ section{
 }
 .hero-assure li{list-style:none;display:flex;align-items:center;gap:7px;}
 .hero-assure li::before{
-  content:'';width:4px;height:4px;border-radius:50%;
-  background:var(--lime-dim);flex:none;
+  content:'';width:5px;height:5px;border-radius:50%;
+  background:var(--brand);flex:none;
 }
 
 /* ── 12. CLASSEMENT ───────────────────────────────────────
@@ -562,7 +601,7 @@ section{
 .rank{
   background:var(--paper);
   border:1px solid var(--line-hard);
-  border-radius:3px;
+  border-radius:var(--r-sm);
   box-shadow:0 1px 0 rgba(19,21,16,.05),
              0 18px 44px -30px rgba(19,21,16,.42);
   overflow:hidden;
@@ -588,7 +627,7 @@ section{
 }
 .rank-week .mono{color:var(--stone);}
 .rank-dot{
-  width:6px;height:6px;border-radius:50%;background:var(--lime-dim);
+  width:6px;height:6px;border-radius:50%;background:var(--brand);
   flex:none;
   animation:rank-pulse 2.6s var(--e2) infinite;
 }
@@ -616,7 +655,7 @@ section{
 }
 .rank-mv{
   display:flex;align-items:center;justify-content:center;
-  font-family:var(--f-mono);font-size:9.5px;font-weight:500;
+  font-family:var(--f-body);font-weight:600;font-size:12px;font-weight:500;
   letter-spacing:.02em;
   color:var(--stone);
   gap:1px;
@@ -654,7 +693,7 @@ section{
 .rank-foot .mono{font-size:9.5px;}
 .rank-caption{
   margin-top:11px;
-  font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;
+  font-family:var(--f-body);font-weight:600;font-size:12px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--faint);
   text-align:right;
 }
@@ -673,7 +712,7 @@ section{
   position:relative;
 }
 .fact-when{
-  font-family:var(--f-mono);font-size:10.5px;letter-spacing:.15em;
+  font-family:var(--f-body);font-weight:600;font-size:12px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--ink);
   padding-top:.55em;
 }
@@ -700,7 +739,7 @@ section{
 }
 .fact-src{
   margin-top:13px;
-  font-family:var(--f-mono);font-size:9.5px;letter-spacing:.11em;
+  font-family:var(--f-body);font-weight:600;font-size:12px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--faint);
 }
 @media (max-width:760px){
@@ -733,11 +772,11 @@ section{
 .fx-i:nth-child(2){margin-top:clamp(38px,4.6vw,74px);border-top-color:var(--ink);}
 .fx-i:nth-child(4){margin-top:clamp(24px,2.8vw,44px);}
 .fx-n{
-  font-family:var(--f-mono);font-size:10.5px;letter-spacing:.15em;
+  font-family:var(--f-body);font-weight:600;font-size:12px;letter-spacing:.08em;
   color:var(--faint);padding-top:.75em;
 }
 .fx-k{
-  font-family:var(--f-mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  font-family:var(--f-body);font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;
   color:var(--ink);margin-bottom:8px;
 }
 .fx-h{
@@ -752,7 +791,7 @@ section{
 }
 .fx-p{margin-top:9px;font-size:14.5px;line-height:1.55;color:var(--ink-soft);}
 .fx-s{
-  margin-top:9px;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.11em;
+  margin-top:9px;font-family:var(--f-body);font-weight:600;font-size:12px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--faint);
 }
 @media (max-width:900px){
@@ -779,7 +818,7 @@ section{
   transition:stroke-dashoffset 2.2s cubic-bezier(.16,1,.3,1);
 }
 .sais-line circle{
-  fill:none;stroke:var(--lime-dim);stroke-width:9;vector-effect:non-scaling-stroke;
+  fill:none;stroke:var(--brand);stroke-width:9;vector-effect:non-scaling-stroke;
   opacity:0;transition:opacity .45s var(--e);
 }
 .sais.on .sais-line path{stroke-dashoffset:0;}
@@ -825,7 +864,7 @@ section{
   height:clamp(400px,50vh,540px);
 }
 .xcard{
-  position:relative;overflow:hidden;border-radius:4px;cursor:pointer;
+  position:relative;overflow:hidden;border-radius:var(--r-sm);cursor:pointer;
   flex:.62 1 0%;min-width:0;
   transition:flex-grow .68s cubic-bezier(.19,1,.22,1);
   background:var(--ink);outline:none;
@@ -876,7 +915,7 @@ section{
 }
 .xcard.is-open .xc-full{opacity:1;transform:none;transition-delay:.22s;}
 .xc-tag{
-  display:inline-block;margin-bottom:12px;padding:5px 12px;border-radius:100px;
+  display:inline-block;margin-bottom:12px;padding:5px 12px;border-radius:var(--r-pill);
   font-size:10px;background:rgba(201,242,75,.16);color:var(--lime);white-space:nowrap;
 }
 .xcard h3{
@@ -920,7 +959,7 @@ section{
 .ret-mosaic{
   position:relative;margin:0;align-self:stretch;
   min-height:520px;
-  border:1px solid var(--line);border-radius:4px;
+  border:1px solid var(--line);border-radius:var(--r-sm);
   overflow:hidden;
   background:var(--paper-2);
   isolation:isolate;
@@ -942,7 +981,7 @@ section{
 .mos-band{position:relative;width:100%;}
 .mos-cell{
   position:absolute;display:block;overflow:hidden;
-  border-radius:2px;
+  border-radius:var(--r-sm);
   background:var(--paper-2);
 }
 .mos-cell img{
@@ -980,10 +1019,10 @@ section{
 .ret-mosaic figcaption{
   position:absolute;left:15px;bottom:13px;z-index:4;
   display:flex;align-items:center;gap:8px;
-  padding:6px 12px;border-radius:100px;
+  padding:6px 12px;border-radius:var(--r-pill);
   background:rgba(252,251,248,.92);
-  color:var(--ink-soft);font-size:10px;letter-spacing:.12em;
-  font-family:var(--f-mono);text-transform:uppercase;
+  color:var(--ink-soft);font-size:12px;letter-spacing:.08em;font-weight:600;
+  font-family:var(--f-body);text-transform:uppercase;
 }
 .ret-mosaic figcaption::before{
   content:'';width:6px;height:6px;border-radius:50%;
@@ -1055,7 +1094,7 @@ section{
 .role li i{
   position:absolute;left:2px;top:17px;
   width:8px;height:8px;border-radius:50%;
-  background:var(--lime);
+  background:var(--brand);
 }
 .role-dont li{
   color:var(--faint);
@@ -1078,7 +1117,7 @@ section{
   position:relative;
   aspect-ratio:16/10;
   border:1px solid var(--ink);
-  border-radius:4px;
+  border-radius:var(--r-sm);
   background:
     repeating-linear-gradient(-45deg,
       rgba(19,21,16,.032) 0 12px, transparent 12px 24px),
@@ -1089,7 +1128,7 @@ section{
 }
 .vframe-play{
   width:clamp(54px,5vw,68px);aspect-ratio:1;border-radius:50%;
-  background:var(--lime);border:1px solid var(--ink);
+  background:var(--brand);border:1px solid var(--ink);
   position:relative;
 }
 .vframe-play::after{
@@ -1115,12 +1154,12 @@ section{
 .vframe-c.br{bottom:9px;right:9px;border-left:0;border-top:0;}
 .vframe figcaption{
   margin-top:11px;color:var(--stone);
-  font-family:var(--f-mono);font-size:10.5px;
-  letter-spacing:.13em;text-transform:uppercase;
+  font-family:var(--f-body);font-weight:600;font-size:12px;
+  letter-spacing:.08em;text-transform:uppercase;
 }
 /* la vraie video, le jour ou elle arrive */
 .vfilm{width:100%;aspect-ratio:16/10;object-fit:cover;display:block;
-  border:1px solid var(--ink);border-radius:4px;}
+  border:1px solid var(--ink);border-radius:var(--r-sm);}
 
 /* ══════════════════════════════════════════════════════════
    17. Réseau    18. Constat   19. Confluent
@@ -1145,11 +1184,10 @@ section{
   transition:padding-left .42s var(--e),color .35s;
   color:var(--stone);
 }
-@media (pointer:fine){ .net-toc li{cursor:none;} }
-.net-toc li span{font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;color:var(--faint);}
+.net-toc li span{font-family:var(--f-body);font-weight:600;font-size:12px;letter-spacing:.08em;color:var(--faint);}
 .net-toc li b{font-size:14.5px;font-weight:500;letter-spacing:-.015em;}
 .net-toc li:hover,.net-toc li.on{padding-left:9px;color:var(--ink);}
-.net-toc li.on span{color:var(--lime-dim);}
+.net-toc li.on span{color:var(--brand-800);}
 .net-tail{color:var(--faint);line-height:1.85;}
 
 .net-main{display:grid;gap:clamp(30px,3.6vw,58px);}
@@ -1168,20 +1206,20 @@ section{
   position:relative;
   aspect-ratio:5/4;
   border:1px solid var(--line-hard);
-  border-radius:3px;
+  border-radius:var(--r-sm);
   overflow:hidden;
   background:var(--moss);
 }
 .fig svg{width:100%;height:100%;}
 .fig-tag{
   position:absolute;left:10px;top:10px;
-  background:var(--paper);padding:5px 10px;border-radius:999px;
+  background:var(--paper);padding:5px 10px;border-radius:var(--r-pill);
   font-size:9px;letter-spacing:.12em;
 }
 .fig-no{
   position:absolute;right:10px;bottom:10px;
   font-size:9px;letter-spacing:.12em;color:var(--ink);
-  background:rgba(252,251,248,.8);padding:4px 8px;border-radius:999px;
+  background:rgba(252,251,248,.8);padding:4px 8px;border-radius:var(--r-pill);
 }
 .entry-head{margin-bottom:12px;}
 .entry-head h3{margin-bottom:5px;}
@@ -1195,7 +1233,7 @@ section{
 }
 .facts-dl > div{background:var(--paper);padding:10px 12px;}
 .facts-dl dt{
-  font-family:var(--f-mono);font-size:9px;letter-spacing:.12em;
+  font-family:var(--f-body);font-weight:600;font-size:12px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--stone);margin-bottom:4px;
 }
 .facts-dl dd{
@@ -1214,7 +1252,7 @@ section{
 
 .stakes-photo{
   position:relative;
-  border-radius:3px;overflow:hidden;
+  border-radius:var(--r-sm);overflow:hidden;
   min-height:clamp(340px,48vw,620px);
   background:var(--paper-3);
 }
@@ -1256,13 +1294,13 @@ section{
 .stakes-photo figcaption{
   position:absolute;left:14px;bottom:13px;z-index:2;
   display:inline-flex;align-items:center;gap:8px;
-  padding:7px 13px;border-radius:100px;
+  padding:7px 13px;border-radius:var(--r-pill);
   /* la photo est claire par endroits : un degrade ne suffisait pas
      (3,3:1 mesure), la pastille garantit le fond sous le texte */
   background:rgba(19,21,16,.82);
   backdrop-filter:blur(3px);
   color:rgba(252,251,248,.98);
-  font-family:var(--f-mono);font-size:9.5px;letter-spacing:.11em;
+  font-family:var(--f-body);font-weight:600;font-size:12px;letter-spacing:.08em;
   text-transform:uppercase;
 }
 .stakes-photo figcaption::before{
@@ -1295,7 +1333,7 @@ section{
 .stake p{font-size:14.5px;line-height:1.58;color:var(--ink-soft);}
 .stake cite{
   display:block;margin-top:9px;font-style:normal;
-  font-family:var(--f-mono);font-size:9px;letter-spacing:.1em;
+  font-family:var(--f-body);font-weight:600;font-size:12px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--stone);
 }
 
@@ -1399,7 +1437,7 @@ section{
 .conf-perks{
   list-style:none;
   border:1px solid rgba(252,251,248,.22);
-  border-radius:3px;
+  border-radius:var(--r-sm);
   padding:2px 18px;
   background:rgba(19,21,16,.42);
   backdrop-filter:blur(10px);
@@ -1415,7 +1453,7 @@ section{
 }
 .conf-perks li:last-child{border-bottom:0;}
 .conf-perks li span{
-  font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;
+  font-family:var(--f-body);font-weight:600;font-size:12px;letter-spacing:.08em;
   color:var(--lime);
 }
 .conf-cta{margin-top:clamp(26px,3vw,40px);display:flex;flex-wrap:wrap;gap:14px;align-items:center;}
@@ -1423,7 +1461,7 @@ section{
 .conf .btn::before{background:var(--paper);}
 .conf .btn .dot{background:var(--ink);}
 .conf-note{
-  font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;
+  font-family:var(--f-body);font-weight:600;font-size:12px;letter-spacing:.08em;
   text-transform:uppercase;color:rgba(252,251,248,.5);
 }
 
@@ -1464,7 +1502,6 @@ section{
   transition:border-color .35s var(--e),background-color .35s var(--e),width .28s var(--e);
   outline:0;
 }
-@media (pointer:fine){ .bk{cursor:none;} }
 .bk::placeholder{color:var(--faint);opacity:1;font-weight:400;}
 .bk:hover{border-bottom-color:var(--ink);}
 .bk:focus{
@@ -1490,16 +1527,14 @@ section{
   margin-top:22px;font-size:13.5px;line-height:1.5;color:var(--ink-soft);
   max-width:56ch;
 }
-@media (pointer:fine){ .j-consent{cursor:none;} }
 .j-consent input{
   appearance:none;-webkit-appearance:none;
   width:17px;height:17px;flex:none;margin-top:2px;
-  border:1.4px solid var(--line-hard);border-radius:3px;
+  border:1.4px solid var(--line-hard);border-radius:var(--r-sm);
   background:var(--paper);
   transition:background-color .3s var(--e),border-color .3s var(--e);
   position:relative;
 }
-@media (pointer:fine){ .j-consent input{cursor:none;} }
 .j-consent input:checked{background:var(--lime);border-color:var(--lime-dim);}
 .j-consent input:checked::after{
   content:'';position:absolute;left:5px;top:2.5px;
@@ -1516,7 +1551,7 @@ section{
 /* le bulletin qui se remplit */
 .bulletin{
   position:relative;
-  border:1px solid var(--line);border-radius:5px;
+  border:1px solid var(--line);border-radius:var(--r-md);
   overflow:hidden;background:var(--paper-2);
   /* posee legerement de travers : un bulletin qu'on vient de remplir,
      pas un encart genere */
@@ -1555,7 +1590,7 @@ section{
 .bl-rows li.done .bl-tick{background:var(--lime);border-color:var(--lime-dim);}
 .bl-rows li.done .bl-tick::before{transform:rotate(42deg) scale(1);}
 .bl-k{
-  font-family:var(--f-mono);font-size:9px;letter-spacing:.11em;
+  font-family:var(--f-body);font-weight:600;font-size:12px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--faint);
 }
 .bl-v{
@@ -1573,7 +1608,7 @@ section{
   stroke-linecap:round;vector-effect:non-scaling-stroke;
 }
 .bl-fill{
-  fill:none;stroke:var(--lime-dim);stroke-width:3;stroke-linecap:round;
+  fill:none;stroke:var(--brand);stroke-width:3;stroke-linecap:round;
   vector-effect:non-scaling-stroke;
   stroke-dasharray:1;stroke-dashoffset:1;
   transition:stroke-dashoffset .7s var(--e);
@@ -1602,7 +1637,7 @@ section{
   font-size:13.5px;line-height:1.55;color:var(--ink-soft);
 }
 .j-assure b{
-  font-family:var(--f-mono);font-size:9px;letter-spacing:.1em;
+  font-family:var(--f-body);font-weight:600;font-size:12px;letter-spacing:.08em;
   color:var(--ink);background:var(--lime);
   width:19px;height:19px;border-radius:50%;
   display:grid;place-items:center;
@@ -1634,7 +1669,6 @@ section{
   font:inherit;font-size:15.5px;line-height:1.42;
   transition:color .3s var(--e),padding-left .45s var(--e);
 }
-@media (pointer:fine){ .qa-link{cursor:none;} }
 .qa-n{color:var(--faint);transition:color .3s var(--e);}
 /* le trait qui marque la question ouverte : il se tire depuis
    la gauche au lieu d'apparaitre d'un bloc */
@@ -1659,7 +1693,7 @@ section{
 .qa-panel{
   position:sticky;top:104px;
   display:grid;
-  border:1px solid var(--line-hard);border-radius:4px;
+  border:1px solid var(--line-hard);border-radius:var(--r-sm);
   background:var(--paper);
   padding:clamp(24px,2.8vw,38px);
 }
@@ -1725,7 +1759,7 @@ section{
 @media (max-width:860px){ .foot-grid{grid-template-columns:repeat(2,1fr);gap:30px 22px;} }
 @media (max-width:520px){ .foot-grid{grid-template-columns:1fr;} }
 .foot .foot-h{
-  font-family:var(--f-mono);font-size:9.5px;letter-spacing:.15em;
+  font-family:var(--f-body);font-weight:600;font-size:12px;letter-spacing:.08em;
   text-transform:uppercase;color:rgba(252,251,248,.74);
   font-weight:400;margin-bottom:14px;
 }
@@ -1735,7 +1769,7 @@ section{
   display:flex;align-items:center;gap:9px;margin-bottom:13px;
 }
 .foot-brand svg{width:19px;height:19px;overflow:visible;}
-.foot-brand .lf{fill:var(--lime);stroke:var(--paper);stroke-width:1.4;}
+.foot-brand .lf{fill:var(--brand);stroke:var(--paper);stroke-width:1.4;}
 .foot p{font-size:14px;line-height:1.62;max-width:34ch;}
 .foot ul{list-style:none;display:grid;gap:8px;font-size:14px;}
 .foot a{transition:color .3s;}
@@ -1744,7 +1778,7 @@ section{
   display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;
   margin-top:clamp(30px,3.6vw,50px);padding-top:18px;
   border-top:1px solid rgba(252,251,248,.14);
-  font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;
+  font-family:var(--f-body);font-weight:600;font-size:12px;letter-spacing:.08em;
   text-transform:uppercase;color:rgba(252,251,248,.6);
 }
 
@@ -1769,7 +1803,7 @@ section{
 
 .bareme{
   margin-top:clamp(34px,4.4vw,58px);
-  border:1px solid var(--line);border-radius:4px;
+  border:1px solid var(--line);border-radius:var(--r-sm);
   padding:clamp(22px,2.6vw,34px);
   background:var(--paper-2);
 }

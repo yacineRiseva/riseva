@@ -103,6 +103,8 @@ pas les conversations. Toute nouvelle décision s'ajoute en haut de la section c
 
 | Date | Décision | Remplace |
 |---|---|---|
+| 22/08/2026 | Le site vitrine est écrit sur les jetons de l'application : une seule famille typographique (plus la monospace pour les numéros), l'échelle de titres du produit, les rayons 8/12/20, et le vert du logo à la place du lime pour tout ce qui doit se voir sur papier. | Quatre familles typographiques, un h1 à 101 px, des rayons de 2 à 5 px, du lime à 1,1:1 employé comme trait, et un curseur dessiné en JavaScript. Motif : « c'est moche et vieillot », et le site ne ressemblait pas au produit. |
+| 22/08/2026 | Plus aucun texte sous douze pixels sur les pages publiques. | Des micro-libellés à 9 et 10,5 px en capitales monospace, lisibles à la loupe. |
 | 20/08/2026 | Remise en service de la palette verrouillée le 29/07 : encre #131510, papier chaud #F2F0E9, verts forêt #0B2620/#0F3D30/#1F5C4A, lime #C9F24B en accent, mousse #DFE6D0, bleu eau #3D82AD. | Le blanc pur et le vert clair unique de la première version, qui manquaient de profondeur. |
 | 20/08/2026 | Profondeur obtenue par empilement de surfaces, ombres teintées vert et grain sur les surfaces sombres. Aucun dégradé, aucun faux relief. | — Le brief de marque du 29/07 les interdit explicitement. |
 | 20/08/2026 | La rivière comme signature visuelle : toute évolution dans le temps est dessinée en courbe lissée doublée d'un écho, reprise du monogramme. | Les graphiques en barres génériques. Barres conservées uniquement pour les comparaisons entre entreprises. |

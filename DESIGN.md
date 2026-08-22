@@ -197,3 +197,41 @@ et ce qui a été écarté.
 
 Verdict de la relecture sur le point le plus important : *« Je ne changerais ni le noir ni le
 vert. Le vrai risque n'est pas d'être vieillot, c'est d'être un très bon SaaS générique. »*
+
+## 12. Le site vitrine, ramené au même système (22/08/2026)
+
+Le site et le produit avaient chacun leur feuille de style. Ce n'était pas seulement
+redondant : ils divergeaient, et un client qui passait de l'un à l'autre changeait
+visiblement de logiciel. Le site est maintenant écrit sur les jetons de
+`tokens.css` — dupliqués dans `vitrine.css` plutôt qu'importés, parce qu'une page
+publique ne doit pas payer une requête de plus sur son chemin critique.
+
+Quatre changements, et pourquoi.
+
+**Une famille au lieu de quatre.** Il y avait un grotesque très gras pour les titres
+(Bricolage Grotesque 800), un serif italique pour les incises (Fraunces), une
+monospace en capitales pour les micro-libellés (IBM Plex Mono), et le corps de
+texte. Chaque famille ajoutait une époque différente sur la même page : c'est
+exactement ce que « moche et vieillot » désigne. Reste Instrument Sans, plus la
+monospace pour ce qui est réellement un numéro qu'on recopie — un IBAN, une
+référence de virement, un SIREN.
+
+**L'échelle des titres est celle du produit.** Un h1 à 101 px avec −0,045 em de
+chasse remplit une capture de portfolio ; sur la page qu'un directeur RSE ouvre
+entre deux réunions, il crie. Plafond ramené à 72 px, chasse à −0,034 em, comme
+`--t-display`.
+
+**Le lime redescend au rang que le design system lui donne.** 1,1:1 sur papier :
+c'est un fond, pas un trait. Il servait de soulignement de titre, de pastille, de
+filet et de liane — c'est-à-dire de marque qu'on ne voit pas, avec l'air d'un
+surligneur fatigué. Ces emplois passent au vert du logo, `#6DBE45`. Le lime reste
+là où il est juste : en aplat sous de l'encre (le geste « surligneur »), et sur
+fond forêt.
+
+**Plus de rayons à 2, 3, 4 et 5 px, ni de curseur maison.** L'échelle est 8 / 12 /
+20, la pilule réservée aux badges — la même décision que pour l'application le
+20/08. Le curseur dessiné en JavaScript retirait à l'utilisateur le pointeur de son
+système, avec ses affordances, et répondait avec une image de retard.
+
+Effet mesurable, en plus de l'effet visuel : plus aucun texte sous douze pixels sur
+les quatorze pages mesurées par `scripts/contraste.py`.

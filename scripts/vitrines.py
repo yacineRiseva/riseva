@@ -131,7 +131,6 @@ def page(*, fichier, titre, description, corps, nav_html, pied_html, canonique):
 </head>
 <body>
 {RUBANS}
-<div id="cur" aria-hidden="true"></div>
 
 <a class="sr-only" href="#hero">Aller au contenu</a>
 
@@ -368,7 +367,7 @@ HERO_ENT = """<header class="hero" id="hero">
         <div class="vframe-in">
           <div class="sp-layer" style="background-image:url('/photos/enjeu.jpg')"></div>
         </div>
-        <figcaption class="mono">Photo d'illustration · nous ne mettons pas en scène des missions qui n'ont pas eu lieu</figcaption>
+        <figcaption class="mono">Photo d'illustration — aucune mise en scène</figcaption>
       </figure>
     </div>
   </div>
@@ -434,8 +433,8 @@ FORMATS_ENT = f"""<section id="formats">
         <li><b>150 pts</b><span>la demi-journée de bénévolat, comptée après confirmation de
             l'association</span></li>
         <li><b>100 pts</b><span>par don de matériel validé</span></li>
-        <li><b>1 pt</b><span>par tranche de 10 € donnée — format fermé tant que le paiement
-            n'est pas raccordé</span></li>
+        <li><b>1 pt</b><span>par tranche de 10 € virée, comptée quand l'association confirme
+            avoir reçu le virement</span></li>
       </ol>
       <p class="bareme-n mono">Aucun format ne peut peser plus de la moitié des points retenus
         d'une entreprise sur la saison</p>
@@ -927,7 +926,7 @@ HERO_ASSO = """<header class="hero" id="hero">
         <div class="vframe-in">
           <div class="sp-layer" style="background-image:url('/photos/voix-chien.jpg')"></div>
         </div>
-        <figcaption class="mono">Photo d'illustration · nous ne mettons pas en scène des missions qui n'ont pas eu lieu</figcaption>
+        <figcaption class="mono">Photo d'illustration — aucune mise en scène</figcaption>
       </figure>
     </div>
   </div>

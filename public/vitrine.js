@@ -6,7 +6,6 @@ var doc=document, root=doc.documentElement;
 var qs=function(s,c){return (c||doc).querySelector(s);};
 var qsa=function(s,c){return Array.prototype.slice.call((c||doc).querySelectorAll(s));};
 var soft=matchMedia('(prefers-reduced-motion:reduce)').matches;
-var fine=matchMedia('(pointer:fine)').matches;
 
 /* ─────────── 1. REVEALS ───────────
    Une seule observation, coupée dès que l'élément est vu.        */
@@ -395,33 +394,9 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
   });
 })();
 
-/* ─────────── 10. CURSEUR ───────────
-   Position directe, sans transition sur transform : aucune
-   traînée artificielle, aucun décalage perçu.                   */
-if(fine){
-  var cur=qs('#cur');
-  var cx=0, cy=0, drawn=false;
-  addEventListener('mousemove',function(e){
-    cx=e.clientX; cy=e.clientY;
-    if(!drawn){ drawn=true; requestAnimationFrame(paint); }
-  },{passive:true});
-  function paint(){
-    cur.style.transform='translate3d('+cx+'px,'+cy+'px,0) translate(-50%,-50%)';
-    drawn=false;
-  }
-  addEventListener('mouseout',function(e){
-    if(!e.relatedTarget) cur.classList.add('hide');
-  });
-  addEventListener('mouseover',function(){cur.classList.remove('hide');});
-
-  var HOT='a,button,input,label,.net-toc li,.kit-btn,.qa-q,.chip';
-  doc.addEventListener('mouseover',function(e){
-    var t=e.target.closest?e.target.closest(HOT):null;
-    cur.classList.toggle('big',!!t);
-    var dark=e.target.closest?e.target.closest('.conf,.foot,.foot-cta,.rank-top'):null;
-    cur.classList.toggle('light',!!dark && !t);
-  });
-}
+/* ─────────── 10. (libre) ───────────
+   Le curseur dessine en JavaScript a ete retire : il privait l'utilisateur
+   des affordances de son systeme et repondait avec une image de retard.   */
 
 /* ─────────── 11. MENU MOBILE ───────────
    Le panneau se ferme au clic sur un lien, a la touche Echap et
