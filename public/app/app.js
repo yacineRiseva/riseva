@@ -7834,6 +7834,96 @@ function vueVSME(u){
    « combien de points » mais « pourquoi ça ne prend pas ». Un rapport annuel ne
    rattrape pas une saison restée inactive : quand il arrive, elle est finie et
    le renouvellement est déjà décidé. Cet écran-là arrive au bon moment. */
+/* ---- L'offre associative autour de chaque site ----
+   L'écran d'adoption écrivait déjà, comme cause probable d'un décrochage,
+   « l'offre locale est trop loin ou ne correspond pas ». Il l'écrivait sans
+   jamais la mesurer — et une cause qu'on suggère sans la chiffrer n'est qu'une
+   excuse polie faite au client.
+
+   Trois choses décident, et aucune ne dépend de la bonne volonté des équipes.
+   La DISTANCE : un site industriel est en périphérie, et personne ne fait
+   trente-cinq kilomètres après sa journée. Le JOUR : un chef d'atelier ne libère
+   pas un opérateur en 3×8 un mardi à quatorze heures, donc une offre entièrement
+   en semaine ouvrée exclut mécaniquement une grande part de l'effectif. Le
+   FORMAT : le don de matériel ne demande la disponibilité de personne, c'est la
+   seule voie qui reste quand les deux premières contraintes se cumulent.
+
+   Ce tableau est donc une liste de travail pour Riseva, jamais un reproche au
+   client. Il est trié du site le plus mal servi au mieux servi. */
+const VERDICTS_OFFRE = {
+  aucune:       { badge:"badge--danger", mot:"aucune offre",
+                  dit:"Aucune association ne publie de besoin à portée de ce site. Vos "
+                    + "salariés n'ont rien à quoi répondre : le taux de participation "
+                    + "de ce site ne mesure rien d'autre que ça." },
+  inaccessible: { badge:"badge--warn", mot:"horaires incompatibles",
+                  dit:"Tout ce qui est proposé tombe en semaine ouvrée, et aucun don de "
+                    + "matériel n'est ouvert. Un salarié en poste ou en équipe ne peut "
+                    + "pas s'y rendre — ce n'est pas un problème d'envie." },
+  mince:        { badge:"badge--warn", mot:"offre trop mince",
+                  dit:"Il y a moins d'annonces à portée que ce que l'effectif de ce site "
+                    + "demanderait. Les places partiront vite, et ceux qui arrivent "
+                    + "ensuite trouveront une page vide." },
+  suffisante:   { badge:"badge--ok", mot:"offre suffisante",
+                  dit:"Assez d'annonces à portée pour l'effectif du site. Si la "
+                    + "participation reste basse ici, la cause est ailleurs." }
+};
+
+function offreLocaleBloc(u){
+  const sites = DB.offreParSite(u.org);
+  if (!sites.length) return "";
+  const km = (n) => n === 0 ? "moins d'1 km" : `${nb(n)} km`;
+  const lignes = sites.map(o => {
+    const v = VERDICTS_OFFRE[o.verdict];
+    return `
+      <div class="offre">
+        <div class="between" style="align-items:baseline;flex-wrap:wrap;gap:var(--s3)">
+          <h4 style="font-size:var(--t-md)">${esc(o.site.nom)} — ${esc(o.site.ville)}
+            <span class="muted" style="font-weight:400;font-size:var(--t-sm)">
+              ${nb(o.site.effectif)} salariés</span></h4>
+          <span class="badge ${v.badge}">${v.mot}</span>
+        </div>
+        ${o.situe ? `
+        <div class="offre__chiffres">
+          <div><b>${nb(o.ouvertes)}</b><span>annonce${o.ouvertes > 1 ? "s" : ""} ouverte${
+            o.ouvertes > 1 ? "s" : ""} à moins de ${nb(o.rayon)} km</span></div>
+          <div><b>${o.plusProche === null ? "—" : km(o.plusProche)}</b><span>la plus proche</span></div>
+          <div><b>${o.mediane === null ? "—" : km(o.mediane)}</b><span>distance médiane</span></div>
+          <div><b>${nb(o.weekend)} / ${nb(o.semaine + o.weekend)}</b>
+            <span>hors semaine ouvrée</span></div>
+        </div>
+        <p class="hint" style="margin-top:var(--s3)">${esc(v.dit)}</p>
+        ${o.parFormat.don_materiel === 0 ? `<p class="hint">
+          Aucun don de matériel ouvert à portée. C'est le format qui ne demande la
+          disponibilité de personne : quand les horaires bloquent, c'est celui qui
+          reste.</p>` : ""}
+        ${o.aRelancerTotal ? `<p class="hint">
+          <strong style="color:var(--ink)">${nb(o.aRelancerTotal)} association${
+            o.aRelancerTotal > 1 ? "s vérifiées" : " vérifiée"} à moins de ${nb(o.rayon)} km
+          ${o.aRelancerTotal > 1 ? "ne publient" : "ne publie"} rien en ce moment</strong> :
+          ${o.aRelancer.map(x => esc(x.nom)).join(", ")}. Une association qui ne publie pas
+          n'a presque jamais dit non — elle n'a pas eu le temps d'écrire l'annonce. C'est à
+          nous de l'appeler.</p>` : ""}
+        ` : `<p class="hint" style="margin-top:var(--s3)">L'adresse de ce site n'est pas
+          localisée : sans elle, aucune distance ne peut être calculée. Renseignez-la dans
+          <a href="#/sites">Sites et quotas</a>.</p>`}
+      </div>`;
+  }).join("");
+
+  const nonSituees = sites.length ? sites[0].nonSituees : 0;
+  return `<section class="card">
+    <h3>L'offre autour de vos sites</h3>
+    <p class="muted" style="font-size:var(--t-sm);margin-top:4px;max-width:70ch">
+      Ce qu'un salarié de chaque site peut réellement faire aujourd'hui, à moins de
+      ${nb(DB.RAYON_OFFRE_KM)} km. Du site le plus mal servi au mieux servi — c'est dans cet
+      ordre que nous nous en occupons.</p>
+    <div class="stack" style="--gap:var(--s5);margin-top:var(--s6)">${lignes}</div>
+    ${nonSituees ? `<p class="hint" style="margin-top:var(--s5)">${nb(nonSituees)} annonce${
+      nonSituees > 1 ? "s ouvertes ne sont pas localisées" : " ouverte n'est pas localisée"} et
+      ${nonSituees > 1 ? "ne sont" : "n'est"} donc comptée${nonSituees > 1 ? "s" : ""} nulle
+      part. Le remède est de géocoder l'association, pas de la retirer du décompte.</p>` : ""}
+  </section>`;
+}
+
 function vueAdoption(u){
   let site = null;
   const el = h(`<div class="stack" style="--gap:var(--s5)"></div>`);
@@ -7919,9 +8009,12 @@ function vueAdoption(u){
           <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);color:var(--ink-600)">
             Un taux bas ne mesure pas non plus la bonne volonté de vos équipes. Il mesure
             souvent l'offre associative disponible autour du site, les horaires, et le
-            temps que leur encadrement leur laisse réellement prendre.</p>
+            temps que leur encadrement leur laisse réellement prendre. Le tableau ci-dessous
+            la mesure, site par site : c'est notre travail, pas le vôtre.</p>
         </section>
       </div>
+
+      ${offreLocaleBloc(u)}
     </div>`));
     el.querySelector("#ads").onchange = (ev) => { site = ev.target.value || null; dessine(); };
   };

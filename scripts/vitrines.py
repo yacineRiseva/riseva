@@ -439,13 +439,20 @@ def capture(nom, alt, legende, classe="", eager=False):
 
 
 def objection(question, reponse):
-    """L'objection telle qu'elle se formule vraiment, et la réponse en une phrase.
+    """Une question fréquente, et sa réponse en une phrase.
 
-    Sans guillemets, et c'est tout le point : entre guillemets, la phrase se lit
-    comme une citation, donc comme un client qui l'aurait dite. Riseva n'a pas
-    encore de client. Un faux témoignage typographique reste un faux témoignage."""
+    Deux corrections successives ici, et la seconde va plus loin que la première.
+    Ces phrases étaient d'abord entre guillemets : une phrase entre guillemets se
+    lit comme une citation, donc comme un client qui l'aurait dite, et Riseva n'a
+    pas encore de client. Retirer les guillemets n'a pas suffi — écrites au
+    registre parlé (« mes gars sur le terrain », « c'est une usine à gaz »),
+    elles ressemblaient toujours à des verbatims recueillis, et le surtitre
+    « L'objection » les théâtralisait.
+
+    Elles sont donc reformulées en questions neutres. On perd le mordant ; on
+    perd aussi le faux témoignage, et c'est le bon échange."""
     return f"""<div class="obj">
-      <p class="obj-l mono">L'objection</p>
+      <p class="obj-l mono">Question fréquente</p>
       <p class="obj-q">{question}</p>
       <p class="obj-r">{reponse}</p>
     </div>"""
@@ -506,7 +513,7 @@ SAISON_ENT = f"""<section id="saison" class="band">
         "Le rythme est le même pour tout le monde : un début, un courant, des points d'étape, "
         "une fin. Et une date à laquelle on regarde ce qui a réellement été fait.")}
 
-    {objection("C'est une usine à gaz. Qui va gérer ça chez moi ?",
+    {objection("Qui pilotera la saison au quotidien ?",
                "Personne n'a de fichier à tenir. Vous diffusez un lien, les salariés créent "
                "leur compte, les associations publient leurs besoins, et les rapports "
                "arrivent finis à chaque clôture.")}
@@ -536,7 +543,7 @@ EQUIPES_ENT = f"""<section id="equipes">
         "Trois écrans, et une règle : chacun se propose, personne n'est désigné. Un salarié qui "
         "se sent inscrit d'office ne vient pas une deuxième fois.")}
 
-    {objection("Mes gars sur le terrain ne sont pas des cadres parisiens, ça ne prendra pas.",
+    {objection("Est-ce que ça fonctionne avec des salariés de terrain, en poste ou en équipe ?",
                "Le premier obstacle au bénévolat d'entreprise n'est ni le temps ni la cause : "
                "c'est de ne pas savoir avec qui on y va. L'écran répond à cette question-là "
                "avant de parler de points.")}
@@ -550,17 +557,19 @@ EQUIPES_ENT = f"""<section id="equipes">
                "Les besoins ouverts près de son site, avec les collègues déjà inscrits")}
     </div>
 
-    <ul class="trois">
-      <li><b>Chacun choisit librement.</b> Il se propose, il n'est jamais désigné, et se
-        retirer ne demande aucune justification.</li>
-      <li><b>L'objectif se compte en personnes, pas en points.</b> Un objectif en points
-        s'atteint avec trois salariés très actifs : il récompense le contraire de ce qu'on
-        cherche. En personnes, il ne s'atteint qu'en allant chercher quelqu'un qui n'est pas
-        encore venu.</li>
-      <li><b>Les collègues engagés apparaissent, s'ils l'ont choisi.</b> Le nombre est toujours
-        visible et ne désigne personne ; les prénoms ne sortent que pour ceux qui ont coché un
-        réglage décoché par défaut. Jamais sur un don en argent.</li>
-    </ul>
+    <div class="trois3">
+      <div><h4>Chacun choisit librement</h4>
+        <p>Il se propose, il n'est jamais désigné, et se retirer ne demande aucune
+          justification.</p></div>
+      <div><h4>L'objectif se compte en personnes</h4>
+        <p>En points, il s'atteint avec trois salariés très actifs : il récompense le
+          contraire de ce qu'on cherche. En personnes, il ne s'atteint qu'en allant chercher
+          quelqu'un qui n'est pas encore venu.</p></div>
+      <div><h4>Les collègues apparaissent, s'ils l'ont choisi</h4>
+        <p>Le nombre est toujours visible et ne désigne personne ; les prénoms ne sortent que
+          pour ceux qui ont coché un réglage décoché par défaut. Jamais sur un don en
+          argent.</p></div>
+    </div>
 
     <p class="s-note"><a class="tlink" href="/app/">Explorer l'espace salarié</a></p>
   </div>
@@ -573,7 +582,7 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
         "Le chiffre final de votre rapport ne vient pas de nous, ni de vous : il vient de la "
         "structure qui était sur place. C'est tout l'intérêt, et c'est aussi la limite.")}
 
-    {objection("Et si l'association du coin s'en fout, ou qu'il n'y a rien autour de mon usine ?",
+    {objection("Que se passe-t-il s'il n'y a rien autour du site, ou si une association ne répond pas ?",
                "C'est la vraie question, et nous n'avons pas de réseau éprouvé à vous vendre : "
                "il n'existe pas encore. Ce que nous garantissons est écrit dans les engagements "
                "de service, y compris l'acompte remboursé si le démarrage n'est pas constaté.")}
@@ -597,33 +606,22 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
 
     <div class="fmt-bloc">
       <h3 class="fmt-titre">Trois formats, et aucun intermédiaire</h3>
-      <div class="fmt3">
-        <div><p class="mono">Sur le terrain</p>
-          <h4>Une demi-journée de bénévolat</h4>
-          <p>Réfection d'un enclos, plantation d'une haie, remise en état d'une berge, tri
-            d'une collecte. Encadrée par l'association, sur son terrain, avec ses règles.
-            Aucune compétence requise.</p></div>
-        <div><p class="mono">Depuis vos locaux</p>
-          <h4>Du matériel qui repart utile</h4>
-          <p>Ordinateurs renouvelés, mobilier, outillage : ce que vous alliez sortir de vos
-            locaux de toute façon. L'association déclare ce qu'elle a reçu, et c'est cette
-            déclaration qui compte, pas la vôtre.</p></div>
-        <div><p class="mono">Par virement</p>
-          <h4>Du don financier, sans passer par nous</h4>
-          <p>L'argent va de la banque du donateur à celle de l'association,
-            <b>sans transiter par Riseva</b> : aucune commission, aucun délai de reversement,
-            aucun prestataire qui puisse fermer un compte. Riseva n'encaisse rien, et les
-            points sont crédités quand l'association confirme la réception, et pas avant.</p></div>
-      </div>
-    </div>
-
-      <p class="fmt-bareme">Le barème est le même pour toutes les entreprises et c'est la
-        plateforme qui l'attribue, pas l'association : <b>150 pts</b> la demi-journée de
-        bénévolat, <b>100 pts</b> par don de matériel validé, <b>1 pt</b> par tranche de 10 €
-        virée — comptés après confirmation. Aucun format ne peut peser plus de la moitié des
-        points d'une entreprise sur la saison. Le calcul complet, écrêtage compris, est dans
-        <a href="/reglement.html">le règlement</a>, avec un exemple chiffré qui se refait à la
-        main.</p>
+      <ul class="fmt-lignes">
+        <li><b>Une demi-journée de bénévolat</b> — chantier, collecte, entretien, encadrés par
+          l'association et sans compétence requise. <span>150 pts</span></li>
+        <li><b>Un don de matériel</b> — c'est l'association qui déclare ce qu'elle a reçu, pas
+          vous. <span>100 pts</span></li>
+        <li><b>Un don en argent, par virement direct</b> — de banque à banque,
+          <b>sans transiter par Riseva</b>. <span>1 pt / 10 €</span></li>
+      </ul>
+      <p class="fmt-bareme">Sur le don en argent : aucune commission, aucun délai de
+        reversement, <b>Riseva n'encaisse rien</b>, et les points sont crédités quand
+        l'association confirme la réception, et pas avant. Le barème — <b>150 pts</b>,
+        <b>100 pts</b>, <b>1 pt</b> par tranche de 10 € — est identique pour toutes les
+        entreprises et c'est la plateforme qui l'attribue, pas l'association. Aucun format ne
+        peut peser plus de la moitié des points d'une entreprise sur la saison. Le calcul
+        complet, écrêtage compris, est dans <a href="/reglement.html">le règlement</a>, avec un
+        exemple chiffré qui se refait à la main.</p>
     </div>
 
     <p class="s-note"><a class="tlink" href="/asso.html?id=a1">Voir une fiche d'association</a>
@@ -655,7 +653,7 @@ PILOTAGE_ENT = f"""<section id="pilotage">
         "Quatre écrans, pris dans l'application avec un <strong>jeu de démonstration</strong>. "
         "Ils montrent la forme des restitutions, jamais des résultats obtenus.")}
 
-    {objection("Au final, qu'est-ce que j'y gagne à part faire plaisir ?",
+    {objection("Qu'obtient concrètement l'entreprise en fin de saison ?",
                "Des chiffres datés, confirmés par un tiers nommé, avec la méthode qui les a "
                "produits. C'est exactement la pièce qu'on vous demande en appel d'offres et "
                "dans les questionnaires de vos donneurs d'ordre.")}
@@ -954,38 +952,20 @@ def grille_tarifaire():
         Au-delà de deux mille salariés, le tarif est établi sur devis à partir du dernier palier.</p>
     </div>
 
-    <div class="tar-grid">
-      <div class="tar-card rv">
-        <p class="mono">Ce qui est compris</p>
+    <div class="deux-col deux-col--prix">
+      <div class="col col--oui">
+        <h3>Ce qui est compris</h3>
         <ul class="tar-l">{inclus}</ul>
       </div>
-      <div class="tar-card rv d1">
-        <p class="mono">Ce qui ne l'est pas</p>
+      <div class="col col--non">
+        <h3>Ce qui ne l'est pas</h3>
         <ul class="tar-l tar-l--non">{exclus}</ul>
         <p class="tar-n">Nous préférons le dire avant. Une plateforme qui prétend tout couvrir
           se fait démonter au premier entretien avec un commissaire aux comptes.</p>
       </div>
-      <div class="tar-card tar-card--fond rv d2">
-        <p class="mono">Tarif fondateur</p>
-        <p class="tar-fond"><b>&minus;{int(TARIFS['fondateur_taux'] * 100)} %</b> sur la première saison</p>
-        <p class="tar-n">Pour les {TARIFS['fondateur_places']} premières entreprises qui signent,
-          jusqu'au 31 décembre 2026. Elle porte sur votre <b>première saison, et sur elle
-          seule</b> : nous ne garantissons le prix d'aucune saison que nous n'avons pas encore
-          vécue. Passé ces places, la grille s'applique telle quelle — une remise sans limite
-          n'est pas une remise, c'est le prix.</p>
-      </div>
-      <div class="tar-card rv d3">
-        <p class="mono">Le règlement</p>
-        <p class="tar-n">{int(TARIFS['acompte_taux'] * 100)} % à la commande, le solde à trente
-          jours après l'ouverture de votre saison. Règlement intégral à la commande :
-          &minus;{int(TARIFS['remise_comptant'] * 100)} %.</p>
-        <p class="tar-n">L'acompte n'est pas une garantie qu'on prend sur vous : il paie le premier
-          envoi d'affiches et l'ouverture de vos comptes, qui partent avant la première mission.
-          Il y a {TARIFS['affiches']} envois dans la saison.</p>
-      </div>
     </div>
 
-    <div class="tar-sim rv">
+    <div class="tar-sim">
       <p class="mono">Votre tranche</p>
       <div class="tar-sim-row">
         <label for="simEff">Effectif</label>
@@ -996,8 +976,22 @@ def grille_tarifaire():
                inputmode="numeric">
       </div>
       <p class="tar-sim-out" id="simOut" aria-live="polite"></p>
-      <p class="tar-n">Simulation indicative, au tarif fondateur. Le devis nominatif reprend le
-        même calcul, et il est daté.</p>
+      <div class="tar-sim-notes">
+        <p class="tar-n"><b>Tarif fondateur : &minus;{int(TARIFS['fondateur_taux'] * 100)} %</b>
+          pour les {TARIFS['fondateur_places']} premières entreprises qui signent, jusqu'au
+          31 décembre 2026. Il porte sur votre <b>première saison, et sur elle seule</b> : nous
+          ne garantissons le prix d'aucune saison que nous n'avons pas encore vécue. Passé ces
+          places, la grille s'applique telle quelle — une remise sans limite n'est pas une
+          remise, c'est le prix.</p>
+        <p class="tar-n"><b>Règlement :</b> {int(TARIFS['acompte_taux'] * 100)} % à la commande,
+          le solde à trente jours après l'ouverture de votre saison ; règlement intégral à la
+          commande, &minus;{int(TARIFS['remise_comptant'] * 100)} %. L'acompte n'est pas une
+          garantie qu'on prend sur vous : il paie le premier envoi d'affiches et l'ouverture de
+          vos comptes, qui partent avant la première mission. Il y a {TARIFS['affiches']} envois
+          dans la saison.</p>
+        <p class="tar-n">Simulation indicative, au tarif fondateur. Le devis nominatif reprend le
+          même calcul, et il est daté.</p>
+      </div>
     </div>
   </div>
 </section>"""

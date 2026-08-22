@@ -343,6 +343,43 @@ def main():
         verifie("la médiane n'est calculée que sur assez de monde",
                 ade["mesurable"] >= 3 or "Pas encore assez" in ad)
 
+        # L'écran écrivait « l'offre locale est trop loin ou ne correspond pas »
+        # comme cause probable, sans jamais la mesurer. Une cause qu'on suggère
+        # sans la chiffrer n'est qu'une excuse polie faite au client.
+        verifie("l'offre associative autour de chaque site est mesurée, pas supposée",
+                "L'offre autour de vos sites" in ad
+                and "annonces ouvertes à moins de 30 km" in ad
+                and "distance médiane" in ad)
+        verifie("le tableau désigne un travail pour nous, pas un reproche au client",
+                "c'est notre travail, pas le vôtre" in ad
+                and "c'est dans cet ordre que nous nous en occupons" in ad)
+        off = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const t = d.DB.offreParSite('e1');
+          const rang = { aucune:0, inaccessible:1, mince:2, suffisante:3 };
+          return { n:t.length,
+                   trie: t.slice(1).every((o,i)=> rang[o.verdict] >= rang[t[i].verdict]),
+                   verdicts: t.map(o=>o.verdict),
+                   sommes: t.map(o => o.parFormat.benevolat_demi_journee
+                                    + o.parFormat.don_materiel
+                                    + o.parFormat.don_financier === o.ouvertes),
+                   jours: t.map(o => o.semaine + o.weekend + o.sansDate === o.ouvertes),
+                   rayon: t.every(o => o.rayon === d.DB.RAYON_OFFRE_KM),
+                   attendus: t.map(o => [o.site.effectif, o.attendu]) };
+        }""")
+        verifie("les sites sont classés du plus mal servi au mieux servi",
+                off["trie"], str(off["verdicts"]))
+        # Un decompte par format ou par jour qui ne retombe pas sur le total est
+        # un decompte dont une annonce est tombee quelque part sans qu'on le voie.
+        verifie("chaque annonce comptée à portée l'est une fois et une seule",
+                all(off["sommes"]) and all(off["jours"]), str(off))
+        # Le seuil est proportionne a l'effectif : trois annonces suffisent a un
+        # site de vingt personnes et ne suffisent pas a un site de quatre cents.
+        verifie("le seuil d'offre suffisante suit l'effectif du site",
+                len({tuple(x) for x in off["attendus"]}) > 1
+                and all(a >= 2 for _, a in off["attendus"]), str(off["attendus"]))
+        verifie("le rayon annoncé est celui qui a servi au calcul", off["rayon"])
+
         print("\nNotre saison, et qui vient avec moi")
         connecte(p, "u3", "#/tableau")
         ts = norm(p.inner_text(".content"))

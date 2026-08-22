@@ -3209,6 +3209,129 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         });
     },
 
+    /* ---- L'offre associative autour d'un site ----
+       La question qu'un responsable RSE se pose au bout de trois mois est
+       « pourquoi ça ne prend pas ». L'entonnoir d'adoption lui dit à quelle
+       marche il perd du monde ; il écrit même « l'offre locale est trop loin ou
+       ne correspond pas » comme cause probable. Mais il l'ÉCRIT sans jamais la
+       MESURER, et une cause qu'on suggère sans la chiffrer n'est qu'une excuse
+       polie.
+
+       Ce que cet écran mesure est ce qui décide du renouvellement, et ce n'est
+       pas la bonne volonté des équipes :
+
+       — LA DISTANCE. Un site industriel est en périphérie ou en zone rurale.
+         Si les seules associations actives sont à trente-cinq kilomètres,
+         personne n'ira après sa journée. Ce n'est pas un problème d'engagement,
+         c'est un problème de géographie, et aucune relance interne ne le règle.
+
+       — LE JOUR. Un chef d'atelier ne libère pas un opérateur en 3×8 un mardi à
+         quatorze heures. Si toutes les annonces tombent en semaine ouvrée, une
+         grande part de l'effectif est mécaniquement exclue — et le taux de
+         participation qu'on lui reprochera mesurera en réalité le calendrier
+         des associations.
+
+       — LE FORMAT. Un don de matériel ne demande aucune disponibilité de
+         personne : c'est la seule voie qui reste ouverte quand les deux
+         contraintes précédentes se cumulent.
+
+       Aucun de ces trois chiffres ne juge le client. Ils désignent ce que Riseva
+       doit aller chercher sur le terrain avant de reprocher quoi que ce soit à
+       qui que ce soit. */
+    RAYON_OFFRE_KM: 30,
+    /* En dessous, l'offre est trop mince pour qu'une saison prenne. Le seuil est
+       exprimé pour cent salariés : trois annonces suffisent à un site de vingt
+       personnes et ne suffisent pas à un site de quatre cents. */
+    OFFRE_MIN_POUR_CENT: 4,
+
+    offreLocale(etid, { rayon = null } = {}){
+      const et = api.etablissement(etid);
+      if (!et) return null;
+      const r = rayon == null ? api.RAYON_OFFRE_KM : rayon;
+      const depuis = api.coordsDe(et);
+      const jour = (d) => { const x = new Date(d); return isNaN(x) ? null : x.getDay(); };
+
+      const toutes = api.annonces({ ouvertes: true })
+        .map(a => {
+          const asso = api.association(a.asso);
+          return { ...a,
+            asso_nom: (asso || {}).nom || "",
+            distance: distanceKm(depuis, api.coordsDe(asso)),
+            jour: a.date ? jour(a.date) : null };
+        })
+        .filter(a => (api.association(a.asso) || {}).valide);
+
+      /* Une annonce sans coordonnées n'est pas comptée comme proche : on ne sait
+         pas où elle est. Elle n'est pas non plus perdue — elle est comptée à
+         part, parce que le remède est de géocoder l'association, pas de la
+         retirer. */
+      const situees = toutes.filter(a => a.distance != null);
+      const proches = situees.filter(a => a.distance <= r)
+        .sort((x, y) => x.distance - y.distance);
+      const dists = proches.map(a => a.distance).sort((x, y) => x - y);
+      const mediane = dists.length
+        ? (dists.length % 2 ? dists[(dists.length - 1) / 2]
+           : Math.round((dists[dists.length / 2 - 1] + dists[dists.length / 2]) / 2))
+        : null;
+
+      const parFormat = { benevolat_demi_journee: 0, don_materiel: 0, don_financier: 0 };
+      let semaine = 0, weekend = 0, sansDate = 0;
+      proches.forEach(a => {
+        if (parFormat[a.type] !== undefined) parFormat[a.type] += 1;
+        if (a.jour == null) sansDate += 1;
+        else if (a.jour === 0 || a.jour === 6) weekend += 1;
+        else semaine += 1;
+      });
+
+      /* Les associations proches qui n'ont rien publié : c'est la liste de
+         travail, pas un reproche. Une association qui ne publie pas n'a
+         généralement pas dit non, elle n'a pas eu le temps d'écrire l'annonce. */
+      const aRelancer = api.associations()
+        .filter(a => a.valide && !a.suspendue)
+        .map(a => ({ id: a.id, nom: a.nom, ville: a.ville,
+                     distance: distanceKm(depuis, api.coordsDe(a)),
+                     ouvertes: api.annonces({ asso: a.id, ouvertes: true }).length }))
+        .filter(a => a.distance != null && a.distance <= r && a.ouvertes === 0)
+        .sort((x, y) => x.distance - y.distance);
+
+      const attendu = Math.max(2, Math.round(
+        (et.effectif || 0) / 100 * api.OFFRE_MIN_POUR_CENT));
+
+      /* Un seul verdict, et il ne parle jamais des salariés. */
+      let verdict = "suffisante";
+      if (!proches.length) verdict = "aucune";
+      else if (proches.length < attendu) verdict = "mince";
+      else if (semaine && !weekend && !parFormat.don_materiel) verdict = "inaccessible";
+
+      return {
+        site: { id: et.id, nom: et.nom, ville: et.ville, effectif: et.effectif || 0 },
+        situe: depuis != null,
+        rayon: r, attendu, verdict,
+        ouvertes: proches.length,
+        mediane,
+        plusProche: proches.length ? proches[0].distance : null,
+        parFormat,
+        semaine, weekend, sansDate,
+        /* Ce qu'on ne sait pas placer sur une carte, on le dit. */
+        nonSituees: toutes.length - situees.length,
+        aRelancer: aRelancer.slice(0, 8),
+        aRelancerTotal: aRelancer.length,
+        exemples: proches.slice(0, 4).map(a => ({
+          id: a.id, titre: a.titre, asso: a.asso_nom, type: a.type,
+          distance: a.distance, date: a.date || null }))
+      };
+    },
+
+    /* La même chose pour tous les sites d'une société, du plus mal servi au
+       mieux servi : c'est dans cet ordre qu'on doit s'en occuper. */
+    offreParSite(eid){
+      const rang = { aucune: 0, inaccessible: 1, mince: 2, suffisante: 3 };
+      return api.etablissements(eid)
+        .map(et => api.offreLocale(et.id))
+        .filter(Boolean)
+        .sort((x, y) => (rang[x.verdict] - rang[y.verdict]) || (x.ouvertes - y.ouvertes));
+    },
+
     /* Distance d'une annonce, via son association. */
     distanceAnnonce(eid, annonce){
       return annonce ? api.distanceEntre(eid, annonce.asso) : null;

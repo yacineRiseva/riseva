@@ -392,3 +392,21 @@
   border-top:1px dashed var(--ink-100);
   font-size:var(--t-sm);color:var(--forest-800)}
 .annonce__qui b{color:var(--forest-800)}
+
+/* ── L'offre associative autour d'un site ───────────────────────────────── */
+/* Un bloc par site, du plus mal servi au mieux servi. Le trait de gauche porte
+   le verdict : c'est la seule couleur de l'ecran, et elle designe un travail a
+   faire par Riseva, jamais un reproche au client. */
+.offre{border-left:2px solid var(--ink-100,rgba(19,21,16,.12));padding-left:var(--s5)}
+.offre__chiffres{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:var(--s4);margin-top:var(--s4)
+}
+.offre__chiffres > div{display:flex;flex-direction:column;gap:2px}
+.offre__chiffres b{
+  font-family:var(--font-display);font-size:1.5rem;line-height:1.1;
+  font-variant-numeric:tabular-nums
+}
+.offre__chiffres span{font-size:var(--t-xs);color:var(--ink-500);line-height:1.35}
+@media (max-width:820px){ .offre__chiffres{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:460px){ .offre__chiffres{grid-template-columns:1fr} }
