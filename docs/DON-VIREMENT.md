@@ -145,7 +145,9 @@ Le modèle distingue les deux, et le cloisonnement est technique, pas cosmétiqu
 
 Le reçu est délivré par **l'association**, et par elle seule. C'est elle qui
 engage sa responsabilité, et c'est elle qui encourt l'amende de l'article
-**1740 A** du CGI : **60 % des sommes** portées sur un reçu irrégulier.
+**1740 A** du CGI : une amende égale au **taux de la réduction d'impôt en cause**, appliqué
+aux sommes portées sur le reçu — 60 % pour un don d'entreprise (art. 238 bis), 66 ou
+75 % pour un don de particulier (art. 200).
 
 Riseva ne peut donc préparer un reçu qu'à la condition d'un **mandat écrit, daté,
 nominatif et révocable à tout moment sans motif**. Sans mandat, la plateforme

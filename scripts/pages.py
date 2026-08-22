@@ -473,12 +473,18 @@ identité de la personne accidentée.</p>
     <tr><td>Compte salarié</td><td>Nom, prénom, email professionnel</td><td>Durée de l'abonnement, puis anonymisation</td></tr>
     <tr><td>Activité</td><td>Missions, points, dates</td><td>Durée de l'abonnement + 1 an pour les rapports</td></tr>
     <tr><td>Dons</td><td>Montant, date, association, identité du donateur</td><td>6 ans, obligation comptable et fiscale</td></tr>
-    <tr><td>Journal des accès</td><td>Événement, horodatage, lien utilisé</td><td>12 mois</td></tr>
+    <tr><td>Journal des accès</td><td>Événement, horodatage, lien utilisé, adresse IP tronquée et navigateur</td><td>6 mois</td></tr>
+    <tr><td>Registre de sécurité</td><td>Date, site, zone, type et gravité d'un événement, journées d'arrêt — <strong>aucune identité, aucune donnée de santé</strong></td><td>durée de la saison, puis archivage agrégé</td></tr>
     <tr><td>Facturation</td><td>Raison sociale, SIRET, adresse, factures</td><td>10 ans, obligation légale</td></tr>
   </tbody>
 </table>
-<p>Aucune donnée sensible au sens de l'article 9 n'est collectée. Aucun profilage, aucune
-décision automatisée produisant des effets juridiques. Aucune revente, jamais.</p>
+<p>Aucune donnée sensible au sens de l'article 9 n'est collectée <strong>directement</strong>.
+Il serait faux de s'arrêter là : rapprocher un donateur identifié de la cause qu'il soutient
+<strong>est</strong> une donnée sensible par déduction (CJUE, 1<sup>er</sup> août 2022, C-184/20).
+Ce rapprochement existe, il est nécessaire au reçu fiscal, et il est traité comme tel — un don
+personnel déclaré dans Riseva demande votre <strong>accord explicite</strong>, distinct de votre
+inscription, et ce lien n'est jamais exposé à votre employeur. Aucun profilage, aucune décision
+automatisée produisant des effets juridiques. Aucune revente, jamais.</p>
 
 <div class="encadre">
   <p><strong>Ce que votre employeur ne voit pas.</strong> La cause d'une association peut révéler
@@ -518,18 +524,27 @@ L'opération est irréversible et tracée.</p>
     <tr><td>Supabase</td><td>Base de données et authentification</td><td>Union européenne</td></tr>
     <tr><td>Vercel</td><td>Diffusion de l'application web</td><td>Union européenne</td></tr>
     <tr><td>Resend</td><td>Envoi des messages transactionnels</td><td>Union européenne</td></tr>
-    <tr><td>Prestataire de don</td><td>Encaissement des dons pour le compte des associations</td><td>France</td></tr>
   </tbody>
 </table>
 <p>Cette liste est datée et versionnée. Tout ajout est notifié au client trente jours avant, avec
 un droit d'objection motivé.</p>
+<p>L'<strong>hébergement</strong> est européen chez les trois. Mais ce sont des sociétés de droit
+américain, et un accès de leur support depuis les États-Unis est un transfert au sens du chapitre V.
+Il est encadré par les <strong>clauses contractuelles types</strong> de la décision (UE) 2021/914,
+complétées le cas échéant par la certification <em>Data Privacy Framework</em> du prestataire.
+Écrire « aucun transfert hors Union européenne » aurait été plus simple, et faux.</p>
 
 <h2>Vos droits</h2>
 <ul>
   <li>Accès, rectification, effacement, limitation, portabilité : par simple demande à
       <a href="mailto:contact@riseva.fr" style="color:var(--forest-800)">contact@riseva.fr</a>,
-      traitée sous trente jours.</li>
-  <li>Un salarié peut demander l'effacement de son compte sans passer par son employeur.</li>
+      transmise au responsable de traitement sous 72 heures et instruite avec lui.</li>
+  <li>Pour les données de son espace, Riseva agit comme <strong>sous-traitant</strong> de votre
+      employeur : elle ne peut pas effacer un compte de sa propre initiative, ce serait agir hors
+      instruction (article 28.3.a). Vous pouvez nous écrire directement — nous transmettons, nous
+      assistons, et nous vous disons ce qui a été fait.</li>
+  <li>Riseva reste responsable de traitement pour ce qui la concerne en propre : prospection,
+      facturation, journal de sécurité. Sur ces données-là, elle répond elle-même, sous un mois.</li>
   <li>Réclamation possible auprès de la CNIL, 3 place de Fontenoy, 75007 Paris.</li>
 </ul>
 

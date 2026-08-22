@@ -221,10 +221,23 @@ select pg_temp.refuse('il ne peut pas trancher lui-même sa mission',
 do $$
 declare v_mid uuid; v_ok boolean;
 begin
-  -- Ce qu'il DOIT pouvoir faire : s'engager, puis déclarer.
-  select public.engager_mission(a.id, 2) into v_mid
+  -- Ce qu'il DOIT pouvoir faire : s'engager, puis déclarer. L'annonce « arbre » est
+  -- sur le temps de travail : sans accord exprès, l'engagement doit être refusé.
+  begin
+    select public.engager_mission(a.id, 2) into v_mid
+      from public.annonce a where a.impact_unite = 'arbre' limit 1;
+    perform pg_temp.dit(
+      'une mise a disposition sans accord ecrit est refusee (R. 8241-2)', false);
+  exception when others then
+    perform pg_temp.dit(
+      'une mise a disposition sans accord ecrit est refusee (R. 8241-2)',
+      sqlerrm like '%accord explicite%');
+  end;
+  select public.engager_mission(a.id, 2, null, true) into v_mid
     from public.annonce a where a.impact_unite = 'arbre' limit 1;
   perform pg_temp.dit('il peut s''engager sur une annonce ouverte', v_mid is not null);
+  perform pg_temp.dit('l''accord du salarie est horodate, pas juste coche',
+    (select consentement_le from public.mission where id = v_mid) is not null);
   perform pg_temp.dit('les points sont fixés par le barème, pas par lui',
     (select points from public.mission where id = v_mid) = 300);
   perform public.declarer_mission(v_mid, 118);

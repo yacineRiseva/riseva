@@ -346,7 +346,9 @@ Riseva **prépare et envoie**, l'association **émet et répond**. Concrètement
 - L'association déclare son éligibilité au mécénat, désigne un signataire habilité et sa qualité,
   et fournit son préfixe et son compteur de numérotation.
 - Tant qu'un de ces réglages manque, **la plateforme n'émet rien**. Émettre un reçu irrégulier
-  expose l'association à une amende égale à 25 % des sommes qui y figurent (article 1740 A du CGI).
+  expose l'association à une amende égale au **taux de la réduction d'impôt en cause** appliqué
+  aux sommes qui y figurent — 60 % pour un don d'entreprise (art. 238 bis), 66 ou 75 % pour un
+  don de particulier (art. 200) —, au titre de l'article 1740 A du CGI.
 - Riseva fournit à l'association le récapitulatif dont elle a besoin pour sa **déclaration annuelle
   des dons** (montant global porté sur les reçus et nombre de reçus), obligatoire depuis 2021,
   à déposer dans les trois mois suivant la clôture de son exercice.

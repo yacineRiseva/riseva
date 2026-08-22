@@ -1,4 +1,4 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, KITS_SAISON, ETATS_EXPEDITION, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, DELAI_VALIDATION_JOURS, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, KITS_SAISON, ETATS_EXPEDITION, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
 import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
@@ -4084,6 +4084,21 @@ function vueMecenat(u){
                                 : "demande votre chiffre d'affaires et vos autres dons")}
     </div>
 
+    ${v.enAttente.valeur > 0 ? `<section class="card card--flat"
+      style="background:var(--warn-bg);border-color:transparent;margin-top:var(--s6)">
+      <h3 style="font-size:var(--t-lg)">${eur(v.enAttente.valeur)} attendent une confirmation</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+        ${v.enAttente.missions} mission${v.enAttente.missions > 1 ? "s se sont fermées" : " s'est fermée"}
+        sans retour de l'association au bout de ${DELAI_VALIDATION_JOURS} jours.
+        ${v.enAttente.missions > 1 ? "Elles comptent" : "Elle compte"} dans vos points, mais
+        <strong style="color:var(--ink)">pas dans votre assiette fiscale</strong> : l'article 238 bis
+        valorise ce qui a été fait, et personne ne l'a confirmé. Un mail à
+        ${v.enAttente.associations.length > 1
+          ? esc(v.enAttente.associations.slice(0, 3).join(", "))
+          : esc(v.enAttente.associations[0] || "l'association")} suffit à
+        ${v.enAttente.missions > 1 ? "les" : "la"} faire rentrer.</p>
+    </section>` : ""}
+
     <div class="two">
       <section class="card" style="padding:var(--s8)">
         <h3>Le calcul, ligne par ligne</h3>
@@ -4159,8 +4174,11 @@ function vueMecenat(u){
           entrer dans votre calcul fabriquerait une réduction d'impôt indue.</p>
         <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
           Chaque salarié reçoit son propre reçu, au modèle ${esc(FISCAL.cerfa_particulier)}, et
-          peut déduire 66 % de son don de son impôt sur le revenu, dans la limite de 20 % de son
-          revenu imposable. Soit environ ${eur(v.reductionSalaries)} au total, pour eux, pas pour vous.</p>
+          peut déduire 66 % de son don de son impôt sur le revenu, <strong style="color:var(--ink)">dans
+          la limite de 20 % de son revenu imposable</strong> (article 200 du CGI). Au plus
+          ${eur(v.reductionSalaries)} au total si ce plafond n'est atteint par personne — Riseva
+          ne connaît pas leurs revenus et ne peut donc pas l'appliquer. L'excédent éventuel se
+          reporte sur les cinq années suivantes. Pour eux, pas pour vous.</p>
         <div class="row" style="gap:var(--s2);margin-top:var(--s6);flex-wrap:wrap">
           <button class="btn btn--primary btn--sm" id="conv">Éditer une convention</button>
           <button class="btn btn--ghost btn--sm" id="att">Attestation annuelle</button>
@@ -4210,19 +4228,31 @@ function vueMecenat(u){
   </div>`);
 
   el.querySelector("#conv").onclick = () => {
-    const ms = DB.missions({ entreprise: u.org }).filter(m => {
+    const toutes = DB.missions({ entreprise: u.org }).filter(m => {
       const a = DB.annonceDe(m);
       return a && a.type === "benevolat_demi_journee" && a.temps_travail
              && ["engagee", "a_valider", "validee", "validee_auto"].includes(m.etat);
     });
+    /* L'article R. 8241-2 exige l'accord exprès et écrit du salarié pour CETTE mise à
+       disposition. Éditer une convention qui affirme cet accord sans en avoir la trace,
+       c'est fabriquer une pièce fausse — et c'est le prêt de main-d'œuvre illicite qui
+       attend au bout. Sans consentement enregistré, la mission n'est pas proposée. */
+    const ms = toutes.filter(m => m.consentement && m.consentement.donne_le);
+    const sansAccord = toutes.length - ms.length;
     if (!ms.length){
-      toast("Aucune mission sur le temps de travail pour l'instant.");
+      toast(toutes.length
+        ? "Aucune de ces missions ne porte l'accord écrit du salarié : la convention ne peut pas l'affirmer."
+        : "Aucune mission sur le temps de travail pour l'instant.");
       return;
     }
     const corps = h(`<div>
       <p class="muted" style="font-size:var(--t-sm)">
         Choisissez la mission : le document est prérempli avec ses dates, son lieu, le salarié
         concerné et la valorisation au coût de revient.</p>
+      ${sansAccord ? `<p class="hint" style="margin-top:var(--s3)">
+        ${sansAccord} mission${sansAccord > 1 ? "s ne sont pas proposées" : " n'est pas proposée"} :
+        l'accord écrit du salarié n'y est pas enregistré. La convention l'affirmerait sans preuve,
+        et l'article R. 8241-2 en fait une condition de validité.</p>` : ""}
       <div class="field" style="margin-top:var(--s5)"><label>Mission</label>
         <select class="select" id="mi">
           ${ms.map(m => { const a = DB.annonceDe(m), sal = DB.utilisateur(m.salarie);
@@ -4231,10 +4261,16 @@ function vueMecenat(u){
         </select></div>
       <div class="encadreMini">
         <p><strong>Deux régimes, et ils ne se valent pas.</strong></p>
-        <p>Pour une tâche délimitée sur une ou deux demi-journées, c'est une prestation de
-        service : la convention suffit. Si l'association encadre réellement votre salarié dans
-        la durée, c'est un prêt de main-d'œuvre, et il faut en plus un avenant à son contrat,
-        son accord écrit et la consultation du CSE. Se tromper expose au prêt illicite.</p>
+        <p>Mettre un salarié à disposition d'une association, c'est un <strong>prêt de
+        main-d'œuvre</strong>, jamais une prestation de service — et la durée n'y change rien :
+        une demi-journée relève du même régime que six mois. Le prêt à but lucratif est interdit
+        (article L. 8241-1). Ici on se place sous l'<strong>article L. 8241-3</strong>, qui
+        autorise le prêt gratuit au profit des organismes visés aux a à g du 1 de l'article
+        238 bis du CGI, sans condition d'effectif et pour trois ans au plus.</p>
+        <p>Ce régime écarte l'article L. 8241-2 : <strong>pas d'avenant au contrat de travail</strong>.
+        Il exige en revanche une convention conforme à l'article R. 8241-2, l'<strong>accord exprès
+        et écrit du salarié</strong> pour cette mission-là — Riseva l'enregistre à l'engagement —
+        et l'information du CSE sur les postes concernés. Un refus ne peut jamais être sanctionné.</p>
       </div>
     </div>`);
     modal("Convention de mécénat de compétences", corps, [
@@ -4558,8 +4594,11 @@ function vueRecus(u){
 
       <button class="btn btn--primary" style="margin-top:var(--s6)" id="save">Enregistrer</button>
       <p class="hint">Sans ces réglages, Riseva n'émet rien plutôt que d'émettre un reçu irrégulier.
-        Un reçu délivré à tort expose l'association à une amende égale à 25 % des sommes qui y
-        figurent (article 1740 A du CGI).</p>
+        Un reçu délivré à tort expose l'association à une amende égale au
+        <strong>taux de la réduction d'impôt en cause</strong> appliqué aux sommes qui y figurent :
+        60 % pour un don d'entreprise (article 238 bis), 66 ou 75 % pour un don de particulier
+        (article 200). C'est l'article 1740 A du code général des impôts, et l'amende pèse sur
+        l'organisme qui a délivré le reçu, pas sur celui qui l'a reçu.</p>
     </section>
 
     <div class="stack" style="--gap:var(--s5)">

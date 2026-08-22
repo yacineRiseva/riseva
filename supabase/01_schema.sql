@@ -259,7 +259,7 @@ create table association (
   -- Le mandat par lequel l'association autorise Riseva à préparer ses reçus.
   -- Écrit, daté, nominatif, révocable. Sans lui la plateforme n'émet rien : seul
   -- l'organisme bénéficiaire peut délivrer un reçu, et l'amende de l'article
-  -- 1740 A du CGI — 60 % des sommes portées sur un reçu irrégulier — pèse sur
+  -- 1740 A du CGI — au taux de la réduction d'impôt en cause — pèse sur
   -- lui. Un mandat implicite ne se plaide pas.
   mandat_recus_le      date,
   mandat_recus_nom     text check (length(mandat_recus_nom) <= 120),
@@ -603,6 +603,12 @@ create table mission (
   realise_confirme numeric(12,2) check (realise_confirme >= 0),
   realise_propose  numeric(12,2) check (realise_propose >= 0),
   origine     origine_don not null default 'entreprise',
+  -- Accord exprès et écrit du salarié à CETTE mise à disposition, exigé par
+  -- l'article R. 8241-2 du code du travail. Ce n'est pas une case de confort :
+  -- sans lui la convention de mécénat de compétences est sans base, et le prêt
+  -- de main-d'œuvre redevient illicite. On garde l'horodatage, pas un booléen —
+  -- un booléen ne prouve rien devant un inspecteur du travail.
+  consentement_le timestamptz,
   cle_idempotence text,
   cree_le     timestamptz not null default now(),
   constraint mission_declaration check (
@@ -611,7 +617,12 @@ create table mission (
     etat in ('engagee','a_valider') or tranchee_le is not null),
   constraint mission_confirme_si_validee check (
     realise_confirme is null or etat = 'validee'),
-  constraint mission_refus check (etat <> 'refusee' or points = 0)
+  constraint mission_refus check (etat <> 'refusee' or points = 0),
+  -- Le consentement ne peut pas être postdaté : il précède la mise à disposition
+  -- ou il ne vaut rien. La borne haute est vérifiée dans le RPC, pas ici : un
+  -- CHECK sur now() n'est pas immuable et casserait toute restauration.
+  constraint mission_consentement_avant check (
+    consentement_le is null or consentement_le <= cree_le + interval '1 minute')
 );
 create unique index mission_idempotence on mission (cle_idempotence)
   where cle_idempotence is not null;

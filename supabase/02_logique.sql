@@ -720,8 +720,13 @@ end $$;
 -- ---------------------------------------------------------------- missions
 -- L'état, les points, l'entreprise et le salarié sont fixés ici. Le client
 -- pouvait auparavant insérer `etat = 'validee'` et se choisir ses points.
+-- La signature a gagné un paramètre : sans ce drop, l'ancienne version à trois
+-- arguments survivrait au rejeu et un appel ambigu pourrait la choisir — donc
+-- engager une mise à disposition sans trace de consentement.
+drop function if exists public.engager_mission(uuid, numeric, text);
 create or replace function public.engager_mission(
-  p_annonce uuid, p_quantite numeric, p_cle text default null)
+  p_annonce uuid, p_quantite numeric, p_cle text default null,
+  p_consentement boolean default false)
 returns uuid
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -747,12 +752,22 @@ begin
                   where ab.entreprise = v_ent and ab.saison = v_a.saison) then
     raise exception 'Aucun abonnement pour la saison de cette annonce' using errcode = '42501';
   end if;
+  -- Une mise à disposition sur le temps de travail exige l'accord exprès, écrit et
+  -- spécifique du salarié à CETTE mission (article R. 8241-2 du code du travail).
+  -- Une acceptation générale des conditions d'utilisation ne le remplace pas. Sans
+  -- lui, la convention de mécénat de compétences n'a pas de base et le prêt de
+  -- main-d'œuvre redevient illicite : on refuse ici, pas au moment d'imprimer.
+  if v_a.temps_travail and coalesce(p_consentement, false) is not true then
+    raise exception 'Votre accord explicite est nécessaire pour une mission sur le temps de travail'
+      using errcode = '42501';
+  end if;
 
   insert into public.mission (annonce, entreprise, salarie, etat, quantite, points,
-                              date_mission, cle_idempotence)
+                              date_mission, cle_idempotence, consentement_le)
   values (p_annonce, v_ent, v_uid, 'engagee', p_quantite,
           private.points_pour(v_a.saison, v_a.type, p_quantite),
-          coalesce(v_a.date_prevue, current_date), p_cle)
+          coalesce(v_a.date_prevue, current_date), p_cle,
+          case when v_a.temps_travail then clock_timestamp() end)
   returning id into v_id;
 
   update public.annonce a set restant = a.restant - p_quantite where a.id = p_annonce;

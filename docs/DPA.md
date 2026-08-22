@@ -45,14 +45,34 @@ propre compte, y compris pour améliorer son service.
 | Administrateurs | Les mêmes, plus les événements du journal des accès |
 | Référents du client | Nom, fonction, coordonnées professionnelles |
 
-**Aucune donnée sensible n'est collectée** au sens de l'article 9. Mais la cause d'une association
-peut en révéler une par déduction : conviction religieuse, opinion politique, état de santé,
-appartenance syndicale. Le produit est construit pour empêcher cette déduction côté employeur.
-Un don personnel n'est jamais nominatif dans ses écrans, les points affichés dans l'espace Équipe
-sont ceux des missions uniquement, et les agrégats de dons ne s'affichent qu'à partir de cinq
-donateurs. Voir `AIPD.md`, risque 1.
+**Aucune donnée sensible n'est collectée directement** au sens de l'article 9. Il serait faux de
+s'arrêter là : le rapprochement d'un donateur identifié et de la cause qu'il soutient **est** une
+donnée sensible par déduction — conviction religieuse, opinion politique, état de santé,
+appartenance syndicale (CJUE, 1er août 2022, C-184/20). Ce rapprochement existe dans la base, il
+est nécessaire au reçu fiscal, et il est traité comme tel :
 
-Aucune donnée de mineur. Aucun transfert hors Union européenne dans le fonctionnement normal.
+- le salarié qui déclare un don personnel donne un **consentement explicite** au titre de
+  l'article 9.2.a, distinct de son adhésion au service ;
+- ce lien n'est **jamais** exposé à l'employeur, ni nominativement, ni par un agrégat de moins de
+  cinq donateurs, ni par différence entre le score de l'entreprise et la somme des scores
+  individuels — cette dernière voie a été fermée le 22/08/2026 ;
+- la table `intention_don` ne porte pas l'entreprise pour un don personnel : le lien n'existe pas,
+  il n'est pas seulement masqué.
+
+Le registre des événements de sécurité ne contient **aucune donnée de santé** : ni identité de
+victime, ni siège de lésion, ni diagnostic. Il n'est lisible ni par les collègues, ni par le
+comité social et économique, qui n'en voit qu'un agrégat par type, au-dessus de cinq événements.
+
+Voir `AIPD.md`, risque 1.
+
+Aucune donnée de mineur.
+
+**Transferts hors Union européenne.** L'hébergement est européen chez les trois sous-traitants.
+Mais Supabase, Vercel et Resend sont des sociétés de droit américain : un accès de leur support
+depuis les États-Unis constitue un transfert au sens du chapitre V. Il est donc encadré par les
+clauses contractuelles types de la décision (UE) 2021/914, complétées le cas échéant par la
+certification *Data Privacy Framework* de chaque prestataire. Affirmer « aucun transfert » aurait
+été plus simple à écrire, et faux.
 
 ## 4. Obligations de Riseva
 
@@ -78,7 +98,6 @@ remplacement, et droit d'objection motivé du client.
 | Supabase | Base de données et authentification | Union européenne |
 | Vercel | Diffusion de l'application | Union européenne |
 | Resend | Messages transactionnels | Union européenne |
-| Prestataire de don | Encaissement pour le compte des associations | France |
 
 La liste à jour est publiée sur `riseva.fr/confidentialite.html`, datée et versionnée.
 

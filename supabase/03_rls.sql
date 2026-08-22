@@ -323,7 +323,7 @@ create policy moteur_lecture on public.moteur_journal for select
 grant execute on function
   public.rejoindre_entreprise(text),
   public.creer_invitation(integer, integer),
-  public.engager_mission(uuid, numeric, text),
+  public.engager_mission(uuid, numeric, text, boolean),
   public.declarer_mission(uuid, numeric),
   public.trancher_mission(uuid, boolean, numeric),
   public.publier_annonce(text, text, public.type_annonce, integer, date, text,

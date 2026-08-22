@@ -161,7 +161,7 @@ def main():
         verifie("aucune promesse de tarif figé",
                 "tarif restera" not in p.inner_text("body").lower())
         for page in ["inscription.html", "associations.html", "asso.html?id=a1",
-                     "mentions.html", "cgu.html", "cgv.html", "reglement.html",
+                     "mentions.html", "cgv.html", "reglement.html",
                      "charte-associations.html", "securite.html", "confidentialite.html",
                      "engagements.html", "moderation.html"]:
             p.goto(f"{BASE}/{page}", wait_until="networkidle")
@@ -693,8 +693,15 @@ def main():
         verifie("les dons des salariés restent hors assiette",
                 "hors assiette de l'entreprise" in t and "réduction d'impôt indue" in t)
         verifie("une association non éligible ne se valorise pas",
-                "3 demi-journées" in norm(p.inner_text(".content")),
+                "2 demi-journées" in norm(p.inner_text(".content")),
                 "la mission de Rivière Propre 42, non éligible, doit être exclue")
+        verifie("une mission close sans réponse ne fabrique pas de réduction d'impôt",
+                "attendent une confirmation" in t and "pas dans votre assiette fiscale" in t,
+                "article 238 bis : on valorise ce qui a été fait, pas un silence")
+        verifie("elle reste comptée en points, et on dit à qui écrire",
+                "compte dans vos points" in t or "comptent dans vos points" in t)
+        verifie("le plafond de 20 % du revenu des salariés n'est pas passé sous silence",
+                "20 % de son revenu imposable" in t and "Au plus" in t)
 
         print("\nEspace Riseva")
         connecte(p, "u1", "#/saison")
@@ -763,7 +770,15 @@ def main():
         verifie("le non déductible est distingué", "Non déductible" in t)
         p.click("#conv"); p.wait_for_timeout(300)
         verifie("le choix de la mission s'ouvre", p.is_visible(".modal #mi"))
-        verifie("les deux régimes sont expliqués", "prêt illicite" in p.inner_text(".modal"))
+        md = norm(p.inner_text(".modal"))
+        verifie("le prêt de main-d'œuvre est nommé pour ce qu'il est",
+                "prêt de main-d'œuvre" in md and "jamais une prestation de service" in md)
+        verifie("la durée ne change pas le régime",
+                "une demi-journée relève du même régime que six mois" in md)
+        verifie("le bon régime est cité, et le mauvais écarté",
+                "L. 8241-3" in md and "L. 8241-2" in md and "pas d'avenant" in md)
+        verifie("l'accord écrit du salarié est posé en condition",
+                "accord exprès" in md and "R. 8241-2" in md)
         with p.context.expect_page() as onglet:
             p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Générer/.test(b.textContent)).click()")
         doc = onglet.value
@@ -1523,7 +1538,7 @@ def main():
         # on le vérifie plutôt que de l'écrire.
         pages_publiques = ["/", "/inscription.html", "/associations.html", "/asso.html?id=a1",
                            "/reglement.html", "/confidentialite.html", "/securite.html",
-                           "/charte-associations.html", "/cgv.html", "/cgu.html",
+                           "/charte-associations.html", "/cgv.html",
                            "/mentions.html", "/engagements.html", "/moderation.html",
                            "/rejoindre.html", "/404.html", "/app/"]
         externes = []

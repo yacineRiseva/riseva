@@ -131,7 +131,8 @@ export const ibanCourt = (v) => {
 
 /* Le reçu fiscal est émis par l'association, et par elle seule : c'est elle qui
    engage sa responsabilité, et c'est elle qui encourt l'amende de l'article
-   1740 A du CGI — 60 % des sommes portées sur un reçu irrégulier. Riseva ne peut
+   1740 A du CGI — égale au taux de la réduction d'impôt en cause, appliqué aux sommes
+   portées sur le reçu. Riseva ne peut
    donc préparer un reçu qu'à la condition d'un mandat écrit, daté, nominatif et
    révocable à tout moment. Sans lui, la plateforme n'émet rien : ni brouillon,
    ni « modèle à signer ». */
@@ -1269,21 +1270,32 @@ const seed = {
   ],
   missions: [
     { id:"m1", annonce:"an1", entreprise:"e1", salarie:"u3", etablissement:"et2", etat:"validee",     quantite:2, points:300,  date:J(-12), declaree_le:J(-11), tranchee_le:J(-10), realise:22 },
-    { id:"m2", annonce:"an2", entreprise:"e1", salarie:"u4", etablissement:"et3", etat:"validee",     quantite:3, points:450,  date:J(-9), declaree_le:J(-8), tranchee_le:J(-7), realise:118 },
+    { id:"m2", annonce:"an2", entreprise:"e1", salarie:"u4", etablissement:"et3", etat:"validee",     quantite:3, points:450,  date:J(-9), declaree_le:J(-8), tranchee_le:J(-7), realise:118,
+      consentement:{ donne_le:J(-14), mission:"Atelier réparation vélos", date_mission:J(-9) } },
     { id:"m3", annonce:"an4", entreprise:"e1", salarie:"u3", etablissement:"et2", etat:"validee",     quantite:600, points:60, date:J(-7), declaree_le:J(-7), tranchee_le:J(-6), realise:68 },
     { id:"m4", annonce:"an5", entreprise:"e1", salarie:"u5", etablissement:"et1", etat:"a_valider",   quantite:3, points:300,  date:J(-2), declaree_le:J(-2), valeur_nette:840, nature:"Trois ordinateurs portables renouvelés",
       categorie_comptable:"immobilisation", reference_actif:"IMMO-2023-0412 à 0414",
       sortie_le:J(-2), effacement_donnees:true,
       justificatif:"Fiche de sortie d'immobilisation signée" },
     { id:"m5", annonce:"an1", entreprise:"e1", salarie:"u4", etablissement:"et3", etat:"engagee",     quantite:2, points:300,  date:J(9)  },
-    { id:"m6", annonce:"an7", entreprise:"e1", salarie:"u5", etablissement:"et1", etat:"validee_auto",quantite:1, points:150,  date:J(-4), declaree_le:J(-20), tranchee_le:J(-6) },
+    { id:"m6", annonce:"an7", entreprise:"e1", salarie:"u5", etablissement:"et1", etat:"validee_auto",quantite:1, points:150,  date:J(-4), declaree_le:J(-20), tranchee_le:J(-6),
+      consentement:{ donne_le:J(-25), mission:"Distribution de repas", date_mission:J(-4) } },
     { id:"m7", annonce:"an3", entreprise:"e1", salarie:"u3", etablissement:"et2", etat:"refusee",     quantite:1, points:0,    date:J(-6) },
     { id:"m8", annonce:"an2", entreprise:"e2", salarie:"u9", etat:"validee",     quantite:4, points:600,  date:J(-5), declaree_le:J(-4), tranchee_le:J(-3), realise:155 },
     /* Un don de matériel confirmé mais pas encore valorisé : le registre doit le
        montrer comme tel, pas lui inventer une valeur. */
     { id:"m9", annonce:"an3", entreprise:"e1", salarie:"u4", etablissement:"et3", etat:"validee",
       quantite:2, points:200, date:J(-16), declaree_le:J(-15), tranchee_le:J(-14), realise:2,
-      nature:"Deux lots de mobilier de bureau" }
+      nature:"Deux lots de mobilier de bureau" },
+    /* Une mise à disposition sur le temps de travail que l'association n'a jamais
+       confirmée : au bout de quatorze jours, elle s'est comptée toute seule. Les
+       points sont acquis — l'équipe a bien été là — mais la valorisation fiscale ne
+       l'est pas : l'article 238 bis valorise ce qui a été fait, et personne ne l'a
+       constaté. C'est le cas que la démonstration doit montrer, pas cacher. */
+    { id:"m10", annonce:"an2", entreprise:"e1", salarie:"u3", etablissement:"et2",
+      etat:"validee_auto", quantite:2, points:300, date:J(-24), declaree_le:J(-22),
+      tranchee_le:J(-8),
+      consentement:{ donne_le:J(-30), mission:"Plantation de 400 arbres", date_mission:J(-24) } }
   ],
   utilisateurs: [
     { id:"u1", nom:"Yacine Bounoua",  email:"contact@riseva.fr",        role:"admin",            org:null },
@@ -3284,8 +3296,17 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
        — l'entreprise est responsable de sa valorisation. On lui rend donc la piste
          d'audit ligne à ligne, pas un total. */
     valorisationMecenat(eid){
-      const ms = api.missions({ entreprise: eid })
+      /* Une mission comptée toute seule au bout de quatorze jours n'entre PAS dans
+         l'assiette du 238 bis. Le règlement dit « personne n'a compté », la convention
+         dit « seules les heures réellement exécutées et validées » : fabriquer une
+         réduction d'impôt sur un silence, c'est exactement ce que l'article 1740 A
+         sanctionne, au taux de la réduction en cause. Les points restent acquis —
+         ils motivent une équipe, ils ne déduisent pas un impôt. La valeur en attente
+         est rendue à part, pour que l'entreprise sache quoi relancer. */
+      const toutes = api.missions({ entreprise: eid })
                    .filter(m => m.etat === "validee" || m.etat === "validee_auto");
+      const ms = toutes.filter(m => m.etat === "validee");
+      const enAttenteMs = toutes.filter(m => m.etat === "validee_auto");
       const e = api.entreprise(eid) || {};
       const coutJour = e.cout_jour_moyen || 300;
       const coutHeure = e.cout_heure_charge || (coutJour / FISCAL.heures_jour);
@@ -3302,8 +3323,8 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
              nom, au modèle des particuliers, et le montant n'entre PAS dans l'assiette de
              l'entreprise : l'article 238 bis vise les versements effectués par l'entreprise.
              Confondre les deux fabriquerait une réduction d'impôt indue. */
-          if (m.pour_le_compte_de === "entreprise") donsEntreprise += Number(m.quantite) || 0;
-          else donsSalaries += Number(m.quantite) || 0;
+          if (api.estDonPersonnel(m)) donsSalaries += Number(m.quantite) || 0;
+          else donsEntreprise += Number(m.quantite) || 0;
           return;
         }
         if (a.type !== "benevolat_demi_journee") return;
@@ -3337,6 +3358,28 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
           recu: m.recu_le || null
         });
       });
+
+      /* Ce que le silence des associations coûte à l'entreprise, en clair. Ce n'est
+         pas une perte de points : c'est une valeur qu'elle ne peut pas déclarer tant
+         que personne n'a confirmé. Un mail de relance la récupère. */
+      const enAttente = { missions: enAttenteMs.length, dons: 0, demiJournees: 0,
+                          valeur: 0, associations: [] };
+      enAttenteMs.forEach(m => {
+        const a = api.annonceDe(m); if (!a) return;
+        const asso = api.association(a.asso) || {};
+        if (a.type === "don_financier"){
+          if (api.estDonPersonnel(m)) return;
+          enAttente.dons += Number(m.quantite) || 0;
+          enAttente.valeur += Number(m.quantite) || 0;
+        } else if (a.type === "benevolat_demi_journee"
+                   && a.temps_travail && api.eligibleMecenat(a.asso)){
+          enAttente.demiJournees += Number(m.quantite) || 0;
+          enAttente.valeur += (Number(m.quantite) || 0) * coutDemiJournee;
+        } else return;
+        if (asso.nom && !enAttente.associations.includes(asso.nom))
+          enAttente.associations.push(asso.nom);
+      });
+      enAttente.valeur = Math.round(enAttente.valeur);
 
       const plafondSal = FISCAL.plafond_mecenat_par_salarie;
       let competencesBrut = 0, competencesRetenu = 0, heuresTT = 0;
@@ -3387,6 +3430,8 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
            C'est un maximum théorique, jamais un montant déclarable. */
         estimationMax: Math.round(assiette * FISCAL.taux_reduction),
         salariesConcernes: detailSalaries.length,
+        /* Missions closes sans retour : hors assiette, mais dites. */
+        enAttente,
         /* Ce que les salariés peuvent déduire eux-mêmes, à titre personnel : 66 % du don
            dans la limite de 20 % du revenu imposable (article 200 du CGI). */
         reductionSalaries: Math.round(donsSalaries * 0.66)
@@ -3417,8 +3462,11 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
     /* Récapitulatif à reporter dans la déclaration annuelle des dons, obligatoire
        depuis 2021 : montant global des dons portés sur les reçus, et nombre de reçus. */
     recapRecus(aid){
+      /* Seuls les dons confirmés par l'association ont donné lieu à un reçu : côté
+         base, emettre_recu exige un don à l'état « confirme ». Déclarer un reçu qui
+         n'a pas été émis désaligne la déclaration de l'article 222 bis du CGI. */
       const ms = api.missions({ asso: aid })
-                   .filter(m => m.etat === "validee" || m.etat === "validee_auto");
+                   .filter(m => m.etat === "validee");
       let montant = 0, nombre = 0;
       ms.forEach(m => {
         const a = api.annonceDe(m);
@@ -3486,7 +3534,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
     mandatRecus: (aid) => (api.association(aid) || {}).mandat_recus || null,
     /* Le mandat est écrit, daté, nominatif, et révocable sans motif. Sans lui,
        Riseva ne prépare aucun reçu : l'amende de l'article 1740 A du CGI —
-       60 % des sommes portées sur un reçu irrégulier — pèse sur l'association,
+       au taux de la réduction d'impôt en cause — pèse sur l'association,
        pas sur nous, et un mandat implicite ne se plaide pas. */
     accepterMandatRecus(aid, { par, nom, qualite } = {}){
       const a = api.association(aid); if (!a) return null;
@@ -4403,6 +4451,12 @@ const versEtat = {
     realise_propose: r.realise_propose === null || r.realise_propose === undefined
       ? undefined : Number(r.realise_propose),
     pour_le_compte_de: r.origine === "salarie" ? "salarie" : "entreprise",
+    origine: r.origine || undefined,
+    /* L'accord du salarié à cette mise à disposition : c'est lui qui autorise
+       l'édition de la convention (article R. 8241-2). Absent, la convention n'est
+       pas proposée — jamais éditée sans preuve. */
+    consentement: r.consentement_le
+      ? { donne_le: String(r.consentement_le).slice(0, 10) } : null,
     valeur_nette: r.valeur_nette ?? null, nature: r.nature || undefined
   }),
   invitation: (r) => ({
@@ -4568,8 +4622,9 @@ function creerSupabase(client){
       rpc("saisir_indicateurs", { p_campagne: cid, p_etablissement: etid, p_valeurs: valeurs })),
     approuverIndicateurs: (cid, etid) => ecrire(() =>
       rpc("approuver_indicateurs", { p_campagne: cid, p_etablissement: etid })),
-    engager: ({ annonce, quantite, cle }) => ecrire(() =>
-      rpc("engager_mission", { p_annonce: annonce, p_quantite: quantite, p_cle: cle || null })),
+    engager: ({ annonce, quantite, cle, consentement }) => ecrire(() =>
+      rpc("engager_mission", { p_annonce: annonce, p_quantite: quantite, p_cle: cle || null,
+                               p_consentement: !!consentement })),
     declarerFaite: (mid, propose) => ecrire(() =>
       rpc("declarer_mission", { p_mission: mid, p_propose: propose ?? null })),
     validerMission: (mid, ok, realise) => ecrire(() =>
