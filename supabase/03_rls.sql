@@ -207,6 +207,25 @@ create policy observation_lecture on public.observation_indicateur for select to
        -- dans une réunion.
        and (private.mon_role() <> 'cse' or observation_indicateur.etat = 'approuve')));
 
+-- Registre de sécurité : le site qui le tient, sa société, le groupe qui la
+-- consolide, et le CSE. Rien de nominatif n'y figure par construction — c'est
+-- pour cela qu'il peut être lu par le comité sans précaution supplémentaire.
+grant select on public.evenement_securite to authenticated;
+create policy evenement_lecture on public.evenement_securite for select to authenticated
+  using (private.est_admin() or exists (
+    select 1 from public.etablissement et
+     where et.id = evenement_securite.etablissement
+       and (et.societe = private.mon_entreprise()
+            or private.dans_mon_groupe(et.societe))));
+
+grant select on public.action_corrective to authenticated;
+create policy action_lecture on public.action_corrective for select to authenticated
+  using (private.est_admin() or exists (
+    select 1 from public.etablissement et
+     where et.id = action_corrective.etablissement
+       and (et.societe = private.mon_entreprise()
+            or private.dans_mon_groupe(et.societe))));
+
 grant select on public.affectation_siege to authenticated;
 create policy siege_lecture on public.affectation_siege for select to authenticated
   using (private.est_admin() or exists (
@@ -282,7 +301,13 @@ grant execute on function
   public.revoquer_mandat_recus(uuid),
   public.declarer_intention_don(uuid, numeric, public.origine_don),
   public.confirmer_don_recu(uuid, numeric),
-  public.abandonner_intention_don(uuid, text)
+  public.abandonner_intention_don(uuid, text),
+  public.declarer_evenement(uuid, date, text, text, text, text, integer, text),
+  public.annuler_evenement(uuid, text),
+  public.activer_registre(uuid, boolean),
+  public.ajouter_action(uuid, text, text, date, uuid),
+  public.maj_action(uuid, text),
+  public.securite_du_registre(uuid, date, date)
 to authenticated;
 
 -- Le paiement n'est jamais confirmé par le navigateur. Seule la fonction Edge,
@@ -367,6 +392,7 @@ grant execute on function private.mots_utiles(text) to riseva_definer;
 grant execute on function private.recouvrement(text[], text[]) to riseva_definer;
 grant execute on function public.sans_accents(text) to riseva_definer;
 grant execute on function private.iban_ok(text) to riseva_definer;
+grant execute on function private.pilote_le_site(uuid) to riseva_definer;
 grant execute on function private.reference_virement() to riseva_definer;
 grant execute on function private.seuil_ecart() to riseva_definer;
 grant execute on function private.campagne_precedente(uuid) to riseva_definer;

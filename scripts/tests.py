@@ -962,6 +962,72 @@ def main():
         verifie("chaque don porte l'état de sa réception et de son reçu",
                 "Réception" in m and "Reçu" in m and "En attente de l'association" in m)
 
+        print("\nRegistre de sécurité et consolidation multi-sites")
+        connecte(p, "u2", "#/securite")
+        sc = norm(p.inner_text(".content"))
+        verifie("le registre annonce ce qu'il ne collecte pas",
+                "Aucun nom, aucune donnée de santé" in sc
+                and "ni siège de la lésion" in sc)
+        verifie("les presqu'accidents sont suivis à part des taux",
+                "presqu'accidents" in sc)
+        verifie("un site sans registre n'est pas un site sans accident",
+                "n'ont pas « zéro accident »" in sc or "n'a pas « zéro accident »" in sc)
+        verifie("le Pareto dit par où commencer",
+                "Manutention manuelle" in sc and "cumul" in sc)
+        verifie("le plan d'actions signale ce qui est en retard",
+                "en retard" in sc)
+
+        sec = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const sy = d.DB.syntheseSecurite({ societe:'e1', debut:'2026-01-01', fin:'2026-12-31' });
+          const c = d.DB.campagnes('g1').find(x => x.etat === 'ouverte');
+          const derive = d.DB.valeursDeriveesDuRegistre(c.id, 'et2');
+          const sansRegistre = d.DB.valeursDeriveesDuRegistre(c.id, 'et1');
+          let futur = null, incoherent = null, sansMotif = null, sansResp = null;
+          try { d.DB.declarerEvenement('et2', { date:'2027-01-01', nature:'travail',
+            gravite:'sans_soin', type:'machine' }, 'u2'); } catch (e){ futur = e.message; }
+          try { d.DB.declarerEvenement('et2', { date:'2026-08-01', nature:'travail',
+            gravite:'avec_arret', type:'machine', jours_arret:0 }, 'u2'); }
+          catch (e){ incoherent = e.message; }
+          try { d.DB.annulerEvenement('ev1', ''); } catch (e){ sansMotif = e.message; }
+          try { d.DB.ajouterAction({ etablissement:'et2', quoi:'X', responsable:'',
+            echeance:'2026-09-01' }); } catch (e){ sansResp = e.message; }
+          return { total:sy.total, derive, sansRegistre,
+                   sansRegistreNoms:sy.sites_sans_registre,
+                   pareto:sy.pareto[0], futur, incoherent, sansMotif, sansResp };
+        }""")
+        verifie("les indicateurs du site sont déduits du registre, sans double saisie",
+                sec["derive"] is not None and sec["derive"]["at_avec_arret"] >= 0, str(sec["derive"]))
+        verifie("un site qui ne tient pas le registre continue de saisir à la main",
+                sec["sansRegistre"] is None)
+        verifie("les sites sans registre sont nommés, pas comptés à zéro",
+                len(sec["sansRegistreNoms"]) > 0, str(sec["sansRegistreNoms"]))
+        verifie("trajet et travail ne se mélangent pas dans la consolidation",
+                sec["total"]["at_trajet"] >= 1 and sec["total"]["jours_arret"] > 0, str(sec["total"]))
+        verifie("une déclaration à une date future est refusée", sec["futur"] is not None)
+        verifie("un accident avec arrêt sans jour d'arrêt est refusé",
+                sec["incoherent"] is not None)
+        verifie("on n'annule pas une déclaration sans motif", sec["sansMotif"] is not None)
+        verifie("une action sans responsable est refusée",
+                sec["sansResp"] and "vœu" in sec["sansResp"], str(sec["sansResp"]))
+
+        # La campagne du site qui tient son registre : les quatre champs sont verrouillés.
+        connecte(p, "u2", "#/indicateurs")
+        p.select_option("#camp", "c2"); p.wait_for_timeout(400)
+        p.evaluate("""()=>{
+          const tr = [...document.querySelectorAll('tbody tr')].find(x => /Usine/.test(x.textContent));
+          const b = tr && [...tr.querySelectorAll('button')][0]; if (b) b.click();
+        }""")
+        p.wait_for_timeout(400)
+        md = norm(p.inner_text(".modal"))
+        verifie("la campagne annonce que ce site tient son registre",
+                "tient son registre de sécurité" in md and "rien à recopier" in md)
+        verifie("les quatre champs déduits sont verrouillés",
+                p.eval_on_selector("#i-at_avec_arret", "e=>e.disabled") is True)
+        verifie("et ils portent leur provenance", "déduit du registre" in md)
+        p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Annuler/.test(b.textContent)).click()")
+        p.wait_for_timeout(200)
+
         print("\nLe CSE, en lecture seule")
         connecte(p, "u12", "#/tableau")
         cs = norm(p.inner_text(".content"))

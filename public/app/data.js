@@ -698,6 +698,69 @@ export const INDICATEURS_LIMITES = [
   "Riseva ne dépose rien à la place de l'entreprise : ni Egapro, ni DSN, ni déclaration Urssaf."
 ];
 
+/* ------------------------------------------------------------------ */
+/* Registre des événements de sécurité                                 */
+/* ------------------------------------------------------------------ */
+/* Ce qui coûte le plus cher dans un suivi sécurité multi-sites, ce n'est pas le
+   calcul : c'est que chaque site tienne son tableau dans son coin, et qu'il
+   faille tout ressaisir au siège pour obtenir un chiffre consolidé. Le registre
+   renverse le sens : le site déclare ses événements un par un, au fil de l'eau,
+   et les indicateurs de la période s'en déduisent — pour lui comme pour la
+   société. Personne ne recopie rien.
+
+   Ce que ce registre n'est PAS, et il faut le dire avant qu'on le prenne pour
+   ça : ce n'est ni le registre des accidents bénins de l'article L. 441-4 du
+   code de la sécurité sociale, ni le document unique. Les deux sont nominatifs
+   ou relèvent de l'évaluation des risques, et ils restent chez l'employeur.
+
+   Aucune donnée de santé, aucune identité. Ni nom de victime, ni siège de la
+   lésion, ni diagnostic. Ce sont des données de santé au sens de l'article 9 du
+   RGPD, et une plateforme qui les héberge devient responsable de quelque chose
+   qu'elle n'a aucune raison de porter. Ce qu'un préventeur utilise vraiment pour
+   agir — la circonstance, la zone, le type, la gravité — n'en fait pas partie. */
+export const NATURES_EVENEMENT = {
+  travail: { label:"Accident du travail", aide:"Survenu par le fait ou à l'occasion du travail." },
+  trajet:  { label:"Accident de trajet",  aide:"Domicile-travail ou vers le lieu de restauration. Compté à part : il ne relève pas des mêmes actions de prévention." }
+};
+
+export const GRAVITES_EVENEMENT = {
+  sans_soin:       { label:"Sans soin",             ordre:1, badge:"badge--info",
+                     aide:"Presqu'accident ou événement sans conséquence. Ne compte dans aucun taux — mais c'est le seul indicateur qui permet d'agir avant." },
+  soin_sans_arret: { label:"Soins, sans arrêt",     ordre:2, badge:"badge--attente",
+                     aide:"A nécessité des soins, sans arrêt de travail." },
+  avec_arret:      { label:"Avec arrêt",            ordre:3, badge:"badge--alerte",
+                     aide:"A entraîné au moins un jour d'arrêt au-delà du jour de l'accident." }
+};
+
+/* Typologie volontairement courte. Une liste de quarante causes n'est jamais
+   remplie correctement : les déclarants prennent la première qui ressemble, et
+   le Pareto qui en sort ne veut plus rien dire. */
+export const TYPES_EVENEMENT = {
+  chute_plain_pied:  "Chute de plain-pied",
+  chute_hauteur:     "Chute de hauteur",
+  manutention:       "Manutention manuelle",
+  engin:             "Engin ou chariot",
+  machine:           "Machine ou outil",
+  chimique:          "Produit chimique",
+  thermique:         "Brûlure ou température",
+  electrique:        "Électrique",
+  routier:           "Routier",
+  agression:         "Agression ou incivilité",
+  autre:             "Autre"
+};
+
+export const ETATS_ACTION = {
+  a_faire: { label:"À faire",  badge:"badge--attente" },
+  en_cours:{ label:"En cours", badge:"badge--info" },
+  faite:   { label:"Faite",    badge:"badge--ok" },
+  abandonnee:{ label:"Abandonnée", badge:"" }
+};
+
+/* Longueur maximale des circonstances. Une limite courte n'est pas une
+   contrainte de stockage : c'est ce qui empêche le champ de devenir un récit
+   où finit par apparaître un prénom. */
+export const MAX_CIRCONSTANCES = 300;
+
 export const FISCAL = {
   annee: 2026,
   taux_reduction: 0.60,
@@ -787,7 +850,7 @@ const seed = {
       siret:"39312091000020", effectif:60,  quota:60,
       referent:"Claire Fontaine", referent_mail:"claire@lafarge-ciments.fr" },
     { id:"et2", societe:"e1", nom:"Usine",           ville:"Lyon",      lat:45.7333, lon:4.8137,
-      siret:"39312091000046", effectif:110, quota:110,
+      siret:"39312091000046", effectif:110, quota:110, registre_actif:true,
       referent:"Karim Belhadj", referent_mail:"karim@lafarge-ciments.fr" },
     { id:"et3", societe:"e1", nom:"Agence",          ville:"Marseille", lat:43.2965, lon:5.3698,
       siret:"39312091000053", effectif:40,  quota:40,
@@ -795,6 +858,54 @@ const seed = {
     { id:"et4", societe:"e9", nom:"Plateforme",      ville:"Nantes",    lat:47.2184, lon:-1.5536,
       siret:"84210044800013", effectif:45,  quota:45,
       referent:null, referent_mail:null }
+  ],
+
+  /* Le registre de l'usine de Lyon, sur les deux périodes de collecte. Il sert à
+     deux choses dans la démonstration : montrer qu'on déclare un événement en
+     quinze secondes, et montrer que les taux du rapport en sortent tout seuls,
+     sans que le siège ait rien demandé. */
+  evenements: [
+    { id:"ev1", etablissement:"et2", date:J(-201), nature:"travail", gravite:"avec_arret",
+      type:"manutention", zone:"Quai de chargement", jours_arret:9,
+      circonstances:"Palette instable reprise à la main, effort en torsion.",
+      declare_par:"u10", declare_le:J(-200), annule_le:null },
+    { id:"ev2", etablissement:"et2", date:J(-168), nature:"travail", gravite:"soin_sans_arret",
+      type:"machine", zone:"Ligne 2", jours_arret:0,
+      circonstances:"Coupure superficielle au démontage d'un carter.",
+      declare_par:"u10", declare_le:J(-168), annule_le:null },
+    { id:"ev3", etablissement:"et2", date:J(-120), nature:"trajet", gravite:"avec_arret",
+      type:"routier", zone:null, jours_arret:4,
+      circonstances:"Collision à faible vitesse sur le trajet domicile-travail.",
+      declare_par:"u10", declare_le:J(-119), annule_le:null },
+    { id:"ev4", etablissement:"et2", date:J(-62), nature:"travail", gravite:"sans_soin",
+      type:"chute_plain_pied", zone:"Quai de chargement", jours_arret:0,
+      circonstances:"Glissade sans chute, sol humide non signalé.",
+      declare_par:"u10", declare_le:J(-62), annule_le:null },
+    { id:"ev5", etablissement:"et2", date:J(-41), nature:"travail", gravite:"avec_arret",
+      type:"manutention", zone:"Quai de chargement", jours_arret:6,
+      circonstances:"Reprise manuelle d'une charge au sol, lombalgie.",
+      declare_par:"u10", declare_le:J(-40), annule_le:null },
+    { id:"ev6", etablissement:"et2", date:J(-22), nature:"travail", gravite:"sans_soin",
+      type:"engin", zone:"Allée centrale", jours_arret:0,
+      circonstances:"Chariot arrivé trop vite dans l'angle, aucun contact.",
+      declare_par:"u10", declare_le:J(-22), annule_le:null }
+  ],
+  /* Deux actions ouvertes, dont une en retard : c'est l'état ordinaire d'un plan
+     d'actions, et un écran qui n'afficherait que des actions à jour ne servirait
+     à rien. */
+  actions: [
+    { id:"acs1", evenement:"ev5", etablissement:"et2",
+      quoi:"Installer deux tables élévatrices sur le quai de chargement.",
+      responsable:"Karim Belhadj", echeance:J(-9), etat:"en_cours",
+      cree_le:J(-38), fait_le:null },
+    { id:"acs2", evenement:"ev4", etablissement:"et2",
+      quoi:"Marquage au sol et procédure de signalement des sols humides.",
+      responsable:"Karim Belhadj", echeance:J(21), etat:"a_faire",
+      cree_le:J(-60), fait_le:null },
+    { id:"acs3", evenement:"ev2", etablissement:"et2",
+      quoi:"Consignation obligatoire avant démontage d'un carter, affichée au poste.",
+      responsable:"Karim Belhadj", echeance:J(-120), etat:"faite",
+      cree_le:J(-166), fait_le:J(-130) }
   ],
 
   entreprises: [
@@ -1240,7 +1351,7 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
    est enregistré, et retrouvé au retour. Une clé de version évite de restaurer un
    état écrit par une version antérieure du modèle. */
 const CLE_ETAT = "riseva.etat";
-const VERSION_ETAT = 6;
+const VERSION_ETAT = 7;
 
 function lireEtat(){
   try {
@@ -1942,16 +2053,38 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       });
       return ecarts;
     },
+    /* Les quatre valeurs que le registre remplace, quand le site le tient. */
+    CLES_DU_REGISTRE: ["at_avec_arret", "at_sans_arret", "at_trajet", "jours_arret"],
+    /* Ce que la campagne déduit du registre pour un site, ou null si ce site ne
+       le tient pas. La double saisie est le premier endroit où deux chiffres se
+       mettent à diverger : un accident déclaré au fil de l'eau et un total
+       recopié en fin de période ne tombent jamais juste. */
+    valeursDeriveesDuRegistre(cid, etid){
+      if (!api.registreActif(etid)) return null;
+      const c = api.campagne(cid); if (!c) return null;
+      const r = api.securiteDuRegistre({ etablissement: etid, debut: c.debut, fin: c.fin });
+      const v = {};
+      api.CLES_DU_REGISTRE.forEach(k => { v[k] = r[k]; });
+      return v;
+    },
+
     saisirIndicateurs(cid, etid, valeurs, uid, commentaire = null){
       const c = api.campagne(cid);
       if (!c || c.etat !== "ouverte") throw new Error("Cette campagne est close.");
       let o = api.observation(cid, etid);
+      const derive = api.valeursDeriveesDuRegistre(cid, etid);
       const propres = {};
       INDICATEURS.saisis.forEach(d => {
+        /* Une valeur déduite du registre ne se saisit pas : elle est écrasée par
+           le registre à chaque enregistrement, et l'écran le dit. Accepter une
+           saisie manuelle qu'on remplace ensuite en silence serait pire que de
+           la refuser. */
+        if (derive && api.CLES_DU_REGISTRE.includes(d.cle)) return;
         const v = valeurs[d.cle];
         if (v === undefined || v === null || v === "") return;
         propres[d.cle] = Math.max(0, Number(v) || 0);
       });
+      if (derive) Object.assign(propres, derive);
       /* Le refus porte sur l'absence d'explication, jamais sur la valeur. Une
          plateforme qui rejetterait un chiffre parce qu'il bouge trop finirait par
          obtenir des chiffres qui ne bougent pas. */
@@ -1968,12 +2101,14 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         o = { id:id("o"), campagne:cid, etablissement:etid, etat:"declare", version:1,
               saisi_par:uid, saisi_le:new Date().toISOString().slice(0,10),
               approuve_par:null, approuve_le:null, valeurs:propres,
+              source_registre: !!derive,
               commentaire: mot || null, ecarts };
         s.observations.push(o);
       } else {
         /* Corriger une valeur approuvée, c'est produire une version, jamais écraser. */
         if (o.etat === "approuve") o.version += 1;
         o.valeurs = { ...o.valeurs, ...propres };
+        o.source_registre = !!derive;
         o.commentaire = mot || o.commentaire || null;
         o.ecarts = ecarts;
         o.etat = "declare";
@@ -3316,6 +3451,170 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       return l;
     },
 
+
+    /* ------------------------------------------------------------------ */
+    /* Registre des événements de sécurité                                */
+    /* ------------------------------------------------------------------ */
+    evenements(filtre = {}){
+      let l = s.evenements.filter(e => !e.annule_le);
+      if (filtre.etablissement) l = l.filter(e => e.etablissement === filtre.etablissement);
+      if (filtre.societe) l = l.filter(e =>
+        (api.etablissement(e.etablissement) || {}).societe === filtre.societe);
+      if (filtre.groupe){
+        const ids = new Set(api.etablissementsDuGroupe(filtre.groupe).map(x => x.id));
+        l = l.filter(e => ids.has(e.etablissement));
+      }
+      if (filtre.debut) l = l.filter(e => e.date >= filtre.debut);
+      if (filtre.fin)   l = l.filter(e => e.date <= filtre.fin);
+      if (filtre.nature) l = l.filter(e => e.nature === filtre.nature);
+      if (filtre.gravite) l = l.filter(e => e.gravite === filtre.gravite);
+      return l.slice().sort((a, b) => b.date.localeCompare(a.date));
+    },
+    evenement: (evid) => s.evenements.find(e => e.id === evid) || null,
+
+    declarerEvenement(etid, champs, uid){
+      const et = api.etablissement(etid);
+      if (!et) throw new Error("Site inconnu");
+      const d = String(champs.date || "").slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new Error("La date de l'événement est obligatoire.");
+      if (d > "2026-08-20") throw new Error("Un événement ne se déclare pas à une date future.");
+      if (!NATURES_EVENEMENT[champs.nature]) throw new Error("Nature inconnue.");
+      if (!GRAVITES_EVENEMENT[champs.gravite]) throw new Error("Gravité inconnue.");
+      if (!TYPES_EVENEMENT[champs.type]) throw new Error("Type inconnu.");
+      const jours = Math.max(0, Math.round(Number(champs.jours_arret) || 0));
+      /* Deux incohérences qu'on voit tout le temps dans les tableaux Excel, et
+         qui faussent le taux de gravité sans que personne les remarque. */
+      if (champs.gravite === "avec_arret" && jours < 1)
+        throw new Error("Un accident « avec arrêt » compte au moins un jour d'arrêt.");
+      if (champs.gravite !== "avec_arret" && jours > 0)
+        throw new Error("Des journées d'arrêt sur un accident sans arrêt : l'un des deux est faux.");
+      const circ = String(champs.circonstances || "").trim().slice(0, MAX_CIRCONSTANCES);
+      const ev = { id: id("ev"), etablissement: etid, date: d,
+                   nature: champs.nature, gravite: champs.gravite, type: champs.type,
+                   zone: String(champs.zone || "").trim().slice(0, 80) || null,
+                   jours_arret: jours, circonstances: circ || null,
+                   declare_par: uid || null,
+                   declare_le: new Date(2026, 7, 20).toISOString().slice(0, 10),
+                   annule_le: null, motif_annulation: null };
+      s.evenements.unshift(ev);
+      return ev;
+    },
+    /* On n'efface pas une ligne d'un registre : on l'annule, en disant pourquoi.
+       Une déclaration qui disparaît sans trace est exactement ce qu'un inspecteur
+       cherche. */
+    annulerEvenement(evid, motif){
+      const ev = api.evenement(evid); if (!ev) return null;
+      if (!String(motif || "").trim()) throw new Error("Annuler une déclaration exige un motif.");
+      ev.annule_le = new Date(2026, 7, 20).toISOString().slice(0, 10);
+      ev.motif_annulation = String(motif).trim().slice(0, 200);
+      return ev;
+    },
+
+    /* Les quatre valeurs de sécurité, déduites du registre sur une période.
+       C'est la fin de la double saisie : le site déclare ses événements, la
+       campagne s'en sert. */
+    securiteDuRegistre({ etablissement = null, societe = null, groupe = null,
+                         debut, fin } = {}){
+      const l = api.evenements({ etablissement, societe, groupe, debut, fin });
+      const travail = l.filter(e => e.nature === "travail");
+      return {
+        at_avec_arret: travail.filter(e => e.gravite === "avec_arret").length,
+        at_sans_arret: travail.filter(e => e.gravite === "soin_sans_arret").length,
+        at_trajet:     l.filter(e => e.nature === "trajet").length,
+        jours_arret:   travail.reduce((n, e) => n + (e.jours_arret || 0), 0),
+        /* Les presqu'accidents ne comptent dans aucun taux, et c'est voulu :
+           les compter ferait monter la fréquence quand la prévention
+           s'améliore. On les suit à part. */
+        sans_soin:     l.filter(e => e.gravite === "sans_soin").length,
+        evenements:    l.length
+      };
+    },
+    /* Un site tient-il son registre ? Tant qu'il ne l'a pas activé, il saisit ses
+       chiffres à la main comme avant. Basculer est une décision, pas un effet de
+       bord : sinon un site qui déclare un seul événement verrait ses trois autres
+       accidents disparaître du rapport. */
+    registreActif: (etid) => !!(api.etablissement(etid) || {}).registre_actif,
+    activerRegistre(etid, oui){
+      const et = api.etablissement(etid); if (!et) return null;
+      et.registre_actif = !!oui; return et;
+    },
+    /* Ce que le siège lit sans que personne ne lui envoie quoi que ce soit. */
+    syntheseSecurite({ societe = null, groupe = null, debut, fin } = {}){
+      const sites = groupe ? api.etablissementsDuGroupe(groupe)
+                           : api.etablissements(societe || "");
+      const parSite = sites.map(et => ({
+        etablissement: et,
+        registre: api.registreActif(et.id),
+        ...api.securiteDuRegistre({ etablissement: et.id, debut, fin })
+      }));
+      const total = api.securiteDuRegistre({ societe, groupe, debut, fin });
+      /* Pareto : les types qui pèsent le plus, dans l'ordre. C'est la seule
+         lecture qui dise par où commencer. */
+      const parType = {};
+      api.evenements({ societe, groupe, debut, fin }).forEach(e => {
+        parType[e.type] = (parType[e.type] || 0) + 1;
+      });
+      const pareto = Object.entries(parType)
+        .map(([t, n]) => ({ type: t, label: TYPES_EVENEMENT[t] || t, nombre: n }))
+        .sort((a, b) => b.nombre - a.nombre);
+      let cumul = 0;
+      pareto.forEach(x => { cumul += x.nombre;
+        x.part = total.evenements ? Math.round((x.nombre / total.evenements) * 1000) / 10 : 0;
+        x.cumul = total.evenements ? Math.round((cumul / total.evenements) * 1000) / 10 : 0; });
+      return { debut, fin, sites: parSite, total, pareto,
+               /* Un site sans registre n'a pas « zéro accident » : il n'a rien
+                  déclaré ici. La différence est tout ce qui compte. */
+               sites_sans_registre: parSite.filter(x => !x.registre).map(x => x.etablissement.nom),
+               actions: api.actions({ societe, groupe }) };
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* Plan d'actions                                                      */
+    /* ------------------------------------------------------------------ */
+    /* Un registre sans actions est un cahier de doléances. C'est aussi la
+       première question posée après un accident : qu'avez-vous fait ensuite. */
+    actions(filtre = {}){
+      let l = s.actions.slice();
+      if (filtre.evenement) l = l.filter(a => a.evenement === filtre.evenement);
+      if (filtre.etablissement) l = l.filter(a => a.etablissement === filtre.etablissement);
+      if (filtre.societe) l = l.filter(a =>
+        (api.etablissement(a.etablissement) || {}).societe === filtre.societe);
+      if (filtre.groupe){
+        const ids = new Set(api.etablissementsDuGroupe(filtre.groupe).map(x => x.id));
+        l = l.filter(a => ids.has(a.etablissement));
+      }
+      if (filtre.etat) l = l.filter(a => a.etat === filtre.etat);
+      return l.sort((a, b) => String(a.echeance).localeCompare(String(b.echeance)));
+    },
+    ajouterAction({ evenement = null, etablissement, quoi, responsable, echeance }){
+      const et = api.etablissement(etablissement);
+      if (!et) throw new Error("Site inconnu");
+      if (!String(quoi || "").trim()) throw new Error("Une action se décrit en une phrase.");
+      if (!String(responsable || "").trim())
+        throw new Error("Une action sans responsable n'est pas une action, c'est un vœu.");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(echeance || "")))
+        throw new Error("Une action sans échéance ne se fait jamais.");
+      const a = { id: id("ac"), evenement, etablissement,
+                  quoi: String(quoi).trim().slice(0, 240),
+                  responsable: String(responsable).trim().slice(0, 120),
+                  echeance, etat: "a_faire",
+                  cree_le: new Date(2026, 7, 20).toISOString().slice(0, 10), fait_le: null };
+      s.actions.unshift(a);
+      return a;
+    },
+    majAction(aid, etat){
+      const a = s.actions.find(x => x.id === aid); if (!a) return null;
+      if (!ETATS_ACTION[etat]) throw new Error("État d'action inconnu.");
+      a.etat = etat;
+      a.fait_le = etat === "faite" ? new Date(2026, 7, 20).toISOString().slice(0, 10) : null;
+      return a;
+    },
+    actionsEnRetard(filtre = {}){
+      const auj = "2026-08-20";
+      return api.actions(filtre).filter(a =>
+        ["a_faire", "en_cours"].includes(a.etat) && a.echeance < auj);
+    },
+
     /* ------------------------------------------------------------------ */
     /* Dossier administratif d'une association                            */
     /* ------------------------------------------------------------------ */
@@ -3816,6 +4115,18 @@ const versEtat = {
       prochain_numero: 1
     }
   }),
+  evenement: (r) => ({
+    id: r.id, etablissement: r.etablissement, date: r.date, nature: r.nature,
+    gravite: r.gravite, type: r.type_evenement, zone: r.zone,
+    jours_arret: r.jours_arret, circonstances: r.circonstances,
+    declare_par: r.declare_par, declare_le: r.declare_le,
+    annule_le: r.annule_le, motif_annulation: r.motif_annulation
+  }),
+  action: (r) => ({
+    id: r.id, evenement: r.evenement, etablissement: r.etablissement,
+    quoi: r.quoi, responsable: r.responsable, echeance: r.echeance,
+    etat: r.etat, cree_le: r.cree_le, fait_le: r.fait_le
+  }),
   controle: (r) => ({
     id: r.id, association: r.association, le: r.le, par: r.par, etat: r.etat,
     bloquant: r.bloquant, numero: r.numero, ecarts: r.ecarts || [], fiche: r.fiche,
@@ -3889,12 +4200,14 @@ async function chargerEtat(client){
 
   const [saisons, baremes, entreprises, groupes, etablissements, associations,
          annonces, missions, profils, invitations, campagnes, observations,
-         acces, signalements, intentions, controles] = await Promise.all([
+         acces, signalements, intentions, controles,
+         evenements, actionsCorrectives] = await Promise.all([
     lire("saison"), lire("bareme"), lire("entreprise"), lire("groupe"),
     lire("etablissement"), lire("association"), lire("annonce"), lire("mission"),
     lire("profil"), lire("invitation"), lire("campagne_indicateurs"),
     lire("observation_indicateur"), lire("acces"), lire("signalement"),
-    lire("intention_don"), lire("controle_association")
+    lire("intention_don"), lire("controle_association"),
+    lire("evenement_securite"), lire("action_corrective")
   ]);
 
   const saison = saisons.find(x => x.etat === "ouverte") || saisons[0] || null;
@@ -3932,6 +4245,8 @@ async function chargerEtat(client){
     signalements: signalements.map(versEtat.signalement),
     intentions: intentions.map(versEtat.intention),
     controles: controles.map(versEtat.controle),
+    evenements: evenements.map(versEtat.evenement),
+    actions: actionsCorrectives.map(versEtat.action),
     contrats: [], preinscriptions: [], moteur_journal: [], rapports_generes: [],
     classement_recalcule_le: null
   };

@@ -1456,3 +1456,123 @@ end $$;
 create trigger abonnement_fondateur
   before insert or update of fondateur on abonnement
   for each row execute function private.verifier_fondateur();
+
+-- ---------------------------------------------------------------------------
+-- Registre des événements de sécurité
+-- ---------------------------------------------------------------------------
+-- Écriture réservée à qui pilote le site : son référent, ou la société. Un
+-- salarié ne déclare pas un accident dans Riseva — ce n'est pas le canal, et
+-- laisser croire le contraire retarderait une déclaration qui doit partir
+-- ailleurs.
+create or replace function private.pilote_le_site(p_etablissement uuid) returns boolean
+language sql stable set search_path = '' as $$
+  select private.est_admin() or exists (
+    select 1 from public.etablissement et
+     where et.id = p_etablissement
+       and et.societe = private.mon_entreprise()
+       and (private.mon_role() = 'entreprise_admin'
+            or (private.mon_role() = 'site_referent'
+                and private.mon_etablissement() = p_etablissement)))
+$$;
+
+create or replace function public.declarer_evenement(
+  p_etablissement uuid, p_date date, p_nature text, p_gravite text,
+  p_type text, p_zone text default null, p_jours integer default 0,
+  p_circonstances text default null)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare v_id uuid;
+begin
+  if not private.pilote_le_site(p_etablissement) then
+    raise exception 'Réservé au site et à sa société' using errcode = '42501';
+  end if;
+  if p_date is null or p_date > current_date then
+    raise exception 'Un événement ne se déclare pas à une date future' using errcode = '22023';
+  end if;
+  insert into public.evenement_securite
+    (etablissement, date, nature, gravite, type_evenement, zone, jours_arret,
+     circonstances, declare_par)
+  values (p_etablissement, p_date, p_nature, p_gravite, p_type,
+          nullif(btrim(coalesce(p_zone, '')), ''), coalesce(p_jours, 0),
+          nullif(btrim(coalesce(p_circonstances, '')), ''), auth.uid())
+  returning id into v_id;
+  return v_id;
+end $$;
+
+create or replace function public.annuler_evenement(p_evenement uuid, p_motif text)
+returns void language plpgsql security definer set search_path = '' as $$
+declare v_site uuid;
+begin
+  select etablissement into v_site from public.evenement_securite where id = p_evenement;
+  if v_site is null then raise exception 'Événement inconnu' using errcode = '42704'; end if;
+  if not private.pilote_le_site(v_site) then
+    raise exception 'Réservé au site et à sa société' using errcode = '42501';
+  end if;
+  if btrim(coalesce(p_motif, '')) = '' then
+    raise exception 'Annuler une déclaration exige un motif' using errcode = '22023';
+  end if;
+  update public.evenement_securite
+     set annule_le = current_date, motif_annulation = left(btrim(p_motif), 200)
+   where id = p_evenement and annule_le is null;
+end $$;
+
+create or replace function public.activer_registre(p_etablissement uuid, p_actif boolean)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not private.pilote_le_site(p_etablissement) then
+    raise exception 'Réservé au site et à sa société' using errcode = '42501';
+  end if;
+  update public.etablissement set registre_actif = coalesce(p_actif, false)
+   where id = p_etablissement;
+end $$;
+
+create or replace function public.ajouter_action(
+  p_etablissement uuid, p_quoi text, p_responsable text, p_echeance date,
+  p_evenement uuid default null)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare v_id uuid;
+begin
+  if not private.pilote_le_site(p_etablissement) then
+    raise exception 'Réservé au site et à sa société' using errcode = '42501';
+  end if;
+  insert into public.action_corrective (evenement, etablissement, quoi, responsable, echeance)
+  values (p_evenement, p_etablissement, btrim(p_quoi), btrim(p_responsable), p_echeance)
+  returning id into v_id;
+  return v_id;
+end $$;
+
+create or replace function public.maj_action(p_action uuid, p_etat text)
+returns void language plpgsql security definer set search_path = '' as $$
+declare v_site uuid;
+begin
+  select etablissement into v_site from public.action_corrective where id = p_action;
+  if v_site is null then raise exception 'Action inconnue' using errcode = '42704'; end if;
+  if not private.pilote_le_site(v_site) then
+    raise exception 'Réservé au site et à sa société' using errcode = '42501';
+  end if;
+  update public.action_corrective
+     set etat = p_etat,
+         fait_le = case when p_etat = 'faite' then current_date end
+   where id = p_action;
+end $$;
+
+-- Les quatre valeurs de sécurité, déduites du registre. La même définition que
+-- dans le navigateur : un accident déclaré au fil de l'eau et un total recopié
+-- en fin de période ne tombent jamais juste, et c'est exactement ce que cette
+-- fonction supprime.
+create or replace function public.securite_du_registre(
+  p_etablissement uuid, p_debut date, p_fin date)
+returns table (at_avec_arret integer, at_sans_arret integer, at_trajet integer,
+               jours_arret integer, sans_soin integer, evenements integer)
+language sql stable security definer set search_path = '' as $$
+  select
+    count(*) filter (where e.nature = 'travail' and e.gravite = 'avec_arret')::int,
+    count(*) filter (where e.nature = 'travail' and e.gravite = 'soin_sans_arret')::int,
+    count(*) filter (where e.nature = 'trajet')::int,
+    coalesce(sum(e.jours_arret) filter (where e.nature = 'travail'), 0)::int,
+    count(*) filter (where e.gravite = 'sans_soin')::int,
+    count(*)::int
+  from public.evenement_securite e
+ where e.etablissement = p_etablissement
+   and e.annule_le is null
+   and e.date between p_debut and p_fin
+$$;

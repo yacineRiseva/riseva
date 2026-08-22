@@ -530,6 +530,86 @@ begin
 end $$;
 
 \echo ''
+\echo 'Registre de sécurité et plan d''actions'
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000005', false);
+select set_config('request.jwt.claim.email', 'karim@lafarge-ciments.fr', false);
+
+do $$
+declare v_ev uuid; v_ac uuid; r record;
+begin
+  v_ev := public.declarer_evenement('e7000000-0000-4000-8000-000000000002',
+    current_date - 20, 'travail', 'avec_arret', 'manutention', 'Quai', 6,
+    'Reprise manuelle d''une charge au sol.');
+  perform pg_temp.dit('le référent déclare un événement sur son site', v_ev is not null);
+
+  perform public.declarer_evenement('e7000000-0000-4000-8000-000000000002',
+    current_date - 10, 'trajet', 'avec_arret', 'routier', null, 3, null);
+  perform public.declarer_evenement('e7000000-0000-4000-8000-000000000002',
+    current_date - 5, 'travail', 'sans_soin', 'chute_plain_pied', 'Allée', 0, null);
+
+  select * into r from public.securite_du_registre(
+    'e7000000-0000-4000-8000-000000000002', current_date - 60, current_date);
+  perform pg_temp.dit('les accidents du travail et de trajet ne se mélangent pas',
+    r.at_avec_arret = 1 and r.at_trajet = 1);
+  perform pg_temp.dit('les journées perdues ne comptent que le travail, pas le trajet',
+    r.jours_arret = 6);
+  perform pg_temp.dit('les presqu''accidents sont suivis mais ne comptent dans aucun taux',
+    r.sans_soin = 1 and r.at_avec_arret = 1 and r.at_sans_arret = 0);
+
+  v_ac := public.ajouter_action('e7000000-0000-4000-8000-000000000002',
+    'Installer deux tables élévatrices sur le quai.', 'Karim Belhadj',
+    current_date + 30, v_ev);
+  perform public.maj_action(v_ac, 'faite');
+  perform pg_temp.dit('une action passée à faite porte sa date de réalisation',
+    (select fait_le is not null from public.action_corrective where id = v_ac));
+
+  perform public.annuler_evenement(v_ev, 'Doublon avec la déclaration du site voisin');
+  perform pg_temp.dit('une déclaration annulée reste dans le registre, avec son motif',
+    (select annule_le is not null and motif_annulation is not null
+       from public.evenement_securite where id = v_ev));
+  select * into r from public.securite_du_registre(
+    'e7000000-0000-4000-8000-000000000002', current_date - 60, current_date);
+  perform pg_temp.dit('et elle ne compte plus dans les taux', r.at_avec_arret = 0);
+end $$;
+
+select pg_temp.refuse('un accident « avec arrêt » sans jour d''arrêt est refusé',
+  'select public.declarer_evenement(''e7000000-0000-4000-8000-000000000002'',
+     current_date, ''travail'', ''avec_arret'', ''machine'', null, 0, null)');
+select pg_temp.refuse('des journées d''arrêt sur un accident sans arrêt sont refusées',
+  'select public.declarer_evenement(''e7000000-0000-4000-8000-000000000002'',
+     current_date, ''travail'', ''sans_soin'', ''machine'', null, 3, null)');
+select pg_temp.refuse('une date future est refusée',
+  'select public.declarer_evenement(''e7000000-0000-4000-8000-000000000002'',
+     current_date + 1, ''travail'', ''sans_soin'', ''machine'', null, 0, null)');
+select pg_temp.refuse('un type hors typologie est refusé',
+  'select public.declarer_evenement(''e7000000-0000-4000-8000-000000000002'',
+     current_date, ''travail'', ''sans_soin'', ''morsure_de_dragon'', null, 0, null)');
+select pg_temp.refuse('le référent ne déclare rien sur un autre site',
+  'select public.declarer_evenement(''e7000000-0000-4000-8000-000000000003'',
+     current_date, ''travail'', ''sans_soin'', ''machine'', null, 0, null)');
+select pg_temp.refuse('une action sans responsable est refusée',
+  'select public.ajouter_action(''e7000000-0000-4000-8000-000000000002'',
+     ''Faire quelque chose'', '''', current_date + 10)');
+reset role;
+
+-- Un salarié ne déclare pas un accident dans Riseva : ce n'est pas le canal.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
+select set_config('request.jwt.claim.email', 'malik@lafarge-ciments.fr', false);
+select pg_temp.refuse('un salarié ne déclare pas d''événement',
+  'select public.declarer_evenement(''e7000000-0000-4000-8000-000000000002'',
+     current_date, ''travail'', ''sans_soin'', ''machine'', null, 0, null)');
+select pg_temp.refuse('il n''active pas le registre d''un site',
+  'select public.activer_registre(''e7000000-0000-4000-8000-000000000002'', true)');
+do $$
+begin
+  perform pg_temp.dit('il lit en revanche le registre de sa société : rien n''y est nominatif',
+    (select count(*) from public.evenement_securite) > 0);
+end $$;
+reset role;
+
+\echo ''
 \echo 'Le CSE lit des agrégats, et rien d''autre'
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000009', false);

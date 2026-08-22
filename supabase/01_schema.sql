@@ -196,6 +196,10 @@ create table etablissement (
   quota     integer not null default 0 check (quota >= 0),
   referent_nom   text check (length(referent_nom) <= 160),
   referent_mail  text check (length(referent_mail) <= 240),
+  -- Tant qu'un site n'a pas activé son registre, il saisit ses chiffres de
+  -- sécurité à la main. Basculer est une décision : sinon un site qui déclare un
+  -- seul événement verrait ses trois autres accidents disparaître du rapport.
+  registre_actif boolean not null default false,
   ferme_le  date,
   cree_le   timestamptz not null default now()
 );
@@ -309,6 +313,73 @@ create table private.appartenance (
   constraint appartenance_depart check (
     not pseudonymise or (not actif and retire_le is not null))
 );
+
+-- ------------------------------------------------- sécurité : événements
+-- Le site déclare ses événements un par un ; les indicateurs de la période s'en
+-- déduisent, pour lui comme pour la société. C'est ce qui supprime la double
+-- saisie, et avec elle la seule cause sérieuse de divergence entre le chiffre du
+-- site et celui du siège.
+--
+-- Ce que cette table n'est PAS : ni le registre des accidents bénins de
+-- l'article L. 441-4 du code de la sécurité sociale, ni le document unique. Les
+-- deux sont nominatifs ou relèvent de l'évaluation des risques, et ils restent
+-- chez l'employeur.
+--
+-- Aucune donnée de santé, aucune identité : ni nom de victime, ni siège de la
+-- lésion, ni diagnostic. Ce sont des données de l'article 9 du RGPD, et une
+-- plateforme qui les héberge devient responsable de quelque chose qu'elle n'a
+-- aucune raison de porter. Ce qu'un préventeur utilise pour agir — la
+-- circonstance, la zone, le type, la gravité — n'en fait pas partie.
+create table evenement_securite (
+  id            uuid primary key default gen_random_uuid(),
+  etablissement uuid not null references etablissement(id) on delete cascade,
+  date          date not null,
+  nature        text not null check (nature in ('travail','trajet')),
+  gravite       text not null check (gravite in ('sans_soin','soin_sans_arret','avec_arret')),
+  type_evenement text not null check (type_evenement in
+                  ('chute_plain_pied','chute_hauteur','manutention','engin','machine',
+                   'chimique','thermique','electrique','routier','agression','autre')),
+  zone          text check (length(zone) <= 80),
+  jours_arret   integer not null default 0 check (jours_arret >= 0),
+  -- Trois cents caractères : ce n'est pas une contrainte de stockage, c'est ce
+  -- qui empêche le champ de devenir un récit où finit par apparaître un prénom.
+  circonstances text check (length(circonstances) <= 300),
+  declare_par   uuid references profil(id) on delete set null,
+  declare_le    timestamptz not null default now(),
+  -- On n'efface pas une ligne d'un registre : on l'annule, en disant pourquoi.
+  annule_le     date,
+  motif_annulation text check (length(motif_annulation) <= 200),
+  constraint evenement_arret check (
+    (gravite = 'avec_arret' and jours_arret >= 1) or
+    (gravite <> 'avec_arret' and jours_arret = 0)),
+  constraint evenement_annulation check (
+    annule_le is null or motif_annulation is not null)
+  -- Pas de contrainte « date <= current_date » ici, bien que PostgreSQL
+  -- l'accepte : une contrainte CHECK doit rester vraie pour toujours, et
+  -- celle-là devient fausse en vieillissant — une restauration de sauvegarde
+  -- échouerait sur des lignes parfaitement valides le jour où on les a écrites.
+  -- Le refus d'une date future est donc dans la RPC, où il a sa place.
+);
+create index evenement_securite_site on evenement_securite (etablissement, date desc);
+
+-- Le plan d'actions. Un registre sans actions est un cahier de doléances, et
+-- c'est la première question posée après un accident : qu'avez-vous fait ensuite.
+create table action_corrective (
+  id            uuid primary key default gen_random_uuid(),
+  evenement     uuid references evenement_securite(id) on delete set null,
+  etablissement uuid not null references etablissement(id) on delete cascade,
+  quoi          text not null check (length(quoi) between 3 and 240),
+  -- Un responsable et une échéance, tous deux obligatoires : une action sans
+  -- responsable est un vœu, une action sans échéance ne se fait jamais.
+  responsable   text not null check (length(responsable) between 2 and 120),
+  echeance      date not null,
+  etat          text not null default 'a_faire'
+                  check (etat in ('a_faire','en_cours','faite','abandonnee')),
+  cree_le       timestamptz not null default now(),
+  fait_le       date,
+  constraint action_faite check (etat <> 'faite' or fait_le is not null)
+);
+create index action_corrective_site on action_corrective (etablissement, echeance);
 
 -- ------------------------------------------------- contrôle au registre public
 -- Riseva met des salariés en relation avec des associations et prépare des reçus

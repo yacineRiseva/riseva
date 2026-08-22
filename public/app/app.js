@@ -1,4 +1,4 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
 import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
@@ -50,7 +50,8 @@ const MENUS = {
     { groupe: "Mon site", items: [
       ["tableau",    "Tableau de bord", "dashboard"],
       ["equipe",     "Mes salariés",    "users"],
-      ["indicateurs","Données sociales", "report"]
+      ["indicateurs","Données sociales", "report"],
+      ["securite",   "Sécurité",        "shield"]
     ]},
     { groupe: "Saison", items: [
       ["annonces",   "Annonces",        "megaphone"],
@@ -232,12 +233,14 @@ function menuDe(u){
     base.unshift({ groupe: "Groupe", items: [
       ["groupe",      "Vue consolidée", "building"],
       ["sites",       "Sites et quotas", "users"],
-      ["indicateurs", "Données sociales", "report"]
+      ["indicateurs", "Données sociales", "report"],
+      ["securite",    "Sécurité",        "shield"]
     ]});
   } else if (multi){
     base[base.length - 1].items.splice(1, 0,
       ["sites",       "Sites et quotas", "users"],
-      ["indicateurs", "Données sociales", "report"]);
+      ["indicateurs", "Données sociales", "report"],
+      ["securite",    "Sécurité",        "shield"]);
   }
   return base;
 }
@@ -5426,6 +5429,345 @@ function vueIndicateurs(u){
 }
 
 /* ------------------------------------------------------------------ */
+/* Sécurité : le registre, le Pareto, le plan d'actions               */
+/* ------------------------------------------------------------------ */
+/* Un site déclare ses événements au fil de l'eau ; la société les lit
+   consolidés sans avoir rien demandé, et la campagne d'indicateurs s'en sert.
+   C'est le seul endroit du produit où l'automatisation fait gagner du temps à
+   tout le monde en même temps : le site ne remplit plus de tableau en fin de
+   période, le siège ne relance plus, et les deux chiffres ne peuvent plus
+   diverger puisqu'il n'y en a qu'un. */
+function vueSecurite(u){
+  const monSite = u.role === "site_referent" ? u.etablissement : null;
+  const sa = DB.saison();
+  const debut = sessionStorage.getItem("riseva.secu.debut") || sa.debut;
+  const fin   = sessionStorage.getItem("riseva.secu.fin")   || sa.fin;
+  const sy = DB.syntheseSecurite({ societe: u.org, debut, fin });
+  const sites = DB.etablissements(u.org).filter(x => !monSite || x.id === monSite);
+  const evs = DB.evenements({ societe: u.org, etablissement: monSite || undefined, debut, fin });
+  const retard = DB.actionsEnRetard({ societe: u.org });
+  const t = sy.total;
+
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <section class="card">
+      <div class="between" style="flex-wrap:wrap;gap:var(--s4);align-items:flex-start">
+        <div>
+          <h3>Événements de sécurité</h3>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+            Déclarés un par un, au moment où ils arrivent. Les taux de la période s'en déduisent :
+            plus de tableau à remplir en fin de campagne, et plus deux chiffres qui divergent.
+            <strong style="color:var(--ink)">Aucun nom, aucune donnée de santé</strong> — ni
+            identité, ni siège de la lésion, ni diagnostic.</p>
+        </div>
+        <div class="row" style="--gap:var(--s3);align-items:flex-end">
+          <div class="field" style="margin:0"><label for="sd">Du</label>
+            <input class="input" type="date" id="sd" value="${debut}"></div>
+          <div class="field" style="margin:0"><label for="sf">au</label>
+            <input class="input" type="date" id="sf" value="${fin}"></div>
+          <button class="btn btn--forest btn--sm" id="declarer">Déclarer un événement</button>
+        </div>
+      </div>
+      <div class="kpis" style="margin-top:var(--s6)">
+        ${kpi("Avec arrêt", nb(t.at_avec_arret), `${nb(t.jours_arret)} journées perdues`, "", "kpi--tete grain")}
+        ${kpi("Soins sans arrêt", nb(t.at_sans_arret), "événements pris en charge")}
+        ${kpi("Trajet", nb(t.at_trajet), "comptés à part")}
+        ${kpi("Sans soin", nb(t.sans_soin), "presqu'accidents — le seul indicateur qui permet d'agir avant")}
+      </div>
+      ${sy.sites_sans_registre.length ? `<div class="card card--flat"
+        style="background:var(--warn-bg);border-color:transparent;margin-top:var(--s5)">
+        <p style="font-size:var(--t-sm);color:var(--ink-600)">
+          <strong style="color:var(--ink)">${sy.sites_sans_registre.length} site${
+            sy.sites_sans_registre.length > 1 ? "s ne tiennent" : " ne tient"} pas encore le registre</strong>
+          — ${esc(sy.sites_sans_registre.join(", "))}. Ces sites n'ont pas « zéro accident » : ils
+          n'ont rien déclaré ici, et leurs chiffres continuent d'être saisis à la main dans la
+          campagne. La différence est tout ce qui compte.</p>
+      </div>` : ""}
+    </section>
+
+    <div class="two">
+      <section class="card">
+        <h3>Par où commencer</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+          Les types d'événements, du plus fréquent au moins fréquent, avec leur part cumulée.
+          C'est la seule lecture qui dise par où commencer plutôt que quoi constater.</p>
+        <div id="pareto" style="margin-top:var(--s5)"></div>
+      </section>
+
+      <section class="card">
+        <div class="between" style="margin-bottom:var(--s4)">
+          <h3>Sites</h3>
+          ${monSite ? "" : `<span class="muted" style="font-size:var(--t-xs)">registre par site</span>`}
+        </div>
+        <table class="table"><thead><tr>
+          <th>Site</th><th style="text-align:right">Avec arrêt</th>
+          <th style="text-align:right">Jours</th><th>Registre</th>
+        </tr></thead><tbody id="parSite"></tbody></table>
+        <p class="hint" style="margin-top:var(--s4)">Activer le registre pour un site fait
+          disparaître les quatre champs correspondants de sa campagne d'indicateurs : ils sont
+          alors déduits, et ne peuvent plus être saisis à la main.</p>
+      </section>
+    </div>
+
+    <section class="card">
+      <div class="between" style="margin-bottom:var(--s5)">
+        <div><h3>Plan d'actions</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+          Un registre sans actions est un cahier de doléances. C'est aussi la première question
+          posée après un accident : qu'avez-vous fait ensuite.</p></div>
+        ${retard.length ? `<span class="badge badge--alerte">${retard.length} en retard</span>` : ""}
+      </div>
+      <div id="plan"></div>
+    </section>
+
+    <section class="card">
+      <div class="between" style="margin-bottom:var(--s5)">
+        <h3>Le registre</h3>
+        <button class="btn btn--ghost btn--sm" id="csvEv">Exporter</button>
+      </div>
+      <div id="reg"></div>
+    </section>
+  </div>`);
+
+  /* Pareto */
+  const par = el.querySelector("#pareto");
+  if (!sy.pareto.length) par.appendChild(vide({ titre:"Aucun événement sur la période",
+    texte:"C'est peut-être une bonne nouvelle, ou personne n'a encore déclaré." }));
+  else {
+    const max = sy.pareto[0].nombre;
+    sy.pareto.forEach(x => par.appendChild(h(`<div style="margin-bottom:var(--s4)">
+      <div class="between" style="font-size:var(--t-sm)">
+        <span>${esc(x.label)}</span>
+        <span class="tnum muted">${nb(x.nombre)} · ${pct(x.part)} % · cumul ${pct(x.cumul)} %</span>
+      </div>
+      <div class="bar" style="margin-top:4px"><i style="width:${(x.nombre / max) * 100}%"></i></div>
+    </div>`)));
+  }
+
+  /* Par site */
+  const ps = el.querySelector("#parSite");
+  sy.sites.filter(x => !monSite || x.etablissement.id === monSite).forEach(x => {
+    const tr = h(`<tr>
+      <td><strong>${esc(x.etablissement.nom)}</strong>
+        <br><span class="muted" style="font-size:var(--t-xs)">${esc(x.etablissement.ville || "")}</span></td>
+      <td class="tnum" style="text-align:right">${x.registre ? nb(x.at_avec_arret) : "—"}</td>
+      <td class="tnum" style="text-align:right">${x.registre ? nb(x.jours_arret) : "—"}</td>
+      <td></td></tr>`);
+    const cell = tr.lastElementChild;
+    const b = h(`<button class="btn btn--sm ${x.registre ? "btn--ghost" : "btn--forest"}">${
+      x.registre ? "Tenu" : "Activer"}</button>`);
+    b.onclick = () => {
+      if (x.registre){
+        modal("Arrêter le registre de " + x.etablissement.nom,
+          `<p class="muted">Les quatre valeurs de sécurité redeviendront saisissables à la main
+           dans la campagne. Les événements déjà déclarés restent dans le registre : on
+           n'efface pas un registre.</p>`,
+          [{ label:"Annuler" },
+           { label:"Arrêter", classe:"btn--primary", onClick: () => {
+               DB.activerRegistre(x.etablissement.id, false); toast("Registre arrêté."); rendre(); }}]);
+      } else {
+        DB.activerRegistre(x.etablissement.id, true);
+        toast("Registre activé : les taux de ce site seront déduits des événements."); rendre();
+      }
+    };
+    cell.appendChild(b);
+    ps.appendChild(tr);
+  });
+
+  /* Plan d'actions */
+  const plan = el.querySelector("#plan");
+  const acts = DB.actions({ societe: u.org, etablissement: monSite || undefined });
+  if (!acts.length) plan.appendChild(vide({ titre:"Aucune action ouverte",
+    texte:"Les actions se créent depuis un événement du registre." }));
+  else {
+    const tb = h(`<table class="table"><thead><tr>
+      <th>Action</th><th>Site</th><th>Responsable</th><th>Échéance</th><th>État</th><th></th>
+    </tr></thead><tbody></tbody></table>`);
+    acts.forEach(a => {
+      const et = DB.etablissement(a.etablissement) || {};
+      const tard = ["a_faire", "en_cours"].includes(a.etat) && a.echeance < "2026-08-20";
+      const tr = h(`<tr>
+        <td>${esc(a.quoi)}</td>
+        <td class="muted">${esc(et.nom || "")}</td>
+        <td class="muted">${esc(a.responsable)}</td>
+        <td class="tnum ${tard ? "" : "muted"}" style="${tard ? "color:var(--danger)" : ""}">${dateCourte(a.echeance)}</td>
+        <td><span class="badge ${ETATS_ACTION[a.etat].badge}">${esc(ETATS_ACTION[a.etat].label)}</span></td>
+        <td style="text-align:right"></td></tr>`);
+      if (a.etat !== "faite" && a.etat !== "abandonnee"){
+        const b = h(`<button class="btn btn--ghost btn--sm">${a.etat === "a_faire" ? "Démarrer" : "Terminer"}</button>`);
+        b.onclick = () => { DB.majAction(a.id, a.etat === "a_faire" ? "en_cours" : "faite");
+          toast("Action mise à jour."); rendre(); };
+        tr.lastElementChild.appendChild(b);
+      }
+      tb.querySelector("tbody").appendChild(tr);
+    });
+    plan.appendChild(tb);
+  }
+
+  /* Registre */
+  const reg = el.querySelector("#reg");
+  if (!evs.length) reg.appendChild(vide({ titre:"Aucun événement déclaré sur cette période",
+    texte:"Déclarer prend quinze secondes, et c'est ce qui remplace le tableau de fin d'année." }));
+  else {
+    const tb = h(`<table class="table"><thead><tr>
+      <th>Date</th><th>Site</th><th>Nature</th><th>Type</th><th>Zone</th>
+      <th style="text-align:right">Jours</th><th>Gravité</th><th></th>
+    </tr></thead><tbody></tbody></table>`);
+    evs.forEach(e => {
+      const et = DB.etablissement(e.etablissement) || {};
+      const g = GRAVITES_EVENEMENT[e.gravite];
+      const tr = h(`<tr>
+        <td class="tnum muted">${dateCourte(e.date)}</td>
+        <td class="muted">${esc(et.nom || "")}</td>
+        <td>${esc(NATURES_EVENEMENT[e.nature].label)}</td>
+        <td>${esc(TYPES_EVENEMENT[e.type] || e.type)}
+          ${e.circonstances ? `<br><span class="muted" style="font-size:var(--t-xs)">${esc(e.circonstances)}</span>` : ""}</td>
+        <td class="muted">${esc(e.zone || "—")}</td>
+        <td class="tnum" style="text-align:right">${e.jours_arret || "—"}</td>
+        <td><span class="badge ${g.badge}">${esc(g.label)}</span></td>
+        <td style="text-align:right"></td></tr>`);
+      const bar = tr.lastElementChild;
+      const ba = h(`<button class="btn btn--ghost btn--sm">Action</button>`);
+      ba.onclick = () => formAction(e);
+      bar.appendChild(ba);
+      const bx = h(`<button class="btn btn--quiet btn--sm" style="color:var(--danger)">Annuler</button>`);
+      bx.onclick = () => {
+        const corps = h(`<div>
+          <p class="muted">On n'efface pas une ligne d'un registre : on l'annule, en disant
+          pourquoi. Une déclaration qui disparaît sans trace est exactement ce qu'un inspecteur
+          cherche.</p>
+          <div class="field" style="margin-top:var(--s5)"><label for="mo">Motif</label>
+            <input class="input" id="mo" placeholder="Doublon, erreur de site, requalifié…"></div>
+        </div>`);
+        modal("Annuler cette déclaration", corps, [
+          { label:"Fermer" },
+          { label:"Annuler la déclaration", classe:"btn--primary", onClick: () => {
+              try { DB.annulerEvenement(e.id, corps.querySelector("#mo").value); }
+              catch (err){ toast(err.message); return false; }
+              toast("Déclaration annulée, motif consigné."); rendre(); }}]);
+      };
+      bar.appendChild(bx);
+      tb.querySelector("tbody").appendChild(tr);
+    });
+    reg.appendChild(tb);
+  }
+
+  const majPeriode = () => {
+    sessionStorage.setItem("riseva.secu.debut", el.querySelector("#sd").value);
+    sessionStorage.setItem("riseva.secu.fin", el.querySelector("#sf").value);
+    rendre();
+  };
+  el.querySelector("#sd").onchange = majPeriode;
+  el.querySelector("#sf").onchange = majPeriode;
+  el.querySelector("#declarer").onclick = () => formEvenement(u, sites, monSite);
+  el.querySelector("#csvEv").onclick = () => {
+    versCSV("riseva-registre-securite.csv",
+      ["Date", "Site", "Nature", "Type", "Zone", "Gravité", "Journées d'arrêt", "Circonstances"],
+      evs.map(e => [e.date, (DB.etablissement(e.etablissement) || {}).nom || "",
+        NATURES_EVENEMENT[e.nature].label, TYPES_EVENEMENT[e.type] || e.type,
+        e.zone || "", GRAVITES_EVENEMENT[e.gravite].label, e.jours_arret,
+        e.circonstances || ""]));
+    toast("Registre exporté.");
+  };
+  return el;
+}
+
+function formEvenement(u, sites, monSite){
+  const corps = h(`<div class="stack" style="--gap:var(--s4)">
+    <div class="row" style="--gap:var(--s4);align-items:stretch">
+      <div class="field" style="flex:1"><label for="ev-site">Site</label>
+        <select class="select" id="ev-site">
+          ${sites.map(x => `<option value="${x.id}"${x.id === monSite ? " selected" : ""}>${esc(x.nom)} — ${esc(x.ville || "")}</option>`).join("")}
+        </select></div>
+      <div class="field" style="flex:1"><label for="ev-date">Date de l'événement</label>
+        <input class="input" type="date" id="ev-date" max="2026-08-20" value="2026-08-20"></div>
+    </div>
+    <div class="row" style="--gap:var(--s4);align-items:stretch">
+      <div class="field" style="flex:1"><label for="ev-nature">Nature</label>
+        <select class="select" id="ev-nature">
+          ${Object.entries(NATURES_EVENEMENT).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join("")}
+        </select>
+        <p class="hint" id="ev-natureAide"></p></div>
+      <div class="field" style="flex:1"><label for="ev-grav">Gravité</label>
+        <select class="select" id="ev-grav">
+          ${Object.entries(GRAVITES_EVENEMENT).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join("")}
+        </select>
+        <p class="hint" id="ev-gravAide"></p></div>
+    </div>
+    <div class="row" style="--gap:var(--s4);align-items:stretch">
+      <div class="field" style="flex:1"><label for="ev-type">Type</label>
+        <select class="select" id="ev-type">
+          ${Object.entries(TYPES_EVENEMENT).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}
+        </select></div>
+      <div class="field" style="flex:1"><label for="ev-jours">Journées d'arrêt</label>
+        <input class="input" type="number" id="ev-jours" min="0" value="0"></div>
+    </div>
+    <div class="field"><label for="ev-zone">Zone ou poste</label>
+      <input class="input" id="ev-zone" placeholder="Quai de chargement, ligne 2, atelier…"></div>
+    <div class="field"><label for="ev-circ">Circonstances</label>
+      <textarea class="textarea" id="ev-circ" rows="2" maxlength="${MAX_CIRCONSTANCES}"
+        placeholder="Ce qui s'est passé, factuellement."></textarea>
+      <p class="hint"><strong>Aucun nom, aucune donnée de santé</strong> : ni identité, ni siège
+        de la lésion, ni diagnostic. Ce sont des données de santé au sens de l'article 9 du RGPD,
+        et Riseva n'a aucune raison de les héberger. Ce qui sert à agir — la circonstance, la
+        zone, le type — n'en fait pas partie.</p></div>
+  </div>`);
+  const aide = () => {
+    corps.querySelector("#ev-natureAide").textContent =
+      NATURES_EVENEMENT[corps.querySelector("#ev-nature").value].aide;
+    corps.querySelector("#ev-gravAide").textContent =
+      GRAVITES_EVENEMENT[corps.querySelector("#ev-grav").value].aide;
+  };
+  corps.querySelector("#ev-nature").onchange = aide;
+  corps.querySelector("#ev-grav").onchange = aide;
+  aide();
+
+  modal("Déclarer un événement", corps, [
+    { label:"Annuler" },
+    { label:"Déclarer", classe:"btn--primary", onClick: () => {
+        const v = (id) => corps.querySelector("#" + id).value;
+        try {
+          DB.declarerEvenement(v("ev-site"), {
+            date: v("ev-date"), nature: v("ev-nature"), gravite: v("ev-grav"),
+            type: v("ev-type"), zone: v("ev-zone"),
+            jours_arret: v("ev-jours"), circonstances: v("ev-circ")
+          }, u.id);
+        } catch (e){ toast(e.message); return false; }
+        toast("Événement déclaré. Les taux de la période sont à jour."); rendre();
+      }}
+  ]);
+}
+
+function formAction(ev){
+  const et = DB.etablissement(ev.etablissement) || {};
+  const corps = h(`<div class="stack" style="--gap:var(--s4)">
+    <p class="muted" style="font-size:var(--t-sm)">Suite à l'événement du ${dateFR(ev.date)}
+      — ${esc(TYPES_EVENEMENT[ev.type] || ev.type)}, ${esc(et.nom || "")}.</p>
+    <div class="field"><label for="ac-quoi">Ce qui va être fait</label>
+      <input class="input" id="ac-quoi" placeholder="Une phrase, à l'infinitif."></div>
+    <div class="row" style="--gap:var(--s4);align-items:stretch">
+      <div class="field" style="flex:1"><label for="ac-resp">Responsable</label>
+        <input class="input" id="ac-resp" value="${esc(et.referent || "")}"></div>
+      <div class="field" style="flex:1"><label for="ac-ech">Échéance</label>
+        <input class="input" type="date" id="ac-ech"></div>
+    </div>
+    <p class="hint">Une action sans responsable n'est pas une action, c'est un vœu ; une action
+      sans échéance ne se fait jamais. Les deux sont donc obligatoires.</p>
+  </div>`);
+  modal("Action corrective", corps, [
+    { label:"Annuler" },
+    { label:"Ajouter", classe:"btn--primary", onClick: () => {
+        try {
+          DB.ajouterAction({ evenement: ev.id, etablissement: ev.etablissement,
+            quoi: corps.querySelector("#ac-quoi").value,
+            responsable: corps.querySelector("#ac-resp").value,
+            echeance: corps.querySelector("#ac-ech").value });
+        } catch (e){ toast(e.message); return false; }
+        toast("Action ajoutée au plan."); rendre();
+      }}
+  ]);
+}
+
+/* ------------------------------------------------------------------ */
 /* Le CSE, en lecture                                                  */
 /* ------------------------------------------------------------------ */
 /* Un écran, pas un espace. Le CSE n'a rien à saisir, rien à valider, rien à
@@ -5464,6 +5806,7 @@ function vueCSE(u){
   const d = DB.dossierCSE(u.org, { campagne: sessionStorage.getItem("riseva.cse.camp") || null });
   if (!d) return h(`<section class="card"><p class="empty">Aucune entreprise rattachée à cet accès.</p></section>`);
   const ind = d.indicateurs;
+  const secu = DB.syntheseSecurite({ societe: u.org, debut: d.saison.debut, fin: d.saison.fin });
 
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <section class="card card--dark grain">
@@ -5535,6 +5878,29 @@ function vueCSE(u){
         </tr>`).join("")}
       </tbody></table>`}
     </section>
+
+    ${secu.pareto.length ? `<section class="card">
+      <h3>Événements de sécurité de la saison</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+        Les types d'événements déclarés par les sites, du plus fréquent au moins fréquent.
+        Aucun nom, aucune donnée de santé : ni identité, ni siège de la lésion, ni diagnostic.
+        ${secu.sites_sans_registre.length ? `${secu.sites_sans_registre.length} site${
+          secu.sites_sans_registre.length > 1 ? "s ne tiennent" : " ne tient"} pas le registre —
+          ${esc(secu.sites_sans_registre.join(", "))} : ces sites n'ont pas « zéro accident »,
+          ils n'ont rien déclaré ici.` : ""}</p>
+      <div style="margin-top:var(--s5)">${secu.pareto.map(x => `
+        <div style="margin-bottom:var(--s4)">
+          <div class="between" style="font-size:var(--t-sm)">
+            <span>${esc(x.label)}</span>
+            <span class="tnum muted">${nb(x.nombre)} · ${pct(x.part)} %</span></div>
+          <div class="bar" style="margin-top:4px"><i style="width:${
+            (x.nombre / secu.pareto[0].nombre) * 100}%"></i></div>
+        </div>`).join("")}</div>
+      <p class="hint" style="margin-top:var(--s4)">${nb(secu.total.sans_soin)} événement${
+        secu.total.sans_soin > 1 ? "s" : ""} sans soin — les presqu'accidents ne comptent dans
+        aucun taux : les compter ferait monter la fréquence au moment où la prévention
+        s'améliore.</p>
+    </section>` : ""}
 
     <div class="two">
       <section class="card">
@@ -5687,14 +6053,27 @@ function formIndicateurs(u, cid, et){
     </div>
   </div>`);
   const box = corps.querySelector("#ch");
+  /* Quand le site tient son registre, les quatre valeurs de sécurité ne se
+     saisissent plus : elles se déduisent. Les laisser modifiables et les écraser
+     ensuite en silence serait pire que de les verrouiller. */
+  const derive = DB.valeursDeriveesDuRegistre(cid, et.id);
+  if (derive) box.appendChild(h(`<div class="card card--flat"
+    style="padding:var(--s4);background:var(--ok-bg);border-color:transparent">
+    <p style="font-size:var(--t-sm);color:var(--ink-600)">
+      <strong style="color:var(--ink)">Ce site tient son registre de sécurité.</strong>
+      Les accidents et les journées perdues sont déduits des événements déclarés sur la
+      période : il n'y a rien à recopier ici, et les deux chiffres ne peuvent plus diverger.</p>
+  </div>`));
   INDICATEURS.saisis.forEach(d => {
+    const auto = derive && DB.CLES_DU_REGISTRE.includes(d.cle);
     /* `inclut` et `exclut` valent mieux qu'une définition en prose : c'est là que
        deux sites divergent sans le savoir, l'un comptant les intérimaires et
        l'autre non, et c'est invisible une fois les chiffres additionnés. */
     box.appendChild(h(`<div class="field">
-      <label for="i-${d.cle}">${esc(d.libelle)}${d.unite ? ` <span class="muted">(${esc(d.unite)})</span>` : ""}</label>
+      <label for="i-${d.cle}">${esc(d.libelle)}${d.unite ? ` <span class="muted">(${esc(d.unite)})</span>` : ""}
+        ${auto ? `<span class="badge badge--ok" style="height:20px;margin-left:6px">déduit du registre</span>` : ""}</label>
       <input class="input" id="i-${d.cle}" type="number" min="0" step="any"
-        value="${v[d.cle] ?? ""}">
+        value="${auto ? derive[d.cle] : (v[d.cle] ?? "")}"${auto ? " readonly disabled" : ""}>
       <p class="hint">${esc(d.aide)}</p>
       ${d.inclut ? `<p class="hint"><strong>On compte :</strong> ${esc(d.inclut)}.
         <strong>On ne compte pas :</strong> ${esc(d.exclut)}.</p>` : ""}
@@ -5703,8 +6082,11 @@ function formIndicateurs(u, cid, et){
 
   const lire = () => {
     const vals = {};
-    INDICATEURS.saisis.forEach(d => { vals[d.cle] = corps.querySelector(`#i-${d.cle}`).value; });
-    return vals;
+    INDICATEURS.saisis.forEach(d => {
+      const champ = corps.querySelector(`#i-${d.cle}`);
+      if (!champ.disabled) vals[d.cle] = champ.value;
+    });
+    return { ...(derive || {}), ...vals };
   };
   /* Les écarts s'affichent pendant la saisie, pas au moment du refus : découvrir
      qu'on doit se justifier après avoir rempli douze champs est la meilleure
@@ -6706,12 +7088,14 @@ const ROUTES = {
     groupe:    [vueGroupe,         "Vue consolidée du groupe"],
     sites:     [vueSites,          "Sites et quotas"],
     indicateurs:[vueIndicateurs,   "Données sociales et sécurité"],
+    securite:  [vueSecurite,       "Sécurité et plan d'actions"],
     preferences:[vuePreferences,   "Préférences"]
   },
   site_referent: {
     tableau:   [tableauSite,       "Tableau de bord du site"],
     equipe:    [vueEquipe,         "Mes salariés"],
     indicateurs:[vueIndicateurs,   "Données sociales et sécurité"],
+    securite:  [vueSecurite,       "Sécurité de mon site"],
     annonces:  [vueAnnonces,       "Annonces"],
     missions:  [vueMissions,       "Missions du site"],
     annuaire:  [vueAnnuaire,       "Associations"],

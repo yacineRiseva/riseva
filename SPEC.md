@@ -130,6 +130,46 @@ seul, parmi : `attendu`, `declare`, `approuve`, `clos_sans_reponse`.
   limites, et les explications fournies par les sites. Une définition qui change plus tard ne
   réécrit pas un rapport déjà arrêté. Exportable en CSV.
 
+### Le registre des événements de sécurité
+
+Le site déclare ses événements **un par un, au fil de l'eau** ; les indicateurs de la période
+s'en déduisent, pour lui comme pour la société. C'est ce qui supprime la double saisie — et avec
+elle la seule cause sérieuse de divergence entre le chiffre d'un site et celui du siège.
+
+- **Ce que ce registre n'est pas** : ni le registre des accidents bénins de l'article L. 441-4 du
+  code de la sécurité sociale, ni le document unique. Les deux sont nominatifs ou relèvent de
+  l'évaluation des risques, et ils restent chez l'employeur.
+- **Aucune donnée de santé, aucune identité** : ni nom de victime, ni siège de la lésion, ni
+  diagnostic. Ce sont des données de l'article 9 du RGPD. Ce qu'un préventeur utilise pour agir —
+  la circonstance, la zone, le type, la gravité — n'en fait pas partie. Le champ « circonstances »
+  est limité à 300 caractères : c'est ce qui l'empêche de devenir un récit où finit par apparaître
+  un prénom.
+- **Nature** (travail / trajet) et **gravité** (sans soin / soins sans arrêt / avec arrêt) sont
+  deux axes distincts. Les accidents de trajet sont comptés à part, et les **presqu'accidents ne
+  comptent dans aucun taux** : les compter ferait monter la fréquence au moment où la prévention
+  s'améliore.
+- **Typologie courte, onze entrées.** Une liste de quarante causes n'est jamais remplie
+  correctement : les déclarants prennent la première qui ressemble, et le Pareto qui en sort ne
+  veut plus rien dire.
+- **Deux incohérences sont refusées** : un accident « avec arrêt » sans jour d'arrêt, et des
+  journées d'arrêt sur un accident sans arrêt. On les voit dans tous les tableaux tenus à la main,
+  et elles faussent le taux de gravité sans que personne ne le remarque.
+- **On n'efface pas une ligne d'un registre** : on l'annule, avec un motif. Elle sort des taux et
+  reste visible.
+- **Activer le registre est une décision par site.** Tant qu'il ne l'a pas fait, le site saisit ses
+  chiffres à la main. Une bascule automatique au premier événement ferait disparaître du rapport
+  les trois autres accidents qu'il n'a pas encore déclarés. Une fois activé, les quatre champs
+  correspondants sont **verrouillés** dans la campagne : les laisser modifiables et les écraser
+  ensuite en silence serait pire que de les refuser.
+- **Un site sans registre n'a pas « zéro accident »** : il n'a rien déclaré ici. La consolidation
+  le nomme.
+- **Plan d'actions.** Chaque événement peut porter des actions correctives, avec un responsable et
+  une échéance, tous deux obligatoires : une action sans responsable est un vœu, une action sans
+  échéance ne se fait jamais.
+- **Qui écrit** : le référent du site, ou la société. Un salarié ne déclare pas un accident dans
+  Riseva — ce n'est pas le canal, et laisser croire le contraire retarderait une déclaration qui
+  doit partir ailleurs.
+
 ## 2 bis. Comptes, places et départs
 
 ### Places
