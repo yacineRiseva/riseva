@@ -1,4 +1,4 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
 import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
@@ -1889,6 +1889,10 @@ function vueRapports(u){
 function vueAbonnement(u){
   const sa = DB.saison();
   const si = DB.sieges(u.org);
+  /* Le devis recalculé aujourd'hui, à côté du contrat signé. Les deux peuvent
+     différer, et c'est normal : ce qui est signé est signé. Le montrer évite la
+     question « pourquoi je paie ça ? » posée six mois trop tard. */
+  const dev = DB.devisEntreprise(u.org);
   const f = DB.etatFacturation(u.org);
   const c = f.contrat;
   const jours = DB.joursAvantFinSaison();
@@ -1945,7 +1949,26 @@ function vueAbonnement(u){
             <div class="between"><span class="muted">Acompte versé</span>
               <span class="tnum">${eur(c.acompte)} HT — ${eur(Math.round(c.acompte * (1 + FACTURATION.tva)))} TTC</span></div>
             <div class="between"><span class="muted">Places incluses</span><span class="tnum">${si.total}</span></div>
+            ${c.fondateur ? `<div class="between"><span class="muted">Tarif</span>
+              <span class="badge badge--ok">Fondateur, ${Math.round(TARIFS.fondateur.taux * 100)} % de remise</span></div>` : ""}
           </div>
+          ${dev ? `<div class="stack" style="--gap:var(--s2);margin-top:var(--s5);padding:var(--s4);
+            background:var(--paper-sunk);border-radius:var(--r-sm);font-size:var(--t-sm)">
+            <div class="between"><strong>Comment ce montant est calculé</strong>
+              <span class="badge">${esc(dev.palier.label)}</span></div>
+            <div class="between"><span class="muted">Base de la tranche</span>
+              <span class="tnum">${eur(dev.palier.prix)} HT</span></div>
+            <div class="between"><span class="muted">Sites</span>
+              <span class="tnum">${dev.sites} dont ${dev.sites_inclus} compris${
+                dev.sites_factures ? `, ${dev.sites_factures} × ${eur(TARIFS.site_supplementaire)}` : ""}</span></div>
+            ${dev.remiseFondateur ? `<div class="between"><span class="muted">Tarif fondateur</span>
+              <span class="tnum">− ${eur(dev.remiseFondateur)}</span></div>` : ""}
+            <div class="between"><strong>Total saison</strong>
+              <span class="tnum">${eur(dev.ht)} HT</span></div>
+            <p class="hint" style="margin:0">Soit ${nb2(dev.par_salarie)} € par salarié et par an.
+              ${c.montant_ht !== dev.ht ? `Votre contrat signé est à ${eur(c.montant_ht)} HT : une
+              grille qui change ne réécrit pas un contrat déjà signé.` : ""}</p>
+          </div>` : ""}
           <hr class="sep">
           <p class="muted" style="font-size:var(--t-sm)">
             L'acompte de ${eur(c.acompte)} HT (${eur(Math.round(c.acompte * (1 + FACTURATION.tva)))} TTC)
@@ -3348,6 +3371,7 @@ function vuePilotes(){
 
 function vueAdminSaison(){
   const sa = DB.saison();
+  const fond = DB.placesFondateur();
   const el = h(`<div class="two">
     <section class="card" style="padding:var(--s8)">
       <div class="between"><h3>${esc(sa.nom)}</h3>
@@ -3359,12 +3383,6 @@ function vueAdminSaison(){
           <div class="field" style="flex:1"><label>Début</label><input class="input" type="date" id="debut" value="${sa.debut}"></div>
           <div class="field" style="flex:1"><label>Fin</label><input class="input" type="date" id="fin" value="${sa.fin}"></div>
         </div>
-        <div class="row" style="gap:var(--s4);align-items:stretch">
-          <div class="field" style="flex:1"><label>Prix plancher HT</label><input class="input" type="number" id="pmin" value="${sa.prix_min}"></div>
-          <div class="field" style="flex:1"><label>Prix plafond HT</label><input class="input" type="number" id="pmax" value="${sa.prix_max}"></div>
-        </div>
-        <div class="field"><label>Acompte à la confirmation</label><input class="input" type="number" id="ac" value="${sa.acompte}">
-          <p class="hint">Remboursé intégralement si la saison ne démarre pas.</p></div>
         <div class="field"><label>État</label>
           <select class="select" id="etat">
             <option value="brouillon">Brouillon</option>
@@ -3373,6 +3391,37 @@ function vueAdminSaison(){
           </select></div>
       </div>
       <button class="btn btn--primary" style="margin-top:var(--s6)" id="save">Enregistrer la saison</button>
+
+      <hr class="sep">
+      <h3 style="font-size:var(--t-lg)">Grille tarifaire</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+        Elle vit dans le code, pas dans un champ de saisie : c'est elle qui est affichée sur le
+        site public, calculée dans les devis et reprise dans les contrats. Un prix modifiable
+        depuis un écran finirait par ne plus correspondre à celui qu'un client a lu.</p>
+      <table class="table" style="margin-top:var(--s5)"><thead><tr>
+        <th>Tranche</th><th style="text-align:right">Saison HT</th>
+        <th style="text-align:right">Sites compris</th><th style="text-align:right">€ / salarié</th>
+      </tr></thead><tbody>
+        ${TARIFS.paliers.map((x, i) => {
+          const ref = x.max === Infinity ? 2500 : x.max;
+          return `<tr><td>${esc(x.label)}</td>
+            <td class="tnum" style="text-align:right">${eur(x.prix)}</td>
+            <td class="tnum" style="text-align:right">${x.sites}</td>
+            <td class="tnum muted" style="text-align:right">${nb2(Math.round(x.prix / ref * 10) / 10)} €</td>
+          </tr>`; }).join("")}
+      </tbody></table>
+      <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
+        <div class="between"><span class="muted">Site supplémentaire</span>
+          <span class="tnum">${eur(TARIFS.site_supplementaire)} HT</span></div>
+        <div class="between"><span class="muted">Acompte</span>
+          <span class="tnum">${Math.round(TARIFS.acompte_taux * 100)} %, minimum ${eur(TARIFS.acompte_minimum)}</span></div>
+        <div class="between"><span class="muted">Règlement comptant</span>
+          <span class="tnum">− ${Math.round(TARIFS.remise_comptant * 100)} %</span></div>
+        <div class="between"><span class="muted">Places fondateur</span>
+          <span class="tnum">${fond.pris} prise${fond.pris > 1 ? "s" : ""} sur ${fond.places}, ${
+            fond.ouvert ? `${fond.reste} restante${fond.reste > 1 ? "s" : ""} jusqu'au ${dateFR(fond.jusquau)}`
+                        : "fermées"}</span></div>
+      </div>
     </section>
 
     <section class="card">
@@ -3396,8 +3445,7 @@ function vueAdminSaison(){
     const v = (id) => el.querySelector("#" + id).value;
     if (v("fin") <= v("debut")){ toast("La fin doit tomber après le début."); return; }
     DB.majSaison({ nom:v("nom").trim() || sa.nom, debut:v("debut"), fin:v("fin"),
-      prix_min:Number(v("pmin")), prix_max:Number(v("pmax")),
-      acompte:Number(v("ac")), etat:v("etat") });
+      etat:v("etat") });
     toast("Saison enregistrée."); rendre();
   };
   el.querySelector("#saveB").onclick = () => {

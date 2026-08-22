@@ -526,6 +526,51 @@ begin
 end $$;
 
 \echo ''
+\echo 'Tarif fondateur'
+reset role;
+do $$
+declare v_ent uuid; v_saison uuid := '11111111-1111-4111-8111-111111111111'; i integer;
+begin
+  perform pg_temp.dit('la remise de lancement est plafonnée en base, pas seulement à l''écran',
+    private.places_fondateur() = 20 and private.fin_fondateur() = date '2026-12-31');
+
+  -- Le jeu de départ en occupe déjà une. On remplit les dix-neuf restantes avec
+  -- des entreprises jetables, puis on vérifie que la vingt-et-unième est refusée
+  -- par la base et non par l'interface.
+  for i in 1..19 loop
+    insert into public.entreprise (nom, effectif) values ('Test ' || i, 10)
+      returning id into v_ent;
+    insert into public.abonnement (entreprise, saison, montant_ht, sieges,
+                                   effectif_reference, palier, fondateur)
+    values (v_ent, v_saison, 2160, 10, 10, 'tpe', true);
+  end loop;
+  perform pg_temp.dit('vingt places au tarif fondateur passent',
+    (select count(*) from public.abonnement where fondateur) = 20);
+end $$;
+
+do $$
+declare v_ent uuid;
+begin
+  insert into public.entreprise (nom, effectif) values ('Test 21', 10) returning id into v_ent;
+  begin
+    insert into public.abonnement (entreprise, saison, montant_ht, sieges,
+                                   effectif_reference, palier, fondateur)
+    values (v_ent, '11111111-1111-4111-8111-111111111111', 2160, 10, 10, 'tpe', true);
+    perform pg_temp.dit('la vingt-et-unième place est refusée (devait être refusé)', false);
+  exception when others then
+    perform pg_temp.dit('la vingt-et-unième place est refusée', true);
+  end;
+  -- Sans la remise, elle passe : c'est la remise qui est plafonnée, pas la vente.
+  insert into public.abonnement (entreprise, saison, montant_ht, sieges,
+                                 effectif_reference, palier, fondateur)
+  values (v_ent, '11111111-1111-4111-8111-111111111111', 2400, 10, 10, 'tpe', false);
+  perform pg_temp.dit('au tarif plein, elle passe', true);
+end $$;
+
+delete from public.abonnement where palier = 'tpe';
+delete from public.entreprise where nom like 'Test %';
+
+\echo ''
 \echo 'Dons en argent : Riseva n''encaisse pas'
 reset role;
 select set_config('request.jwt.claim.sub', '', false);

@@ -7,6 +7,9 @@ pas les conversations. Toute nouvelle décision s'ajoute en haut de la section c
 
 | Date | Décision | Remplace |
 |---|---|---|
+| 22/08/2026 | Grille tarifaire par tranche d'effectif, de 2 400 à 18 500 € HT la saison, un à douze sites compris, 420 € par site supplémentaire. Affichée sur le site, lue par la vitrine dans le même fichier que celui qui facture. | Un prix unique de 3 500 à 4 000 €, qui demandait la même chose à quarante personnes qu'à mille cinq cents. Repères de marché relevés en août 2026 : 5 000 à 50 000 €/an sur le segment RSE français, 3 000 à 12 000 € pour les outils qui visent les PME. Riseva se place en dessous. |
+| 22/08/2026 | Tarif fondateur : −10 % sur la première saison pour les vingt premières entreprises signataires, jusqu'au 31/12/2026, puis gel du tarif pour la deuxième saison. Le plafond est tenu par un trigger, pas par l'interface. | Rien. Une remise sans limite de nombre ni de date n'est pas une remise, c'est le prix. |
+| 22/08/2026 | Acompte relevé à 40 % du HT, minimum 900 €, et escompte de 3 % pour règlement comptant. | Un acompte de 500 € qui ne couvrait pas le premier envoi d'affiches : Riseva finançait ses clients sur une saison où les supports partent tout au long de l'année. |
 | 20/08/2026 | Classement principal normalisé : points par salarié, lu par catégorie de taille. Le total brut devient une lecture secondaire. | Le classement brut unique, structurellement injuste entre une PME et un grand groupe. Signalé à la relecture externe du 20/08. |
 | 20/08/2026 | Plafond : aucun format ne peut peser plus de 50 % des points d'une entreprise sur une saison. | Rien. Ajout destiné à empêcher d'acheter la première place à coups de dons. |
 | 20/08/2026 | Le score est présenté comme une mesure d'engagement, jamais comme une mesure d'impact environnemental. | Une formulation qui aurait été indéfendable face à un client sérieux. |

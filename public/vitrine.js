@@ -398,6 +398,45 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
    Le curseur dessine en JavaScript a ete retire : il privait l'utilisateur
    des affordances de son systeme et repondait avec une image de retard.   */
 
+/* ─────────── 10 bis. SIMULATEUR DE TARIF ───────────
+   Le meme calcul que la plateforme, ecrit une seule fois ici et lu depuis la
+   grille rendue dans la page : deux formules du meme prix a deux endroits, ce
+   sont deux prix differents au premier changement de grille.               */
+(function(){
+  var eff=qs('#simEff'), sites=qs('#simSites'), out=qs('#simOut');
+  if(!eff||!sites||!out) return;
+  var lignes=[].slice.call(document.querySelectorAll('#prix .tar-t tbody tr'));
+  var paliers=lignes.map(function(tr){
+    var nb=function(s){ return parseInt(String(s).replace(/[^0-9]/g,''),10)||0; };
+    var eff=tr.children[0].textContent;
+    var m=eff.match(/(\d[\d\s\u202f]*)\s*(?:à|a)\s*(\d[\d\s\u202f]*)/);
+    var max = m ? nb(m[2]) : (/Moins de/.test(eff) ? nb(eff)-1 : Infinity);
+    return { max:max, prix:nb(tr.children[1].querySelector('b').textContent),
+             sites:nb(tr.children[2].textContent) };
+  });
+  var supp=(function(){
+    var m=qs('#prix .tar-n').textContent.match(/(\d[\d\s\u202f]*)\s*€/);
+    return m?parseInt(m[1].replace(/[^0-9]/g,''),10):0;
+  })();
+  var eur=function(n){ return n.toLocaleString('fr-FR')+' €'; };
+  function maj(){
+    var e=Math.max(1,parseInt(eff.value,10)||1), s=Math.max(1,parseInt(sites.value,10)||1);
+    var p=null;
+    for(var i=0;i<paliers.length;i++){ if(e<=paliers[i].max){ p=paliers[i]; break; } }
+    if(!p) p=paliers[paliers.length-1];
+    var facturables=Math.max(0,s-p.sites);
+    var base=p.prix+facturables*supp;
+    var ht=base-Math.round(base*0.10);
+    var acompte=Math.min(ht,Math.max(900,Math.round(ht*0.40)));
+    out.innerHTML='<b>'+eur(ht)+' HT</b> la saison au tarif fondateur, soit '
+      +(ht/e).toFixed(1).replace('.',',')+' € par salarie. Acompte de <b>'+eur(acompte)
+      +'</b> a la commande'
+      +(facturables?', dont '+facturables+' site'+(facturables>1?'s':'')+' au-dela de ceux compris':'')
+      +'.';
+  }
+  eff.addEventListener('input',maj); sites.addEventListener('input',maj); maj();
+})();
+
 /* ─────────── 11. MENU MOBILE ───────────
    Le panneau se ferme au clic sur un lien, a la touche Echap et
    des que l'ecran redevient large.                            */

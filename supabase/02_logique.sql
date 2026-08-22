@@ -1381,3 +1381,38 @@ begin
   end loop;
   return v_out;
 end $$;
+
+-- ---------------------------------------------------------------------------
+-- Places de lancement
+-- ---------------------------------------------------------------------------
+-- Vingt places à −10 %, jusqu'au 31 décembre 2026. Une remise sans limite n'est
+-- pas une remise, c'est le prix — et une limite qui n'est pas tenue par la base
+-- n'est pas une limite, c'est une intention. Le compte se relit dans les
+-- abonnements, il n'est stocké nulle part : un compteur qu'on incrémente est un
+-- compteur qu'on oublie de décrémenter.
+create or replace function private.places_fondateur() returns integer
+  language sql immutable parallel safe set search_path = '' as $$ select 20 $$;
+create or replace function private.fin_fondateur() returns date
+  language sql immutable parallel safe set search_path = '' as $$ select date '2026-12-31' $$;
+
+create or replace function private.verifier_fondateur() returns trigger
+language plpgsql set search_path = '' as $$
+declare v_pris integer;
+begin
+  if not new.fondateur then return new; end if;
+  if current_date > private.fin_fondateur() then
+    raise exception 'Le tarif fondateur est clos depuis le %', private.fin_fondateur()
+      using errcode = '23514';
+  end if;
+  select count(*) into v_pris from public.abonnement a
+   where a.fondateur and a.id is distinct from new.id;
+  if v_pris >= private.places_fondateur() then
+    raise exception 'Les % places au tarif fondateur sont prises', private.places_fondateur()
+      using errcode = '23514';
+  end if;
+  return new;
+end $$;
+
+create trigger abonnement_fondateur
+  before insert or update of fondateur on abonnement
+  for each row execute function private.verifier_fondateur();

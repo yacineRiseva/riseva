@@ -459,6 +459,106 @@ export const FACTURATION = {
   emission_pme_le: "2027-09-01"
 };
 
+/* ------------------------------------------------------------------ */
+/* Ce que ça coûte                                                     */
+/* ------------------------------------------------------------------ */
+/* Un prix unique de 3 500 à 4 000 € ne tenait pas. Il demandait la même chose à
+   une entreprise de quarante personnes qu'à une de mille cinq cents, alors que
+   ce qui coûte à Riseva — comptes, affiches trimestrielles, sites à consolider,
+   rapports — suit l'effectif et le nombre de sites. Résultat prévisible : trop
+   cher pour les petites, et laissé sur la table chez les grandes.
+
+   Repères de marché, relevés en août 2026 sur le segment des logiciels RSE
+   français : 5 000 à 50 000 € par an selon la taille, et 3 000 à 12 000 € pour
+   les outils qui visent explicitement les PME. Riseva se place en dessous : elle
+   ne prétend pas être une suite de reporting CSRD, elle fait moins de choses et
+   les fait entièrement. Le prix par salarié descend de 49 € pour une TPE à 7 €
+   au-dessus de mille — c'est la dégressivité normale du secteur.
+
+   Ce qui est INCLUS dans tous les cas, et qu'il ne faut pas facturer à part sous
+   peine de rendre le prix illisible : tous les comptes salariés de l'effectif
+   déclaré, les quatre envois d'affiches de la saison, les rapports trimestriels
+   et annuel, le module de gestion RSE, l'accès du CSE en lecture, et zéro
+   commission sur les dons. */
+export const TARIFS = {
+  devise: "EUR",
+  saison_mois: 12,
+  paliers: [
+    { id:"tpe",  max:49,   prix:2400,  sites:1,  label:"Moins de 50 salariés" },
+    { id:"pme",  max:199,  prix:4200,  sites:2,  label:"50 à 199 salariés" },
+    { id:"eti",  max:499,  prix:6900,  sites:3,  label:"200 à 499 salariés" },
+    { id:"ge",   max:999,  prix:9800,  sites:5,  label:"500 à 999 salariés" },
+    { id:"ge2",  max:1999, prix:13800, sites:8,  label:"1 000 à 1 999 salariés" },
+    { id:"ge3",  max:Infinity, prix:18500, sites:12, label:"2 000 salariés et plus",
+      sur_devis:true }
+  ],
+  site_supplementaire: 420,
+  /* Remise de lancement. Elle est plafonnée en nombre ET datée : une remise sans
+     limite n'est pas une remise, c'est le prix. Elle porte sur la première
+     saison, et le tarif de cette première saison est gelé pour la seconde — ce
+     qui vaut mieux qu'une seconde remise, et ne coûte rien tant que la grille ne
+     bouge pas. */
+  fondateur: {
+    taux: 0.10,
+    places: 20,
+    jusquau: "2026-12-31",
+    libelle: "Tarif fondateur",
+    gel_seconde_saison: true
+  },
+  /* Trésorerie. Les affiches partent tout au long de l'année et se paient à
+     l'impression, pas à la fin de la saison : l'acompte doit couvrir le premier
+     envoi et l'amorçage, sinon Riseva finance ses clients. */
+  acompte_taux: 0.40,
+  acompte_minimum: 900,
+  solde_jours: 30,
+  remise_comptant: 0.03,
+  envois_affiches_par_saison: 4,
+  inclus: [
+    "Tous les comptes salariés de l'effectif déclaré, sans facturation à l'utilisateur.",
+    "Quatre envois d'affiches et de supports au cours de la saison.",
+    "Les rapports trimestriels et le rapport annuel, produits et envoyés sans rien demander.",
+    "La gestion RSE interne : indicateurs, registre des événements de sécurité, plan d'actions, consolidation multi-sites.",
+    "L'accès du CSE en lecture, sur des données agrégées.",
+    "Zéro commission sur les dons : Riseva n'encaisse pas."
+  ],
+  exclus: [
+    "Le bilan carbone réglementaire et le calcul des émissions : Riseva ne collecte pas cette donnée.",
+    "L'index d'égalité professionnelle et la déclaration OETH : autres périmètres, autres règles.",
+    "Le document unique d'évaluation des risques : Riseva n'évalue pas les risques à la place de l'employeur.",
+    "L'audit des valeurs déclarées : Riseva calcule, elle ne certifie pas."
+  ]
+};
+
+export const palierPour = (effectif) =>
+  TARIFS.paliers.find(p => (Number(effectif) || 0) <= p.max) || TARIFS.paliers[TARIFS.paliers.length - 1];
+
+/* Un devis complet, calculé au même endroit pour la vitrine, la préinscription,
+   le contrat et la facture. Trois formules du même prix à trois endroits, c'est
+   trois prix différents au premier changement de grille. */
+export function devisPour({ effectif = 0, sites = 1, fondateur = false, comptant = false } = {}){
+  const p = palierPour(effectif);
+  const sitesFactures = Math.max(0, (Number(sites) || 1) - p.sites);
+  const base = p.prix + sitesFactures * TARIFS.site_supplementaire;
+  const remiseFondateur = fondateur ? Math.round(base * TARIFS.fondateur.taux) : 0;
+  const apresFondateur = base - remiseFondateur;
+  const remiseComptant = comptant ? Math.round(apresFondateur * TARIFS.remise_comptant) : 0;
+  const ht = apresFondateur - remiseComptant;
+  const acompte = comptant ? ht
+    : Math.min(ht, Math.max(TARIFS.acompte_minimum, Math.round(ht * TARIFS.acompte_taux)));
+  return {
+    palier: p, effectif: Number(effectif) || 0, sites: Number(sites) || 1,
+    sites_inclus: p.sites, sites_factures: sitesFactures,
+    base, remiseFondateur, remiseComptant, ht,
+    tva: Math.round(ht * FACTURATION.tva * 100) / 100,
+    ttc: Math.round(ht * (1 + FACTURATION.tva) * 100) / 100,
+    acompte, solde: ht - acompte,
+    /* Le prix par salarié n'est pas un tarif : c'est un repère que tout acheteur
+       calcule de tête dans la seconde qui suit. Autant le donner juste. */
+    par_salarie: effectif > 0 ? Math.round((ht / effectif) * 10) / 10 : null,
+    sur_devis: !!p.sur_devis
+  };
+}
+
 /* Les indicateurs sociaux et de sécurité que Riseva collecte par établissement.
    Chaque définition porte son unité, son mode d'agrégation et sa version : un
    rapport arrêté doit pouvoir dire avec quelle formule il a été produit, même si
@@ -665,7 +765,7 @@ const seed = {
      d'annonces datées d'août 2026 ne trompait personne, ça décrédibilisait tout. */
   saison: {
     id: "s2026", nom: "Saison 2026", debut: "2026-01-01", fin: "2026-12-31",
-    etat: "ouverte", prix_min: 3500, prix_max: 4000, acompte: 500
+    etat: "ouverte", prix_min: 2400, prix_max: 18500, acompte: 900
   },
   /* Un groupe est le périmètre de consolidation *volontaire* du payeur. Il n'a pas
      d'existence fiscale : il ne signe rien, ne déclare rien, et surtout il ne mutualise
@@ -721,11 +821,11 @@ const seed = {
   ],
   contrats: [
     { entreprise:"e1", statut:"actif", signe_le:"2025-11-14", debut:"2026-01-01", fin:"2026-12-31",
-      montant_ht:3800, acompte:500, reconduction:false,
+      fondateur:true, montant_ht:6210, acompte:2484, reconduction:false,
       factures:[
-        { ref:"RSV-2025-0007", libelle:"Acompte saison 2026", montant:500,  date:"2025-11-14",
+        { ref:"RSV-2025-0007", libelle:"Acompte saison 2026 (40 %)", montant:2484, date:"2025-11-14",
           echeance:"2025-12-14", etat:"payee",  periode:"acompte, saison 2026" },
-        { ref:"RSV-2026-0031", libelle:"Solde saison 2026",   montant:3300, date:"2026-01-05",
+        { ref:"RSV-2026-0031", libelle:"Solde saison 2026",   montant:3726, date:"2026-01-05",
           echeance:"2026-02-04", etat:"payee", periode:"01/01/2026 au 31/12/2026" },
       ],
       /* Une facture d'acompte pour la saison suivante, alors que le renouvellement
@@ -733,7 +833,7 @@ const seed = {
          même temps, les mentions « pas de reconduction tacite » et « reste à régler ».
          Tant que le client n'a pas accepté, il n'existe qu'une proposition. */
       devis:[
-        { ref:"DEV-2026-0148", libelle:"Acompte saison 2027", montant:500, date:J(-6),
+        { ref:"DEV-2026-0148", libelle:"Acompte saison 2027 (40 %)", montant:2484, date:J(-6),
           validite:J(24), periode:"acompte, saison 2027" }
       ],
       /* Facturation électronique : au 1er septembre 2026 toute entreprise doit pouvoir
@@ -2701,6 +2801,26 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
     /* ------------------------------------------------------------------ */
     contrat: (eid) => s.contrats.find(c => c.entreprise === eid) || null,
     contrats: () => s.contrats,
+
+    /* Le devis d'une entreprise, calculé à partir de ce qu'elle est : son
+       effectif et ses sites. Jamais saisi à la main dans un contrat — un prix
+       recopié est un prix qui finit par ne plus correspondre à la grille. */
+    devisEntreprise(eid, { comptant = false } = {}){
+      const e = api.entreprise(eid); if (!e) return null;
+      const sites = api.etablissements(eid).length || 1;
+      const c = api.contrat(eid);
+      return devisPour({ effectif: e.effectif || 0, sites,
+        fondateur: c ? !!c.fondateur : api.placesFondateur().reste > 0, comptant });
+    },
+    /* Places de lancement. Dérivé des contrats, jamais compté à part : un
+       compteur qu'on incrémente est un compteur qu'on oublie de décrémenter. */
+    placesFondateur({ aujourdhui = "2026-08-20" } = {}){
+      const pris = s.contrats.filter(c => c.fondateur).length;
+      const ouvert = aujourdhui <= TARIFS.fondateur.jusquau;
+      return { places: TARIFS.fondateur.places, pris,
+               reste: ouvert ? Math.max(0, TARIFS.fondateur.places - pris) : 0,
+               jusquau: TARIFS.fondateur.jusquau, ouvert };
+    },
     majContrat(eid, champs){
       const c = api.contrat(eid); if (!c) return null;
       Object.assign(c, champs); return c;

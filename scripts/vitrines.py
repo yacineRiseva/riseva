@@ -24,6 +24,37 @@ RACINE = pathlib.Path(__file__).resolve().parent.parent
 PUBLIC = RACINE / "public"
 RUBANS = (RACINE / "scripts" / "fragments-rubans.html").read_text(encoding="utf-8").strip()
 
+# ---------------------------------------------------------------------------
+# La grille tarifaire n'est pas recopiée ici : elle est lue dans `data.js`, qui
+# en est la seule source. Un prix affiché sur la vitrine et un prix facturé par
+# la plateforme qui divergent, c'est le genre d'erreur qu'un client découvre au
+# moment de signer. La recette vérifie en plus que les deux coïncident.
+def lire_tarifs():
+    src = (PUBLIC / "app" / "data.js").read_text(encoding="utf-8")
+    bloc = src[src.index("export const TARIFS = {"):src.index("export const palierPour")]
+    paliers = []
+    for m in re.finditer(
+        r"\{ id:\"(\w+)\",\s*max:([^,]+),\s*prix:(\d+),\s*sites:(\d+),\s*label:\"([^\"]+)\"",
+        bloc):
+        paliers.append({"id": m.group(1), "max": m.group(2).strip(), "prix": int(m.group(3)),
+                        "sites": int(m.group(4)), "label": m.group(5)})
+    un = lambda cle: re.search(cle + r":\s*([\d.]+)", bloc).group(1)
+    return {
+        "paliers": paliers,
+        "site_sup": int(un("site_supplementaire")),
+        "fondateur_taux": float(un("taux")),
+        "fondateur_places": int(un("places")),
+        "acompte_taux": float(un("acompte_taux")),
+        "remise_comptant": float(un("remise_comptant")),
+        "affiches": int(un("envois_affiches_par_saison")),
+        "inclus": re.findall(r'"([^"]+)"', bloc[bloc.index("inclus: ["):bloc.index("exclus: [")]),
+        "exclus": re.findall(r'"([^"]+)"', bloc[bloc.index("exclus: ["):]),
+    }
+
+TARIFS = lire_tarifs()
+EUR = lambda n: f"{n:,}".replace(",", "\u202f") + " €"
+
+
 FEUILLE = "riseva-mark"   # favicon
 
 # ── briques communes ────────────────────────────────────────────────────────
@@ -308,7 +339,8 @@ def faq(items):
 
 NAV_ENT = nav(
     [("saison", "La saison"), ("formats", "Se rendre utile"), ("kit", "Clé en main"),
-     ("groupe", "Pour un groupe"), ("services", "Services RSE"), ("faq", "La FAQ")],
+     ("groupe", "Pour un groupe"), ("services", "Services RSE"),
+     ("prix", "Le prix"), ("faq", "La FAQ")],
     "Réserver une place", "/inscription.html", "Une personne vous répond, pas un robot")
 
 PIED_ENT = pied(
@@ -316,7 +348,8 @@ PIED_ENT = pied(
     "le vivant, partout en France. Une saison, un barème public, un rapport qui tient debout.",
     [("La saison", [("#saison", "Les quatre moments"), ("#formats", "Se rendre utile"),
                     ("#kit", "Clé en main"), ("#groupe", "Pour un groupe"),
-                    ("#services", "Services RSE"), ("#retombees", "Les retombées")]),
+                    ("#services", "Services RSE"), ("#prix", "Le prix"),
+                    ("#retombees", "Les retombées")]),
      ("Les règles", [("/reglement.html", "Le règlement du barème"),
                      ("/engagements.html", "Engagements de service"),
                      ("/securite.html", "Sécurité"),
@@ -328,7 +361,7 @@ PIED_ENT = pied(
     "Saison 2027 · préinscriptions ouvertes")
 
 
-HERO_ENT = """<header class="hero" id="hero">
+HERO_ENT = f"""<header class="hero" id="hero">
   <h1 class="h1" id="h1">
     <span class="ln"><span>Vos équipes n'ont pas</span></span>
     <span class="ln"><span>besoin d'un outil de plus.</span></span>
@@ -354,10 +387,11 @@ HERO_ENT = """<header class="hero" id="hero">
         <li>Une personne vous répond</li>
       </ul>
       <p class="hero-prix">
-        <b>3 500 à 4 000 € HT</b> la saison selon votre effectif, acompte de 500 € HT à la
-        confirmation. Pas de commission sur les dons, pas de facturation par salarié.
-        Tout est écrit avant de signer : <a href="/reglement.html">le règlement de la
-        saison</a>, <a href="/cgv.html">les conditions de vente</a>,
+        De <b>{EUR(TARIFS['paliers'][0]['prix'])[:-2]} à {EUR(TARIFS['paliers'][-1]['prix'])} HT</b> la saison selon votre effectif, <a href="#prix">grille
+        affichée</a> et &minus;{int(TARIFS['fondateur_taux']*100)} % pour les {TARIFS['fondateur_places']} premières entreprises. Pas de commission sur
+        les dons, pas de facturation par salarié. Tout est écrit avant de signer :
+        <a href="/reglement.html">le règlement de la saison</a>,
+        <a href="/cgv.html">les conditions de vente</a>,
         <a href="/engagements.html">les engagements de service</a>.
       </p>
     </div>
@@ -744,10 +778,17 @@ REJOINDRE_ENT = f"""<section id="rejoindre">
 
 FAQ_ENT = faq([
   ("Combien coûte une saison ?",
-   "<p>L'abonnement annuel se situe entre <b>3 500 et 4 000 € HT</b> selon la taille de "
-   "l'entreprise. Le prix exact de votre tranche vous est donné avant tout engagement, avec "
-   "le nombre de comptes ouverts et la liste de ce qui est compris. Pas de commission sur les "
-   "dons, pas de facturation par salarié. Les associations, elles, ne paient jamais rien.</p>"),
+   f"<p>La grille est <a href='#prix'>affichée sur cette page</a> : de "
+   f"<b>{EUR(TARIFS['paliers'][0]['prix'])[:-2]} à {EUR(TARIFS['paliers'][-1]['prix'])} HT</b> "
+   f"pour douze mois, selon votre effectif, un à douze sites compris selon la tranche. "
+   f"Les {TARIFS['fondateur_places']} premières entreprises signataires bénéficient de "
+   f"{int(TARIFS['fondateur_taux'] * 100)} % de remise sur leur première saison, et de son gel "
+   f"pour la deuxième.</p>"
+   "<p>Pas de facturation par salarié, pas de module en supplément, pas de commission sur les "
+   "dons. Les associations, elles, ne paient jamais rien.</p>"
+   "<p>Pour situer : les outils RSE français facturent couramment de 5 000 à 50 000 € par an, "
+   "et de 3 000 à 12 000 € pour ceux qui visent les PME. Riseva est en dessous parce qu'elle "
+   "fait moins de choses — et qu'elle les fait entièrement.</p>"),
   ("Qu'est-ce qui est vendu, exactement ?",
    "<p>Une saison d'un an, avec les comptes correspondant à votre effectif, les <b>trois "
    "formats</b> — bénévolat, don de matériel, don en argent par virement —, l'accompagnement "
@@ -856,11 +897,100 @@ PREUVE_ENT = jalons(
       "automatiquement sans confirmation, et le résultat reste marqué comme estimé.", None)])
 
 
+
+# ---------------------------------------------------------------------------
+#  Le prix, en clair, sur la page.
+#  Un acheteur qui doit demander le prix se dit deux choses : que c'est cher, et
+#  qu'il va falloir négocier. Les deux coûtent une réunion. La grille est donc
+#  affichée, lue depuis `data.js`, et la recette vérifie qu'elle correspond à
+#  celle que la plateforme facture.
+# ---------------------------------------------------------------------------
+def grille_tarifaire():
+    lignes = ""
+    for p in TARIFS["paliers"]:
+        lignes += f"""
+        <tr>
+          <td class="tar-eff">{p['label']}</td>
+          <td class="tar-prix"><b>{EUR(p['prix'])}</b> <span class="tar-ht">HT / saison</span></td>
+          <td class="tar-sites">{p['sites']} site{'s' if p['sites'] > 1 else ''} inclus</td>
+        </tr>"""
+    inclus = "".join(f"<li>{x}</li>" for x in TARIFS["inclus"])
+    exclus = "".join(f"<li>{x}</li>" for x in TARIFS["exclus"])
+    return f"""<section id="prix">
+  <div class="layer">
+{entete("Le prix", "Il est écrit ici,<br>et <span class='it'>il ne bouge pas.</span>",
+        "Une saison de douze mois, tout compris. Le tarif suit votre effectif parce que c'est "
+        "lui qui détermine ce que nous produisons : les comptes, les affiches, les sites à "
+        "consolider, les rapports. Pas de facturation par utilisateur, pas de module en "
+        "supplément, pas de commission sur les dons.")}
+
+    <div class="tar rv">
+      <table class="tar-t">
+        <caption class="sr-only">Grille tarifaire par tranche d'effectif</caption>
+        <tbody>{lignes}
+        </tbody>
+      </table>
+      <p class="tar-n">Site supplémentaire au-delà de ceux compris : {EUR(TARIFS['site_sup'])} HT.
+        Au-delà de deux mille salariés, le tarif est établi sur devis à partir du dernier palier.</p>
+    </div>
+
+    <div class="tar-grid">
+      <div class="tar-card rv">
+        <p class="mono">Ce qui est compris</p>
+        <ul class="tar-l">{inclus}</ul>
+      </div>
+      <div class="tar-card rv d1">
+        <p class="mono">Ce qui ne l'est pas</p>
+        <ul class="tar-l tar-l--non">{exclus}</ul>
+        <p class="tar-n">Nous préférons le dire avant. Une plateforme qui prétend tout couvrir
+          se fait démonter au premier entretien avec un commissaire aux comptes.</p>
+      </div>
+      <div class="tar-card tar-card--fond rv d2">
+        <p class="mono">Tarif fondateur</p>
+        <p class="tar-fond"><b>&minus;{int(TARIFS['fondateur_taux'] * 100)} %</b> sur la première saison</p>
+        <p class="tar-n">Pour les {TARIFS['fondateur_places']} premières entreprises qui signent,
+          jusqu'au 31 décembre 2026. Le tarif de votre première saison est ensuite
+          <b>gelé pour la deuxième</b>. Passé ces places, la grille s'applique telle quelle :
+          une remise sans limite n'est pas une remise, c'est le prix.</p>
+      </div>
+      <div class="tar-card rv d3">
+        <p class="mono">Le règlement</p>
+        <p class="tar-n">{int(TARIFS['acompte_taux'] * 100)} % à la commande, le solde à trente
+          jours après l'ouverture de votre saison. Règlement intégral à la commande :
+          &minus;{int(TARIFS['remise_comptant'] * 100)} %.</p>
+        <p class="tar-n">L'acompte n'est pas une garantie qu'on prend sur vous : il paie le premier
+          envoi d'affiches et l'ouverture de vos comptes, qui partent avant la première mission.
+          Il y a {TARIFS['affiches']} envois dans la saison.</p>
+      </div>
+    </div>
+
+    <div class="tar-sim rv">
+      <p class="mono">Votre tranche</p>
+      <div class="tar-sim-row">
+        <label for="simEff">Effectif</label>
+        <input class="tar-in" id="simEff" type="number" min="1" max="20000" value="150"
+               inputmode="numeric">
+        <label for="simSites">Sites</label>
+        <input class="tar-in" id="simSites" type="number" min="1" max="60" value="1"
+               inputmode="numeric">
+      </div>
+      <p class="tar-sim-out" id="simOut" aria-live="polite"></p>
+      <p class="tar-n">Simulation indicative, au tarif fondateur. Le devis nominatif reprend le
+        même calcul, et il est daté.</p>
+    </div>
+  </div>
+</section>"""
+
+
+PRIX_ENT = grille_tarifaire()
+
+
 CORPS_ENT = "\n\n".join([
     HERO_ENT,
     ticker(["Refuges animaliers", "Reboisement", "Rivières et zones humides",
             "Océans et littoral", "Protection des espèces", "Collectes solidaires"]),
-    SAISON_ENT, FORMATS_ENT, KIT_ENT, GROUPE_ENT, SERVICES_ENT, RETOMBEES_ENT, CONTEXTE_ENT,
+    SAISON_ENT, FORMATS_ENT, KIT_ENT, GROUPE_ENT, SERVICES_ENT, RETOMBEES_ENT,
+    PRIX_ENT, CONTEXTE_ENT,
     PREUVE_ENT, CONFLUENT_ENT, REJOINDRE_ENT, FAQ_ENT,
 ])
 

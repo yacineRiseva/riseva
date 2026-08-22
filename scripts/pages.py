@@ -695,13 +695,24 @@ au bon de commande.</p>
 
 <h2>3. Prix, facturation et paiement</h2>
 <ul>
-  <li>Le prix figure au bon de commande. Il est ferme pour la durée de la saison.</li>
-  <li>Acompte de 500 € à la confirmation, déduit du total et <strong>remboursé intégralement
-      si la saison ne démarre pas</strong>.</li>
-  <li>Solde facturé à l'ouverture, payable à trente jours.</li>
+  <li>Le prix résulte de la <strong>grille tarifaire publiée</strong> sur riseva.fr, appliquée à
+      l'effectif déclaré et au nombre de sites. Il figure au bon de commande et il est
+      <strong>ferme pour la durée de la saison</strong> : une modification ultérieure de la grille
+      est sans effet sur un contrat signé.</li>
+  <li><strong>Tarif fondateur.</strong> Une remise de 10 % sur la première saison est accordée aux
+      vingt premières entreprises signataires, jusqu'au 31 décembre 2026. Le tarif de cette
+      première saison est ensuite gelé pour la deuxième. Au-delà de ce nombre ou de cette date,
+      la grille s'applique sans remise.</li>
+  <li><strong>Acompte de 40 % du montant hors taxes</strong>, avec un minimum de 900 €, à la
+      confirmation. Il est déduit du total et <strong>remboursé intégralement si la saison ne
+      démarre pas</strong> au sens de l'article « Démarrage ». La TVA est exigible dès son
+      encaissement.</li>
+  <li>Solde facturé à l'ouverture de la saison, payable à trente jours.</li>
+  <li><strong>Escompte pour paiement comptant : 3 %</strong> en cas de règlement intégral à la
+      commande.</li>
   <li>Retard : pénalités au taux d'intérêt légal majoré de dix points, exigibles sans rappel,
       et indemnité forfaitaire de recouvrement de 40 € (articles L. 441-9 et L. 441-10 du code
-      de commerce). Pas d'escompte pour paiement anticipé.</li>
+      de commerce).</li>
   <li><strong>Facturation électronique.</strong> Le client communique sa plateforme agréée de
       réception et son identifiant d'annuaire à la signature. Depuis le 1<sup>er</sup> septembre
       2026, un PDF par courriel ne vaut plus facture.</li>

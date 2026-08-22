@@ -86,7 +86,41 @@ def main():
         p.goto(BASE + "/", wait_until="networkidle")
         verifie("l'accueil affiche le titre", "besoin d'un outil de plus" in p.inner_text("h1"))
         t = norm(p.inner_text(".hero"))
-        verifie("le prix est visible dès l'accueil", "3 500" in t and "500 €" in t)
+        verifie("le prix est visible dès l'accueil", "2 400" in t and "18 500 €" in t)
+        verifie("la remise de lancement est plafonnée en nombre",
+                "10 % pour les 20 premières" in t)
+        # Le prix affiché sur la vitrine et le prix facturé par la plateforme ne
+        # doivent pas pouvoir diverger : la page est comparée à la grille du module.
+        grille = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const lignes = [...document.querySelectorAll('#prix .tar-t tbody tr')].map(tr => ({
+            label: tr.children[0].textContent.trim(),
+            prix: parseInt(tr.children[1].querySelector('b').textContent.replace(/\\D/g,''), 10),
+            sites: parseInt(tr.children[2].textContent.replace(/\\D/g,''), 10)
+          }));
+          return { page: lignes,
+                   module: d.TARIFS.paliers.map(x => ({ label:x.label, prix:x.prix, sites:x.sites })),
+                   supp: d.TARIFS.site_supplementaire,
+                   devis: d.devisPour({ effectif:150, sites:1, fondateur:true }) };
+        }""")
+        verifie("la grille affichée est exactement celle que la plateforme facture",
+                grille["page"] == grille["module"], str(grille["page"])[:200])
+        p.fill("#simEff", "150"); p.dispatch_event("#simEff", "input")
+        p.fill("#simSites", "1"); p.dispatch_event("#simSites", "input")
+        p.wait_for_timeout(200)
+        sim = norm(p.inner_text("#simOut"))
+        verifie("le simulateur donne le même montant que le moteur de devis",
+                f"{grille['devis']['ht']:,}".replace(",", " ") + " € HT" in sim, sim)
+        verifie("il donne aussi l'acompte, qui est ce qu'on demande à la commande",
+                f"{grille['devis']['acompte']:,}".replace(",", " ") + " €" in sim, sim)
+        prixT = norm(p.inner_text("#prix"))
+        verifie("la page dit ce qui n'est pas compris, pas seulement ce qui l'est",
+                "bilan carbone réglementaire" in prixT and "document unique" in prixT)
+        verifie("la remise fondateur est datée et plafonnée",
+                "31 décembre 2026" in prixT and "20 premières" in prixT)
+        verifie("l'acompte est justifié par ce qu'il paie",
+                "premier envoi d'affiches" in prixT)
+
         verifie("le dossier est annoncé avant la signature",
                 "règlement de la saison" in t and "conditions de vente" in t)
         verifie("le barème annoncé est celui du code",
@@ -632,7 +666,8 @@ def main():
                 "Non décidée" in ct and "Reste à régler" in ct and "tout est à jour" in ct)
         verifie("la saison suivante est proposée, pas facturée",
                 "Proposition de renouvellement" in ct and "Devis, pas une facture" in ct)
-        verifie("l'acompte est donné HT et TTC", "600 €" in ct and "engagement ferme" in ct)
+        verifie("l'acompte est donné HT et TTC", "engagement ferme" in ct
+                and re.search(r"\d[\d ]* € HT", ct) is not None)
         avantF = p.eval_on_selector_all("tbody tr", "r=>r.length")
         p.click("#rec"); p.wait_for_timeout(400)
         verifie("accepter le renouvellement émet alors la facture",

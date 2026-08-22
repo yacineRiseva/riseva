@@ -335,6 +335,12 @@ create table abonnement (
   sieges      integer not null check (sieges > 0),
   -- Le dénominateur du classement, figé à l'ouverture de la saison.
   effectif_reference integer not null check (effectif_reference > 0),
+  -- La tranche appliquée et la remise de lancement, conservées avec le contrat.
+  -- Un montant sans la règle qui l'a produit est indéfendable six mois plus tard,
+  -- et une grille qui change ne doit pas réécrire un contrat déjà signé.
+  palier      text check (palier in ('tpe','pme','eti','ge','ge2','ge3')),
+  sites_factures integer not null default 0 check (sites_factures >= 0),
+  fondateur   boolean not null default false,
   signe_le    date,
   cree_le     timestamptz not null default now(),
   unique (entreprise, saison),

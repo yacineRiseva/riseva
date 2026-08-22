@@ -22,10 +22,12 @@ values ('22222222-2222-4222-8222-222222222222', 'Lafarge Ciments', 'Industrie', 
 insert into private.domaine_entreprise (entreprise, domaine)
 values ('22222222-2222-4222-8222-222222222222', 'lafarge-ciments.fr');
 
+-- 210 salariés, trois sites : tranche « 200 à 499 », 6 900 € HT, trois sites
+-- compris, moins 10 % au tarif fondateur = 6 210 €. Acompte de 40 % = 2 484 €.
 insert into abonnement (entreprise, saison, montant_ht, acompte_paye, sieges,
-                        effectif_reference, signe_le)
+                        effectif_reference, palier, sites_factures, fondateur, signe_le)
 values ('22222222-2222-4222-8222-222222222222', '11111111-1111-4111-8111-111111111111',
-        3800, 500, 210, 210, '2026-11-02');
+        6210, 2484, 210, 210, 'eti', 0, true, '2026-11-02');
 
 insert into association (id, nom, rna, siren, cause, ville, resume, adresse, lat, lon,
                          valide, verifiee_le, a_reverifier_le,
