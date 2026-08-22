@@ -1265,6 +1265,119 @@ begin
 end $$;
 
 \echo ''
+\echo 'Le lien de reponse envoye aux associations'
+do $$
+declare
+  v_mid uuid; v_jeton text; v_autre text; v_r text; v_restant numeric; v_q numeric;
+begin
+  reset role;
+  -- Une mission en attente de réponse, fabriquée directement : on teste le lien,
+  -- pas le parcours qui y mène.
+  select m.id into v_mid from public.mission m where m.etat = 'a_valider' limit 1;
+  if v_mid is null then
+    select m.id into v_mid from public.mission m limit 1;
+    update public.mission set etat = 'a_valider', declaree_le = clock_timestamp(),
+           tranchee_le = null, realise_confirme = null where id = v_mid;
+  end if;
+  select m.quantite into v_q from public.mission m where m.id = v_mid;
+
+  v_jeton := private.jeton_mission(v_mid);
+  perform pg_temp.dit('le jeton fait au moins 32 octets d''entropie', length(v_jeton) >= 40);
+  perform pg_temp.dit('la base ne garde que son empreinte, jamais le jeton',
+    (select jeton_empreinte from public.mission where id = v_mid)
+      = extensions.digest(v_jeton, 'sha256')
+    and not exists (select 1 from public.mission m
+                     where m.id = v_mid and m.jeton_empreinte::text like '%' || v_jeton || '%'));
+  perform pg_temp.dit('il porte une date d''expiration',
+    (select jeton_expire_le from public.mission where id = v_mid) is not null);
+
+  -- Un jeton inventé ne dit pas si la mission existe : la page ne sert pas d'oracle.
+  perform pg_temp.dit('un jeton inconnu est refuse sans rien reveler',
+    public.trancher_par_jeton(repeat('z', 43), 'oui') = 'inconnu');
+  perform pg_temp.dit('un jeton trop court est refuse d''emblee',
+    public.trancher_par_jeton('court', 'oui') = 'invalide');
+  perform pg_temp.dit('une reponse inconnue est refusee',
+    public.trancher_par_jeton(v_jeton, 'peut-etre') = 'invalide');
+
+  -- « Partiellement » sans chiffre n'est pas arrondi vers le haut : il est refusé.
+  perform pg_temp.dit('« partiellement » sans chiffre est refuse',
+    public.trancher_par_jeton(v_jeton, 'partiel') = 'chiffre_manquant');
+  perform pg_temp.dit('et la mission n''a pas bouge',
+    (select etat from public.mission where id = v_mid) = 'a_valider');
+
+  -- La bonne réponse passe, et le chiffre de l'association fait foi.
+  v_r := public.trancher_par_jeton(v_jeton, 'partiel', 18);
+  perform pg_temp.dit('« partiellement » avec un chiffre est accepte', v_r = 'partiel');
+  perform pg_temp.dit('le chiffre de l''association remplace l''estimation',
+    (select realise_confirme from public.mission where id = v_mid) = 18);
+  perform pg_temp.dit('la mission est validee, pas cloturee sans confirmation',
+    (select etat from public.mission where id = v_mid) = 'validee');
+
+  -- Le même lien ne sert pas deux fois : une boîte associative est partagée.
+  perform pg_temp.dit('le meme lien ne sert pas deux fois',
+    public.trancher_par_jeton(v_jeton, 'oui') = 'deja');
+
+  -- Un refus rend le besoin à l'annonce et remet les points à zéro.
+  select m.id into v_mid from public.mission m
+    join public.annonce a on a.id = m.annonce where m.etat <> 'refusee' limit 1;
+  update public.mission set etat = 'a_valider', declaree_le = clock_timestamp(),
+         tranchee_le = null, realise_confirme = null, points = 300 where id = v_mid;
+  select m.quantite into v_q from public.mission m where m.id = v_mid;
+  select a.restant into v_restant from public.annonce a
+    join public.mission m on m.annonce = a.id where m.id = v_mid;
+  v_jeton := private.jeton_mission(v_mid);
+  perform pg_temp.dit('un refus est enregistre',
+    public.trancher_par_jeton(v_jeton, 'non') = 'non');
+  perform pg_temp.dit('il remet les points a zero',
+    (select points from public.mission where id = v_mid) = 0);
+  perform pg_temp.dit('et il rend le besoin a l''annonce',
+    (select a.restant from public.annonce a join public.mission m on m.annonce = a.id
+      where m.id = v_mid) = v_restant + v_q);
+
+  -- Un jeton expiré ne tranche plus rien : la mission s'est déjà clôturée seule.
+  update public.mission set etat = 'a_valider', declaree_le = clock_timestamp(),
+         tranchee_le = null where id = v_mid;
+  v_autre := private.jeton_mission(v_mid);
+  update public.mission set jeton_expire_le = clock_timestamp() - interval '1 day'
+   where id = v_mid;
+  perform pg_temp.dit('un jeton expire ne tranche plus rien',
+    public.trancher_par_jeton(v_autre, 'oui') = 'expire');
+end $$;
+
+\echo ''
+\echo 'Les demandes de confirmation partent, et une seule fois'
+do $$
+declare v_mid uuid; v_n integer; v_avant integer;
+begin
+  reset role;
+  delete from public.envoi where type = 'demande_validation';
+  select m.id into v_mid from public.mission m limit 1;
+  update public.mission set etat = 'a_valider', declaree_le = clock_timestamp() - interval '8 days',
+         tranchee_le = null where id = v_mid;
+  v_n := private.tache_demandes_validation();
+  select count(*) into v_avant from public.envoi where type = 'demande_validation'
+     and mission = v_mid;
+  -- Déclarée il y a huit jours : le message initial et les rappels à trois et
+  -- sept jours sont dus, celui de douze jours ne l'est pas encore.
+  perform pg_temp.dit('les rappels dus sont enfiles, et pas les autres', v_avant = 3);
+  perform pg_temp.dit('aucun ne porte d''adresse en clair dans la file',
+    not exists (select 1 from public.envoi where type = 'demande_validation'
+                 and destinataire is not null));
+  perform private.tache_demandes_validation();
+  perform pg_temp.dit('rejouer la tache n''envoie pas deux fois le meme rappel',
+    (select count(*) from public.envoi where type = 'demande_validation'
+      and mission = v_mid) = v_avant);
+
+  -- Une mission déjà tranchée ne fait plus l'objet d'un rappel.
+  delete from public.envoi where type = 'demande_validation';
+  update public.mission set etat = 'validee', tranchee_le = clock_timestamp() where id = v_mid;
+  perform private.tache_demandes_validation();
+  perform pg_temp.dit('une mission deja tranchee ne recoit plus de rappel',
+    (select count(*) from public.envoi where type = 'demande_validation'
+      and mission = v_mid) = 0);
+end $$;
+
+\echo ''
 do $$
 declare v integer := coalesce(current_setting('riseva.rates', true), '0')::int;
 begin

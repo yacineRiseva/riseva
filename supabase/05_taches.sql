@@ -29,6 +29,58 @@ begin
   return v_n;
 end $$;
 
+-- ------------------------------------------------- demandes de confirmation
+-- Ce que la page « Nos engagements » promet aux associations : le message le
+-- jour de la déclaration, puis trois rappels — à trois jours, à sept, et un
+-- dernier à douze. Pas un de plus : au-delà, c'est du harcèlement d'une équipe
+-- bénévole, et le silence a déjà sa réponse (la clôture automatique).
+--
+-- Chaque rappel a sa propre clé d'idempotence. Sans elle, une tâche rejouée
+-- deux fois dans la journée enverrait deux fois le même courriel, et une
+-- association qui reçoit deux fois la même demande cesse de les lire.
+--
+-- On enfile ici, on n'envoie pas : composer un courriel demande une adresse, et
+-- une adresse vit dans `auth.users`, que cette tâche n'a pas à pouvoir lire.
+create or replace function private.tache_demandes_validation()
+returns integer
+language plpgsql security definer set search_path = '' as $$
+declare v_n integer;
+begin
+  with rappels as (select * from (values (0), (3), (7), (12)) as r(jour)),
+  candidats as (
+    select m.id as mission, a.association, m.entreprise, r.jour,
+           'validation:' || m.id || ':' || r.jour as cle,
+           (select p.profil from private.appartenance p
+             where p.association = a.association and p.actif
+             order by p.maj_le limit 1) as destinataire,
+           a.titre
+      from public.mission m
+      join public.annonce a on a.id = m.annonce
+      join public.saison  s on s.id = a.saison
+     cross join rappels r
+     where m.etat = 'a_valider'
+       and m.declaree_le is not null
+       -- Le rappel est dû, et la mission n'est pas encore arrivée à échéance :
+       -- relancer sur une mission déjà clôturée serait demander une réponse à
+       -- une question qui ne se pose plus.
+       and m.declaree_le + make_interval(days => r.jour) <= clock_timestamp()
+       and m.declaree_le + make_interval(days => s.delai_validation_jours) > clock_timestamp()
+  )
+  insert into public.envoi (cle, type, entreprise, association, mission,
+                            destinataire_profil, sujet, detail, date, etat)
+  select c.cle, 'demande_validation', c.entreprise, c.association, c.mission,
+         c.destinataire,
+         case when c.jour = 0 then 'Une mission a-t-elle bien été réalisée ?'
+              else 'Rappel : une mission attend votre réponse' end,
+         left(c.titre, 400),
+         current_date,
+         case when c.destinataire is null then 'sans_destinataire' else 'a_envoyer' end
+    from candidats c
+  on conflict (cle) do nothing;
+  get diagnostics v_n = row_count;
+  return v_n;
+end $$;
+
 -- ---------------------------------------------------------------- annonces
 create or replace function private.tache_fermeture_annonces()
 returns integer
@@ -192,6 +244,7 @@ begin
     'validations_auto', private.tache_validation_auto(),
     'annonces_fermees', private.tache_fermeture_annonces(),
     'intentions_expirees', private.tache_intentions_expirees(),
+    'demandes_validation', private.tache_demandes_validation(),
     'rapports_envoyes', private.tache_envoi_rapports(),
     'rapports',         private.tache_rapports(),
     'purges',           private.tache_retention());

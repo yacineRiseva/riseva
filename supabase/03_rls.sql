@@ -373,6 +373,16 @@ grant execute on function
   public.confirmer_don(text, text, uuid, numeric, public.origine_don, uuid)
 to service_role;
 
+-- Le lien de réponse envoyé aux associations n'est pas ouvert au public : c'est la
+-- fonction Edge qui le présente, qui exige une confirmation POST et qui appelle
+-- celle-ci. L'ouvrir à `anon` reviendrait à laisser n'importe qui tenter des jetons
+-- au rythme de l'API, sans jamais passer devant un écran.
+grant execute on function
+  public.trancher_par_jeton(text, text, numeric),
+  public.preparer_demande_validation(uuid),
+  public.marquer_envoi(uuid, text, text)
+to service_role;
+
 -- Le classement et les réalisations du réseau sont montrés sur le site public :
 -- ce sont des agrégats, sans nom de salarié.
 grant execute on function public.classement_saison(uuid), public.realisations(uuid, uuid, uuid)
@@ -464,6 +474,7 @@ grant execute on function private.nommable(text, bigint, bigint) to riseva_defin
 grant execute on function private.n(jsonb, text) to riseva_definer;
 grant execute on function private.taux_calcules(jsonb) to riseva_definer;
 grant execute on function private.ecarts_periode(uuid, uuid, jsonb) to riseva_definer;
+grant execute on function private.jeton_mission(uuid) to riseva_definer;
 grant usage on schema extensions to riseva_definer;
 grant select, insert, update, delete on all tables in schema public to riseva_definer;
 grant select, insert, update, delete on all tables in schema private to riseva_definer;

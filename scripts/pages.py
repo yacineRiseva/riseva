@@ -614,12 +614,23 @@ tourne en rond.</p>
 <p>Une plateforme d'engagement sans annonces vivantes est une coquille vide. Nous nous engageons sur
 le réseau, pas seulement sur le logiciel.</p>
 <ul>
-  <li>Au moins <strong>huit annonces ouvertes</strong> à tout moment, dont au moins trois de
-      bénévolat, sur la zone géographique de chaque entreprise cliente.</li>
+  <li>Nous visons <strong>huit annonces ouvertes à tout moment, dont trois de bénévolat</strong>,
+      dans un rayon de <strong>50 km</strong> autour de chaque établissement de chaque entreprise
+      cliente. C'est notre objectif de service, et nous le mesurons.</li>
+  <li>L'engagement contractuel, celui sur lequel vous pouvez nous tenir, est plus prudent et plus
+      net : <strong>au moins trois annonces ouvertes, dont une de bénévolat</strong>, dans ce même
+      rayon. Nous ne promettons pas huit associations dans un rayon de 50 km autour d'un site isolé
+      alors que le réseau se construit : ce serait une promesse que la carte de France ne permet
+      pas toujours de tenir.</li>
+  <li>Si ce plancher n'est pas atteint <strong>pendant plus de trente jours consécutifs</strong>
+      pour un établissement, nous élargissons son rayon à 100 km et nous vous prévenons. S'il n'est
+      toujours pas atteint au bout de <strong>soixante jours</strong>, le mois d'abonnement
+      correspondant vous est <strong>remboursé au prorata de l'établissement concerné</strong>,
+      sans que vous ayez à le demander.</li>
   <li>Toute annonce dont la date est dépassée depuis plus de sept jours est fermée automatiquement.</li>
   <li>Une association injoignable plus de trente jours voit ses annonces retirées.</li>
-  <li>Si une entreprise n'a aucune association pertinente dans sa zone, nous en cherchons pour elle.
-      C'est notre travail, pas le sien.</li>
+  <li>Si une entreprise n'a aucune association pertinente dans sa zone, nous en cherchons pour elle
+      et nous la démarchons nous-mêmes. C'est notre travail, pas le sien.</li>
 </ul>
 
 <h2>Délais de validation</h2>
@@ -658,10 +669,10 @@ une obligation (articles 25 à 30).</p>
 </ul>
 
 <h2>Facturation électronique</h2>
-<p>Depuis le <strong>1<sup>er</sup> septembre 2026</strong>, toute entreprise établie en France
+<p>À compter du <strong>1<sup>er</sup> septembre 2026</strong>, toute entreprise établie en France
 doit être en mesure de <strong>recevoir</strong> ses factures par une plateforme agréée. Un PDF
-envoyé par courriel ne suffit plus. Les PME et microentreprises devront <strong>émettre</strong>
-sous ce format à partir du 1<sup>er</sup> septembre 2027.</p>
+envoyé par courriel ne vaudra plus facture. Les PME et microentreprises devront
+<strong>émettre</strong> sous ce format à partir du 1<sup>er</sup> septembre 2027.</p>
 <p>Concrètement : dites-nous votre plateforme de réception et votre identifiant d'annuaire au
 moment de la signature, le champ est prévu dans votre espace. Nos factures y sont adressées.</p>
 
@@ -725,12 +736,18 @@ au bon de commande.</p>
   <li>Solde facturé à l'ouverture de la saison, payable à trente jours.</li>
   <li><strong>Escompte pour paiement comptant : 3 %</strong> en cas de règlement intégral à la
       commande.</li>
-  <li>Retard : pénalités au taux d'intérêt légal majoré de dix points, exigibles sans rappel,
-      et indemnité forfaitaire de recouvrement de 40 € (articles L. 441-9 et L. 441-10 du code
-      de commerce).</li>
+  <li><strong>Retard de paiement.</strong> Pénalités exigibles de plein droit, sans rappel, au
+      <strong>taux de refinancement de la Banque centrale européenne en vigueur au 1<sup>er</sup>
+      janvier ou au 1<sup>er</sup> juillet précédant l'échéance, majoré de dix points de
+      pourcentage</strong>, sans pouvoir être inférieur à trois fois le taux d'intérêt légal
+      (article L. 441-10 II du code de commerce). S'y ajoute l'indemnité forfaitaire de
+      recouvrement de <strong>40 €</strong> par facture (article D. 441-5), et le complément
+      justifié si les frais réellement engagés la dépassent.</li>
   <li><strong>Facturation électronique.</strong> Le client communique sa plateforme agréée de
-      réception et son identifiant d'annuaire à la signature. Depuis le 1<sup>er</sup> septembre
-      2026, un PDF par courriel ne vaut plus facture.</li>
+      réception et son identifiant d'annuaire à la signature. <strong>À compter du
+      1<sup>er</sup> septembre 2026</strong>, toute entreprise établie en France doit pouvoir
+      recevoir ses factures sous ce format ; l'obligation de les émettre s'applique aux PME et
+      microentreprises à compter du 1<sup>er</sup> septembre 2027.</li>
   <li>Aucune commission n'est prélevée sur les dons, qui ne transitent jamais par Riseva et ne
       figurent sur aucune facture.</li>
 </ul>

@@ -2491,8 +2491,8 @@ function vueParametres(u){
             <input class="input" id="annu" value="${esc((DB.contrat(u.org) || {}).annuaire_id || "")}"
               placeholder="SIRET ou routage"></div>
         </div>
-        <p class="hint">Depuis le 1<sup>er</sup> septembre 2026, toute entreprise doit pouvoir
-          recevoir ses factures par une plateforme agréée : un PDF par courriel ne suffit plus.
+        <p class="hint">À compter du 1<sup>er</sup> septembre 2026, toute entreprise doit pouvoir
+          recevoir ses factures par une plateforme agréée : un PDF par courriel ne vaudra plus facture.
           Dites-nous laquelle vous utilisez et nous vous adressons vos factures dessus.</p>
         <div class="row" style="gap:var(--s4);align-items:stretch">
           <div class="field" style="flex:1"><label>Référent Riseva</label>

@@ -1738,3 +1738,154 @@ language sql stable security definer set search_path = '' as $$
    group by p.type_evenement
    order by count(*) desc
 $$;
+
+-- ---------------------------------------------------------------- lien de réponse
+-- Le lien que l'association reçoit par courriel pour trancher une mission sans se
+-- connecter. Trois précautions, et aucune n'est théorique :
+--   — on stocke l'empreinte, jamais le jeton : une base qui fuit ne doit pas livrer
+--     de quoi valider les missions de tout le monde ;
+--   — le jeton expire avec le délai de validation de la saison : passé ce délai la
+--     mission s'est de toute façon clôturée seule, le lien n'a plus rien à trancher ;
+--   — il ne sert qu'une fois. Un lien de courriel survit des années dans des boîtes
+--     partagées, et « la boîte asso » est rarement lue par une seule personne.
+create or replace function private.jeton_mission(p_mission uuid)
+returns text
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_jeton text;
+  v_delai integer;
+begin
+  select s.delai_validation_jours into v_delai
+    from public.mission m
+    join public.annonce a on a.id = m.annonce
+    join public.saison  s on s.id = a.saison
+   where m.id = p_mission;
+  if not found then
+    raise exception 'Mission introuvable' using errcode = '42501';
+  end if;
+  v_jeton := replace(replace(replace(
+               encode(extensions.gen_random_bytes(32), 'base64'), '+', '-'), '/', '_'), '=', '');
+  update public.mission m
+     set jeton_empreinte  = extensions.digest(v_jeton, 'sha256'),
+         jeton_expire_le  = coalesce(m.declaree_le, clock_timestamp())
+                            + make_interval(days => v_delai),
+         jeton_utilise_le = null
+   where m.id = p_mission;
+  return v_jeton;
+end $$;
+
+-- Trancher depuis le courriel. Trois réponses, pas deux : « comme prévu »,
+-- « partiellement » — et là un chiffre est exigé, sinon « partiellement » ne veut
+-- rien dire — et « non réalisée ». Les mêmes règles que trancher_mission
+-- s'appliquent, écrites une seule fois : le stock de l'annonce est rendu sur un
+-- refus, les points tombent à zéro, et le réalisé confirmé ne s'invente pas.
+create or replace function public.trancher_par_jeton(
+  p_jeton text, p_reponse text, p_realise numeric default null)
+returns text
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_m public.mission;
+  v_a public.annonce;
+begin
+  if p_jeton is null or length(p_jeton) < 20 then
+    return 'invalide';
+  end if;
+  if p_reponse not in ('oui', 'partiel', 'non') then
+    return 'invalide';
+  end if;
+  select m.* into v_m from public.mission m
+   where m.jeton_empreinte = extensions.digest(p_jeton, 'sha256')
+   for update;
+  if not found then
+    return 'inconnu';
+  end if;
+  if v_m.jeton_utilise_le is not null then
+    return 'deja';
+  end if;
+  if v_m.jeton_expire_le is not null and v_m.jeton_expire_le < clock_timestamp() then
+    return 'expire';
+  end if;
+  if v_m.etat <> 'a_valider' then
+    return 'deja';
+  end if;
+  select a.* into v_a from public.annonce a where a.id = v_m.annonce;
+
+  -- « Partiellement » sans chiffre, c'est un silence de plus. On le refuse plutôt
+  -- que de le traduire en « comme prévu » : c'est exactement l'écart que les
+  -- rapports promettent de ne jamais combler tout seuls.
+  if p_reponse = 'partiel'
+     and v_a.impact_unite is not null
+     and (p_realise is null or p_realise < 0) then
+    return 'chiffre_manquant';
+  end if;
+
+  if p_reponse = 'non' then
+    update public.mission m
+       set etat = 'refusee', tranchee_le = clock_timestamp(), points = 0,
+           realise_confirme = null, jeton_utilise_le = clock_timestamp()
+     where m.id = v_m.id;
+    update public.annonce a set restant = least(a.quantite, a.restant + v_m.quantite)
+     where a.id = v_m.annonce;
+  else
+    update public.mission m
+       set etat = 'validee', tranchee_le = clock_timestamp(),
+           jeton_utilise_le = clock_timestamp(),
+           realise_confirme = case
+             when v_a.impact_unite is null then null
+             when p_reponse = 'partiel'    then round(p_realise)
+             else coalesce(round(p_realise), round(m.quantite * v_a.impact_par_unite)) end
+     where m.id = v_m.id;
+  end if;
+  return p_reponse;
+end $$;
+
+-- Ce dont la fonction Edge a besoin pour composer UN courriel de demande de
+-- confirmation, et rien de plus : le jeton fraîchement émis, de quoi écrire la
+-- phrase, et l'identifiant du profil destinataire. L'adresse, elle, reste dans
+-- `auth.users` et c'est la fonction Edge — qui détient déjà la clé de service —
+-- qui va la chercher. Faire descendre les adresses jusqu'ici obligerait la base
+-- à les recopier dans une table de file d'attente, où elles n'ont rien à faire.
+create or replace function public.preparer_demande_validation(p_envoi uuid)
+returns table (jeton text, titre text, entreprise text, salarie text,
+               quantite numeric, unite text, destinataire uuid, rappel boolean)
+language plpgsql security definer set search_path = '' as $$
+declare v_e public.envoi;
+begin
+  select * into v_e from public.envoi e
+   where e.id = p_envoi and e.type = 'demande_validation' and e.etat = 'a_envoyer'
+   for update;
+  if not found then
+    return;
+  end if;
+  return query
+    select private.jeton_mission(m.id),
+           a.titre,
+           coalesce(ent.nom, 'Une entreprise'),
+           coalesce(p.nom, 'Un salarié'),
+           m.quantite,
+           a.impact_unite::text,
+           v_e.destinataire_profil,
+           v_e.cle not like '%:0'
+      from public.mission m
+      join public.annonce a on a.id = m.annonce
+      left join public.entreprise ent on ent.id = m.entreprise
+      left join public.profil p on p.id = m.salarie
+     where m.id = v_e.mission and m.etat = 'a_valider';
+end $$;
+
+-- Le résultat de l'envoi, écrit par la fonction Edge : c'est elle, et elle seule,
+-- qui sait si le courriel est parti. Une file d'attente qui se marque « envoyé »
+-- toute seule ne prouve rien.
+create or replace function public.marquer_envoi(p_envoi uuid, p_etat text,
+                                                p_destinataire text default null)
+returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if p_etat not in ('envoye', 'echec', 'sans_destinataire') then
+    raise exception 'État d''envoi inconnu' using errcode = '23514';
+  end if;
+  update public.envoi e
+     set etat = p_etat,
+         destinataire = coalesce(left(p_destinataire, 240), e.destinataire)
+   where e.id = p_envoi;
+end $$;

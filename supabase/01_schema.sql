@@ -345,9 +345,14 @@ create table private.appartenance (
 create table envoi (
   id           uuid primary key default gen_random_uuid(),
   cle          text not null unique check (length(cle) between 3 and 160),
-  type         text not null check (type in ('rapport','recu','relance','recap')),
+  type         text not null
+                 check (type in ('rapport','recu','relance','recap','demande_validation')),
   entreprise   uuid references entreprise(id) on delete cascade,
   association  uuid references association(id) on delete cascade,
+  -- `mission` est ajoutée plus bas, une fois la table mission créée : la demande
+  -- de confirmation porte sur une mission précise, et sans ce lien la fonction
+  -- d'envoi devrait relire le sujet du courriel pour savoir de quoi il parle.
+  -- Un sujet de courriel n'est pas une clé étrangère.
   -- Qui, pas où. L'adresse vit dans `auth.users`, que la tâche planifiée n'a pas
   -- à pouvoir lire : lui ouvrir la table des comptes pour composer un courriel
   -- serait un privilège gagné pour un confort. La fonction Edge qui envoie
@@ -361,6 +366,7 @@ create table envoi (
                  check (etat in ('a_envoyer','envoye','sans_destinataire','echec'))
 );
 create index envoi_entreprise on envoi (entreprise, date desc);
+create index envoi_a_envoyer on envoi (type, date) where etat = 'a_envoyer';
 
 -- ---------------------------------------------------------------- expéditions
 -- Quatre envois d'affiches dans la saison. Le suivi est ici parce que c'est le
@@ -609,6 +615,13 @@ create table mission (
   -- de main-d'œuvre redevient illicite. On garde l'horodatage, pas un booléen —
   -- un booléen ne prouve rien devant un inspecteur du travail.
   consentement_le timestamptz,
+  -- Le lien de réponse envoyé à l'association. On stocke l'empreinte SHA-256, pas
+  -- le jeton : une fuite de la base ne doit pas livrer de quoi trancher les
+  -- missions de tout le monde. Il expire avec le délai de validation et ne sert
+  -- qu'une fois — un lien de courriel traîne des années dans des boîtes partagées.
+  jeton_empreinte  bytea,
+  jeton_expire_le  timestamptz,
+  jeton_utilise_le timestamptz,
   cle_idempotence text,
   cree_le     timestamptz not null default now(),
   constraint mission_declaration check (
@@ -626,6 +639,12 @@ create table mission (
 );
 create unique index mission_idempotence on mission (cle_idempotence)
   where cle_idempotence is not null;
+create unique index mission_jeton on mission (jeton_empreinte)
+  where jeton_empreinte is not null;
+
+-- Le lien annoncé plus haut : `envoi` précède `mission` dans ce fichier parce que
+-- les envois existent aussi sans mission (rapports, reçus, récapitulatifs).
+alter table envoi add column mission uuid references mission(id) on delete cascade;
 
 -- ---------------------------------------------------------------- dons et reçus
 create table don (
