@@ -188,6 +188,14 @@ date où elle l'a saisi, et qu'un silence n'est jamais présenté comme une conf
 <p>Le score mesure un <strong>engagement</strong> : du temps donné, du matériel donné, de l'argent
 donné. Ce n'est pas une mesure d'impact environnemental ou social, et Riseva ne le présentera jamais
 comme telle, ni dans l'interface, ni dans les rapports, ni en rendez-vous commercial.</p>
+<p><strong>Ce n'est pas non plus une assiette fiscale, et les deux ne se convertissent pas.</strong>
+Un point est un point ; un euro déductible est un euro que quelqu'un a constaté. Une mission close
+sans confirmation de l'association crédite ses points — l'équipe y était — mais n'entre
+<strong>pas</strong> dans l'assiette de l'article 238 bis, parce que personne n'a attesté qu'elle
+avait eu lieu. Il n'existe donc aucun taux de conversion entre votre rang au classement et votre
+réduction d'impôt, et personne chez Riseva n'en promettra un. L'écran Mécénat affiche à part, en
+euros et avec le nom des associations à relancer, la valeur qui attend une confirmation : c'est le
+seul endroit où les deux mondes se regardent, et ils s'y regardent sans se toucher.</p>
 
 <h2>7. Litiges</h2>
 <ul>
@@ -1045,19 +1053,23 @@ Réponse sous deux jours ouvrés.</p>
 """)
 
 # ---------------------------------------------------------------- mentions légales
-# L'article 6 III-1 de la LCEN énumère ce qu'un éditeur professionnel doit publier :
-# dénomination, siège, téléphone, RCS, TVA intracommunautaire, directeur de la
-# publication, et l'identité de l'hébergeur. Trois de ces mentions dépendent d'une
-# immatriculation qui n'est pas encore délivrée. On ne les invente pas : on dit
-# lesquelles manquent, pourquoi, et quand elles paraîtront. Une mention légale
-# fausse est plus grave qu'une mention légale incomplète et datée.
+# La base légale a changé et beaucoup de modèles en ligne ne l'ont pas vu : depuis
+# la loi SREN du 21 mai 2024, l'obligation ne vit plus à l'article 6 III de la LCEN
+# — qui n'existe plus — mais à l'**article 1-1**, avec les sanctions à l'article
+# 1-2. Le SREN a aussi ajouté une mention que personne n'avait avant : les
+# sous-traitants qui stockent les données (art. 1-1, I, 5°).
+# Trois mentions dépendent d'une immatriculation qui n'est pas encore délivrée. On
+# ne les invente pas : on dit lesquelles manquent, pourquoi, et quand elles
+# paraîtront. Une mention légale fausse est plus grave qu'une mention légale
+# incomplète et datée.
 ecrire("mentions.html",
   surtitre="Informations légales",
   titre="Mentions légales",
   description="Qui édite ce site, qui l'héberge, qui répond, et ce qui reste à publier.",
-  chapo="Ces mentions sont exigées par l'article 6 III-1 de la loi du 21 juin 2004 pour la "
-        "confiance dans l'économie numérique. Elles sont ici en entier, y compris ce qui "
-        "manque encore et la date à laquelle cela paraîtra.",
+  chapo="Ces mentions sont exigées par l'article 1-1 de la loi du 21 juin 2004 pour la "
+        "confiance dans l'économie numérique, dans sa rédaction issue de la loi du 21 mai 2024 "
+        "visant à sécuriser et réguler l'espace numérique. Elles sont ici en entier, y compris "
+        "ce qui manque encore et la date à laquelle cela paraîtra.",
   corps="""
 <h2>Éditeur du site</h2>
 <table class="table">
@@ -1075,9 +1087,14 @@ ecrire("mentions.html",
   </tbody>
 </table>
 <p class="hint">Nous ne signons aucun contrat commercial avant que ces mentions soient complètes.
-Une plateforme qui facture sans être immatriculée n'est pas une plateforme, c'est un problème.</p>
+Une plateforme qui facture sans être immatriculée n'est pas une plateforme, c'est un problème.
+L'article 1-2 de la même loi punit l'absence de ces mentions d'un an d'emprisonnement et de
+75 000 € d'amende, portés à 375 000 € pour une personne morale : ce n'est pas une formalité.</p>
 
-<h2>Hébergement</h2>
+<h2>Hébergement et sous-traitants de stockage</h2>
+<p>L'article 1-1, I, 4° exige le nom, l'adresse et le téléphone du fournisseur d'hébergement ;
+le 5°, ajouté par la loi du 21 mai 2024, exige en plus l'identité des sous-traitants qui stockent
+les données. Voici les deux, sans distinction, parce que chez nous ce sont les mêmes.</p>
 <p>Les données sont hébergées dans l'Union européenne. Les sociétés qui exploitent ces
 infrastructures sont, elles, de droit américain — c'est un fait, et il est traité pour ce qu'il
 est dans notre <a href="/confidentialite.html" style="color:var(--forest-800)">politique de
@@ -1087,9 +1104,9 @@ confidentialité</a> et dans l'accord de sous-traitance remis à chaque client.<
     <tr><td>Application et diffusion</td>
         <td><strong>Vercel Inc.</strong>, 440 N Barranca Avenue #4133, Covina, CA 91723,
             États-Unis — <a href="https://vercel.com/legal/privacy-policy"
-            style="color:var(--forest-800)">vercel.com/legal</a>. Région d'hébergement :
-            Union européenne.</td></tr>
-    <tr><td>Base de données et authentification</td>
+            style="color:var(--forest-800)">vercel.com/legal</a>, privacy@vercel.com.
+            Région d'hébergement : Union européenne.</td></tr>
+    <tr><td>Base de données, authentification et stockage</td>
         <td><strong>Supabase, Inc.</strong>, société de droit américain —
             <a href="https://supabase.com/privacy" style="color:var(--forest-800)">supabase.com/privacy</a>,
             privacy@supabase.com. Région d'hébergement : Union européenne.</td></tr>
@@ -1099,6 +1116,10 @@ confidentialité</a> et dans l'accord de sous-traitance remis à chaque client.<
             Union européenne.</td></tr>
   </tbody>
 </table>
+<p class="hint">Aucun de ces trois prestataires ne publie de numéro de téléphone : ils indiquent
+une adresse électronique comme canal de contact, et c'est celle que nous reproduisons. Nous ne
+composons pas un numéro pour combler une case. Si l'un d'eux nous communique un numéro, il
+paraîtra ici le jour même.</p>
 
 <h2>Propriété intellectuelle</h2>
 <p>Le code, les textes, les visuels et la marque Riseva appartiennent à l'éditeur. Les données

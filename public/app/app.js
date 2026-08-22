@@ -1321,6 +1321,12 @@ function vueClassement(u){
           <button class="btn btn--ghost btn--block btn--sm" id="detail">Le détail de mon score</button>
           <p class="hint">Le score mesure un engagement, pas un impact environnemental.
             <a href="/reglement.html" target="_blank" style="color:var(--forest-800)">Le règlement</a>.</p>
+          <p class="hint" style="margin-top:var(--s3)">Ce n'est pas non plus une assiette fiscale,
+            et il n'existe aucun taux de conversion entre les deux. Une mission close sans
+            confirmation de l'association compte ici et pas dans votre réduction d'impôt : personne
+            n'a attesté qu'elle avait eu lieu. Ce que vous pouvez déclarer, et ce qui attend encore
+            une confirmation, sont sur l'écran
+            <a href="#/mecenat" style="color:var(--forest-800)">Mécénat</a>, en euros.</p>
         </section>
       </div>
     </div>

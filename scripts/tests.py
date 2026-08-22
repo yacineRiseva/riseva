@@ -865,6 +865,10 @@ def main():
         verifie("le score de l'entreprise est montré à la place",
                 "point" in c and "par salarié" in c)
         verifie("l'écrêtage est montré", "Plafond par format" in t)
+        verifie("le classement ne se confond pas avec une assiette fiscale",
+                "n'est pas non plus une assiette fiscale" in norm(c)
+                and "aucun taux de conversion" in norm(c),
+                "un point n'est pas un euro déductible, et rien ne convertit l'un en l'autre")
         p.evaluate("()=>document.querySelector('.overlay')?.remove()")
 
         connecte(p, "u1", "#/journal")
@@ -1687,6 +1691,19 @@ def main():
                 urllib.request.urlopen(BASE + lien, timeout=5).read(1)
             except Exception:
                 morts.append(lien)
+        p.goto(f"{BASE}/mentions.html", wait_until="domcontentloaded"); p.wait_for_timeout(200)
+        mn = norm(p.inner_text("body"))
+        verifie("les mentions légales citent la base légale en vigueur",
+                "article 1-1" in mn and "21 mai 2024" in mn and "6 III" not in mn,
+                "depuis la loi SREN, l'obligation n'est plus à l'article 6 de la LCEN")
+        verifie("l'hébergeur et les sous-traitants de stockage sont nommés",
+                "Vercel Inc." in mn and "Supabase, Inc." in mn and "sous-traitants" in mn)
+        verifie("le directeur de la publication est désigné",
+                "Directeur de la publication" in mn)
+        verifie("ce qui manque est dit, pas passé sous silence",
+                "Immatriculation en cours" in mn)
+        verifie("la voie de réclamation CNIL est ouverte", "informatique et des libertés" in mn)
+
         verifie("aucun lien interne ne pointe dans le vide", not morts, "; ".join(morts[:3]))
         ext.close()
 
