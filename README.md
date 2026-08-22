@@ -39,6 +39,7 @@ supabase/05_taches.sql  ce qui tourne tout seul : validation auto, fraîcheur,
                         rapports, classement (pg_cron)
 supabase/emails/        gabarits des messages transactionnels
 docs/ANNUAIRE-PUBLIC.md ce qu'on demande au registre public, et ce qu'il ne prouve pas
+docs/DON-VIREMENT.md    pourquoi Riseva n'encaisse pas, et comment le don fonctionne quand même
 docs/DOSSIER-FOURNISSEUR.md   ce qu'un acheteur demande, et où le trouver
 docs/DPA.md             accord de sous-traitance, article 28 du RGPD
 docs/AIPD.md            analyse d'impact protection des données
@@ -121,9 +122,10 @@ migrations dépendent — schéma `auth`, `auth.users`, `auth.uid()`, les rôles
    refuse de démarrer sur le domaine de production plutôt que d'importer du code
    tiers modifiable à l'exécution.
 5. Déployer les fonctions Edge : `supabase functions deploy demande-validation valider-mission rapport recu-fiscal paiement`.
-6. Renseigner `WEBHOOK_SECRET` dans les variables de la fonction `paiement`, et
-   donner cette URL au prestataire de paiement. C'est le seul chemin par lequel un
-   don entre dans la base.
+6. La fonction `paiement` reste déployée pour le jour où un prestataire agréé entrerait
+   dans le circuit, mais elle n'est branchée sur rien : les dons arrivent par virement
+   direct, et c'est l'association qui confirme la réception (`confirmer_don_recu`).
+   Riseva n'encaisse pas — voir `docs/DON-VIREMENT.md`.
 7. `05_taches.sql` planifie déjà `private.moteur()` chaque nuit via pg_cron :
    validation automatique, fermeture des annonces, rapports, purges.
 
@@ -138,7 +140,7 @@ commande de build. Brancher ensuite `riseva.fr` sur le projet.
 
 ## Ce qui n'est pas encore branché
 
-- Le paiement des dons attend l'accès partenaire HelloAsso. En attendant, le bouton affiche
-  un message explicite plutôt que de simuler une transaction.
+- Rien sur les dons : ils fonctionnent par virement direct, sans prestataire à brancher.
+  Riseva n'encaisse pas — voir `docs/DON-VIREMENT.md`.
 - L'envoi des mails attend une clé Resend. Sans elle, les fonctions journalisent au lieu d'envoyer.
 - L'export PDF des rapports passe par l'impression du navigateur.

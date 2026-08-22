@@ -75,6 +75,17 @@ grant select on public.controle_association to authenticated;
 create policy controle_lecture on public.controle_association for select to authenticated
   using (association = private.mon_association() or private.est_admin());
 
+-- Intention de virement : l'association bénéficiaire, le donateur, Riseva. Un
+-- don personnel n'est jamais lisible par l'employeur, même agrégé : la cause
+-- d'une association peut trahir une conviction ou un état de santé.
+grant select on public.intention_don to authenticated;
+create policy intention_lecture on public.intention_don for select to authenticated
+  using (association = private.mon_association()
+         or salarie = auth.uid()
+         or (origine = 'entreprise' and entreprise = private.mon_entreprise()
+             and private.mon_role() = 'entreprise_admin')
+         or private.est_admin());
+
 -- Annonce : lecture publique des annonces ouvertes d'associations en règle.
 grant select on public.annonce to anon, authenticated;
 create policy annonce_lecture on public.annonce for select to anon, authenticated
@@ -257,7 +268,13 @@ grant execute on function
   public.approuver_indicateurs(uuid, uuid),
   public.controler_association(uuid, jsonb, boolean),
   public.enregistrer_numeros_association(uuid, text, text),
-  public.sans_accents(text)
+  public.sans_accents(text),
+  public.enregistrer_iban(uuid, text, text, text),
+  public.accepter_mandat_recus(uuid, text, text, text),
+  public.revoquer_mandat_recus(uuid),
+  public.declarer_intention_don(uuid, numeric, public.origine_don),
+  public.confirmer_don_recu(uuid, numeric),
+  public.abandonner_intention_don(uuid, text)
 to authenticated;
 
 -- Le paiement n'est jamais confirmé par le navigateur. Seule la fonction Edge,
@@ -341,6 +358,8 @@ grant execute on function private.verdict_registre(public.association, jsonb) to
 grant execute on function private.mots_utiles(text) to riseva_definer;
 grant execute on function private.recouvrement(text[], text[]) to riseva_definer;
 grant execute on function public.sans_accents(text) to riseva_definer;
+grant execute on function private.iban_ok(text) to riseva_definer;
+grant execute on function private.reference_virement() to riseva_definer;
 grant usage on schema extensions to riseva_definer;
 grant select, insert, update, delete on all tables in schema public to riseva_definer;
 grant select, insert, update, delete on all tables in schema private to riseva_definer;

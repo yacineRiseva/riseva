@@ -29,6 +29,7 @@ exception when others then
 end $$;
 
 select set_config('riseva.rates', '0', false);
+select set_config('riseva.intention', '', false);
 
 -- ---------------------------------------------------------------- comptes
 insert into auth.users (id, email) values
@@ -160,7 +161,7 @@ begin
   perform pg_temp.dit('le nom des associations vérifiées reste public',
     (select count(*) from public.association) = 2);
   perform pg_temp.dit('les annonces ouvertes restent publiques',
-    (select count(*) from public.annonce) = 2);
+    (select count(*) from public.annonce) = 3);
 end $$;
 reset role;
 
@@ -463,6 +464,131 @@ begin
     exists (select 1 from public.acces where quoi = 'garde'));
   perform pg_temp.dit('la purge est consignée sans recopier ce qu''elle supprime',
     exists (select 1 from private.journal_purge where ensemble = 'acces'));
+end $$;
+
+\echo ''
+\echo 'Dons en argent : Riseva n''encaisse pas'
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+do $$
+begin
+  perform pg_temp.dit('la clé mod-97 d''un IBAN est vérifiée en base',
+    private.iban_ok('FR7630006000011234567890189')
+    and not private.iban_ok('FR7630006000011234567890188'));
+  perform pg_temp.dit('un IBAN étranger valide est accepté',
+    private.iban_ok('DE89370400440532013000'));
+  perform pg_temp.dit('les espaces d''un relevé ne gênent pas',
+    private.iban_ok('FR76 3000 6000 0112 3456 7890 189'));
+  perform pg_temp.dit('la référence de virement respecte le format attendu',
+    private.reference_virement() ~ '^RSV-[ACDEFGHJKLMNPQRSTUVWXYZ2345679]{4}-[ACDEFGHJKLMNPQRSTUVWXYZ2345679]{4}$');
+  perform pg_temp.dit('elle n''emploie ni 0/O ni 1/I, qui se dictent mal',
+    (select count(*) from generate_series(1, 200) where private.reference_virement() ~ '[01OI]') = 0);
+end $$;
+
+select pg_temp.refuse('un IBAN dont la clé ne tombe pas juste n''entre pas en base',
+  'update public.association set iban = ''FR7630006000011234567890188''
+    where id = ''33333333-3333-4333-8333-333333333333''');
+select pg_temp.refuse('un reçu actif sans mandat est impossible',
+  'update public.association set mandat_recus_le = null
+    where id = ''33333333-3333-4333-8333-333333333333''');
+
+-- Un salarié annonce un virement personnel.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
+select set_config('request.jwt.claim.email', 'malik@lafarge-ciments.fr', false);
+
+do $$
+declare v_an uuid; v_i public.intention_don; v_pts_avant bigint; v_pts_apres bigint;
+begin
+  select a.id into v_an from public.annonce a
+   where a.type = 'don_financier' and a.etat = 'ouverte'
+     and a.association = '33333333-3333-4333-8333-333333333333' limit 1;
+  if v_an is null then
+    perform pg_temp.dit('une annonce financière existe pour le test', false);
+    return;
+  end if;
+
+  v_i := public.declarer_intention_don(v_an, 120, 'salarie');
+  perform pg_temp.dit('une intention porte une référence et une échéance',
+    v_i.reference is not null and v_i.expire_le > current_date and v_i.etat = 'annoncee');
+  perform pg_temp.dit('un don personnel ne porte pas l''entreprise du donateur',
+    v_i.entreprise is null and v_i.origine = 'salarie');
+  perform pg_temp.dit('une intention ne crée aucun don tant qu''elle n''est pas confirmée',
+    not exists (select 1 from public.don d where d.reference = v_i.reference));
+
+  perform set_config('riseva.intention', v_i.id::text, false);
+end $$;
+
+select pg_temp.refuse('un salarié ne se déclare pas un don d''entreprise',
+  'select public.declarer_intention_don(
+     (select a.id from public.annonce a where a.type = ''don_financier'' and a.etat = ''ouverte'' limit 1),
+     50, ''entreprise'')');
+select pg_temp.refuse('un salarié ne confirme pas la réception à la place de l''association',
+  'select public.confirmer_don_recu(current_setting(''riseva.intention'')::uuid, 120)');
+-- Le piège classique : `association <> mon_association()` vaut NULL quand
+-- l'appelant n'est rattaché à aucune association, et un NULL ne déclenche pas le
+-- `raise`. Un salarié passait donc au travers de tous ces contrôles.
+select pg_temp.refuse('un salarié ne renseigne pas l''IBAN d''une association',
+  'select public.enregistrer_iban(''33333333-3333-4333-8333-333333333333'',
+     ''FR7630006000011234567890189'')');
+select pg_temp.refuse('un salarié ne donne pas mandat à la place d''une association',
+  'select public.accepter_mandat_recus(''33333333-3333-4333-8333-333333333333'', ''X'', ''Président'')');
+select pg_temp.refuse('un salarié ne révoque pas le mandat d''une association',
+  'select public.revoquer_mandat_recus(''33333333-3333-4333-8333-333333333333'')');
+select pg_temp.refuse('un salarié ne renseigne pas le numéro d''une association',
+  'select public.enregistrer_numeros_association(''33333333-3333-4333-8333-333333333333'', ''428763304'')');
+
+-- L'association rapproche de son relevé, et corrige le montant.
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000003', false);
+select set_config('request.jwt.claim.email', 'elise@quatrevents.org', false);
+do $$
+declare v_id uuid := current_setting('riseva.intention')::uuid; v_don uuid; v_m public.mission;
+begin
+  v_don := public.confirmer_don_recu(v_id, 100);
+  select * into v_m from public.mission m
+   where m.id = (select i.mission from public.intention_don i where i.id = v_id);
+  perform pg_temp.dit('le montant confirmé par l''association fait foi',
+    (select montant_recu from public.intention_don where id = v_id) = 100);
+  perform pg_temp.dit('la mission créée porte les points du montant reçu',
+    v_m.quantite = 100 and v_m.points = 10);
+  perform pg_temp.dit('le don est enregistré comme virement, sans prestataire',
+    (select fournisseur from public.don where id = v_don) = 'virement');
+  perform pg_temp.dit('le reste à financer de l''annonce a baissé de ce qui a été reçu',
+    (select restant from public.annonce where id = v_m.annonce) >= 0);
+end $$;
+
+select pg_temp.refuse('un don confirmé ne se confirme pas deux fois',
+  'select public.confirmer_don_recu(current_setting(''riseva.intention'')::uuid, 100)');
+
+-- L'employeur ne doit rien apprendre d'un don personnel.
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@lafarge-ciments.fr', false);
+do $$
+begin
+  perform pg_temp.dit('l''employeur ne lit aucune intention de don personnel de ses salariés',
+    not exists (select 1 from public.intention_don i where i.origine = 'salarie'));
+end $$;
+
+set role anon;
+select set_config('request.jwt.claim.sub', '', false);
+select pg_temp.refuse('un visiteur ne lit aucune intention de don',
+  'select count(*) from public.intention_don');
+do $$
+begin
+  perform pg_temp.dit('l''IBAN d''une association en ligne est public, c''est le principe du virement',
+    (select iban is not null from public.association
+      where id = '33333333-3333-4333-8333-333333333333'));
+end $$;
+reset role;
+
+do $$
+declare v integer;
+begin
+  update public.intention_don set expire_le = current_date - 1
+   where etat = 'annoncee';
+  v := private.tache_intentions_expirees();
+  perform pg_temp.dit('une intention sans virement à l''échéance s''éteint toute seule',
+    not exists (select 1 from public.intention_don where etat = 'annoncee' and expire_le < current_date));
 end $$;
 
 \echo ''

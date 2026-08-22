@@ -40,6 +40,10 @@ pas les conversations. Toute nouvelle décision s'ajoute en haut de la section c
 
 | Date | Décision | Remplace |
 |---|---|---|
+| 22/08/2026 | Le don en argent passe par un **virement direct** du donateur à l'association, avec une référence émise par Riseva. Riseva n'encaisse jamais, n'a donc pas d'agrément à obtenir, ne prend aucune commission, et l'association touche 100 % du don le jour où sa banque le crédite. | L'attente d'un accès partenaire HelloAsso, qui bloquait le troisième format depuis le 30/07 sans date. Motif : encaisser pour reverser est un service de paiement (art. L. 314-1 et L. 521-1 du CMF), puni sans agrément de trois ans et 375 000 € (art. L. 572-5) ; et un prestataire agréé impose commission, délai de reversement et dépendance. |
+| 22/08/2026 | Aucun point avant confirmation par l'association, et aucune validation automatique sur l'argent. Une intention non honorée s'éteint au bout de trente jours. | La symétrie avec le bénévolat, où quatorze jours de silence valent réalisation. Un silence n'est pas une faute ; un silence ne vaut pas encaissement. |
+| 22/08/2026 | Riseva ne prépare un reçu fiscal que sous mandat écrit, daté, nominatif et révocable. Sans mandat, la plateforme n'émet rien. | Une préparation automatique dès que l'association cochait « reçus actifs ». L'amende de l'art. 1740 A du CGI — 60 % des sommes portées sur un reçu irrégulier — pèse sur l'association, et un mandat implicite ne se plaide pas. |
+| 22/08/2026 | Aucune annonce de don sans IBAN renseigné, contrôle mod-97 compris. | Une demande d'argent à laquelle personne ne pouvait répondre. |
 | 30/07/2026 | Dons via HelloAsso, formulaire hébergé sur Riseva, encaissement direct par l'association, reçu fiscal généré et envoyé par Riseva. | La décision du 29/07 qui passait par Stripe. Motif du changement : ne rien demander aux associations côté technique. |
 | 30/07/2026 | Demande d'accès partenaire à l'API HelloAsso déposée. **Statut : sans réponse.** Aucun SIREN à cette date. | — |
 | 30/07/2026 | L'argent des dons ne transite jamais par Riseva. | — |
@@ -128,4 +132,3 @@ pas les conversations. Toute nouvelle décision s'ajoute en haut de la section c
 - Prix exact dans la fourchette 3 500 à 4 000 €.
 - Forme juridique. SASU évoquée le 30/07/2026, non actée, pas de SIREN.
 - Financement des affiches et du merchandising.
-- Réponse de HelloAsso.

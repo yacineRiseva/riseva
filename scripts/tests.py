@@ -93,11 +93,13 @@ def main():
                 "150 pts" in p.inner_text("#bareme") and "100 pts" in p.inner_text("#bareme"))
         corps = norm(p.inner_text("body"))
         # La vitrine ne vend que ce qui fonctionne, et ne montre aucun résultat.
-        verifie("l'accueil annonce deux formats ouverts, pas trois",
-                "Deux formats ouverts" in corps and "attend son prestataire" not in corps)
-        verifie("le don financier est marqué fermé",
-                "pas encore ouvert" in corps.lower() and "pas au contrat" in corps
-                and "Deux formats" in corps)
+        verifie("l'accueil annonce les trois formats",
+                "Trois formats" in corps and "attend son prestataire" not in corps)
+        verifie("le don en argent est annoncé sans intermédiaire",
+                "sans transiter par Riseva" in corps and "aucune commission" in corps
+                and "Riseva n'encaisse rien" in corps)
+        verifie("les points d'un don ne sont crédités qu'après confirmation",
+                "quand l'association confirme la réception, et pas avant" in corps)
         verifie("l'accueil dit qu'il n'y a encore aucun résultat",
                 "Rien encore" in corps and "mission confirmée à ce jour" in corps)
         verifie("les écrans montrés sont annoncés comme une démonstration",
@@ -195,7 +197,10 @@ def main():
 
         print("\nParcours d'une mission")
         connecte(p, "u4", "#/annonces")
-        p.eval_on_selector_all(".annonce [data-go]", "b=>b[0].click()"); p.wait_for_timeout(300)
+        # Un don en argent ne suit plus ce chemin : il s'annonce et se vire. On ouvre
+        # donc explicitement une annonce non financière.
+        p.eval_on_selector_all(".annonce [data-go]",
+            "b=>b.find(x=>!/Faire un don/.test(x.textContent)).click()"); p.wait_for_timeout(300)
         verifie("le calcul des points s'affiche", "points pour votre entreprise" in p.inner_text("#calc"))
         p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Confirmer/.test(b.textContent)).click()")
         p.wait_for_timeout(400)
@@ -419,13 +424,27 @@ def main():
         verifie("l'association lit la même phrase dans son espace",
                 "clôturée automatiquement" in p.inner_text(".content"))
 
-        print("\nLes dons en ligne, tant qu'ils n'existent pas")
+        print("\nLe don en argent sur la page publique")
         p.goto(f"{BASE}/asso.html?id=a2", wait_until="networkidle"); p.wait_for_timeout(500)
-        fiche = p.inner_text("body")
-        verifie("aucun bouton Donner tant que le circuit n'est pas ouvert",
+        fiche = norm(p.inner_text("body"))
+        verifie("aucun bouton de paiement : Riseva n'encaisse pas",
                 p.eval_on_selector_all("#go", "e=>e.length") == 0)
-        verifie("l'état est annoncé comme un aperçu", "Aperçu" in fiche)
+        verifie("le compte affiché est celui de l'association",
+                "FR55 1027 8073 0000 0204 7260 146" in fiche and "Racines Vives" in fiche)
+        verifie("il est dit que Riseva ne reçoit rien et ne prélève rien",
+                "Riseva n'encaisse rien" in fiche and "sans intermédiaire" in fiche)
+        verifie("le donateur est invité à vérifier le bénéficiaire chez sa banque",
+                "nom du bénéficiaire affiché par" in fiche)
+        verifie("le reçu reste délivré par l'association",
+                "seule habilitée" in fiche)
         verifie("aucune promesse de paiement sécurisé", "Paiement sécurisé" not in fiche)
+        # Une association sans IBAN ne montre pas de moyen de lui donner de l'argent.
+        p.goto(f"{BASE}/asso.html?id=a3", wait_until="networkidle"); p.wait_for_timeout(400)
+        sans = norm(p.inner_text("body"))
+        verifie("sans IBAN, aucun circuit n'est proposé",
+                "n'est pas ouvert ici" in sans and "nulle part où envoyer" in sans)
+        p.goto(f"{BASE}/asso.html?id=a2", wait_until="networkidle"); p.wait_for_timeout(400)
+        fiche = norm(p.inner_text("body"))
         verifie("un don personnel ne rapporte rien à l'employeur",
                 "points pour l'entreprise du donateur" not in fiche)
         # La fiche publique suit les mêmes règles que la page Annonces.
@@ -907,6 +926,104 @@ def main():
                 "à valoriser" in m)
         verifie("chaque don porte l'état de sa réception et de son reçu",
                 "Réception" in m and "Reçu" in m and "En attente de l'association" in m)
+
+        print("\nDon en argent : annoncer, virer, confirmer")
+        connecte(p, "u4", "#/annonces")
+        p.eval_on_selector_all(".annonce [data-go]",
+            "b=>b.find(x=>/Faire un don/.test(x.textContent)"
+            "&&/Racines Vives/.test(x.closest('.annonce').textContent)).click()")
+        p.wait_for_timeout(350)
+        md = norm(p.inner_text(".modal"))
+        verifie("un salarié ne peut donner qu'à titre personnel",
+                "Ce don est personnel" in md and "66 %" in md)
+        p.fill(".modal #q", "120")
+        p.evaluate("()=>[...document.querySelectorAll('.modal .btn')]"
+                   ".find(b=>/Obtenir la référence/.test(b.textContent)).click()")
+        p.wait_for_timeout(400)
+        bon = norm(p.inner_text(".modal"))
+        verifie("la référence de virement est délivrée",
+                re.search(r"RSV-[A-Z0-9]{4}-[A-Z0-9]{4}", bon) is not None, bon[:120])
+        verifie("l'IBAN de l'association est affiché en entier",
+                "FR" in bon and re.search(r"FR\d\d( \w{4})+", bon) is not None)
+        verifie("il est écrit que Riseva ne reçoit pas cet argent",
+                "Riseva ne reçoit pas cet argent" in bon and "ne prélève rien" in bon)
+        verifie("les points ne sont crédités qu'après confirmation",
+                "et pas avant, que les points sont crédités" in bon)
+        verifie("l'intention porte une échéance", "s'éteint d'elle-même" in bon)
+        ref = re.search(r"RSV-[A-Z0-9]{4}-[A-Z0-9]{4}", bon).group(0)
+        p.evaluate("()=>[...document.querySelectorAll('.modal .btn')]"
+                   ".find(b=>/C'est noté/.test(b.textContent)).click()")
+        p.wait_for_timeout(300)
+
+        avant = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const i = d.DB.intentionParReference(arguments0);
+          return { etat:i.etat, montant:i.montant, asso:i.association,
+                   pts: d.DB.pointsDe('e1').brut };
+        }""".replace("arguments0", '"' + ref + '"'))
+        verifie("une intention ne rapporte aucun point tant qu'elle n'est pas confirmée",
+                avant["etat"] == "annoncee")
+
+        # L'association rapproche la référence de son relevé, et corrige le montant.
+        apres = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const i = d.DB.intentionParReference(arguments0);
+          const r = d.DB.confirmerDonRecu(i.id, { montant: 100 });
+          let rejeu = null;
+          try { d.DB.confirmerDonRecu(i.id, { montant: 100 }); }
+          catch (e){ rejeu = e.message; }
+          return { etat:r.intention.etat, recu:r.intention.montant_recu,
+                   points:r.mission.points, entreprise:r.mission.entreprise,
+                   origine:r.mission.origine, rejeu };
+        }""".replace("arguments0", '"' + ref + '"'))
+        verifie("le montant confirmé par l'association fait foi, pas celui annoncé",
+                apres["recu"] == 100, str(apres))
+        verifie("les points suivent le montant réellement reçu",
+                apres["points"] == 10, str(apres))
+        verifie("un don personnel ne porte pas l'entreprise du donateur",
+                apres["entreprise"] is None and apres["origine"] == "salarie", str(apres))
+        verifie("un don déjà confirmé ne se confirme pas deux fois",
+                apres["rejeu"] is not None, str(apres["rejeu"]))
+
+        # Côté association : le compte, le mandat, et ce qui reste à confirmer.
+        connecte(p, "u7", "#/dons")
+        dn = norm(p.inner_text(".content"))
+        verifie("l'association lit que l'argent ne passe pas par Riseva",
+                "L'argent ne passe pas par Riseva" in dn
+                and "nous n'encaissons pas" in dn)
+        verifie("son IBAN et son titulaire sont affichés",
+                "FR75 3000 3004 1800 0123 4567 890" in dn)
+        verifie("le mandat sur les reçus est daté et nominatif",
+                "Mandat accordé le" in dn and "Élise Tournier" in dn)
+        verifie("le mandat rappelle que l'association reste seule émettrice",
+                "reste seule émettrice" in dn and "révocable à tout moment" in dn)
+        verifie("rien n'est validé automatiquement sur l'argent",
+                "un silence ne vaut pas encaissement" in dn)
+
+        r3 = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          let ib = null, sansMandat = null, mandatSansEligibilite = null;
+          try { d.DB.enregistrerIban('a1', { iban:'FR7630006000011234567890188' }); }
+          catch (e){ ib = e.message; }
+          d.DB.revoquerMandatRecus('a1');
+          sansMandat = d.DB.recusPrets('a1');
+          try { d.DB.accepterMandatRecus('a5', { nom:'X', qualite:'Président' }); }
+          catch (e){ mandatSansEligibilite = e.message; }
+          let engage = null;
+          const an = d.DB.annonces({ type:'don_financier', ouvertes:true })[0];
+          try { d.DB.engager({ annonce:an.id, entreprise:'e1', salarie:'u4', quantite:50 }); }
+          catch (e){ engage = e.message; }
+          return { ib, sansMandat, mandatSansEligibilite, engage };
+        }""")
+        verifie("un IBAN dont la clé ne tombe pas juste est refusé",
+                r3["ib"] and "clé de contrôle" in r3["ib"], str(r3["ib"]))
+        verifie("sans mandat, Riseva ne prépare aucun reçu",
+                r3["sansMandat"] is False, str(r3["sansMandat"]))
+        verifie("pas de mandat sans éligibilité déclarée",
+                r3["mandatSansEligibilite"] and "éligibilité" in r3["mandatSansEligibilite"],
+                str(r3["mandatSansEligibilite"]))
+        verifie("un don en argent ne s'engage pas comme une demi-journée",
+                r3["engage"] and "intention de virement" in r3["engage"], str(r3["engage"]))
 
         print("\nRegistre public et dossier de l'association")
         connecte(p, "u7", "#/dossier")

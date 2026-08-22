@@ -9,22 +9,101 @@ export const BAREME = {
   don_materiel:           { label: "Don de matériel", unite: "don validé",   points: 100, icone: "box"  }
 };
 
+/* ------------------------------------------------------------------ */
+/* Les dons en argent : par virement, et sans jamais y toucher         */
+/* ------------------------------------------------------------------ */
+/* Riseva n'encaisse rien, et ne le fera pas. Recevoir des fonds pour les
+   reverser à un tiers, c'est fournir un service de paiement au sens des articles
+   L. 314-1 et L. 521-1 du code monétaire et financier. L'exercer sans agrément
+   est puni de trois ans d'emprisonnement et 375 000 € d'amende (art. L. 572-5).
+   Aucun montage — « compte de cantonnement », « simple facilitation », « nous ne
+   sommes que l'intermédiaire technique » — ne change cette qualification.
+
+   D'où le circuit retenu, qui n'a besoin ni d'agrément, ni de prestataire, ni de
+   commission : **le donateur vire l'argent directement à l'association**, avec
+   une référence émise par Riseva. Riseva ne voit passer que deux événements —
+   l'intention, puis la confirmation par l'association — et pas un centime.
+
+   Le prix à payer est assumé : c'est moins fluide qu'un bouton « Donner ». En
+   échange, il n'y a ni frais, ni délai de reversement, ni dépendance à un
+   prestataire qui peut fermer un compte, et l'association reçoit 100 % du don le
+   jour où sa banque le crédite. */
+export const DON = {
+  ouvert: true,
+  circuit: "virement",
+  /* Ce que Riseva ne fait pas, écrit une fois et repris partout à l'écran. */
+  riseva_encaisse: false,
+  frais: 0,
+  /* Une intention non confirmée s'éteint. Sans échéance, la page d'une
+     association se remplirait de dons annoncés jamais versés, et le « reste à
+     financer » ne voudrait plus rien dire. */
+  validite_jours: 30,
+  montant_min: 5,
+  montants_suggeres: [20, 50, 100, 250]
+};
+
+/* La référence portée par le virement. Elle sert à une seule chose, et c'est la
+   seule chose qui compte : permettre à l'association de rapprocher une ligne de
+   son relevé bancaire d'un don annoncé sur Riseva. Elle est donc lue à voix
+   haute, recopiée à la main dans un formulaire de banque, parfois dictée au
+   téléphone — d'où un alphabet sans 0/O, 1/I et sans minuscules. */
+const ALPHABET = "ACDEFGHJKLMNPQRSTUVWXYZ2345679";
+export function referenceVirement(graine){
+  let n = 0;
+  const t = String(graine || "");
+  for (let i = 0; i < t.length; i++) n = (n * 31 + t.charCodeAt(i)) >>> 0;
+  let s = "";
+  for (let i = 0; i < 8; i++){ s += ALPHABET[n % ALPHABET.length]; n = Math.floor(n / 7) + 97 * (i + 1); }
+  return `RSV-${s.slice(0, 4)}-${s.slice(4)}`;
+}
+export const REFERENCE_MOTIF = /^RSV-[ACDEFGHJKLMNPQRSTUVWXYZ2345679]{4}-[ACDEFGHJKLMNPQRSTUVWXYZ2345679]{4}$/;
+
+/* Contrôle mod-97 d'un IBAN (norme ISO 13616). Un IBAN faux affiché sur une page
+   publique, c'est un don qui part chez personne — ou, pire, chez quelqu'un
+   d'autre. Le contrôle ne prouve pas que le compte existe ; il prouve que le
+   numéro n'a pas été saisi de travers, ce qui est l'erreur de très loin la plus
+   fréquente. */
+export function ibanValide(v){
+  const s = String(v || "").replace(/\s+/g, "").toUpperCase();
+  if (!/^[A-Z]{2}[0-9]{2}[A-Z0-9]{10,30}$/.test(s)) return false;
+  const p = s.slice(4) + s.slice(0, 4);
+  let reste = 0;
+  for (const c of p){
+    const d = c >= "A" && c <= "Z" ? String(c.charCodeAt(0) - 55) : c;
+    for (const ch of d) reste = (reste * 10 + Number(ch)) % 97;
+  }
+  return reste === 1;
+}
+export const ibanNormalise = (v) => String(v || "").replace(/\s+/g, "").toUpperCase();
+/* Affichage par groupes de quatre, comme sur un relevé : c'est ainsi qu'on le
+   recopie sans se tromper. */
+export const ibanLisible = (v) => ibanNormalise(v).replace(/(.{4})/g, "$1 ").trim();
+/* Version tronquée, pour les écrans où l'IBAN n'a pas à être lu en entier. */
+export const ibanCourt = (v) => {
+  const s = ibanNormalise(v);
+  return s.length < 10 ? s : `${s.slice(0, 4)} …… ${s.slice(-4)}`;
+};
+
+/* Le reçu fiscal est émis par l'association, et par elle seule : c'est elle qui
+   engage sa responsabilité, et c'est elle qui encourt l'amende de l'article
+   1740 A du CGI — 60 % des sommes portées sur un reçu irrégulier. Riseva ne peut
+   donc préparer un reçu qu'à la condition d'un mandat écrit, daté, nominatif et
+   révocable à tout moment. Sans lui, la plateforme n'émet rien : ni brouillon,
+   ni « modèle à signer ». */
+export const MANDAT_RECUS = {
+  version: "2026.1",
+  texte: [
+    "L'association mandate Riseva pour préparer et transmettre en son nom les reçus fiscaux correspondant aux dons reçus par son intermédiaire.",
+    "L'association reste seule émettrice : elle déclare son éligibilité au régime des articles 200 et 238 bis du CGI, désigne le signataire et sa qualité, et arrête la numérotation.",
+    "L'association conserve les reçus émis pendant six ans (art. L. 102 B du livre des procédures fiscales).",
+    "Riseva ne certifie ni l'éligibilité, ni l'exactitude des montants déclarés reçus.",
+    "Le mandat est révocable à tout moment, sans motif et sans préavis. La révocation arrête immédiatement la préparation des reçus, sans effet sur ceux déjà émis."
+  ]
+};
+
 /* Règle anti-optimisation : aucun format ne peut peser plus de la moitié des points
    d'une entreprise sur une saison. Sans ce plafond, il suffirait de virer de l'argent
    pour truster le classement, ce qui viderait le jeu de son sens. */
-/* Le circuit de paiement des dons. Tant qu'il n'est pas ouvert, la fiche publique
-   d'une association ne doit pas montrer un bouton « Donner », une mention
-   « paiement sécurisé » et une promesse de reçu fiscal automatique : ce sont
-   trois affirmations fausses sur la même carte, et c'est exactement ce qu'une
-   présidente d'association vérifiera en premier. Un aperçu annoncé comme tel est
-   honnête ; un formulaire actif qui ne mène nulle part ne l'est pas. */
-export const PAIEMENT = {
-  ouvert: false,
-  prestataire: null,          // renseigné le jour où le circuit ouvre
-  frais_annonces: null,       // frais du prestataire, même si Riseva prend 0 %
-  delai_versement: null
-};
-
 export const PLAFOND_PAR_FORMAT = 0.5;
 
 /* Une association a quatorze jours pour répondre, comptés depuis la déclaration
@@ -629,7 +708,9 @@ const seed = {
       contact_public:"bonjour@refuge4vents.fr",
       siren:"428763304", valide:true, rna:"W423001234", verifiee_le:J(-120), a_reverifier_le:J(240), suspendue:false,
       recus:{ actif:true, eligible_mecenat:true, signataire:"Élise Tournier",
-              qualite:"Présidente", prochain_numero:47, prefixe:"QV-2027-" } },
+              qualite:"Présidente", prochain_numero:47, prefixe:"QV-2027-" },
+      iban:"FR7530003004180001234567890", bic:"BREDFRPPXXX", titulaire_compte:"Association Refuge des Quatre Vents",
+      mandat_recus:{ version:"2026.1", nom:"Élise Tournier", qualite:"Présidente", accepte_le:J(-40) } },
     { id:"a2", nom:"Racines Vives", ville:"Clermont-Ferrand", cause:"Reforestation",
       resume:"Replantation de haies bocagères et de forêts mixtes sur des parcelles agricoles.",
       adresse:"3 route des Prés, 63200 Riom", lat:45.8938, lon:3.1128,
@@ -639,7 +720,9 @@ const seed = {
       contact_public:"contact@racines-vives.org",
       siren:"512291048", valide:true, rna:"W631004567", verifiee_le:J(-60), a_reverifier_le:J(300), suspendue:false,
       recus:{ actif:true, eligible_mecenat:true, signataire:"Marc Aubert",
-              qualite:"Trésorier", prochain_numero:12, prefixe:"RV-2027-" } },
+              qualite:"Trésorier", prochain_numero:12, prefixe:"RV-2027-" },
+      iban:"FR5510278073000002047260146", bic:"CMCIFR2AXXX", titulaire_compte:"Racines Vives",
+      mandat_recus:{ version:"2026.1", nom:"Marc Aubert", qualite:"Trésorier", accepte_le:J(-40) } },
     { id:"a3", nom:"Rivière Propre 42", ville:"Roanne", cause:"Dépollution",
       resume:"Nettoyage des berges de la Loire et sensibilisation dans les écoles.",
       adresse:"8 quai de Loire, 42300 Roanne", lat:46.0367, lon:4.0680,
@@ -647,7 +730,8 @@ const seed = {
     { id:"a4", nom:"Le Panier Solidaire", ville:"Villeurbanne", cause:"Aide alimentaire",
       resume:"Distribution de 900 colis par mois et maraude hebdomadaire.",
       adresse:"22 rue Garibaldi, 69003 Lyon", lat:45.7578, lon:4.8515,
-      site:"", siren:"809177421", valide:true, rna:"W691002345", verifiee_le:J(-30), a_reverifier_le:J(330), suspendue:false },
+      site:"", siren:"809177421", valide:true, rna:"W691002345", verifiee_le:J(-30), a_reverifier_le:J(330), suspendue:false,
+      iban:"FR9716807004050607080910111", bic:"AGRIFRPP869", titulaire_compte:"Le Panier Solidaire" },
     { id:"a5", nom:"Second Souffle", ville:"Grenoble", cause:"Réemploi",
       resume:"Reconditionnement de matériel informatique pour des familles et des écoles.",
       site:"", valide:false },
@@ -656,19 +740,24 @@ const seed = {
       adresse:"45 rue de Wazemmes, 59000 Lille", lat:50.6292, lon:3.0573,
       site:"", valide:true, rna:"W595003311", verifiee_le:J(-90), a_reverifier_le:J(270), suspendue:false,
       recus:{ actif:true, eligible_mecenat:true, signataire:"Nadia Berger",
-              qualite:"Présidente", prochain_numero:8, prefixe:"JN-2027-" } },
+              qualite:"Présidente", prochain_numero:8, prefixe:"JN-2027-" },
+      iban:"FR4520041010120304050607089", bic:"PSSTFRPPLIL", titulaire_compte:"Les Jardins du Nord",
+      mandat_recus:{ version:"2026.1", nom:"Nadia Berger", qualite:"Présidente", accepte_le:J(-40) } },
     { id:"a7", nom:"Océan Net", ville:"Saint-Nazaire", cause:"Dépollution",
       resume:"Collectes sur le littoral atlantique et suivi des déchets ramassés.",
       adresse:"2 quai Demange, 44600 Saint-Nazaire", lat:47.2806, lon:-2.2086,
       site:"", valide:true, rna:"W442007788", verifiee_le:J(-45), a_reverifier_le:J(315), suspendue:false,
       recus:{ actif:true, eligible_mecenat:true, signataire:"Yann Le Gall",
-              qualite:"Trésorier", prochain_numero:31, prefixe:"ON-2027-" } },
+              qualite:"Trésorier", prochain_numero:31, prefixe:"ON-2027-" },
+      iban:"FR4813606000112233445566778", bic:"AGRIFRPP844", titulaire_compte:"Océan Net",
+      mandat_recus:{ version:"2026.1", nom:"Yann Le Gall", qualite:"Trésorier", accepte_le:J(-40) } },
     { id:"a8", nom:"Table Ouverte", ville:"Bordeaux", cause:"Aide alimentaire",
       resume:"Repas chauds quatre soirs par semaine et épicerie solidaire étudiante.",
       adresse:"18 cours de la Marne, 33800 Bordeaux", lat:44.8378, lon:-0.5792,
       site:"", valide:true, rna:"W332001199", verifiee_le:J(-70), a_reverifier_le:J(290), suspendue:false,
       recus:{ actif:true, eligible_mecenat:true, signataire:"Hélène Ducasse",
-              qualite:"Directrice", prochain_numero:64, prefixe:"TO-2027-" } },
+              qualite:"Directrice", prochain_numero:64, prefixe:"TO-2027-" },
+      iban:"FR4930004008230001122334455", bic:"BNPAFRPPBOR", titulaire_compte:"Table Ouverte" },
     { id:"a9", nom:"Coup de Pouce Occitanie", ville:"Toulouse", cause:"Éducation",
       resume:"Accompagnement scolaire et ateliers d'orientation en quartier prioritaire.",
       adresse:"7 allée de Bellefontaine, 31100 Toulouse", lat:43.6047, lon:1.4442,
@@ -692,7 +781,8 @@ const seed = {
       adresse:"5 rue de Saint-Malo, 35000 Rennes", lat:48.1173, lon:-1.6778,
       site:"", valide:true, rna:"W352003377", verifiee_le:J(-55), a_reverifier_le:J(305), suspendue:false,
       recus:{ actif:true, eligible_mecenat:true, signataire:"Gwen Morvan",
-              qualite:"Présidente", prochain_numero:41, prefixe:"BB-2027-" } },
+              qualite:"Présidente", prochain_numero:41, prefixe:"BB-2027-" },
+      iban:"FR8811315000900011223344556", bic:"CEPAFRPP351", titulaire_compte:"Bocage de Bretagne" },
     { id:"a13", nom:"Toits d'Abord", ville:"Paris", cause:"Lutte contre l'exclusion",
       resume:"Maraudes nocturnes et accompagnement vers le logement en Île-de-France.",
       adresse:"9 rue de Belleville, 75019 Paris", lat:48.8566, lon:2.3522,
@@ -893,6 +983,7 @@ const seed = {
     { id:"p4", entreprise:"Sirius Assurances",contact:"contact@sirius-a.fr",     effectif:520, etat:"relancee",    date:J(-3) }
   ],
   controles: [],
+  intentions: [],
   rapports_generes: [],
   moteur_journal: [],
   classement_recalcule_le: null
@@ -1000,7 +1091,7 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
    est enregistré, et retrouvé au retour. Une clé de version évite de restaurer un
    état écrit par une version antérieure du modèle. */
 const CLE_ETAT = "riseva.etat";
-const VERSION_ETAT = 5;
+const VERSION_ETAT = 6;
 
 function lireEtat(){
   try {
@@ -1188,6 +1279,12 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
 
     /* --- écritures --- */
     creerAnnonce(a){
+      /* Demander de l'argent sans avoir dit où le verser, c'est publier un besoin
+         auquel personne ne peut répondre. La règle est ici, pas seulement dans
+         l'écran : une annonce créée par une autre voie tomberait dessus aussi. */
+      if (a.type === "don_financier" && !api.donsOuverts(a.asso))
+        throw new Error("Renseignez d'abord le compte bancaire de l'association : "
+          + "sans IBAN, personne ne peut répondre à une demande d'argent.");
       if (a.temps_travail && !api.eligibleMecenat(a.asso))
         throw new Error("Votre association n'a pas déclaré son éligibilité au mécénat : "
           + "une mission sur le temps de travail ne serait pas valorisable.");
@@ -1222,6 +1319,11 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
     engager({ annonce, entreprise, salarie, quantite, consentement }){
       const a = s.annonces.find(x => x.id === annonce);
       if (!a || a.etat !== "ouverte") throw new Error("Annonce indisponible");
+      /* Un don en argent ne s'« engage » pas : il s'annonce, se vire, et se
+         confirme par l'association qui l'a reçu. Le laisser passer par ici aurait
+         crédité des points sur une promesse. */
+      if (a.type === "don_financier")
+        throw new Error("Un don en argent passe par une intention de virement, pas par un engagement.");
       if (quantite > a.restant) throw new Error("Quantité supérieure au besoin restant");
       /* Une mise à disposition sur le temps de travail exige l'accord exprès, écrit et
          spécifique du salarié (article R. 8241-2). Accepter les conditions générales
@@ -2643,7 +2745,11 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
     },
     recusPrets(aid){
       const r = api.reglagesRecus(aid);
-      return !!(r.actif && r.eligible_mecenat && r.signataire && r.qualite && r.prefixe);
+      /* Le mandat en fait partie : sans lui, Riseva n'a pas le droit de préparer
+         un reçu au nom de l'association, même avec toutes les autres cases
+         cochées. */
+      return !!(r.actif && r.eligible_mecenat && r.signataire && r.qualite && r.prefixe
+                && api.mandatRecus(aid));
     },
     /* Récapitulatif à reporter dans la déclaration annuelle des dons, obligatoire
        depuis 2021 : montant global des dons portés sur les reçus, et nombre de reçus. */
@@ -2656,6 +2762,153 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         if (a && a.type === "don_financier"){ montant += Number(m.quantite) || 0; nombre++; }
       });
       return { montant, nombre, saison: s.saison.nom };
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* Dons en argent : virement direct, Riseva n'encaisse rien            */
+    /* ------------------------------------------------------------------ */
+    /* Trois écritures, et pas une de plus : l'association donne son IBAN, un
+       donateur annonce une intention, l'association confirme ce que sa banque a
+       crédité. Entre les deux, l'argent va d'un compte à l'autre sans passer par
+       Riseva — c'est ce qui dispense d'un agrément d'établissement de paiement,
+       et ce qui fait que l'association touche 100 % du don. */
+    enregistrerIban(aid, { iban, bic, titulaire } = {}){
+      const a = api.association(aid); if (!a) return null;
+      if (iban !== undefined){
+        const v = ibanNormalise(iban);
+        if (v && !ibanValide(v))
+          throw new Error("Cet IBAN est incorrect : sa clé de contrôle ne tombe pas juste. "
+            + "Recopiez-le depuis un relevé, sans espace en trop ni caractère oublié.");
+        a.iban = v || null;
+      }
+      if (bic !== undefined) a.bic = String(bic || "").replace(/\s+/g, "").toUpperCase() || null;
+      if (titulaire !== undefined) a.titulaire_compte = String(titulaire || "").trim() || null;
+      return a;
+    },
+    /* Un don ne peut être annoncé que si l'argent a où aller, et si l'association
+       est bien en ligne. Une page qui afficherait un formulaire de don pour une
+       association suspendue serait la pire chose que ce produit puisse faire. */
+    donsOuverts(aid){
+      const a = api.association(aid);
+      return !!(DON.ouvert && a && a.valide && !a.suspendue && a.iban && ibanValide(a.iban));
+    },
+    coordonneesDon(aid){
+      const a = api.association(aid);
+      if (!a || !api.donsOuverts(aid)) return null;
+      return { iban: a.iban, iban_lisible: ibanLisible(a.iban), bic: a.bic || null,
+               titulaire: a.titulaire_compte || a.nom_juridique || a.nom };
+    },
+
+    mandatRecus: (aid) => (api.association(aid) || {}).mandat_recus || null,
+    /* Le mandat est écrit, daté, nominatif, et révocable sans motif. Sans lui,
+       Riseva ne prépare aucun reçu : l'amende de l'article 1740 A du CGI —
+       60 % des sommes portées sur un reçu irrégulier — pèse sur l'association,
+       pas sur nous, et un mandat implicite ne se plaide pas. */
+    accepterMandatRecus(aid, { par, nom, qualite } = {}){
+      const a = api.association(aid); if (!a) return null;
+      const r = api.reglagesRecus(aid);
+      if (!r.eligible_mecenat)
+        throw new Error("Déclarez d'abord l'éligibilité de l'association au régime des "
+          + "articles 200 et 238 bis du CGI. Riseva ne peut pas la déduire d'un registre.");
+      if (!nom || !qualite)
+        throw new Error("Le mandat nomme la personne qui l'accorde et sa qualité.");
+      a.mandat_recus = { version: MANDAT_RECUS.version, par: par || null,
+                         nom, qualite, accepte_le: new Date().toISOString().slice(0, 10) };
+      return a.mandat_recus;
+    },
+    revoquerMandatRecus(aid){
+      const a = api.association(aid); if (!a) return null;
+      a.mandat_recus = null;
+      /* Révoquer n'efface rien de ce qui a été émis : ces reçus existent, ils
+         sont entre les mains de donateurs, et l'association les conserve six ans
+         (art. L. 102 B du LPF). */
+      if (a.recus) a.recus.actif = false;
+      return true;
+    },
+
+    /* L'intention : ce que le donateur annonce, avec la référence qu'il portera
+       sur son virement. C'est le seul objet que Riseva crée ; il ne vaut pas
+       encaissement, et il ne rapporte aucun point. */
+    declarerIntentionDon({ annonce, montant, origine = "salarie", salarie = null, entreprise = null }){
+      const an = s.annonces.find(x => x.id === annonce);
+      if (!an || an.etat !== "ouverte") throw new Error("Annonce indisponible");
+      if (an.type !== "don_financier") throw new Error("Cette annonce n'attend pas de l'argent");
+      const m = Math.round(Number(montant) || 0);
+      if (m < DON.montant_min) throw new Error(`Le minimum est de ${DON.montant_min} €.`);
+      if (!api.donsOuverts(an.asso))
+        throw new Error("Cette association n'a pas encore renseigné son compte bancaire.");
+      const auj = new Date(2026, 7, 20);
+      const exp = new Date(auj); exp.setDate(exp.getDate() + DON.validite_jours);
+      const nid = id("int");
+      const i = { id: nid, annonce, association: an.asso, salarie, entreprise,
+                  origine, montant: m,
+                  reference: referenceVirement(`${nid}|${an.asso}|${m}|${salarie || entreprise || ""}`),
+                  etat: "annoncee", declare_le: auj.toISOString().slice(0, 10),
+                  expire_le: exp.toISOString().slice(0, 10) };
+      s.intentions.unshift(i);
+      return i;
+    },
+    intentionsDon(filtre = {}){
+      return s.intentions.filter(i =>
+        (!filtre.asso    || i.association === filtre.asso) &&
+        (!filtre.salarie || i.salarie === filtre.salarie) &&
+        (!filtre.etat    || i.etat === filtre.etat));
+    },
+    intentionParReference: (ref) => s.intentions.find(i =>
+      i.reference.toUpperCase() === String(ref || "").trim().toUpperCase()) || null,
+
+    /* L'association confirme ce que sa banque a crédité, et corrige le montant si
+       le donateur a viré autre chose. C'est elle qui a le relevé ; c'est donc son
+       chiffre qui fait foi, exactement comme pour le bénévolat.
+
+       Rien ici n'est automatique. Une mission de bénévolat non tranchée en
+       quatorze jours est réputée faite — un silence n'est pas une faute. De
+       l'argent, non : un silence ne vaut pas encaissement, et créditer des points
+       pour un virement que personne n'a vu arriver serait un score faux. */
+    confirmerDonRecu(iid, { montant, le = null } = {}){
+      const i = s.intentions.find(x => x.id === iid);
+      if (!i) throw new Error("Intention introuvable");
+      if (i.etat !== "annoncee") throw new Error("Ce don a déjà été traité");
+      const recu = Math.round(Number(montant ?? i.montant) || 0);
+      if (recu <= 0) throw new Error("Montant reçu invalide");
+      const an = s.annonces.find(x => x.id === i.annonce);
+      if (!an) throw new Error("Annonce introuvable");
+
+      const m = { id: id("m"), annonce: i.annonce, entreprise: i.entreprise || null,
+                  salarie: i.salarie || null, quantite: recu,
+                  etablissement: (api.utilisateur(i.salarie) || {}).etablissement || null,
+                  points: api.pointsPour("don_financier", recu),
+                  etat: "validee", date: le || i.declare_le,
+                  declaree_le: i.declare_le, tranchee_le: le || "2026-08-20",
+                  origine: i.origine, don: { reference: i.reference, circuit: "virement" } };
+      s.missions.unshift(m);
+      an.restant = Math.max(0, an.restant - recu);
+      if (an.restant === 0) an.etat = "close";
+      i.etat = "recue"; i.montant_recu = recu; i.mission = m.id;
+      i.confirme_le = le || "2026-08-20";
+      return { intention: i, mission: m };
+    },
+    abandonnerIntentionDon(iid, motif = null){
+      const i = s.intentions.find(x => x.id === iid);
+      if (!i || i.etat !== "annoncee") return null;
+      i.etat = "abandonnee"; i.motif = motif; return i;
+    },
+
+    /* Ce qui manque à une association pour recevoir de l'argent et faire suivre
+       un reçu. Une liste d'actions, pas de reproches. */
+    manquePourDons(aid){
+      const a = api.association(aid) || {};
+      const r = api.reglagesRecus(aid);
+      const l = [];
+      if (!a.valide || a.suspendue) l.push({ quoi:"mise en ligne de l'association",
+        pourquoi:"une association hors ligne ne reçoit pas de dons par Riseva" });
+      if (!a.iban) l.push({ quoi:"IBAN de l'association",
+        pourquoi:"c'est le compte que le donateur verra ; l'argent ne transite jamais par Riseva" });
+      if (!r.eligible_mecenat) l.push({ quoi:"déclaration d'éligibilité au mécénat",
+        pourquoi:"sans elle, le don reste possible mais aucun reçu n'est préparé" });
+      if (!api.mandatRecus(aid)) l.push({ quoi:"mandat de préparation des reçus",
+        pourquoi:"seul l'organisme bénéficiaire peut délivrer un reçu ; Riseva le prépare sur mandat écrit" });
+      return l;
     },
 
     /* ------------------------------------------------------------------ */
@@ -2765,8 +3018,8 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
        Chaque passage est daté et consigné : une automatisation qu'on ne peut pas
        auditer inquiète plus qu'elle ne rassure. */
     moteur(aujourdhui = new Date().toISOString().slice(0, 10)){
-      const fait = { validations_auto:0, annonces_fermees:0, rapports:0, classement:false,
-                     le: aujourdhui };
+      const fait = { validations_auto:0, annonces_fermees:0, intentions_expirees:0,
+                     rapports:0, classement:false, le: aujourdhui };
 
       /* 1. Une association qui ne répond pas ne doit pas bloquer le client.
             Quatorze jours après la déclaration, la mission est comptée. */
@@ -2791,7 +3044,15 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         }
       });
 
-      /* 3. Les rapports de période close se génèrent seuls, une fois. */
+      /* 3. Une intention de don que personne n'a virée finit par s'éteindre. Sans
+            échéance, le « reste à financer » d'une annonce serait faux en
+            permanence, et l'association verrait s'empiler des promesses. Rien
+            n'est crédité, rien n'est reproché : l'intention s'efface. */
+      s.intentions.filter(i => i.etat === "annoncee" && i.expire_le < aujourdhui)
+        .forEach(i => { i.etat = "abandonnee"; i.motif = "sans virement à l'échéance";
+                        fait.intentions_expirees++; });
+
+      /* 4. Les rapports de période close se génèrent seuls, une fois. */
       s.entreprises.forEach(e => {
         api.rapports(e.id).filter(r => r.etat === "genere").forEach(r => {
           const cle = e.id + ":" + r.id;
@@ -2801,7 +3062,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         });
       });
 
-      /* 4. Le classement est recalculé chaque lundi. On ne stocke pas de rang :
+      /* 5. Le classement est recalculé chaque lundi. On ne stocke pas de rang :
             il se déduit des points, ce qui évite tout écart entre l'affiché et le réel. */
       s.classement_recalcule_le = aujourdhui;
       fait.classement = true;
@@ -3138,7 +3399,30 @@ const versEtat = {
     cause: r.cause, ville: r.ville,
     resume: r.resume, adresse: r.adresse, lat: r.lat, lon: r.lon,
     valide: r.valide, suspendue: r.suspendue, site: r.site,
-    verifiee_le: r.verifiee_le, verifiee_jusqua: r.verifiee_jusqua
+    verifiee_le: r.verifiee_le, verifiee_jusqua: r.verifiee_jusqua,
+    iban: r.iban, bic: r.bic, titulaire_compte: r.titulaire_compte,
+    mandat_recus: r.mandat_recus_le
+      ? { version: r.mandat_recus_version, nom: r.mandat_recus_nom,
+          qualite: r.mandat_recus_qualite, accepte_le: r.mandat_recus_le }
+      : null,
+    recus: {
+      actif: r.recus_actif, eligible_mecenat: r.eligible_mecenat,
+      signataire: r.signataire, qualite: r.qualite, prefixe: r.recu_prefixe,
+      prochain_numero: 1
+    }
+  }),
+  controle: (r) => ({
+    id: r.id, association: r.association, le: r.le, par: r.par, etat: r.etat,
+    bloquant: r.bloquant, numero: r.numero, ecarts: r.ecarts || [], fiche: r.fiche,
+    source: r.source
+  }),
+  intention: (r) => ({
+    id: r.id, annonce: r.annonce, association: r.association, salarie: r.salarie,
+    entreprise: r.entreprise, origine: r.origine,
+    montant: Number(r.montant), montant_recu: r.montant_recu == null ? null : Number(r.montant_recu),
+    reference: r.reference, etat: r.etat, motif: r.motif,
+    declare_le: r.declare_le, expire_le: r.expire_le, confirme_le: r.confirme_le,
+    mission: r.mission
   }),
   annonce: (r) => ({
     id: r.id, asso: r.association, type: r.type, titre: r.titre,
@@ -3200,11 +3484,12 @@ async function chargerEtat(client){
 
   const [saisons, baremes, entreprises, groupes, etablissements, associations,
          annonces, missions, profils, invitations, campagnes, observations,
-         acces, signalements] = await Promise.all([
+         acces, signalements, intentions, controles] = await Promise.all([
     lire("saison"), lire("bareme"), lire("entreprise"), lire("groupe"),
     lire("etablissement"), lire("association"), lire("annonce"), lire("mission"),
     lire("profil"), lire("invitation"), lire("campagne_indicateurs"),
-    lire("observation_indicateur"), lire("acces"), lire("signalement")
+    lire("observation_indicateur"), lire("acces"), lire("signalement"),
+    lire("intention_don"), lire("controle_association")
   ]);
 
   const saison = saisons.find(x => x.etat === "ouverte") || saisons[0] || null;
@@ -3240,8 +3525,9 @@ async function chargerEtat(client){
     observations: observations.map(versEtat.observation),
     acces: acces.map(versEtat.acces),
     signalements: signalements.map(versEtat.signalement),
+    intentions: intentions.map(versEtat.intention),
+    controles: controles.map(versEtat.controle),
     contrats: [], preinscriptions: [], moteur_journal: [], rapports_generes: [],
-    controles: [],
     classement_recalcule_le: null
   };
 }

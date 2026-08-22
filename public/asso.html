@@ -26,7 +26,7 @@
 </div></footer>
 
 <script type="module">
-import { DB, BAREME, UNITES, PAIEMENT } from "/app/data.js";
+import { DB, BAREME, UNITES } from "/app/data.js";
 import { h, esc, nb, eur, dateFR, toast } from "/app/ui.js";
 
 const id = new URLSearchParams(location.search).get("id") || "a1";
@@ -91,38 +91,51 @@ if (rea.liste.length){
   </section>`));
 }
 
+/* Les coordonnées bancaires viennent du moteur, jamais du gabarit : une page
+   publique qui composerait elle-même un IBAN finirait par en afficher un faux. */
+const don = DB.coordonneesDon(a.id) || {};
+
 const corps = h(`<section class="section"><div class="wrap assoGrid">
   <div>
     <h2>Leurs besoins en ce moment</h2>
     <div class="card" style="margin-top:var(--s6)" id="liste"></div>
   </div>
   <aside class="card" style="padding:var(--s8);position:sticky;top:88px">
-    ${PAIEMENT.ouvert ? `
-      <h3>Faire un don</h3>
+    ${DB.donsOuverts(a.id) ? `
+      <h3>Lui donner de l'argent</h3>
       <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
-        Le paiement est encaissé directement par ${esc(a.nom)}. Riseva ne prélève rien. Le reçu
-        fiscal vous parvient automatiquement, émis par l'association elle-même.</p>
-      <div class="amountRow" style="margin-top:var(--s6)" id="amts"></div>
-      <div class="field" style="margin-top:var(--s4)">
-        <label for="libre">Autre montant</label>
-        <input class="input" id="libre" type="number" min="5" placeholder="En euros">
+        Par virement, directement sur le compte de ${esc(a.nom)}.
+        <strong>Riseva n'encaisse rien</strong> et ne prélève rien : l'argent va de votre banque
+        à la sienne, sans intermédiaire, et elle touche la totalité de votre don.</p>
+      <div class="card card--flat" style="padding:var(--s5);margin-top:var(--s5)">
+        <p class="muted" style="font-size:var(--t-sm)">Titulaire du compte</p>
+        <strong>${esc(don.titulaire)}</strong>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s4)">IBAN</p>
+        <div style="font-family:var(--font-mono);font-size:var(--t-sm);word-break:break-all">${esc(don.iban_lisible)}</div>
+        ${don.bic ? `<p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">BIC ${esc(don.bic)}</p>` : ""}
       </div>
-      <p class="hint" id="pts"></p>
-      <button class="btn btn--brand btn--block btn--lg" style="margin-top:var(--s5)" id="go">Donner</button>
-      <p class="hint center" style="margin-top:var(--s4)">Paiement sécurisé. Reçu fiscal ouvrant droit
-        à réduction d'impôt selon la législation en vigueur.</p>
-    ` : `
-      <span class="badge badge--warn">Aperçu</span>
-      <h3 style="margin-top:var(--s4)">Les dons en ligne arrivent</h3>
-      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
-        Le circuit de paiement n'est pas encore ouvert : il n'y a donc pas de bouton ici, plutôt
-        qu'un bouton qui ne mènerait nulle part. Quand il ouvrira, l'argent ira directement chez
-        ${esc(a.nom)}, Riseva ne prélèvera rien, et le reçu fiscal sera émis par l'association
-        elle-même.</p>
+      <p class="hint" style="margin-top:var(--s4)">Vérifiez le nom du bénéficiaire affiché par
+        votre banque : il doit correspondre à celui-ci. C'est le seul contrôle qui protège
+        vraiment d'un virement détourné.</p>
       <hr class="sep">
       <p class="muted" style="font-size:var(--t-sm)">
-        D'ici là, ${esc(a.nom)} reçoit du temps et du matériel par Riseva. Pour donner de l'argent,
-        passez par ses propres moyens de collecte.</p>
+        <strong>Le reçu fiscal</strong> est délivré par ${esc(a.nom)}, seule habilitée à le faire.
+        Pour un don fait ici, demandez-le-lui directement.</p>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+        Si votre entreprise est abonnée à Riseva, passez plutôt par votre espace : le don porte
+        alors une référence, il compte dans le score de votre entreprise, et le reçu est préparé
+        automatiquement.</p>
+    ` : `
+      <span class="badge badge--warn">Pas encore</span>
+      <h3 style="margin-top:var(--s4)">Le don en argent n'est pas ouvert ici</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+        ${esc(a.nom)} n'a pas encore renseigné le compte sur lequel recevoir des virements.
+        Riseva n'encaisse pas à sa place : sans son IBAN, il n'y a nulle part où envoyer
+        l'argent, et un bouton « Donner » ici serait un bouton qui ne mène nulle part.</p>
+      <hr class="sep">
+      <p class="muted" style="font-size:var(--t-sm)">
+        D'ici là, ${esc(a.nom)} reçoit du temps et du matériel par Riseva. Pour lui donner de
+        l'argent, passez par ses propres moyens de collecte.</p>
     `}
   </aside>
 </div></section>`);
@@ -155,27 +168,6 @@ annonces.forEach(an => {
   </article>`));
 });
 
-let montant = 50;
-if (PAIEMENT.ouvert){
-const amts = corps.querySelector("#amts"), libre = corps.querySelector("#libre"), pts = corps.querySelector("#pts");
-/* Un don fait à titre personnel ne rapporte aucun point à l'entreprise du
-   donateur : c'est toute la règle de cloisonnement du produit. L'écrire ici
-   revenait à la contredire sur la page la plus publique du site. */
-const maj = () => { pts.textContent =
-  `Un don versé par une entreprise abonnée lui rapporterait ${nb(DB.pointsPour("don_financier", montant))} points. `
-  + `Un don personnel ne rapporte aucun point à l'employeur du donateur.`; };
-[20, 50, 100, 250].forEach(v => {
-  const b = h(`<button class="amount ${v === 50 ? "is-on" : ""}">${v} €</button>`);
-  b.onclick = () => { montant = v; libre.value = ""; 
-    amts.querySelectorAll(".amount").forEach(x => x.classList.remove("is-on")); b.classList.add("is-on"); maj(); };
-  amts.appendChild(b);
-});
-libre.oninput = () => { montant = Number(libre.value) || 0;
-  amts.querySelectorAll(".amount").forEach(x => x.classList.remove("is-on")); maj(); };
-maj();
-corps.querySelector("#go").onclick = () =>
-  toast("Le module de paiement sera branché dès l'obtention de l'accès partenaire.");
-}
 </script>
 </body>
 </html>

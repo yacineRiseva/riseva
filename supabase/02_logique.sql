@@ -1025,7 +1025,7 @@ returns void language plpgsql security definer set search_path = '' as $$
 declare v_siren text := nullif(regexp_replace(coalesce(p_siren, ''), '\D', '', 'g'), '');
         v_rna   text := nullif(upper(btrim(coalesce(p_rna, ''))), '');
 begin
-  if p_association <> private.mon_association() and not private.est_admin() then
+  if p_association is distinct from private.mon_association() and not private.est_admin() then
     raise exception 'Réservé à l''association concernée' using errcode = '42501';
   end if;
   if v_siren is not null and (v_siren !~ '^[0-9]{9}$' or not private.luhn_ok(v_siren)) then
@@ -1082,4 +1082,188 @@ begin
     update public.association a set valide = false where a.id = p_association;
   end if;
   return v_id;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Dons en argent : virement direct, sans jamais encaisser
+-- ---------------------------------------------------------------------------
+-- Riseva ne reçoit pas les fonds. Recevoir pour reverser, c'est fournir un
+-- service de paiement au sens des articles L. 314-1 et L. 521-1 du code
+-- monétaire et financier ; l'exercer sans agrément est puni de trois ans et
+-- 375 000 € (art. L. 572-5). Le donateur vire donc directement à l'association,
+-- avec une référence émise ici, et l'association confirme ce que sa banque a
+-- crédité. Deux écritures, pas un centime en transit.
+
+-- La référence portée par le virement. Elle est lue à voix haute, recopiée à la
+-- main dans un formulaire de banque, parfois dictée au téléphone : l'alphabet
+-- exclut donc 0/O, 1/I et les minuscules. L'unicité est garantie par l'index ;
+-- en cas de collision on retire.
+create or replace function private.reference_virement() returns text
+language plpgsql volatile set search_path = '' as $$
+declare a text := 'ACDEFGHJKLMNPQRSTUVWXYZ2345679'; s text := '';
+begin
+  for i in 1..8 loop
+    s := s || substr(a, 1 + floor(random() * length(a))::int, 1);
+  end loop;
+  return 'RSV-' || substr(s, 1, 4) || '-' || substr(s, 5, 4);
+end $$;
+
+create or replace function public.enregistrer_iban(
+  p_association uuid, p_iban text, p_bic text default null, p_titulaire text default null)
+returns void language plpgsql security definer set search_path = '' as $$
+declare v_iban text := nullif(upper(replace(coalesce(p_iban, ''), ' ', '')), '');
+begin
+  if p_association is distinct from private.mon_association() and not private.est_admin() then
+    raise exception 'Réservé à l''association concernée' using errcode = '42501';
+  end if;
+  if v_iban is not null and not private.iban_ok(v_iban) then
+    raise exception 'Cet IBAN est incorrect : sa clé de contrôle ne tombe pas juste'
+      using errcode = '22023';
+  end if;
+  update public.association a
+     set iban = v_iban,
+         bic = nullif(upper(replace(coalesce(p_bic, ''), ' ', '')), ''),
+         titulaire_compte = nullif(btrim(coalesce(p_titulaire, '')), '')
+   where a.id = p_association;
+end $$;
+
+create or replace function public.accepter_mandat_recus(
+  p_association uuid, p_nom text, p_qualite text, p_version text default '2026.1')
+returns void language plpgsql security definer set search_path = '' as $$
+declare v_a public.association;
+begin
+  if p_association is distinct from private.mon_association() and not private.est_admin() then
+    raise exception 'Réservé à l''association concernée' using errcode = '42501';
+  end if;
+  select * into v_a from public.association a where a.id = p_association;
+  if not v_a.eligible_mecenat then
+    raise exception 'Déclarez d''abord l''éligibilité au régime des articles 200 et 238 bis du CGI'
+      using errcode = '42501';
+  end if;
+  if btrim(coalesce(p_nom, '')) = '' or btrim(coalesce(p_qualite, '')) = '' then
+    raise exception 'Le mandat nomme la personne qui l''accorde et sa qualité' using errcode = '22023';
+  end if;
+  update public.association a
+     set mandat_recus_le = current_date, mandat_recus_nom = btrim(p_nom),
+         mandat_recus_qualite = btrim(p_qualite), mandat_recus_version = p_version
+   where a.id = p_association;
+end $$;
+
+-- Révoquer n'efface rien de ce qui a été émis : ces reçus sont entre les mains
+-- de donateurs, et l'association les conserve six ans (art. L. 102 B du LPF).
+create or replace function public.revoquer_mandat_recus(p_association uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if p_association is distinct from private.mon_association() and not private.est_admin() then
+    raise exception 'Réservé à l''association concernée' using errcode = '42501';
+  end if;
+  update public.association a
+     set mandat_recus_le = null, mandat_recus_nom = null,
+         mandat_recus_qualite = null, mandat_recus_version = null,
+         recus_actif = false
+   where a.id = p_association;
+end $$;
+
+create or replace function public.declarer_intention_don(
+  p_annonce uuid, p_montant numeric, p_origine public.origine_don default 'salarie')
+returns public.intention_don
+language plpgsql security definer set search_path = '' as $$
+declare v_an public.annonce; v_a public.association; v_ent uuid; v_i public.intention_don;
+begin
+  if private.moi() is null then
+    raise exception 'Connexion requise' using errcode = '42501';
+  end if;
+  select * into v_an from public.annonce a where a.id = p_annonce;
+  if not found or v_an.type <> 'don_financier' or v_an.etat <> 'ouverte' then
+    raise exception 'Annonce indisponible' using errcode = '42501';
+  end if;
+  select * into v_a from public.association a where a.id = v_an.association;
+  if v_a.iban is null or not v_a.valide or v_a.suspendue then
+    raise exception 'Cette association ne peut pas recevoir de virement pour l''instant'
+      using errcode = '42501';
+  end if;
+  if p_montant is null or p_montant < 5 then
+    raise exception 'Le minimum est de 5 €' using errcode = '22023';
+  end if;
+
+  -- Un don au nom de l'entreprise n'est déclarable que par qui l'engage.
+  if p_origine = 'entreprise' then
+    if private.mon_role() <> 'entreprise_admin' then
+      raise exception 'Seul un administrateur de l''entreprise engage un don d''entreprise'
+        using errcode = '42501';
+    end if;
+    v_ent := private.mon_entreprise();
+  end if;
+
+  insert into public.intention_don (annonce, association, salarie, entreprise, origine,
+                                    montant, reference, expire_le)
+  values (p_annonce, v_an.association, auth.uid(), v_ent, p_origine, p_montant,
+          private.reference_virement(), current_date + 30)
+  returning * into v_i;
+  return v_i;
+end $$;
+
+-- L'association confirme ce que sa banque a crédité, et corrige le montant si le
+-- donateur a viré autre chose. C'est elle qui a le relevé : c'est son chiffre qui
+-- fait foi, exactement comme pour le bénévolat.
+create or replace function public.confirmer_don_recu(
+  p_intention uuid, p_montant numeric default null)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare v_i public.intention_don; v_an public.annonce; v_recu numeric;
+        v_don uuid; v_mission uuid; v_ent uuid;
+begin
+  select * into v_i from public.intention_don i where i.id = p_intention for update;
+  if not found then raise exception 'Intention introuvable' using errcode = '42704'; end if;
+  if v_i.association is distinct from private.mon_association() and not private.est_admin() then
+    raise exception 'Réservé à l''association bénéficiaire' using errcode = '42501';
+  end if;
+  if v_i.etat <> 'annoncee' then
+    raise exception 'Ce don a déjà été traité' using errcode = '42501';
+  end if;
+  v_recu := coalesce(p_montant, v_i.montant);
+  if v_recu <= 0 then raise exception 'Montant reçu invalide' using errcode = '22023'; end if;
+
+  select * into v_an from public.annonce a where a.id = v_i.annonce for update;
+
+  insert into public.don (association, entreprise, origine, montant, etat,
+                          fournisseur, reference, confirme_le)
+  values (v_i.association, v_i.entreprise, v_i.origine, v_recu, 'confirme',
+          'virement', v_i.reference, now())
+  returning id into v_don;
+
+  select a.entreprise into v_ent from private.appartenance a where a.profil = v_i.salarie;
+  insert into public.mission (annonce, entreprise, salarie, etat, quantite, points,
+                              date_mission, declaree_le, tranchee_le, origine,
+                              cle_idempotence)
+  values (v_i.annonce, coalesce(v_i.entreprise, v_ent), v_i.salarie, 'validee', v_recu,
+          private.points_pour(v_an.saison, 'don_financier', v_recu),
+          current_date, v_i.declare_le, now(), v_i.origine,
+          'virement:' || v_i.reference)
+  returning id into v_mission;
+
+  update public.don d set mission = v_mission where d.id = v_don;
+  update public.annonce a set restant = greatest(0, a.restant - v_recu)
+   where a.id = v_i.annonce;
+  update public.intention_don i
+     set etat = 'recue', montant_recu = v_recu, confirme_le = current_date, mission = v_mission
+   where i.id = p_intention;
+  return v_don;
+end $$;
+
+create or replace function public.abandonner_intention_don(
+  p_intention uuid, p_motif text default null)
+returns void language plpgsql security definer set search_path = '' as $$
+declare v_i public.intention_don;
+begin
+  select * into v_i from public.intention_don i where i.id = p_intention;
+  if not found then return; end if;
+  -- Le donateur peut renoncer, l'association peut constater que rien n'est arrivé.
+  if v_i.salarie is distinct from auth.uid()
+     and v_i.association is distinct from private.mon_association()
+     and not private.est_admin() then
+    raise exception 'Réservé au donateur ou à l''association' using errcode = '42501';
+  end if;
+  update public.intention_don i
+     set etat = 'abandonnee', motif = left(coalesce(p_motif, 'sans motif'), 200)
+   where i.id = p_intention and i.etat = 'annoncee';
 end $$;

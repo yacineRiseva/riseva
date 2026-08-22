@@ -14,7 +14,7 @@ le contenu est écrit deux fois, exprès.
 
 Règles qui tiennent sur les deux pages, et que la recette vérifie :
 — aucun chiffre issu du jeu de démonstration ;
-— deux formats ouverts, le don financier attend son prestataire de paiement ;
+— trois formats, dont le don par virement direct : Riseva n'encaisse jamais ;
 — la formule canonique des quatorze jours, mot pour mot ;
 — aucune requête vers un domaine tiers, polices comprises.
 """
@@ -400,10 +400,11 @@ SAISON_ENT = f"""<section id="saison" class="band">
 
 FORMATS_ENT = f"""<section id="formats">
   <div class="layer">
-{entete("Se rendre utile", "Deux formats ouverts,<br>et <span class='it'>un qui attend.</span>",
-        "Nous n'affichons que ce qui fonctionne aujourd'hui. Le don financier en ligne existe "
-        "dans le produit, mais il n'est <strong>pas au contrat</strong> tant que le circuit de "
-        "paiement n'est pas raccordé, et il n'est donc facturé à personne.")}
+{entete("Se rendre utile", "Trois formats,<br>et <span class='it'>aucun intermédiaire.</span>",
+        "Du temps, du matériel, de l'argent. Pour le troisième, Riseva n'encaisse rien : le "
+        "donateur vire <strong>directement</strong> à l'association, avec une référence que nous "
+        "émettons, et l'association confirme ce que sa banque a crédité. Elle touche la "
+        "totalité du don, sans frais et sans délai de reversement.")}
 {formats([
   ("Sur le terrain", "Une <span class='n'>demi-journée</span> de bénévolat.",
    "Réfection d'un enclos, plantation d'une haie, remise en état d'une berge, tri d'une "
@@ -414,11 +415,11 @@ FORMATS_ENT = f"""<section id="formats">
    "Ordinateurs renouvelés, mobilier de bureau, outillage, équipement. Ce que vous alliez "
    "sortir de vos locaux de toute façon. L'association déclare ce qu'elle a reçu, et c'est "
    "cette déclaration qui compte, pas la vôtre."),
-  ("Pas encore ouvert", "Le <span class='n'>don financier</span>, quand le circuit sera raccordé.",
-   "Le formulaire de don vivra sur la page de l'association et l'argent ira sur son compte : "
-   "Riseva ne touche jamais aux fonds et ne prélève aucune commission. Tant que l'accès "
-   "partenaire du prestataire n'est pas obtenu, aucun bouton « Donner » n'apparaît nulle part, "
-   "et ce format ne figure pas au bon de commande."),
+  ("Par virement", "Du <span class='n'>don financier</span>, sans passer par nous.",
+   "Le donateur reçoit l'IBAN de l'association et une référence à porter sur son virement. "
+   "L'argent va de sa banque à celle de l'association, <strong>sans transiter par Riseva</strong> : "
+   "aucune commission, aucun délai de reversement, aucun prestataire qui puisse fermer un "
+   "compte. Les points sont crédités quand l'association confirme la réception, et pas avant."),
 ])}
 
     <div id="bareme" class="bareme rv">
@@ -749,10 +750,13 @@ FAQ_ENT = faq([
    "le nombre de comptes ouverts et la liste de ce qui est compris. Pas de commission sur les "
    "dons, pas de facturation par salarié. Les associations, elles, ne paient jamais rien.</p>"),
   ("Qu'est-ce qui est vendu, exactement ?",
-   "<p>Une saison d'un an, avec les comptes correspondant à votre effectif, les <b>deux "
-   "formats ouverts</b> — bénévolat et don de matériel —, l'accompagnement au lancement, les "
-   "supports, et les rapports trimestriels et annuel. Le don financier en ligne n'est pas au "
-   "contrat tant que le circuit de paiement n'est pas raccordé.</p>"
+   "<p>Une saison d'un an, avec les comptes correspondant à votre effectif, les <b>trois "
+   "formats</b> — bénévolat, don de matériel, don en argent par virement —, l'accompagnement "
+   "au lancement, les supports, et les rapports trimestriels et annuel.</p>"
+   "<p>Sur le don en argent, une précision qui compte : Riseva <b>n'encaisse rien</b>. Le "
+   "virement va du donateur à l'association, avec une référence que nous émettons. Nous ne "
+   "sommes donc pas un établissement de paiement, il n'y a aucune commission, et l'association "
+   "reçoit la totalité du don.</p>"
    "<p>Ce qui n'est <b>pas</b> vendu : la certitude qu'un besoin trouve preneur. Cela dépend "
    "de vos salariés et des associations, et aucun contrat ne peut le promettre.</p>"),
   ("Qu'est-ce que « démarrer » veut dire, précisément ?",
@@ -1002,24 +1006,25 @@ ARGENT_ASSO = f"""<section id="argent">
 {entete("L'argent", "Les dons vont chez vous,<br><span class='it'>pas chez nous.</span>",
         "C'est la question qui décide, alors elle passe avant les autres.")}
 {formats([
-  ("Aujourd'hui", "Deux formats <span class='n'>ouverts</span> : bras et matériel.",
-   "Une demi-journée de bénévolat, ou un don de matériel. Ce sont les deux formats qui "
-   "fonctionnent réellement en ce moment, et ce sont les seuls que nous mettons en avant "
-   "auprès des entreprises."),
-  ("Pas encore", "Le <span class='n'>don en ligne</span> attend son prestataire.",
-   "Nous n'ouvrirons cette fonction que lorsqu'elle sera réellement opérationnelle. Tant "
-   "qu'elle ne l'est pas, votre page publique n'affiche aucun bouton « Donner » : un bouton "
-   "qui ne mène nulle part vous ferait plus de tort qu'une case vide."),
-  ("Le jour où ça ouvrira", "L'encaissement se fera sur <span class='n'>votre compte</span>.",
-   "Le formulaire sera hébergé sur votre page Riseva, mais l'argent ira directement chez "
-   "vous. Nous ne touchons pas aux fonds et ne prélevons <b>aucune commission</b>. Nous "
-   "préparons le reçu fiscal et l'envoyons au donateur, mais c'est vous qui l'émettez, sous "
-   "votre numéro d'ordre et votre signature : un tiers n'a pas le droit de délivrer un reçu "
-   "à votre place, et nous ne le ferons pas."),
-  ("Ce qu'il faudra faire", "Une <span class='n'>vérification</span> de compte et d'IBAN.",
-   "Ce n'est pas de l'informatique, c'est de l'administratif — la même chose que pour "
-   "n'importe quelle collecte en ligne. Nous vous accompagnerons, et nous vous le disons "
-   "maintenant plutôt qu'au moment de signer."),
+  ("Le circuit", "Le donateur vire <span class='n'>directement</span> sur votre compte.",
+   "Vous nous donnez votre IBAN, nous l'affichons sur votre page avec une référence propre à "
+   "chaque don. L'argent va de la banque du donateur à la vôtre. <b>Nous ne le touchons "
+   "jamais</b> — ni sur un compte de passage, ni le temps d'un reversement."),
+  ("Ce que ça vous évite", "Aucune commission, aucun <span class='n'>délai</span>.",
+   "Pas de prestataire à qui reverser un pourcentage, pas de virement hebdomadaire à attendre, "
+   "pas de compte qu'un tiers peut geler. Vous recevez 100 % du don le jour où votre banque le "
+   "crédite. C'est aussi pour ça que ce service reste gratuit : nous n'avons pas de frais de "
+   "paiement à répercuter."),
+  ("Ce qu'on vous demande", "De <span class='n'>confirmer</span> ce que vous avez reçu.",
+   "Chaque virement porte une référence. Vous la retrouvez sur votre relevé, vous confirmez le "
+   "montant réellement crédité — le vôtre fait foi, pas celui qui avait été annoncé — et c'est "
+   "à ce moment que les points sont attribués. Rien n'est validé automatiquement sur de "
+   "l'argent."),
+  ("Le reçu fiscal", "C'est <span class='n'>vous</span> qui l'émettez, nous le préparons.",
+   "Un tiers n'a pas le droit de délivrer un reçu à votre place, et nous ne le ferons pas. Nous "
+   "le préparons et l'envoyons au donateur sous votre numéro d'ordre et votre signature, "
+   "uniquement si vous nous en donnez mandat — écrit, daté, et révocable à tout moment sans "
+   "motif."),
 ])}
   </div>
 </section>"""

@@ -253,13 +253,31 @@ Riseva **prépare et envoie**, l'association **émet et répond**. Concrètement
 Toute formulation laissant croire que Riseva émet le reçu « au nom de » l'association est à
 proscrire, sur le site comme en démarchage.
 
-### Dons aux associations
-- Le formulaire de don est **hébergé sur Riseva** (widget partenaire HelloAsso intégré).
-- L'argent **ne transite pas par Riseva**. Il va directement à l'association.
-- Le **reçu fiscal est généré et envoyé automatiquement** par Riseva au nom de l'association.
-- Statut du partenariat HelloAsso : **demande d'accès API déposée le 30/07/2026, sans réponse à ce jour.**
-  Tant qu'elle n'a pas abouti, le code passe par une couche `PaiementProvider` avec deux implémentations
-  possibles (`helloasso`, `stripe`) et une implémentation `mock` pour le développement.
+### Dons aux associations — par virement direct
+- **Riseva n'encaisse jamais.** Recevoir des fonds pour les reverser à un tiers, c'est fournir un
+  service de paiement au sens des articles L. 314-1 et L. 521-1 du code monétaire et financier ;
+  l'exercer sans agrément est puni de trois ans et 375 000 € (art. L. 572-5). Aucun montage — compte
+  de cantonnement, « simple facilitation », « intermédiaire technique » — ne change cette
+  qualification. On n'y touche pas, et il n'y a donc **aucun prestataire de paiement** dans le
+  produit.
+- Le donateur **vire directement** à l'association, sur l'IBAN qu'elle a renseigné, avec une
+  **référence émise par Riseva** (`RSV-XXXX-XXXX`). C'est cette référence qui permet à l'association
+  de rapprocher une ligne de son relevé d'un don annoncé.
+- **Aucun point avant confirmation.** L'association retrouve la référence sur son relevé et confirme
+  le montant réellement crédité — le sien fait foi, pas celui qui avait été annoncé. Contrairement au
+  bénévolat, il n'y a pas de validation automatique au bout de quatorze jours : un silence n'est pas
+  une faute, mais un silence ne vaut pas encaissement.
+- Une intention non honorée **s'éteint au bout de trente jours**, sans conséquence pour personne.
+  Sans échéance, le « reste à financer » d'une annonce serait faux en permanence.
+- **Aucune annonce de don sans IBAN.** Demander de l'argent sans dire où le verser, c'est publier un
+  besoin auquel personne ne peut répondre.
+- Conséquences assumées : c'est moins fluide qu'un bouton « Donner ». En échange, il n'y a ni frais,
+  ni délai de reversement, ni prestataire qui puisse fermer un compte, et l'association reçoit
+  **100 %** du don le jour où sa banque le crédite.
+- Le **reçu fiscal** est émis par l'association, jamais par Riseva. Riseva le prépare et le transmet
+  **sous mandat écrit, daté, nominatif et révocable à tout moment**. Sans mandat, la plateforme
+  n'émet rien.
+- Détail dans `docs/DON-VIREMENT.md`.
 
 ## 5 quinquies. Les réalisations, et ce qui se compte tout seul
 
@@ -382,7 +400,8 @@ de montant, jamais de « déclaration » prête à déposer.
 
 - Gratuit pour elles, toujours.
 - Aucune contrainte technique de leur côté : elles n'ont rien à installer, rien à brancher sur leur back-office.
-  C'est la raison du choix HelloAsso plutôt qu'une intégration Stripe chez chaque asso (décision du 30/07/2026).
+  C'est la raison du virement direct plutôt que d'une intégration de paiement chez chaque asso :
+  un IBAN, elles en ont déjà un.
 - **Aucune restriction territoriale.** Riseva ne s'engage pas sur une région donnée.
 - Riseva **n'assure rien**. En cas d'incident pendant une mission de bénévolat, la responsabilité est
   entre l'entreprise et l'association. Ce point doit apparaître dans les CGU et sur la fiche mission.

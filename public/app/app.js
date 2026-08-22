@@ -1,4 +1,4 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
 import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
@@ -79,6 +79,7 @@ const MENUS = {
       ["avalider",  "Missions à valider","check"],
       ["page",      "Ma page publique",  "heart"],
       ["recus",     "Reçus fiscaux",     "report"],
+      ["dons",      "Dons en argent",    "coins"],
       ["dossier",   "Mon dossier",       "report"]
     ]}
   ],
@@ -879,6 +880,9 @@ function ouvrirEngagement(a, u){
     toast("Seuls les salariés d'une entreprise abonnée peuvent se positionner.");
     return;
   }
+  /* Un don en argent ne suit pas le même chemin : on n'y « positionne » personne,
+     on annonce un virement et on attend que l'association le voie arriver. */
+  if (a.type === "don_financier") return ouvrirDon(a, u);
   const b = BAREME[a.type];
   const financier = a.type === "don_financier";
   const corps = h(`<div class="stack" style="--gap:var(--s5)">
@@ -3051,16 +3055,25 @@ function vuePageAsso(u){
       </div>
     </section>
     <section class="card">
-      <h3>Le don</h3>
+      <h3>Le don en argent</h3>
       <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s4)">
-        Le formulaire est hébergé sur Riseva mais l'encaissement se fait chez vous. Nous n'avons
-        aucun accès aux fonds. Le reçu fiscal est émis automatiquement à votre nom.</p>
+        Les donateurs virent directement sur votre compte, avec une référence que nous émettons.
+        Nous ne touchons jamais aux fonds : ni compte de passage, ni reversement. Vous recevez la
+        totalité du don le jour où votre banque le crédite.</p>
       <hr class="sep">
       <div class="stack" style="--gap:var(--s3);font-size:var(--t-sm)">
-        <div class="between"><span class="muted">Prestataire</span><span class="badge badge--warn">HelloAsso, en attente</span></div>
+        <div class="between"><span class="muted">Circuit</span><span>virement direct, sans intermédiaire</span></div>
         <div class="between"><span class="muted">Commission Riseva</span><strong>0 %</strong></div>
-        <div class="between"><span class="muted">Reçu fiscal</span><span>automatique</span></div>
+        <div class="between"><span class="muted">Votre compte</span>${
+          DB.donsOuverts(u.org)
+            ? `<span class="badge badge--ok">renseigné</span>`
+            : `<span class="badge badge--warn">à renseigner</span>`}</div>
+        <div class="between"><span class="muted">Reçus fiscaux</span>${
+          DB.recusPrets(u.org)
+            ? `<span class="badge badge--ok">préparés sur mandat</span>`
+            : `<span class="badge badge--warn">mandat à donner</span>`}</div>
       </div>
+      <a class="btn btn--ghost btn--sm" style="margin-top:var(--s4)" href="#/dons">Gérer les dons</a>
     </section>
   </div>`);
 }
@@ -3710,6 +3723,7 @@ function vueMoteur(){
   const regles = [
     ["Validation sans retour", "Quatorze jours après la déclaration du salarié, une mission sans réponse de l'association est comptée comme réalisée. Les points sont crédités selon le barème, mais le résultat reste estimé et identifié comme non confirmé.", dernier.validations_auto],
     ["Fermeture des annonces périmées", "Une annonce dont la date est dépassée depuis plus de sept jours est fermée. C'est l'engagement de fraîcheur pris envers les clients.", dernier.annonces_fermees],
+    ["Extinction des intentions de don", "Une intention de virement que personne n'a honorée s'éteint au bout de trente jours. Rien n'est crédité, rien n'est reproché : sans échéance, le « reste à financer » d'une annonce serait faux en permanence.", dernier.intentions_expirees],
     ["Génération des rapports", "Chaque période close produit son rapport, sans que personne le demande.", dernier.rapports],
     ["Recalcul du classement", "Refait chaque lundi. Aucun rang n'est stocké : il se déduit des points, ce qui interdit tout écart entre l'affiché et le réel.", dernier.classement ? "à jour" : "—"]
   ];
@@ -3757,11 +3771,12 @@ function vueMoteur(){
   if (!j.length) hj.appendChild(vide({ titre:"Aucun passage", texte:"Le moteur n'a pas encore tourné." }));
   else {
     const t = h(`<table class="table"><thead><tr>
-      <th>Date</th><th>Validations</th><th>Fermetures</th><th>Rapports</th></tr></thead><tbody></tbody></table>`);
+      <th>Date</th><th>Validations</th><th>Fermetures</th><th>Intentions éteintes</th><th>Rapports</th></tr></thead><tbody></tbody></table>`);
     j.forEach(x => t.querySelector("tbody").appendChild(h(`<tr>
       <td class="muted tnum">${dateCourte(x.le)}</td>
       <td class="tnum">${nb(x.validations_auto)}</td>
       <td class="tnum">${nb(x.annonces_fermees)}</td>
+      <td class="tnum">${nb(x.intentions_expirees || 0)}</td>
       <td class="tnum">${nb(x.rapports)}</td></tr>`)));
     hj.appendChild(t);
   }
@@ -3772,8 +3787,8 @@ function vueMoteur(){
   };
   el.querySelector("#csvM").onclick = () => {
     versCSV("riseva-automatismes.csv",
-      ["Date", "Validations automatiques", "Annonces fermées", "Rapports générés"],
-      j.map(x => [x.le, x.validations_auto, x.annonces_fermees, x.rapports]));
+      ["Date", "Validations automatiques", "Annonces fermées", "Intentions de don éteintes", "Rapports générés"],
+      j.map(x => [x.le, x.validations_auto, x.annonces_fermees, x.intentions_expirees || 0, x.rapports]));
     toast("Export téléchargé.");
   };
   return el;
@@ -5781,6 +5796,293 @@ function vueDossier(u){
 }
 
 /* ------------------------------------------------------------------ */
+/* Faire un don : annoncer, virer, faire confirmer                     */
+/* ------------------------------------------------------------------ */
+/* Trois écrans en un, parce que le donateur a besoin des trois d'affilée :
+   combien, où virer, et ce qui se passe ensuite. Le point le plus important
+   n'est pas le montant, c'est la référence : sans elle, l'association voit un
+   virement anonyme sur son relevé et ne peut rien confirmer. */
+function bonDeVirement(intention, asso){
+  const c = DB.coordonneesDon(asso.id) || {};
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <div class="card card--flat" style="padding:var(--s5);background:var(--moss);border-color:transparent">
+      <p class="muted" style="font-size:var(--t-sm)">À virer à</p>
+      <strong style="font-size:var(--t-lg)">${esc(c.titulaire || asso.nom)}</strong>
+      <div style="font-family:var(--font-mono);font-size:var(--t-sm);margin-top:var(--s3);word-break:break-all">
+        ${esc(c.iban_lisible || "")}${c.bic ? `<br>BIC ${esc(c.bic)}` : ""}</div>
+      <hr style="margin:var(--s5) 0;border:0;border-top:1px solid rgba(0,0,0,.08)">
+      <p class="muted" style="font-size:var(--t-sm)">Montant</p>
+      <strong style="font-size:var(--t-lg)">${eur(intention.montant)}</strong>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s4)">
+        Référence à recopier dans le libellé du virement</p>
+      <div class="row" style="--gap:var(--s3);align-items:center;margin-top:4px">
+        <strong style="font-family:var(--font-mono);font-size:var(--t-lg);letter-spacing:.06em"
+                id="ref">${esc(intention.reference)}</strong>
+        <button class="btn btn--ghost btn--sm" id="copier">Copier</button>
+      </div>
+    </div>
+    <div>
+      <p class="muted" style="font-size:var(--t-sm)"><strong>Ce qui se passe ensuite.</strong>
+      Vous faites le virement depuis votre banque, comme n'importe quel autre.
+      ${esc(asso.nom)} le voit arriver avec cette référence et le confirme sur Riseva.
+      C'est à ce moment-là, et pas avant, que les points sont crédités et que le reçu
+      fiscal est préparé.</p>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+      <strong>Riseva ne reçoit pas cet argent</strong> et ne prélève rien : il va de votre
+      compte à celui de l'association, sans intermédiaire. C'est pour ça qu'il n'y a pas de
+      bouton « payer » ici — et c'est aussi pour ça que l'association touche la totalité
+      de votre don.</p>
+      <p class="hint" style="margin-top:var(--s3)">Sans virement d'ici au
+      ${dateFR(intention.expire_le)}, cette annonce s'éteint d'elle-même. Rien ne vous
+      sera demandé.</p>
+    </div>
+  </div>`);
+  const b = el.querySelector("#copier");
+  b.onclick = async () => {
+    try { await navigator.clipboard.writeText(intention.reference); toast("Référence copiée."); }
+    catch { toast("Sélectionnez la référence pour la copier."); }
+  };
+  return el;
+}
+
+function ouvrirDon(a, u){
+  const asso = DB.association(a.asso) || {};
+  if (!DB.donsOuverts(a.asso)){
+    modal("Don impossible pour l'instant",
+      `<p class="muted">${esc(asso.nom)} n'a pas encore renseigné le compte sur lequel
+       recevoir les virements. Riseva n'encaisse pas à sa place : sans son IBAN, il n'y a
+       nulle part où envoyer l'argent.</p>`, [{ label:"Fermer" }]);
+    return;
+  }
+  const peutEntreprise = u.role === "entreprise_admin";
+  const corps = h(`<div class="stack" style="--gap:var(--s5)">
+    <p class="muted" style="font-size:var(--t-sm)">${esc(a.description)}</p>
+    <div class="field">
+      <label for="q">Montant du don</label>
+      <input class="input" type="number" min="${DON.montant_min}" max="${a.restant}"
+             value="${Math.min(50, a.restant)}" id="q">
+      <p class="hint" id="calc"></p>
+    </div>
+    ${peutEntreprise ? `<div class="field">
+      <label for="orig">Au nom de</label>
+      <select class="select" id="orig">
+        <option value="entreprise">${esc((DB.entreprise(u.org) || {}).nom || "l'entreprise")}</option>
+        <option value="salarie">Moi, à titre personnel</option>
+      </select>
+      <p class="hint">Un don personnel ne rapporte aucun point à l'entreprise et n'apparaît
+      nulle part dans son espace : la cause d'une association peut révéler une conviction
+      ou un état de santé.</p></div>`
+    : `<p class="hint">Ce don est personnel. Il ne rapporte aucun point à votre employeur,
+       qui n'en saura rien, et ouvre droit pour vous à une réduction d'impôt de 66 % dans la
+       limite de 20 % du revenu imposable (article 200 du CGI).</p>`}
+  </div>`);
+  const q = corps.querySelector("#q"), calc = corps.querySelector("#calc");
+  const maj = () => {
+    const orig = corps.querySelector("#orig");
+    calc.textContent = (!orig || orig.value === "entreprise") && peutEntreprise
+      ? `Soit ${nb(DB.pointsPour("don_financier", Number(q.value) || 0))} points pour l'entreprise, une fois le virement confirmé.`
+      : `Un don personnel ne rapporte pas de points à l'employeur.`;
+  };
+  q.oninput = maj;
+  corps.querySelector("#orig")?.addEventListener("change", maj);
+  maj();
+
+  modal("Don à " + asso.nom, corps, [
+    { label:"Annuler" },
+    { label:"Obtenir la référence", classe:"btn--primary", onClick: () => {
+        const orig = corps.querySelector("#orig");
+        const origine = orig ? orig.value : "salarie";
+        let i;
+        try {
+          i = DB.declarerIntentionDon({ annonce: a.id, montant: Number(q.value),
+            origine, salarie: u.id,
+            entreprise: origine === "entreprise" ? u.org : null });
+        } catch (e){ toast(e.message); return false; }
+        modal("Votre virement à " + asso.nom, bonDeVirement(i, asso),
+          [{ label:"C'est noté", classe:"btn--primary", onClick: () => rendre() }]);
+      }}
+  ]);
+}
+
+/* ------------------------------------------------------------------ */
+/* Association : recevoir de l'argent                                  */
+/* ------------------------------------------------------------------ */
+function vueDonsAsso(u){
+  const asso = DB.association(u.org) || {};
+  const manque = DB.manquePourDons(u.org);
+  const attendus = DB.intentionsDon({ asso:u.org, etat:"annoncee" });
+  const recus = DB.intentionsDon({ asso:u.org, etat:"recue" });
+  const mandat = DB.mandatRecus(u.org);
+
+  const el = h(`<div class="stack" style="--gap:var(--s5)">
+    <section class="card card--flat">
+      <h3 style="font-size:var(--t-lg)">L'argent ne passe pas par Riseva</h3>
+      <p class="muted" style="margin-top:6px">Les donateurs virent directement sur votre
+      compte, avec une référence que nous leur donnons. Vous touchez la totalité du don, le
+      jour où votre banque le crédite. Riseva ne prélève rien et ne peut rien retenir : nous
+      n'encaissons pas, donc nous n'avons pas d'agrément d'établissement de paiement à
+      obtenir — et vous n'avez pas de délai de reversement à subir.</p>
+      ${manque.length ? `<ul class="liste-ecarts" style="margin-top:var(--s4)">${
+        manque.map(m => `<li><strong>${esc(m.quoi)}</strong> — ${esc(m.pourquoi)}</li>`).join("")}</ul>`
+      : `<p class="muted" style="margin-top:var(--s3)"><strong>Tout est en place.</strong></p>`}
+    </section>
+
+    <div class="two">
+      <section class="card">
+        <div class="between"><h3>Votre compte</h3>
+          <button class="btn btn--ghost btn--sm" id="majIban">${asso.iban ? "Modifier" : "Renseigner"}</button></div>
+        ${asso.iban ? `<div style="margin-top:var(--s4)">
+          <p class="muted" style="font-size:var(--t-sm)">Titulaire</p>
+          <strong>${esc(asso.titulaire_compte || asso.nom)}</strong>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">IBAN</p>
+          <div style="font-family:var(--font-mono);word-break:break-all">${esc(ibanLisible(asso.iban))}</div>
+          ${asso.bic ? `<p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">BIC ${esc(asso.bic)}</p>` : ""}
+          <p class="hint" style="margin-top:var(--s4)">Cet IBAN est montré aux donateurs sur votre
+          page publique, à côté de votre dénomination. Vérifiez-le : une erreur ici envoie
+          l'argent ailleurs.</p>
+        </div>` : `<p class="muted" style="margin-top:var(--s4)">Sans IBAN, la page publique
+          n'affiche aucun moyen de vous donner de l'argent — plutôt qu'un bouton qui ne mène
+          nulle part.</p>`}
+      </section>
+
+      <section class="card">
+        <div class="between"><h3>Reçus fiscaux</h3>
+          <button class="btn btn--ghost btn--sm" id="majMandat">${mandat ? "Révoquer" : "Donner mandat"}</button></div>
+        ${mandat ? `<p class="muted" style="margin-top:var(--s4)">Mandat accordé le
+          ${dateFR(mandat.accepte_le)} par <strong>${esc(mandat.nom)}</strong>, ${esc(mandat.qualite)}.
+          Révocable à tout moment, sans motif.</p>` : ""}
+        <ul class="liste-ecarts" style="margin-top:var(--s4)">${
+          MANDAT_RECUS.texte.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+      </section>
+    </div>
+
+    <section class="card">
+      <h3>Virements annoncés, en attente de votre confirmation</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:6px">Rapprochez chaque ligne de
+      votre relevé bancaire par sa référence, puis confirmez le montant réellement crédité.
+      C'est vous qui avez le relevé : c'est votre chiffre qui fait foi. Rien n'est validé
+      automatiquement — un silence ne vaut pas encaissement.</p>
+      <div id="att" style="margin-top:var(--s5)"></div>
+    </section>
+
+    <section class="card">
+      <h3>Dons confirmés</h3>
+      <div id="rec" style="margin-top:var(--s5)"></div>
+    </section>
+  </div>`);
+
+  const att = el.querySelector("#att");
+  if (!attendus.length) att.appendChild(vide({ titre:"Rien en attente",
+    texte:"Aucun virement n'a été annoncé pour le moment." }));
+  else {
+    const t = h(`<table class="table"><thead><tr>
+      <th>Référence</th><th>Annoncé le</th><th>Montant annoncé</th><th>S'éteint le</th><th></th>
+    </tr></thead><tbody></tbody></table>`);
+    attendus.forEach(i => {
+      const tr = h(`<tr>
+        <td style="font-family:var(--font-mono)">${esc(i.reference)}</td>
+        <td class="muted tnum">${dateCourte(i.declare_le)}</td>
+        <td class="tnum">${eur(i.montant)}</td>
+        <td class="muted tnum">${dateCourte(i.expire_le)}</td>
+        <td style="text-align:right"></td></tr>`);
+      const b = h(`<button class="btn btn--forest btn--sm">Confirmer la réception</button>`);
+      b.onclick = () => {
+        const corps = h(`<div>
+          <p class="muted">Confirmez le montant que votre banque a réellement crédité pour la
+          référence <strong style="font-family:var(--font-mono)">${esc(i.reference)}</strong>.
+          S'il diffère de ce qui avait été annoncé, corrigez-le : c'est votre relevé qui fait foi.</p>
+          <div class="field" style="margin-top:var(--s5)"><label for="m">Montant reçu</label>
+            <input class="input" type="number" id="m" min="1" value="${i.montant}"></div>
+          <p class="hint">Confirmer crédite les points du donateur et déclenche la préparation
+          du reçu fiscal, que vous seule émettez.</p></div>`);
+        modal("Confirmer " + i.reference, corps, [
+          { label:"Ce virement n'est jamais arrivé", onClick: () => {
+              DB.abandonnerIntentionDon(i.id, "non reçu"); toast("Intention retirée."); rendre(); }},
+          { label:"Confirmer", classe:"btn--primary", onClick: () => {
+              try { DB.confirmerDonRecu(i.id, { montant: Number(corps.querySelector("#m").value) }); }
+              catch (e){ toast(e.message); return false; }
+              toast("Don confirmé, points crédités."); rendre(); }}]);
+      };
+      tr.lastElementChild.appendChild(b);
+      t.querySelector("tbody").appendChild(tr);
+    });
+    att.appendChild(t);
+  }
+
+  const rec = el.querySelector("#rec");
+  if (!recus.length) rec.appendChild(vide({ titre:"Aucun don confirmé",
+    texte:"Les dons que vous confirmez apparaîtront ici." }));
+  else {
+    const t = h(`<table class="table"><thead><tr>
+      <th>Référence</th><th>Confirmé le</th><th>Montant reçu</th></tr></thead><tbody></tbody></table>`);
+    recus.forEach(i => t.querySelector("tbody").appendChild(h(`<tr>
+      <td style="font-family:var(--font-mono)">${esc(i.reference)}</td>
+      <td class="muted tnum">${dateCourte(i.confirme_le || i.declare_le)}</td>
+      <td class="tnum">${eur(i.montant_recu ?? i.montant)}</td></tr>`)));
+    rec.appendChild(t);
+  }
+
+  el.querySelector("#majIban").onclick = () => {
+    const corps = h(`<div class="stack" style="--gap:var(--s4)">
+      <p class="muted">Recopiez l'IBAN depuis un relevé. Riseva en vérifie la clé de contrôle,
+      ce qui écarte l'erreur de saisie — mais ne garantit pas que le compte est le vôtre.</p>
+      <div class="field"><label for="ib">IBAN</label>
+        <input class="input" id="ib" value="${esc(asso.iban ? ibanLisible(asso.iban) : "")}"
+               placeholder="FR76 3000 6000 0112 3456 7890 189"></div>
+      <div class="field"><label for="bc">BIC (facultatif)</label>
+        <input class="input" id="bc" value="${esc(asso.bic || "")}"></div>
+      <div class="field"><label for="ti">Titulaire du compte</label>
+        <input class="input" id="ti" value="${esc(asso.titulaire_compte || asso.nom_juridique || asso.nom)}">
+        <p class="hint">C'est ce nom que le donateur verra, et qu'il comparera à celui de sa
+        banque avant de valider son virement.</p></div>
+    </div>`);
+    modal("Compte bancaire de l'association", corps, [
+      { label:"Annuler" },
+      { label:"Enregistrer", classe:"btn--primary", onClick: () => {
+          try {
+            DB.enregistrerIban(u.org, { iban: corps.querySelector("#ib").value,
+              bic: corps.querySelector("#bc").value, titulaire: corps.querySelector("#ti").value });
+          } catch (e){ toast(e.message); return false; }
+          toast("Compte enregistré."); rendre(); }}]);
+  };
+
+  el.querySelector("#majMandat").onclick = () => {
+    if (mandat){
+      modal("Révoquer le mandat",
+        `<p class="muted">Riseva cessera immédiatement de préparer des reçus en votre nom.
+         Les reçus déjà émis ne sont pas affectés : ils sont entre les mains de donateurs, et
+         vous les conservez six ans (article L. 102 B du livre des procédures fiscales).</p>`,
+        [{ label:"Annuler" },
+         { label:"Révoquer", classe:"btn--primary", onClick: () => {
+             DB.revoquerMandatRecus(u.org); toast("Mandat révoqué."); rendre(); }}]);
+      return;
+    }
+    const r = DB.reglagesRecus(u.org);
+    const corps = h(`<div>
+      <ul class="liste-ecarts">${MANDAT_RECUS.texte.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+      <div class="two" style="margin-top:var(--s5)">
+        <div class="field"><label for="n">Nom de la personne qui donne mandat</label>
+          <input class="input" id="n" value="${esc(r.signataire || "")}"></div>
+        <div class="field"><label for="qa">Sa qualité</label>
+          <input class="input" id="qa" value="${esc(r.qualite || "")}" placeholder="Présidente, trésorier…"></div>
+      </div>
+      <p class="hint">Version ${esc(MANDAT_RECUS.version)}. Le mandat est daté, nominatif,
+      et révocable à tout moment sans motif.</p></div>`);
+    modal("Mandat de préparation des reçus", corps, [
+      { label:"Annuler" },
+      { label:"Donner mandat", classe:"btn--primary", onClick: () => {
+          try {
+            DB.accepterMandatRecus(u.org, { par: u.id,
+              nom: corps.querySelector("#n").value.trim(),
+              qualite: corps.querySelector("#qa").value.trim() });
+          } catch (e){ toast(e.message); return false; }
+          toast("Mandat enregistré."); rendre(); }}]);
+  };
+
+  return el;
+}
+
+/* ------------------------------------------------------------------ */
 /* Registre public : le bloc partagé                                   */
 /* ------------------------------------------------------------------ */
 /* Le même bloc sert à l'association qui remplit sa fiche et à Riseva qui la
@@ -6011,6 +6313,7 @@ const ROUTES = {
     page:       [vuePageAsso,  "Ma page publique"],
     dossier:    [vueDossierAsso, "Mon dossier"],
     recus:      [vueRecus,     "Reçus fiscaux"],
+    dons:       [vueDonsAsso,  "Dons en argent"],
     preferences:[vuePreferences, "Préférences"]
   },
   admin: {

@@ -43,6 +43,22 @@ begin
   return v_n;
 end $$;
 
+-- -------------------------------------------------- intentions de virement
+-- Une intention que personne n'a honorée s'éteint. Sans échéance, le « reste à
+-- financer » d'une annonce serait faux en permanence et l'association verrait
+-- s'empiler des promesses. Rien n'est crédité, rien n'est reproché.
+create or replace function private.tache_intentions_expirees()
+returns integer
+language plpgsql security definer set search_path = '' as $$
+declare v_n integer;
+begin
+  update public.intention_don i
+     set etat = 'abandonnee', motif = 'sans virement à l''échéance'
+   where i.etat = 'annoncee' and i.expire_le < current_date;
+  get diagnostics v_n = row_count;
+  return v_n;
+end $$;
+
 -- ---------------------------------------------------------------- rapports
 -- Un rapport ne se scelle qu'une fois les validations closes. Le sceller à la
 -- fin du trimestre le fige incomplet : quatorze jours de missions manquent, et
@@ -145,6 +161,7 @@ begin
   v := jsonb_build_object(
     'validations_auto', private.tache_validation_auto(),
     'annonces_fermees', private.tache_fermeture_annonces(),
+    'intentions_expirees', private.tache_intentions_expirees(),
     'rapports',         private.tache_rapports(),
     'purges',           private.tache_retention());
   insert into public.moteur_journal (tache, fait) values ('moteur', v);

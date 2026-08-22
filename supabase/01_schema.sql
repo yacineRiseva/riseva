@@ -56,6 +56,31 @@ as $$
   end
 $$;
 
+-- Contrôle mod-97 d'un IBAN (ISO 13616). Il ne prouve pas que le compte existe,
+-- ni qu'il appartient à l'association : il prouve que le numéro n'a pas été saisi
+-- de travers, ce qui est de très loin l'erreur la plus fréquente. Et comme cet
+-- IBAN est affiché à des donateurs, une faute de frappe ici envoie l'argent
+-- nulle part — ou chez quelqu'un d'autre.
+create or replace function private.iban_ok(p text)
+  returns boolean language plpgsql immutable parallel safe
+  set search_path = ''
+as $$
+declare v text; reste integer := 0; c char; d text;
+begin
+  if p is null then return true; end if;
+  v := upper(replace(p, ' ', ''));
+  if v !~ '^[A-Z]{2}[0-9]{2}[A-Z0-9]{10,30}$' then return false; end if;
+  v := substr(v, 5) || substr(v, 1, 4);
+  for i in 1..length(v) loop
+    c := substr(v, i, 1);
+    d := case when c between 'A' and 'Z' then (ascii(c) - 55)::text else c end;
+    for j in 1..length(d) loop
+      reste := (reste * 10 + substr(d, j, 1)::int) % 97;
+    end loop;
+  end loop;
+  return reste = 1;
+end $$;
+
 -- ---------------------------------------------------------------- types
 create type role_utilisateur as enum ('admin','entreprise_admin','salarie','association','site_referent');
 create type etat_collecte    as enum ('attendu','declare','approuve','clos_sans_reponse');
@@ -205,10 +230,30 @@ create table association (
   signataire         text check (length(signataire) <= 120),
   qualite            text check (length(qualite) <= 120),
   recu_prefixe       text check (length(recu_prefixe) <= 20),
+  -- Le mandat par lequel l'association autorise Riseva à préparer ses reçus.
+  -- Écrit, daté, nominatif, révocable. Sans lui la plateforme n'émet rien : seul
+  -- l'organisme bénéficiaire peut délivrer un reçu, et l'amende de l'article
+  -- 1740 A du CGI — 60 % des sommes portées sur un reçu irrégulier — pèse sur
+  -- lui. Un mandat implicite ne se plaide pas.
+  mandat_recus_le      date,
+  mandat_recus_nom     text check (length(mandat_recus_nom) <= 120),
+  mandat_recus_qualite text check (length(mandat_recus_qualite) <= 120),
+  mandat_recus_version text check (length(mandat_recus_version) <= 20),
+  -- Le compte sur lequel les donateurs virent. Riseva ne le touche jamais : elle
+  -- l'affiche. Recevoir des fonds pour les reverser serait fournir un service de
+  -- paiement (art. L. 314-1 et L. 521-1 du code monétaire et financier), ce qui
+  -- exige un agrément qu'on n'a pas et qu'on ne cherche pas.
+  iban              text check (private.iban_ok(iban)),
+  bic               text check (bic ~ '^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$'),
+  titulaire_compte  text check (length(titulaire_compte) <= 200),
   cree_le   timestamptz not null default now(),
   constraint association_recus_complets check (
     not recus_actif or (eligible_mecenat
-      and signataire is not null and qualite is not null and recu_prefixe is not null)),
+      and signataire is not null and qualite is not null and recu_prefixe is not null
+      and mandat_recus_le is not null)),
+  constraint association_mandat_complet check (
+    mandat_recus_le is null
+    or (mandat_recus_nom is not null and mandat_recus_qualite is not null)),
   constraint association_valide_non_suspendue check (not (valide and suspendue) or true)
 );
 
@@ -444,6 +489,45 @@ create table recu (
   emis_le     timestamptz not null default now(),
   unique (association, numero)
 );
+
+-- ------------------------------------------------------- intention de virement
+-- Ce qu'un donateur annonce, avec la référence qu'il portera sur son virement.
+-- C'est le seul objet que Riseva crée dans ce circuit : elle ne voit pas passer
+-- l'argent, elle ne fait que permettre à l'association de rapprocher une ligne
+-- de son relevé bancaire d'une intention déclarée ici.
+--
+-- Une intention ne vaut pas encaissement et ne rapporte aucun point. C'est la
+-- différence avec le bénévolat : une mission non tranchée en quatorze jours est
+-- réputée faite, parce qu'un silence n'est pas une faute ; un virement que
+-- personne n'a vu arriver, lui, n'a pas eu lieu.
+create table intention_don (
+  id          uuid primary key default gen_random_uuid(),
+  annonce     uuid not null references annonce(id) on delete cascade,
+  association uuid not null references association(id) on delete cascade,
+  -- Un don personnel ne porte pas l'entreprise, ici non plus : la cause d'une
+  -- association peut trahir une conviction ou un état de santé.
+  salarie     uuid references profil(id) on delete set null,
+  entreprise  uuid references entreprise(id) on delete restrict,
+  origine     origine_don not null,
+  montant     numeric(12,2) not null check (montant > 0),
+  montant_recu numeric(12,2) check (montant_recu > 0),
+  reference   text not null unique
+                check (reference ~ '^RSV-[ACDEFGHJKLMNPQRSTUVWXYZ2345679]{4}-[ACDEFGHJKLMNPQRSTUVWXYZ2345679]{4}$'),
+  etat        text not null default 'annoncee'
+                check (etat in ('annoncee','recue','abandonnee')),
+  motif       text check (length(motif) <= 200),
+  declare_le  date not null default current_date,
+  expire_le   date not null,
+  confirme_le date,
+  mission     uuid references mission(id) on delete set null,
+  constraint intention_origine check (
+    (origine = 'entreprise' and entreprise is not null) or
+    (origine = 'salarie'    and entreprise is null)),
+  constraint intention_confirmee check (
+    etat <> 'recue' or (montant_recu is not null and confirme_le is not null))
+);
+create index intention_don_asso on intention_don (association, etat);
+create index intention_don_salarie on intention_don (salarie) where salarie is not null;
 
 -- ---------------------------------------------------------------- rapports
 create table rapport (
