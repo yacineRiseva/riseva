@@ -65,6 +65,10 @@ pas les conversations. Toute nouvelle décision s'ajoute en haut de la section c
 
 | Date | Décision | Remplace |
 |---|---|---|
+| 22/08/2026 | Au-delà de 30 % de variation sur un indicateur calculé, la saisie demande une phrase d'explication, qui suit la valeur jusque dans le rapport. | Une saisie qu'on acceptait telle quelle. Un événement réel et une erreur de saisie se ressemblent exactement dans une base, et la seconde est la plus fréquente. |
+| 22/08/2026 | Chaque campagne produit son dictionnaire des données : définitions, inclusions, exclusions, formules, agrégation, limites, explications des sites. Daté et versionné avec la campagne. | Des chiffres sans la pièce qui dit comment ils ont été obtenus. Un acheteur ne peut alors ni contester ni vérifier — seulement croire, ce qu'il refuse de faire. |
+| 22/08/2026 | Une valeur absente reste absente dans les calculs, des deux côtés. | Un `coalesce(x, 0)` côté Postgres, qui transformait « ce site n'a pas déclaré ses entrées » en « ce site n'a eu aucune entrée » et déclenchait une alerte d'écart sur une donnée manquante. |
+| 22/08/2026 | Quatre fenêtres modales appelaient `modal()` avec `{texte, action}` alors que l'interface attend `{label, onClick}` : leurs boutons s'affichaient sans libellé et ne faisaient rien. Corrigées, et elles restent ouvertes en cas d'erreur. | Un référent qu'on ne pouvait pas nommer, des indicateurs qu'on ne pouvait pas saisir, un salarié qu'on ne pouvait pas réaffecter, un matériel qu'on ne pouvait pas valoriser. |
 | 21/08/2026 | Les annonces portent une unité de réalisation à catalogue fermé et un rendement par unité. Les totaux se cumulent seuls partout. | Rien. C'est ce qui rend le rapport annuel concret : « 280 arbres plantés » plutôt que « 12 480 points ». |
 | 21/08/2026 | Le chiffre déclaré par l'association au moment de valider l'emporte sur l'estimation de l'annonce. | Une estimation figée, qui aurait fini par mentir. |
 | 21/08/2026 | Les réalisations ne sont jamais appelées « impact » et portent toujours leur provenance. | — |

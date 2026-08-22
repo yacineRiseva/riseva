@@ -927,6 +927,57 @@ def main():
         verifie("chaque don porte l'état de sa réception et de son reçu",
                 "Réception" in m and "Reçu" in m and "En attente de l'association" in m)
 
+        print("\nÉcarts entre périodes et dictionnaire des données")
+        connecte(p, "u2", "#/indicateurs")
+        # On se place sur la campagne en cours, qui a une période précédente.
+        p.select_option("#camp", "c2"); p.wait_for_timeout(400)
+        p.evaluate("()=>{const b=[...document.querySelectorAll('tbody button')]"
+                   ".find(x=>/Saisir|Corriger|Modifier/.test(x.textContent)); if(b)b.click()}")
+        p.wait_for_timeout(400)
+        verifie("le formulaire dit ce qu'on compte et ce qu'on ne compte pas",
+                "On compte :" in norm(p.inner_text(".modal"))
+                and "On ne compte pas :" in norm(p.inner_text(".modal")))
+        verifie("il demande une explication au-delà du seuil",
+                "Au-delà de 30 % de variation" in norm(p.inner_text(".modal")))
+        p.fill(".modal #i-at_avec_arret", "30")
+        p.dispatch_event(".modal #i-at_avec_arret", "input")
+        p.wait_for_timeout(300)
+        verifie("l'écart s'affiche pendant la saisie, pas au moment du refus",
+                "Variation notable" in norm(p.inner_text(".modal")))
+        p.evaluate("()=>[...document.querySelectorAll('.modal .btn')]"
+                   ".find(b=>/Enregistrer/.test(b.textContent)).click()")
+        p.wait_for_timeout(400)
+        verifie("sans explication, la saisie est refusée",
+                "expliquez" in norm(p.inner_text(".toast")))
+        verifie("et la fenêtre reste ouverte, la saisie n'est pas perdue",
+                p.is_visible(".modal #i-at_avec_arret")
+                and p.input_value(".modal #i-at_avec_arret") == "30")
+        p.fill(".modal #i-com", "Un chariot a percuté un rayonnage le 12 mai : six blessés le même jour.")
+        p.evaluate("()=>[...document.querySelectorAll('.modal .btn')]"
+                   ".find(b=>/Enregistrer/.test(b.textContent)).click()")
+        p.wait_for_timeout(500)
+        verifie("avec une explication, la même valeur passe",
+                "enregistrée" in norm(p.inner_text(".toast")))
+
+        p.evaluate("()=>location.hash='#/indicateurs'"); p.wait_for_timeout(400)
+        p.click("#dicoI"); p.wait_for_timeout(400)
+        dc = norm(p.inner_text(".modal"))
+        verifie("le dictionnaire donne la formule et les deux termes du rapport",
+                "accidents avec arrêt × 1 000 000 ÷ heures travaillées" in dc
+                and "at_avec_arret ÷ heures_travaillees" in dc)
+        verifie("il dit qu'un taux de périmètre est un rapport de sommes",
+                "jamais une moyenne de taux" in dc)
+        verifie("il porte les inclusions et les exclusions de chaque indicateur",
+                "intérimaires, stagiaires, prestataires, sous-traitants" in dc)
+        verifie("il dit qu'aucun de ces taux n'est réglementaire", "non" in dc)
+        verifie("il reprend les explications données par les sites",
+                "chariot" in dc)
+        verifie("il rappelle ce que Riseva ne fait pas",
+                "ne calcule pas le taux d'emploi de travailleurs handicapés" in dc)
+        p.evaluate("()=>[...document.querySelectorAll('.modal .btn')]"
+                   ".find(b=>/Fermer/.test(b.textContent)).click()")
+        p.wait_for_timeout(200)
+
         print("\nDon en argent : annoncer, virer, confirmer")
         connecte(p, "u4", "#/annonces")
         p.eval_on_selector_all(".annonce [data-go]",

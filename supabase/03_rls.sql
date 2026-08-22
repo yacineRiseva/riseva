@@ -264,7 +264,7 @@ grant execute on function
   public.allouer_quota(uuid, integer),
   public.creer_invitation_referent(uuid, text, text),
   public.rejoindre_comme_referent(text),
-  public.saisir_indicateurs(uuid, uuid, jsonb),
+  public.saisir_indicateurs(uuid, uuid, jsonb, text),
   public.approuver_indicateurs(uuid, uuid),
   public.controler_association(uuid, jsonb, boolean),
   public.enregistrer_numeros_association(uuid, text, text),
@@ -360,6 +360,11 @@ grant execute on function private.recouvrement(text[], text[]) to riseva_definer
 grant execute on function public.sans_accents(text) to riseva_definer;
 grant execute on function private.iban_ok(text) to riseva_definer;
 grant execute on function private.reference_virement() to riseva_definer;
+grant execute on function private.seuil_ecart() to riseva_definer;
+grant execute on function private.campagne_precedente(uuid) to riseva_definer;
+grant execute on function private.n(jsonb, text) to riseva_definer;
+grant execute on function private.taux_calcules(jsonb) to riseva_definer;
+grant execute on function private.ecarts_periode(uuid, uuid, jsonb) to riseva_definer;
 grant usage on schema extensions to riseva_definer;
 grant select, insert, update, delete on all tables in schema public to riseva_definer;
 grant select, insert, update, delete on all tables in schema private to riseva_definer;

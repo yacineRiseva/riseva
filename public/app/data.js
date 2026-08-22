@@ -475,64 +475,98 @@ export const INDICATEURS = {
      préventeur ou un contrôleur s'arrête. */
   saisis: [
     { cle:"effectif_fin",      libelle:"Effectif à la fin de la période",      unite:"personnes", niveau:"établissement", source:"paie ou DSN",
-      aide:"En contrat au dernier jour de la période, tous contrats confondus." },
+      aide:"En contrat au dernier jour de la période, tous contrats confondus.",
+      inclut:"CDI, CDD, apprentis et contrats de professionnalisation présents au dernier jour",
+      exclut:"intérimaires, stagiaires, prestataires, sous-traitants" },
     { cle:"entrees",           libelle:"Entrées",                              unite:"personnes", niveau:"établissement", source:"paie ou DSN",
-      aide:"Embauches sur la période." },
+      aide:"Embauches sur la période.",
+      inclut:"toute embauche sur la période, y compris en CDD",
+      exclut:"les mutations internes entre sites du même employeur" },
     { cle:"sorties",           libelle:"Sorties",                              unite:"personnes", niveau:"établissement", source:"paie ou DSN",
-      aide:"Fins de contrat sur la période, quel qu'en soit le motif." },
+      aide:"Fins de contrat sur la période, quel qu'en soit le motif.",
+      inclut:"fins de contrat, démissions, licenciements, ruptures conventionnelles, départs en retraite, décès",
+      exclut:"les mutations internes entre sites du même employeur" },
     { cle:"heures_travaillees",libelle:"Heures travaillées",                   unite:"heures",    niveau:"établissement", source:"paie",
-      aide:"Heures réellement travaillées, hors absences. C'est le dénominateur des taux de sécurité." },
+      aide:"Heures réellement travaillées, hors absences. C'est le dénominateur des taux de sécurité.",
+      inclut:"heures réellement travaillées par les personnes comptées dans l'effectif",
+      exclut:"congés, RTT, arrêts, formation hors poste, heures des intérimaires" },
     { cle:"at_avec_arret",     libelle:"Accidents du travail avec arrêt",      unite:"accidents", niveau:"établissement", source:"registre HSE",
-      aide:"Accidents survenus sur le lieu de travail ayant entraîné un arrêt d'au moins un jour. Ce n'est pas la notion d'« accident en premier règlement » utilisée par l'assurance maladie : les taux calculés ici sont donc des indicateurs internes." },
+      aide:"Accidents survenus sur le lieu de travail ayant entraîné un arrêt d'au moins un jour. Ce n'est pas la notion d'« accident en premier règlement » utilisée par l'assurance maladie : les taux calculés ici sont donc des indicateurs internes.",
+      inclut:"accidents survenus par le fait ou à l'occasion du travail, ayant entraîné au moins un jour d'arrêt au-delà du jour de l'accident",
+      exclut:"accidents de trajet, maladies professionnelles, accidents d'intérimaires ou de prestataires" },
     { cle:"at_sans_arret",     libelle:"Accidents du travail sans arrêt",      unite:"accidents", niveau:"établissement", source:"registre HSE",
-      aide:"Accidents ayant nécessité des soins mais sans arrêt." },
+      aide:"Accidents ayant nécessité des soins mais sans arrêt.",
+      inclut:"accidents ayant nécessité des soins, sans arrêt",
+      exclut:"les incidents sans soin, les presqu'accidents" },
     { cle:"at_trajet",         libelle:"Accidents de trajet",                  unite:"accidents", niveau:"établissement", source:"registre HSE",
-      aide:"Comptés à part : ils ne relèvent pas des mêmes actions de prévention." },
+      aide:"Comptés à part : ils ne relèvent pas des mêmes actions de prévention.",
+      inclut:"accidents survenus sur le trajet domicile-travail ou vers le lieu de restauration",
+      exclut:"les déplacements professionnels, qui relèvent de l'accident du travail" },
     { cle:"jours_arret",       libelle:"Journées perdues pour accident",       unite:"jours",     niveau:"établissement", source:"registre HSE",
-      aide:"Journées calendaires d'arrêt imputables aux accidents de la période." },
+      aide:"Journées calendaires d'arrêt imputables aux accidents de la période.",
+      inclut:"journées calendaires d'arrêt imputables aux accidents de la période, décomptées jusqu'au dernier jour de la période",
+      exclut:"les journées d'arrêt pour maladie ordinaire ou maladie professionnelle" },
     { cle:"formation_heures",  libelle:"Heures de formation",                  unite:"heures",    niveau:"établissement", source:"plan de formation",
-      aide:"Toutes formations confondues." },
+      aide:"Toutes formations confondues.",
+      inclut:"toutes formations, internes et externes, sur et hors temps de travail",
+      exclut:"l'accueil sécurité au poste et les briefings de moins d'une heure" },
     { cle:"formation_benef",   libelle:"Salariés formés",                      unite:"personnes", niveau:"établissement", source:"plan de formation",
-      aide:"Personnes distinctes ayant suivi au moins une formation." },
+      aide:"Personnes distinctes ayant suivi au moins une formation.",
+      inclut:"personnes distinctes ayant suivi au moins une formation sur la période",
+      exclut:"les inscriptions non suivies" },
     { cle:"femmes",            libelle:"Femmes dans l'effectif",               unite:"personnes", niveau:"établissement", source:"paie ou DSN",
-      aide:"Au dernier jour de la période." },
+      aide:"Au dernier jour de la période.",
+      inclut:"personnes déclarées de sexe féminin dans la paie, au dernier jour de la période",
+      exclut:"les intérimaires et les prestataires" },
     { cle:"boeth",             libelle:"Bénéficiaires de l'obligation d'emploi présents sur le site", unite:"personnes", niveau:"établissement", source:"RH du site",
-      aide:"Comptage interne, à ne pas confondre avec le taux d'emploi OETH : celui-ci se calcule une fois par an, au niveau de la société (SIREN), sur des effectifs moyens annuels Urssaf. Riseva ne le calcule pas." }
+      aide:"Comptage interne, à ne pas confondre avec le taux d'emploi OETH : celui-ci se calcule une fois par an, au niveau de la société (SIREN), sur des effectifs moyens annuels Urssaf. Riseva ne le calcule pas.",
+      inclut:"personnes présentes sur le site ayant déclaré une reconnaissance en cours de validité",
+      exclut:"toute inférence : ce comptage repose sur des déclarations volontaires, et un salarié n'a aucune obligation de déclarer" }
   ],
   /* Ce que Riseva calcule. Aucun de ces taux ne reprend une définition
      réglementaire : ce sont des indicateurs internes, comparables à eux-mêmes
      dans le temps, et à rien d'autre. Le dire est la seule façon honnête de les
      afficher — un « taux de fréquence » qui ressemble à celui de l'assurance
      maladie sans en reprendre le numérateur est un piège pour celui qui le lit. */
+  /* Une valeur absente reste absente. Écrire zéro à sa place transformerait
+     « ce site n'a pas déclaré ses entrées » en « ce site n'a eu aucune entrée » :
+     le taux de rotation chuterait de cent pour cent, et l'alerte d'écart se
+     déclencherait sur une donnée manquante. */
   calcules: [
     { cle:"tf1", libelle:"Fréquence interne des accidents avec arrêt",
       unite:"", niveau:"tout périmètre", reglementaire:false,
+      num:"at_avec_arret", den:"heures_travaillees",
       formule:"accidents avec arrêt × 1 000 000 ÷ heures travaillées",
       note:"Indicateur interne. Le taux de fréquence de l'assurance maladie repose sur les accidents en premier règlement : ces deux chiffres ne se comparent pas.",
       calcul: (v) => v.heures_travaillees ? (v.at_avec_arret * 1e6) / v.heures_travaillees : null },
     { cle:"tf2", libelle:"Fréquence interne, avec et sans arrêt",
       unite:"", niveau:"tout périmètre", reglementaire:false,
+      num:"at_avec_arret + at_sans_arret", den:"heures_travaillees",
       formule:"(accidents avec arrêt + sans arrêt) × 1 000 000 ÷ heures travaillées",
       note:"Indicateur interne, utile pour suivre les presqu'accidents soignés sans arrêt.",
       calcul: (v) => v.heures_travaillees
         ? ((v.at_avec_arret + v.at_sans_arret) * 1e6) / v.heures_travaillees : null },
     { cle:"tg", libelle:"Gravité interne",
       unite:"", niveau:"tout périmètre", reglementaire:false,
+      num:"jours_arret", den:"heures_travaillees",
       formule:"journées perdues × 1 000 ÷ heures travaillées",
       note:"Indicateur interne. Les journées perdues déclarées ici ne suivent pas forcément les règles d'imputation de l'assurance maladie.",
       calcul: (v) => v.heures_travaillees ? (v.jours_arret * 1e3) / v.heures_travaillees : null },
     { cle:"if_", libelle:"Indice interne de fréquence",
       unite:"", niveau:"tout périmètre", reglementaire:false,
+      num:"at_avec_arret", den:"effectif_fin",
       formule:"accidents avec arrêt × 1 000 ÷ effectif",
       note:"Indicateur interne.",
       calcul: (v) => v.effectif_fin ? (v.at_avec_arret * 1e3) / v.effectif_fin : null },
     { cle:"turnover", libelle:"Rotation du personnel",
       unite:"%", niveau:"tout périmètre", reglementaire:false,
+      num:"(entrees + sorties) / 2", den:"effectif_fin",
       formule:"(entrées + sorties) ÷ 2 ÷ effectif × 100",
       note:"Définition interne : il en existe plusieurs, celle-ci est écrite pour être refaite à la main.",
       calcul: (v) => v.effectif_fin ? ((v.entrees + v.sorties) / 2) / v.effectif_fin * 100 : null },
     { cle:"part_femmes", libelle:"Part des femmes dans l'effectif",
       unite:"%", niveau:"tout périmètre", reglementaire:false,
+      num:"femmes", den:"effectif_fin",
       formule:"femmes ÷ effectif × 100",
       note:"Ne préjuge en rien de l'index d'égalité professionnelle, qui obéit à d'autres règles et se calcule au niveau de l'entreprise.",
       calcul: (v) => v.effectif_fin ? (v.femmes / v.effectif_fin) * 100 : null }
@@ -545,6 +579,14 @@ export const INDICATEURS = {
   ],
   delai_jours: 21
 };
+
+/* Trente pour cent : le seuil au-delà duquel une variation d'un indicateur
+   calculé doit être expliquée. Ce n'est pas une constante magique — c'est le
+   point où, dans un jeu de données sociales, une variation cesse d'être du bruit
+   et devient soit un événement, soit une erreur de saisie. En dessous, demander
+   une explication à chaque campagne ferait écrire « RAS » à tout le monde, ce qui
+   ne vaut pas mieux que rien. */
+export const SEUIL_ECART = 0.3;
 
 export const INDICATEURS_LIMITES = [
   "Riseva calcule à partir de valeurs déclarées par l'entreprise ; elle ne les audite pas.",
@@ -1726,7 +1768,44 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
     /* Le contributeur saisit, l'approbateur verrouille. Deux gestes, deux personnes
        si possible, parce qu'un chiffre entre sinon dans un document contractuel sans
        que personne ne l'ait regardé. */
-    saisirIndicateurs(cid, etid, valeurs, uid){
+    /* ------------------------------------------------------------------ */
+    /* Écarts entre périodes                                              */
+    /* ------------------------------------------------------------------ */
+    /* Un taux de fréquence qui triple d'un semestre à l'autre a deux causes
+       possibles : il s'est réellement passé quelque chose, ou quelqu'un a saisi
+       des heures travaillées au lieu d'heures payées. Les deux se ressemblent
+       exactement dans une base de données, et la seconde est la plus fréquente.
+
+       Riseva ne corrige rien et ne refuse pas la valeur : elle refuse le silence.
+       Au-delà de trente pour cent de variation sur un indicateur calculé, la
+       saisie demande une phrase d'explication. Cette phrase suit la valeur
+       jusque dans le rapport — c'est elle qui répond, un an plus tard, à la seule
+       question que posera un acheteur devant une courbe qui saute. */
+    campagnePrecedente(cid){
+      const c = api.campagne(cid); if (!c) return null;
+      return s.campagnes
+        .filter(x => x.groupe === c.groupe && x.fin < c.debut)
+        .sort((a, b) => (a.fin < b.fin ? 1 : -1))[0] || null;
+    },
+    ecartsAvecPeriodePrecedente(cid, etid, valeurs){
+      const prec = api.campagnePrecedente(cid);
+      if (!prec) return [];
+      const o = api.observation(prec.id, etid);
+      if (!o || !["declare", "approuve"].includes(o.etat)) return [];
+      const ecarts = [];
+      INDICATEURS.calcules.forEach(d => {
+        const avant = d.calcul(o.valeurs || {});
+        const apres = d.calcul(valeurs || {});
+        if (avant == null || apres == null || avant === 0) return;
+        const variation = (apres - avant) / Math.abs(avant);
+        if (Math.abs(variation) >= SEUIL_ECART)
+          ecarts.push({ cle: d.cle, libelle: d.libelle, formule: d.formule,
+                        avant, apres, variation,
+                        periode_avant: prec.libelle || prec.nom || prec.id });
+      });
+      return ecarts;
+    },
+    saisirIndicateurs(cid, etid, valeurs, uid, commentaire = null){
       const c = api.campagne(cid);
       if (!c || c.etat !== "ouverte") throw new Error("Cette campagne est close.");
       let o = api.observation(cid, etid);
@@ -1736,20 +1815,89 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         if (v === undefined || v === null || v === "") return;
         propres[d.cle] = Math.max(0, Number(v) || 0);
       });
+      /* Le refus porte sur l'absence d'explication, jamais sur la valeur. Une
+         plateforme qui rejetterait un chiffre parce qu'il bouge trop finirait par
+         obtenir des chiffres qui ne bougent pas. */
+      const ecarts = api.ecartsAvecPeriodePrecedente(cid, etid,
+        { ...(o ? o.valeurs : {}), ...propres });
+      const mot = String(commentaire || "").trim();
+      if (ecarts.length && mot.length < 10)
+        throw new Error(
+          ecarts.map(e => `${e.libelle} : ${Math.abs(Math.round(e.variation * 100))} % `
+            + `de variation par rapport à ${e.periode_avant}`).join(" ; ")
+          + `. Au-delà de ${Math.round(SEUIL_ECART * 100)} %, expliquez en une phrase : `
+          + `un événement réel et une erreur de saisie se ressemblent exactement dans une base.`);
       if (!o){
         o = { id:id("o"), campagne:cid, etablissement:etid, etat:"declare", version:1,
               saisi_par:uid, saisi_le:new Date().toISOString().slice(0,10),
-              approuve_par:null, approuve_le:null, valeurs:propres };
+              approuve_par:null, approuve_le:null, valeurs:propres,
+              commentaire: mot || null, ecarts };
         s.observations.push(o);
       } else {
         /* Corriger une valeur approuvée, c'est produire une version, jamais écraser. */
         if (o.etat === "approuve") o.version += 1;
         o.valeurs = { ...o.valeurs, ...propres };
+        o.commentaire = mot || o.commentaire || null;
+        o.ecarts = ecarts;
         o.etat = "declare";
         o.saisi_par = uid; o.saisi_le = new Date().toISOString().slice(0,10);
         o.approuve_par = null; o.approuve_le = null;
       }
       return o;
+    },
+    /* ------------------------------------------------------------------ */
+    /* Dictionnaire des données                                           */
+    /* ------------------------------------------------------------------ */
+    /* Ce que produit un rapport RSE défendable, en plus des chiffres : la pièce
+       qui dit comment ils ont été obtenus. Sans elle, un acheteur, un auditeur ou
+       un commissaire aux comptes ne peut ni contester ni vérifier — il peut
+       seulement croire, et c'est exactement ce qu'il refusera de faire.
+
+       Le dictionnaire est daté et versionné avec la campagne : une définition qui
+       change plus tard ne réécrit pas les rapports déjà arrêtés. C'est la raison
+       pour laquelle il est produit ici plutôt que lu dans le code au moment de
+       l'affichage. */
+    dictionnaire(cid){
+      const c = api.campagne(cid);
+      const e = c ? api.etatCampagne(cid) : null;
+      return {
+        version: INDICATEURS.version,
+        campagne: c ? { id:c.id, libelle:c.libelle, debut:c.debut, fin:c.fin,
+                        echeance:c.echeance, etat:c.etat } : null,
+        edite_le: "2026-08-20",
+        seuil_ecart: SEUIL_ECART,
+        collecte: c ? {
+          sites_attendus: e.sites.length,
+          sites_approuves: e.sites.filter(x => x.etat === "approuve").length,
+          sites_sans_reponse: e.sites.filter(x => x.etat === "clos_sans_reponse").length
+        } : null,
+        saisis: INDICATEURS.saisis.map(d => ({
+          cle:d.cle, libelle:d.libelle, unite:d.unite, niveau:d.niveau,
+          source:d.source, definition:d.aide, inclut:d.inclut, exclut:d.exclut,
+          agregation:"somme des sites du périmètre"
+        })),
+        calcules: INDICATEURS.calcules.map(d => ({
+          cle:d.cle, libelle:d.libelle, unite:d.unite, niveau:d.niveau,
+          reglementaire:d.reglementaire, formule:d.formule,
+          numerateur:d.num, denominateur:d.den, note:d.note,
+          /* La règle qui compte, et celle qu'on voit le plus souvent violée :
+             sur plusieurs sites, un taux est un rapport de sommes. La moyenne des
+             taux de Paris, Lyon et Marseille n'est pas le taux du groupe, et
+             l'écart ne se voit pas à l'œil. */
+          agregation:"rapport de la somme des numérateurs sur la somme des dénominateurs, jamais une moyenne de taux"
+        })),
+        limites: INDICATEURS_LIMITES,
+        /* Les explications fournies par les sites quand une valeur a bougé de plus
+           du seuil. Elles font partie du dictionnaire, pas d'une annexe : ce sont
+           elles qui répondent à la question posée devant une courbe qui saute. */
+        explications: c ? s.observations
+          .filter(o => o.campagne === cid && o.commentaire)
+          .map(o => ({ site: (api.etablissement(o.etablissement) || {}).nom || o.etablissement,
+                       commentaire: o.commentaire,
+                       ecarts: (o.ecarts || []).map(x =>
+                         `${x.libelle} : ${x.variation > 0 ? "+" : ""}${Math.round(x.variation * 100)} %`) }))
+          : []
+      };
     },
     approuverIndicateurs(cid, etid, uid){
       const o = api.observation(cid, etid);

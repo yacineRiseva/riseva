@@ -1,4 +1,4 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, FISCAL, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements } from "./data.js";
 import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
@@ -5103,8 +5103,8 @@ function formReferent(et){
     <div id="rf-out"></div>
   </div>`);
   modal(`Référent de ${et.nom} — ${et.ville}`, corps, [
-    { texte: "Annuler", classe: "btn--ghost" },
-    { texte: "Créer le lien", classe: "btn--primary", garder: true, action: () => {
+    { label: "Annuler", classe: "btn--ghost" },
+    { label: "Créer le lien", classe: "btn--primary", onClick: () => {
         try {
           const inv = DB.creerInvitationReferent(et.id,
             corps.querySelector("#rf-nom").value.trim(),
@@ -5116,6 +5116,9 @@ function formReferent(et){
              <p class="hint" style="margin-top:6px">Expire le ${dateFR(inv.expire_le)}.</p>`;
           toast("Lien de référent créé.");
         } catch (e){ toast(e.message); }
+        /* La fenêtre reste ouverte : le lien qu'elle vient d'afficher est la
+           seule raison de l'avoir ouverte, et il ne se réaffiche pas. */
+        return false;
       } }
   ]);
 }
@@ -5177,7 +5180,9 @@ function vueIndicateurs(u){
 
     <section class="card">
       <div class="between" style="margin-bottom:var(--s5)"><h3>Par établissement</h3>
-        <button class="btn btn--ghost btn--sm" id="csvI">Exporter</button></div>
+        <div class="row" style="--gap:var(--s3)">
+          <button class="btn btn--ghost btn--sm" id="dicoI">Dictionnaire des données</button>
+          <button class="btn btn--ghost btn--sm" id="csvI">Exporter</button></div></div>
       <table class="table"><thead><tr>
         <th>Établissement</th><th>État</th><th>Saisi par</th><th>Approuvé par</th><th></th>
       </tr></thead><tbody></tbody></table>
@@ -5267,6 +5272,12 @@ function vueIndicateurs(u){
     tb.appendChild(tr);
   });
 
+  /* La pièce qu'un acheteur, un auditeur ou un commissaire aux comptes demande
+     après les chiffres : comment ils ont été obtenus. Sans elle, il ne peut ni
+     contester ni vérifier — il peut seulement croire, et c'est exactement ce
+     qu'il refusera de faire. */
+  el.querySelector("#dicoI").onclick = () => ouvrirDictionnaire(cid);
+
   el.querySelector("#csvI").onclick = () => {
     versCSV(`riseva-indicateurs-${e.campagne.periode}.csv`,
       ["Société", "Établissement", "Ville", "État", "Saisi par", "Approuvé par",
@@ -5281,6 +5292,90 @@ function vueIndicateurs(u){
   return el;
 }
 
+/* ------------------------------------------------------------------ */
+/* Dictionnaire des données                                           */
+/* ------------------------------------------------------------------ */
+function ouvrirDictionnaire(cid){
+  const d = DB.dictionnaire(cid);
+  const corps = h(`<div class="stack" style="--gap:var(--s6)">
+    <div>
+      <p class="muted" style="font-size:var(--t-sm)">
+        Version ${esc(d.version)}${d.campagne ? ` · ${esc(d.campagne.libelle)},
+        du ${dateCourte(d.campagne.debut)} au ${dateCourte(d.campagne.fin)}` : ""}.
+        Le dictionnaire est daté avec la campagne : une définition qui change plus tard ne
+        réécrit pas les rapports déjà arrêtés.</p>
+      ${d.collecte ? `<p class="muted" style="font-size:var(--t-sm);margin-top:var(--s2)">
+        Périmètre déclaré : ${nb(d.collecte.sites_approuves)} site${d.collecte.sites_approuves > 1 ? "s" : ""}
+        approuvé${d.collecte.sites_approuves > 1 ? "s" : ""} sur ${nb(d.collecte.sites_attendus)}
+        attendu${d.collecte.sites_attendus > 1 ? "s" : ""}${d.collecte.sites_sans_reponse
+          ? `, ${nb(d.collecte.sites_sans_reponse)} clos sans réponse` : ""}.</p>` : ""}
+    </div>
+
+    <div>
+      <h4>Ce que les sites déclarent</h4>
+      <table class="table" style="margin-top:var(--s4)"><thead><tr>
+        <th>Indicateur</th><th>Source</th><th>On compte</th><th>On ne compte pas</th>
+      </tr></thead><tbody>
+        ${d.saisis.map(x => `<tr>
+          <td><strong>${esc(x.libelle)}</strong>${x.unite ? `<br><span class="muted" style="font-size:var(--t-xs)">${esc(x.unite)} · ${esc(x.niveau)}</span>` : ""}</td>
+          <td class="muted" style="font-size:var(--t-xs)">${esc(x.source || "—")}</td>
+          <td class="muted" style="font-size:var(--t-xs)">${esc(x.inclut || "—")}</td>
+          <td class="muted" style="font-size:var(--t-xs)">${esc(x.exclut || "—")}</td>
+        </tr>`).join("")}
+      </tbody></table>
+    </div>
+
+    <div>
+      <h4>Ce que Riseva calcule</h4>
+      <table class="table" style="margin-top:var(--s4)"><thead><tr>
+        <th>Indicateur</th><th>Formule</th><th>Agrégation</th><th>Réglementaire</th>
+      </tr></thead><tbody>
+        ${d.calcules.map(x => `<tr>
+          <td><strong>${esc(x.libelle)}</strong>${x.note ? `<br><span class="muted" style="font-size:var(--t-xs)">${esc(x.note)}</span>` : ""}</td>
+          <td class="muted" style="font-size:var(--t-xs)">${esc(x.formule)}<br>
+            <span style="font-family:var(--font-mono)">${esc(x.numerateur)} ÷ ${esc(x.denominateur)}</span></td>
+          <td class="muted" style="font-size:var(--t-xs)">${esc(x.agregation)}</td>
+          <td>${x.reglementaire ? `<span class="badge badge--ok">oui</span>`
+                                : `<span class="badge badge--attente">non</span>`}</td>
+        </tr>`).join("")}
+      </tbody></table>
+    </div>
+
+    ${d.explications.length ? `<div>
+      <h4>Variations expliquées par les sites</h4>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:4px">Au-delà de
+        ${Math.round(d.seuil_ecart * 100)} % de variation, le site doit dire ce qui s'est passé.
+        Un événement réel et une erreur de saisie se ressemblent exactement dans une base.</p>
+      <table class="table" style="margin-top:var(--s4)"><thead><tr>
+        <th>Site</th><th>Écart</th><th>Explication</th></tr></thead><tbody>
+        ${d.explications.map(x => `<tr>
+          <td>${esc(x.site)}</td>
+          <td class="muted" style="font-size:var(--t-xs)">${x.ecarts.map(esc).join("<br>")}</td>
+          <td class="muted" style="font-size:var(--t-xs)">${esc(x.commentaire)}</td>
+        </tr>`).join("")}
+      </tbody></table></div>` : ""}
+
+    <div class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
+      <h4>Ce que Riseva ne fait pas</h4>
+      <ul class="liste-ecarts" style="margin-top:var(--s3)">${
+        d.limites.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+    </div>
+  </div>`);
+
+  modal("Dictionnaire des données", corps, [
+    { label:"Fermer" },
+    { label:"Exporter", classe:"btn--ghost", onClick: () => {
+        versCSV("riseva-dictionnaire-donnees.csv",
+          ["Type", "Indicateur", "Unité", "Niveau", "Source ou formule", "On compte", "On ne compte pas", "Agrégation"],
+          [...d.saisis.map(x => ["déclaré", x.libelle, x.unite, x.niveau, x.source,
+                                 x.inclut || "", x.exclut || "", x.agregation]),
+           ...d.calcules.map(x => ["calculé", x.libelle, x.unite, x.niveau, x.formule,
+                                   x.numerateur, x.denominateur, x.agregation])]);
+        toast("Dictionnaire exporté.");
+        return false; }}
+  ]);
+}
+
 function formIndicateurs(u, cid, et){
   const o = DB.observation(cid, et.id);
   const v = (o && o.valeurs) || {};
@@ -5292,23 +5387,62 @@ function formIndicateurs(u, cid, et){
            produira une version ${o.version + 1}, et il faudra les approuver à nouveau.` : ""}
     </p>
     <div class="stack" style="--gap:var(--s4)" id="ch"></div>
+    <div id="ec"></div>
+    <div class="field">
+      <label for="i-com">Ce qui explique une variation, s'il y en a une</label>
+      <textarea class="textarea" id="i-com" rows="2"
+        placeholder="Un événement, un changement de périmètre, une correction…">${esc((o && o.commentaire) || "")}</textarea>
+      <p class="hint">Au-delà de ${Math.round(SEUIL_ECART * 100)} % de variation sur un
+      indicateur calculé, une phrase est demandée. Elle suit la valeur jusque dans le
+      rapport : c'est elle qui répondra, dans un an, devant une courbe qui saute.</p>
+    </div>
   </div>`);
   const box = corps.querySelector("#ch");
   INDICATEURS.saisis.forEach(d => {
+    /* `inclut` et `exclut` valent mieux qu'une définition en prose : c'est là que
+       deux sites divergent sans le savoir, l'un comptant les intérimaires et
+       l'autre non, et c'est invisible une fois les chiffres additionnés. */
     box.appendChild(h(`<div class="field">
       <label for="i-${d.cle}">${esc(d.libelle)}${d.unite ? ` <span class="muted">(${esc(d.unite)})</span>` : ""}</label>
       <input class="input" id="i-${d.cle}" type="number" min="0" step="any"
         value="${v[d.cle] ?? ""}">
-      <p class="hint">${esc(d.aide)}</p></div>`));
+      <p class="hint">${esc(d.aide)}</p>
+      ${d.inclut ? `<p class="hint"><strong>On compte :</strong> ${esc(d.inclut)}.
+        <strong>On ne compte pas :</strong> ${esc(d.exclut)}.</p>` : ""}
+    </div>`));
   });
+
+  const lire = () => {
+    const vals = {};
+    INDICATEURS.saisis.forEach(d => { vals[d.cle] = corps.querySelector(`#i-${d.cle}`).value; });
+    return vals;
+  };
+  /* Les écarts s'affichent pendant la saisie, pas au moment du refus : découvrir
+     qu'on doit se justifier après avoir rempli douze champs est la meilleure
+     façon d'obtenir « RAS ». */
+  const ec = corps.querySelector("#ec");
+  const majEcarts = () => {
+    const l = DB.ecartsAvecPeriodePrecedente(cid, et.id, { ...v, ...lire() });
+    ec.innerHTML = !l.length ? "" :
+      `<div class="card card--flat" style="padding:var(--s4);background:var(--warn-bg);border-color:transparent">
+        <p style="font-size:var(--t-sm);font-weight:600">Variation notable par rapport à ${esc(l[0].periode_avant)}</p>
+        <ul class="liste-ecarts" style="margin-top:var(--s2)">${l.map(x =>
+          `<li>${esc(x.libelle)} : ${x.variation > 0 ? "+" : ""}${Math.round(x.variation * 100)} %
+           (${nb(Math.round(x.avant))} → ${nb(Math.round(x.apres))})</li>`).join("")}</ul>
+      </div>`;
+  };
+  box.querySelectorAll("input").forEach(i => i.addEventListener("input", majEcarts));
+  majEcarts();
+
   modal(`${et.nom} — ${et.ville}`, corps, [
-    { texte: "Annuler", classe: "btn--ghost" },
-    { texte: "Enregistrer", classe: "btn--primary", action: () => {
-        const vals = {};
-        INDICATEURS.saisis.forEach(d => { vals[d.cle] = corps.querySelector(`#i-${d.cle}`).value; });
-        try { DB.saisirIndicateurs(cid, et.id, vals, u.id);
+    { label: "Annuler", classe: "btn--ghost" },
+    { label: "Enregistrer", classe: "btn--primary", onClick: () => {
+        try { DB.saisirIndicateurs(cid, et.id, lire(), u.id,
+                corps.querySelector("#i-com").value);
               toast("Saisie enregistrée. Elle attend une approbation."); rendre(); }
-        catch (err){ toast(err.message); }
+        /* La fenêtre reste ouverte : sinon la saisie est perdue et le message
+           d'erreur avec elle. */
+        catch (err){ toast(err.message); return false; }
       } }
   ]);
 }
@@ -5328,8 +5462,8 @@ function reaffecter(u, g){
       </select></div>
   </div>`);
   modal("Rattacher à un autre site", corps, [
-    { texte: "Annuler", classe: "btn--ghost" },
-    { texte: "Rattacher", classe: "btn--primary", action: () => {
+    { label: "Annuler", classe: "btn--ghost" },
+    { label: "Rattacher", classe: "btn--primary", onClick: () => {
         try { DB.confirmerAffectation(g.id, corps.querySelector("#ra-et").value);
               toast("Rattachement enregistré."); rendre(); }
         catch (e){ toast(e.message); }
@@ -5623,8 +5757,8 @@ function formValeurMateriel(x){
   };
   corps.querySelector("#vm-cat").addEventListener("change", maj);
   modal("Valoriser un don de matériel", corps, [
-    { texte: "Annuler", classe: "btn--ghost" },
-    { texte: "Enregistrer", classe: "btn--primary", action: () => {
+    { label: "Annuler", classe: "btn--ghost" },
+    { label: "Enregistrer", classe: "btn--primary", onClick: () => {
         try {
           DB.declarerValeurMateriel(x.mission, {
             valeur: corps.querySelector("#vm-val").value,

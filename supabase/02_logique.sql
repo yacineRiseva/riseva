@@ -413,7 +413,8 @@ end $$;
 -- personnes : sans cette séparation, un chiffre entre dans un document
 -- contractuel sans que personne ne l'ait regardé.
 create or replace function public.saisir_indicateurs(
-  p_campagne uuid, p_etablissement uuid, p_valeurs jsonb)
+  p_campagne uuid, p_etablissement uuid, p_valeurs jsonb,
+  p_commentaire text default null)
 returns uuid
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -423,6 +424,8 @@ declare
   v_id uuid;
   v_etat public.etat_collecte;
   v_version integer;
+  v_ecarts jsonb;
+  v_mot text := btrim(coalesce(p_commentaire, ''));
 begin
   if v_ent is null or v_role not in ('entreprise_admin','site_referent') then
     raise exception 'Réservé à la société ou au référent du site' using errcode = '42501';
@@ -448,10 +451,23 @@ begin
     from public.observation_indicateur o
    where o.campagne = p_campagne and o.etablissement = p_etablissement;
 
+  -- Le refus porte sur l'absence d'explication, jamais sur la valeur. Une
+  -- plateforme qui rejetterait un chiffre parce qu'il bouge trop finirait par
+  -- obtenir des chiffres qui ne bougent pas.
+  v_ecarts := private.ecarts_periode(p_campagne, p_etablissement,
+    coalesce((select o.valeurs from public.observation_indicateur o where o.id = v_id),
+             '{}'::jsonb) || p_valeurs);
+  if jsonb_array_length(v_ecarts) > 0 and length(v_mot) < 10 then
+    raise exception 'Variation de plus de % %% sur % indicateur(s) calculé(s) : expliquez en une phrase. Un événement réel et une erreur de saisie se ressemblent exactement dans une base.',
+      round(private.seuil_ecart() * 100), jsonb_array_length(v_ecarts)
+      using errcode = '22023';
+  end if;
+
   if v_id is null then
     insert into public.observation_indicateur
-      (campagne, etablissement, etat, valeurs, saisi_par, saisi_le)
-    values (p_campagne, p_etablissement, 'declare', p_valeurs, auth.uid(), now())
+      (campagne, etablissement, etat, valeurs, saisi_par, saisi_le, commentaire, ecarts)
+    values (p_campagne, p_etablissement, 'declare', p_valeurs, auth.uid(), now(),
+            nullif(v_mot, ''), v_ecarts)
     returning id into v_id;
   else
     -- Corriger une valeur approuvée produit une version, jamais un écrasement.
@@ -460,6 +476,8 @@ begin
            etat = 'declare',
            version = case when v_etat = 'approuve' then o.version + 1 else o.version end,
            saisi_par = auth.uid(), saisi_le = now(),
+           commentaire = coalesce(nullif(v_mot, ''), o.commentaire),
+           ecarts = v_ecarts,
            approuve_par = null, approuve_le = null, maj_le = now()
      where o.id = v_id;
   end if;
@@ -1266,4 +1284,100 @@ begin
   update public.intention_don i
      set etat = 'abandonnee', motif = left(coalesce(p_motif, 'sans motif'), 200)
    where i.id = p_intention and i.etat = 'annoncee';
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Écarts entre périodes
+-- ---------------------------------------------------------------------------
+-- Un taux de fréquence qui triple d'un semestre à l'autre a deux causes
+-- possibles : il s'est réellement passé quelque chose, ou quelqu'un a saisi des
+-- heures payées au lieu d'heures travaillées. Les deux se ressemblent exactement
+-- dans une base de données, et la seconde est la plus fréquente.
+--
+-- Riseva ne corrige rien et ne refuse aucune valeur : elle refuse le silence.
+-- Le seuil vit ici et dans `data.js` sous le même nom, avec la même valeur —
+-- deux seuils concurrents, ce sont deux produits.
+create or replace function private.seuil_ecart() returns numeric
+  language sql immutable parallel safe set search_path = '' as $$ select 0.30::numeric $$;
+
+-- La campagne précédente du même groupe : celle dont la période s'achève avant
+-- le début de celle-ci. Pas « la précédente par date de création » : une campagne
+-- de point d'étape ouverte après coup fausserait la comparaison.
+create or replace function private.campagne_precedente(p_campagne uuid) returns uuid
+language sql stable set search_path = '' as $$
+  select p.id from public.campagne_indicateurs c
+    join public.campagne_indicateurs p
+      on p.groupe = c.groupe and p.fin < c.debut
+   where c.id = p_campagne
+   order by p.fin desc
+   limit 1
+$$;
+
+-- Les six indicateurs calculés, sous la forme (numérateur, dénominateur,
+-- facteur). Les mêmes formules que dans `data.js` : un score, un plafond, un taux
+-- de fréquence ne peuvent pas diverger entre ce qu'on montre et ce qu'on facture.
+-- Les six indicateurs calculés. Les mêmes formules que dans `data.js` : un score,
+-- un plafond, un taux de fréquence ne peuvent pas diverger entre ce qu'on montre
+-- et ce qu'on facture.
+--
+-- Une valeur absente reste absente. La tentation d'écrire `coalesce(x, 0)` est
+-- forte et fausse : elle transforme « ce site n'a pas déclaré ses entrées » en
+-- « ce site n'a eu aucune entrée », ce qui fait chuter le taux de rotation de
+-- cent pour cent et déclenche une alerte d'écart pour une donnée manquante.
+create or replace function private.n(v jsonb, k text) returns numeric
+  language sql immutable parallel safe set search_path = '' as $$
+  select case when jsonb_typeof(v->k) = 'number' then (v->>k)::numeric end
+$$;
+
+create or replace function private.taux_calcules(v jsonb)
+returns jsonb language sql immutable set search_path = '' as $$
+  select jsonb_strip_nulls(jsonb_build_object(
+    'tf1', case when private.n(v,'heures_travaillees') > 0
+                then private.n(v,'at_avec_arret') * 1000000
+                     / private.n(v,'heures_travaillees') end,
+    'tf2', case when private.n(v,'heures_travaillees') > 0
+                then (private.n(v,'at_avec_arret') + private.n(v,'at_sans_arret')) * 1000000
+                     / private.n(v,'heures_travaillees') end,
+    'tg',  case when private.n(v,'heures_travaillees') > 0
+                then private.n(v,'jours_arret') * 1000
+                     / private.n(v,'heures_travaillees') end,
+    'if_', case when private.n(v,'effectif_fin') > 0
+                then private.n(v,'at_avec_arret') * 1000
+                     / private.n(v,'effectif_fin') end,
+    'turnover', case when private.n(v,'effectif_fin') > 0
+                then (private.n(v,'entrees') + private.n(v,'sorties')) / 2
+                     / private.n(v,'effectif_fin') * 100 end,
+    'part_femmes', case when private.n(v,'effectif_fin') > 0
+                then private.n(v,'femmes')
+                     / private.n(v,'effectif_fin') * 100 end
+  ))
+$$;
+
+create or replace function private.ecarts_periode(
+  p_campagne uuid, p_etablissement uuid, p_valeurs jsonb)
+returns jsonb language plpgsql stable set search_path = '' as $$
+declare v_prec uuid; v_avant jsonb; v_a jsonb; v_b jsonb;
+        v_out jsonb := '[]'::jsonb; k text; av numeric; ap numeric; var numeric;
+begin
+  v_prec := private.campagne_precedente(p_campagne);
+  if v_prec is null then return v_out; end if;
+  select o.valeurs into v_avant from public.observation_indicateur o
+   where o.campagne = v_prec and o.etablissement = p_etablissement
+     and o.etat in ('declare','approuve');
+  if v_avant is null then return v_out; end if;
+
+  v_a := private.taux_calcules(v_avant);
+  v_b := private.taux_calcules(p_valeurs);
+  for k in select jsonb_object_keys(v_a) loop
+    av := (v_a->>k)::numeric;
+    ap := (v_b->>k)::numeric;
+    if av is null or ap is null or av = 0 then continue; end if;
+    var := (ap - av) / abs(av);
+    if abs(var) >= private.seuil_ecart() then
+      v_out := v_out || jsonb_build_array(jsonb_build_object(
+        'cle', k, 'avant', round(av, 2), 'apres', round(ap, 2),
+        'variation', round(var, 4)));
+    end if;
+  end loop;
+  return v_out;
 end $$;

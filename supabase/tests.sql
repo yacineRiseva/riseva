@@ -97,7 +97,20 @@ insert into private.appartenance (profil, role, entreprise, association, etablis
 
 insert into campagne_indicateurs (id, groupe, periode, libelle, debut, fin, echeance) values
   ('c1000000-0000-4000-8000-000000000001', '99999999-9999-4999-8999-999999999999',
-   '2026-S2', 'Second semestre 2026', '2026-07-01', '2026-12-31', '2027-01-31');
+   '2026-S2', 'Second semestre 2026', '2026-07-01', '2026-12-31', '2027-01-31'),
+  -- Une période antérieure, close et approuvée : sans elle il n'y a rien à
+  -- comparer, et la règle des écarts ne serait vérifiée par personne.
+  ('c1000000-0000-4000-8000-000000000002', '99999999-9999-4999-8999-999999999999',
+   '2026-S1', 'Premier semestre 2026', '2026-01-01', '2026-06-30', '2026-07-31');
+
+insert into observation_indicateur (campagne, etablissement, etat, valeurs,
+                                    saisi_par, saisi_le, approuve_par, approuve_le)
+values ('c1000000-0000-4000-8000-000000000002', 'e7000000-0000-4000-8000-000000000002',
+        'approuve', '{"effectif_fin": 110, "heures_travaillees": 92000, "at_avec_arret": 2,
+                      "at_sans_arret": 4, "jours_arret": 40, "femmes": 39,
+                      "entrees": 7, "sorties": 5}'::jsonb,
+        'aaaaaaaa-0000-4000-8000-000000000005', now(),
+        'aaaaaaaa-0000-4000-8000-000000000001', now());
 
 \echo ''
 \echo 'Calcul du score'
@@ -410,7 +423,53 @@ select pg_temp.refuse('des valeurs non numériques sont refusées',
 select pg_temp.refuse('il n''approuve pas sa propre saisie',
   'select public.approuver_indicateurs(''c1000000-0000-4000-8000-000000000001'',
      ''e7000000-0000-4000-8000-000000000002'')');
+
+select pg_temp.refuse('une variation de plus de trente pour cent sans explication est refusée',
+  'select public.saisir_indicateurs(''c1000000-0000-4000-8000-000000000001'',
+     ''e7000000-0000-4000-8000-000000000002'',
+     ''{"effectif_fin": 110, "heures_travaillees": 92000, "at_avec_arret": 9}''::jsonb)');
+
+do $$
+declare v_id uuid;
+begin
+  v_id := public.saisir_indicateurs('c1000000-0000-4000-8000-000000000001',
+    'e7000000-0000-4000-8000-000000000002',
+    '{"effectif_fin": 110, "heures_travaillees": 92000, "at_avec_arret": 9}'::jsonb,
+    'Un chariot a percuté un rayonnage le 12 mai : six blessés le même jour.');
+  perform pg_temp.dit('la même valeur passe avec une explication',
+    (select commentaire is not null from public.observation_indicateur where id = v_id));
+  perform pg_temp.dit('l''explication est conservée avec les écarts qui l''ont déclenchée',
+    (select jsonb_array_length(ecarts) > 0 from public.observation_indicateur where id = v_id));
+end $$;
 reset role;
+
+-- Une variation forte doit être expliquée. Le refus porte sur le silence, pas
+-- sur la valeur : un chiffre rejeté parce qu'il bouge trop produirait des
+-- chiffres qui ne bougent pas.
+do $$
+begin
+  perform pg_temp.dit('le seuil d''écart est le même qu''à l''écran',
+    private.seuil_ecart() = 0.30);
+  perform pg_temp.dit('la période précédente est celle qui finit avant, pas la dernière créée',
+    private.campagne_precedente('c1000000-0000-4000-8000-000000000001')
+      = 'c1000000-0000-4000-8000-000000000002');
+  perform pg_temp.dit('un triplement des accidents est détecté comme écart',
+    jsonb_array_length(private.ecarts_periode(
+      'c1000000-0000-4000-8000-000000000001',
+      'e7000000-0000-4000-8000-000000000002',
+      '{"effectif_fin": 110, "heures_travaillees": 92000, "at_avec_arret": 9}'::jsonb)) > 0);
+  perform pg_temp.dit('une variation sous le seuil ne demande rien',
+    jsonb_array_length(private.ecarts_periode(
+      'c1000000-0000-4000-8000-000000000001',
+      'e7000000-0000-4000-8000-000000000002',
+      '{"effectif_fin": 110, "heures_travaillees": 92000, "at_avec_arret": 2,
+        "at_sans_arret": 4, "jours_arret": 40, "femmes": 39,
+        "entrees": 7, "sorties": 5}'::jsonb)) = 0);
+  perform pg_temp.dit('un taux est un rapport de sommes, pas une moyenne de taux',
+    (private.taux_calcules('{"at_avec_arret": 3, "heures_travaillees": 92000}'::jsonb)->>'tf1')::numeric
+      = 3 * 1000000::numeric / 92000);
+end $$;
+
 
 \echo ''
 \echo 'Ce que voit une autre société du même groupe'

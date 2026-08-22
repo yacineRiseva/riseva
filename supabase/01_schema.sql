@@ -589,6 +589,11 @@ create table observation_indicateur (
   saisi_le      timestamptz,
   approuve_par  uuid references profil(id) on delete set null,
   approuve_le   timestamptz,
+  -- L'explication d'une variation forte. Elle suit la valeur jusque dans le
+  -- rapport : c'est elle qui répond, un an plus tard, à la seule question que
+  -- posera un acheteur devant une courbe qui saute.
+  commentaire   text check (length(commentaire) <= 600),
+  ecarts        jsonb not null default '[]'::jsonb,
   maj_le        timestamptz not null default now(),
   unique (campagne, etablissement),
   -- Aucune donnée de santé : ni diagnostic, ni nature de lésion, ni identité de

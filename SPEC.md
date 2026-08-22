@@ -91,6 +91,27 @@ seul, parmi : `attendu`, `declare`, `approuve`, `clos_sans_reponse`.
   compte des accidents et des journées, pas des personnes.
 - Riseva **calcule**, Riseva ne **certifie** pas, et ne dépose rien à la place du client.
 
+### Écarts entre périodes, et dictionnaire des données
+
+- **Au-delà de 30 % de variation** sur un indicateur calculé par rapport à la période
+  précédente, la saisie demande une phrase d'explication. Le refus porte sur le silence, jamais
+  sur la valeur : une plateforme qui rejetterait un chiffre parce qu'il bouge trop finirait par
+  obtenir des chiffres qui ne bougent pas. Le seuil vit sous le même nom dans `data.js`
+  (`SEUIL_ECART`) et dans Postgres (`private.seuil_ecart()`).
+- L'explication **suit la valeur jusque dans le rapport**. C'est elle qui répond, un an plus
+  tard, à la seule question que posera un acheteur devant une courbe qui saute.
+- Les écarts sont **calculés pendant la saisie**, pas au moment du refus : découvrir qu'on doit
+  se justifier après avoir rempli douze champs est la meilleure façon d'obtenir « RAS ».
+- **Une valeur absente reste absente.** Jamais de zéro à la place de « non déclaré » : le taux de
+  rotation chuterait de 100 % et l'alerte se déclencherait sur une donnée manquante.
+- Chaque indicateur déclaré porte ce qu'il **inclut** et ce qu'il **exclut**. C'est là que deux
+  sites divergent sans le savoir — l'un compte les intérimaires, l'autre non — et c'est invisible
+  une fois les chiffres additionnés.
+- Le **dictionnaire des données** est produit avec la campagne, daté et versionné : définitions,
+  sources, inclusions, exclusions, formules, numérateur et dénominateur, mode d'agrégation,
+  limites, et les explications fournies par les sites. Une définition qui change plus tard ne
+  réécrit pas un rapport déjà arrêté. Exportable en CSV.
+
 ## 2 bis. Comptes, places et départs
 
 ### Places
