@@ -92,7 +92,13 @@
 /* Le filet de rivière en pied de barre latérale : la marque rappelée discrètement. */
 .side__river{position:absolute;left:0;right:0;bottom:96px;width:100%;height:90px;
   pointer-events:none;opacity:.5}
-.side{position:sticky;overflow:hidden}
+/* Le collant ne vaut que sur grand ecran. Cette regle etait posee sans media
+   query, dans une feuille chargee APRES components.css : a specificite egale
+   c'est la derniere qui gagne, donc elle ecrasait le `position:fixed` du
+   telephone. La barre gardait alors sa place dans la grille a une colonne, et
+   toute l'application s'ouvrait sur un ecran vide de la hauteur du viewport. */
+@media (min-width:961px){ .side{position:sticky;overflow:hidden} }
+@media (max-width:960px){ .side{overflow-y:auto} }
 .kpi--tete .bar>i{background:var(--lime)}
 
 /* ============ Notifications ============ */
@@ -523,3 +529,38 @@
   color:var(--ink-500); padding-top:2px; white-space:nowrap; min-width:64px; }
 .dat__quoi{ display:grid; gap:2px; font-size:var(--t-sm); min-width:0; }
 .dat .notif__point{ margin-top:6px; }
+
+
+/* --- Telephone ------------------------------------------------------ */
+/* Deux minimums de colonne faisaient deborder la page de cent pixels vers la
+   droite : sur un telephone, toute l'application glissait lateralement. */
+@media (max-width:600px){
+  /* Deux minimums de colonne et un texte qui ne se coupe pas faisaient deborder
+     la page d'environ cent trente pixels : sur un telephone, toute
+     l'application glissait lateralement a chaque geste. */
+  .aFaire{ padding:var(--s3); }
+  /* Les deux colonnes passent l'une sous l'autre : cote a cote sur un
+     telephone, elles coupaient les mots au milieu (« administra teur »). */
+  .aFaire{ flex-direction:column; gap:var(--s4); }
+  .aFaire__col{ min-width:0; flex:1 1 100%; flex-direction:column; gap:var(--s2); }
+  .aFaire__titre{ padding-top:0; }
+  .aFaire__liste{ min-width:0; }
+  .rappel{ padding:var(--s3) var(--s2); }
+  .rappel>span:nth-child(2){ min-width:0; }
+  .kpis{ grid-template-columns:1fr; }
+  /* `1fr` vaut `minmax(auto,1fr)` : la piste grandit avec son contenu et
+     depasse son conteneur. `minmax(0,1fr)` l'en empeche. */
+  .two,.three,.trois3,.pref,.grid{ grid-template-columns:minmax(0,1fr); }
+  /* Les grilles a piste minimale : une piste de 330 pixels dans un viewport de
+     390 moins les marges deborde de la page entiere. */
+  .annonces,.cartes,.annuaire__haut,.ensemble__g{ grid-template-columns:minmax(0,1fr); }
+  .content>*{ min-width:0; }
+  .card{ min-width:0; }
+}
+/* Un grand nombre ne se coupe jamais en deux. L'espace de milliers est une
+   espace SECABLE depuis le passage aux caracteres clavier : « 6 959 » se
+   cassait en « 6 » et « 959 » dans les tuiles de la foret. */
+.kpi__value,.ensemble__uq,.ensemble__cn,.tnum{ white-space:nowrap; }
+/* Une table large defile dans son cadre au lieu de deborder par-dessus la
+   carte voisine, ce qu'elle faisait sur l'ecran Equipe a 1440 pixels. */
+.tableau{ overflow-x:auto; }

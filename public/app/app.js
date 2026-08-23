@@ -338,7 +338,7 @@ function coquille(u, vue, titre, actions = "", periode = DB.saison().nom){
       <p class="side__title">${esc(g.groupe)}</p>
       ${g.items.map(([id, label, ico]) => `
         <a class="side__link ${route === id ? "is-active" : ""}" href="#/${id}">
-          ${ICONS[ico]}<span>${esc(label)}</span></a>`).join("")}
+          ${ICONS[ico] || ""}<span>${esc(label)}</span></a>`).join("")}
     </div>`).join("");
 
   const org = u.org ? (DB.entreprise(u.org) || DB.association(u.org)) : null;
@@ -1395,9 +1395,9 @@ function vueMissions(u){
             : ""}</p>
     </section>` : ""}
     <section class="card">
-    <table class="table"><thead><tr>
+    <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
       <th>Mission</th><th>Association</th><th>Salarié</th><th>Date</th>
-      <th>Points</th><th>État</th><th></th></tr></thead><tbody></tbody></table>
+      <th>Points</th><th>État</th><th></th></tr></thead><tbody></tbody></table></div></div>
   </section></div>`);
   const tb = el.querySelector("tbody");
   if (!ms.length) tb.appendChild(h(`<tr><td colspan="7" class="empty">
@@ -1409,8 +1409,9 @@ function vueMissions(u){
         <span class="muted" style="font-size:var(--t-xs)">${esc(BAREME[a.type].label)}</span></td>
       <td class="muted">${m.masquee ? "-" : esc(asso.nom)}</td>
       <td class="muted">${m.masquee ? "-" : esc(s ? s.nom : "-")}</td>
-      <td class="muted tnum">${dateCourte(m.date)}</td>
-      <td class="tnum"><strong>${nb(m.points)}</strong></td>
+      <td class="muted tnum">${m.masquee ? dateFR(m.date).replace(/^\d+ /, "") : dateCourte(m.date)}</td>
+      <td class="tnum">${m.masquee ? `<span class="muted">-</span>`
+        : `<strong>${nb(m.points)}</strong>`}</td>
       <td><span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].label}</span></td>
       <td style="text-align:right"></td></tr>`);
     if (m.etat === "engagee" && !m.masquee && salarieVue){
@@ -1638,11 +1639,18 @@ function vueClassement(u){
             </div>
           </div>
         </td>
-        <td style="width:26%"><div class="bar"><i style="width:${(e[cle] / max) * 100}%"></i></div></td>
-        <td class="tnum" style="text-align:right"><strong>${mode === "brut" ? nb(e.points) : pct(e.parSalarie)}</strong>
-          <br><span class="muted" style="font-size:var(--t-xs)">${mode === "brut"
-            ? `points, ${pct(e.parSalarie)} / salarié`
-            : `pts / salarié, ${nb(e.points)} au total`}</span></td>
+        ${/* Une ligne anonyme ne rend plus ses totaux exacts : ils se rapprochent
+              d'une communication publique et levent le masque en une
+              soustraction. Elle garde son rang, qui est ce que le classement
+              sert a montrer. La couche SQL faisait deja ainsi. */""}
+        <td style="width:26%">${e.anonyme ? "" :
+          `<div class="bar"><i style="width:${(e[cle] / max) * 100}%"></i></div>`}</td>
+        <td class="tnum" style="text-align:right">${e.anonyme
+          ? `<span class="muted" style="font-size:var(--t-sm)">score non publié</span>`
+          : `<strong>${mode === "brut" ? nb(e.points) : pct(e.parSalarie)}</strong>
+             <br><span class="muted" style="font-size:var(--t-xs)">${mode === "brut"
+               ? `points, ${pct(e.parSalarie)} / salarié`
+               : `pts / salarié, ${nb(e.points)} au total`}</span>`}</td>
       </tr>`));
     });
   };
@@ -1655,7 +1663,8 @@ function vueClassement(u){
     const e = DB.entreprise(u.org);
     const pts = DB.pointsDe(u.org);
     const base = Math.max(e.effectif || 1, 1);
-    const ms = DB.missions({ entreprise: u.org })
+    const ms = DB.missionsVueEmployeur(u.org)
+                 .filter(m => !m.masquee)
                  .filter(m => m.etat === "validee" || m.etat === "validee_auto");
     const corps = h(`<div>
       <p class="muted" style="font-size:var(--t-sm)">
@@ -1705,8 +1714,11 @@ function vueClassement(u){
       ["Rang", "Entreprise", "Catégorie", "Effectif", "Points retenus", "Points bruts",
        "Points par salarié", "Participation dans l'effectif %", "Activation des inscrits %"],
       cl.map(e => [e.rang, e.nomAffiche, e.categorie.label,
-                   e.anonyme ? "" : e.effectif, e.points, e.brut,
-                   e.parSalarie, e.participation, e.activation]));
+                   e.anonyme ? "" : e.effectif,
+                   e.anonyme ? "" : e.points, e.anonyme ? "" : e.brut,
+                   e.anonyme ? "" : e.parSalarie,
+                   e.anonyme ? "" : e.participation,
+                   e.anonyme ? "" : e.activation]));
     toast("Export téléchargé.");
   };
   dessine();
@@ -1749,8 +1761,8 @@ function vueEquipe(u){
           <option value="anonyme">Départs anonymisés</option>
         </select>
       </div>
-      <table class="table"><thead><tr>
-        <th>Nom</th><th>Email</th><th>Points des missions</th><th>État</th><th></th></tr></thead><tbody></tbody></table>
+      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+        <th>Nom</th><th>Email</th><th>Points des missions</th><th>État</th><th></th></tr></thead><tbody></tbody></table></div></div>
       <p class="hint" id="compte"></p>
       <p class="hint">Les points affichés ici sont ceux des missions. Les dons personnels d'un
         salarié n'y figurent pas et ne vous sont jamais rattachés à un nom : la cause d'une
@@ -1766,7 +1778,13 @@ function vueEquipe(u){
         <span class="kpi__delta">${si.restants} place${si.restants > 1 ? "s" : ""} encore disponible${si.restants > 1 ? "s" : ""}</span>
       </section>
 
-      <section class="card">
+      ${/* Trois blocs qui relevent de la SOCIETE, pas du site. Le referent de
+            site voyait « Nommer admin », « Suspendre l'acces », « Ouvrir
+            l'acces CSE » et les domaines autorises : en demonstration ces
+            actions aboutissaient, et en production la RLS les aurait refusees
+            apres coup. Un ecran qui propose ce qu'on n'a pas le droit de faire
+            ment deux fois. */""}
+      ${u.role !== "entreprise_admin" ? "" : `<section class="card">
         <div class="between" style="margin-bottom:var(--s4)">
           <h3>Accès du CSE</h3>
           ${cseUser ? `<span class="badge badge--ok">Ouvert</span>`
@@ -1785,9 +1803,9 @@ function vueEquipe(u){
             cseUser ? "Ouvrir un autre accès" : "Ouvrir l'accès CSE"}</button>
         </div>
         <div id="cseOut"></div>
-      </section>
+      </section>`}
 
-      <section class="card">
+      ${u.role !== "entreprise_admin" ? "" : `<section class="card">
         <div class="between" style="margin-bottom:var(--s4)">
           <h3>Domaines autorisés</h3>
           <span class="badge ${DB.domaines(eid).length ? "badge--ok" : "badge--danger"}">${
@@ -1803,7 +1821,7 @@ function vueEquipe(u){
           <p class="hint">Séparés par des virgules. Laisser vide retire la protection.</p>
         </div>
         <button class="btn btn--primary btn--sm" style="margin-top:var(--s3)" id="saveDom">Enregistrer</button>
-      </section>
+      </section>`}
 
       <section class="card">
         <div class="between" style="margin-bottom:var(--s4)">
@@ -1853,7 +1871,9 @@ function vueEquipe(u){
         g.anonyme ? "Anonymisé" : (g.actif ? "Actif" : "Suspendu")}</span>${
         g.role === "entreprise_admin" ? ` <span class="badge badge--info" style="margin-left:4px">Admin</span>` : ""}</td>
       <td style="text-align:right"></td></tr>`);
-    if (!g.anonyme){
+    /* Nommer, retrograder, suspendre, retirer : des decisions de societe. Un
+       referent de site les voyait et pouvait les declencher. */
+    if (!g.anonyme && u.role === "entreprise_admin"){
       const admins = DB.administrateurs(eid);
       if (g.role === "salarie"){
         const pa = h(`<button class="btn btn--quiet btn--sm">Nommer admin</button>`);
@@ -1950,7 +1970,8 @@ function vueEquipe(u){
   el.querySelector("#etat").addEventListener("change", () => { page = 1; dessiner(); });
   dessiner();
 
-  el.querySelector("#cseLien").onclick = () => {
+  const bCse = el.querySelector("#cseLien");
+  if (bCse) bCse.onclick = () => {
     const corps = h(`<div class="stack" style="--gap:var(--s4)">
       <p class="muted" style="font-size:var(--t-sm)">Le lien est nominatif et expire dans trente
       jours. Il ouvre une lecture seule : ni saisie, ni validation, ni export au nom de
@@ -1979,7 +2000,8 @@ function vueEquipe(u){
         }}]);
   };
 
-  el.querySelector("#saveDom").onclick = () => {
+  const bDom = el.querySelector("#saveDom");
+  if (bDom) bDom.onclick = () => {
     const l = el.querySelector("#dom").value.split(",").filter(x => x.trim());
     const enregistrer = () => {
       DB.majDomaines(eid, l);
@@ -2075,9 +2097,9 @@ function vueRapports(u){
           Générés automatiquement à la clôture de chaque période. Rien à demander,
           rien à consolider.</p></div>
       </div>
-      <table class="table"><thead><tr>
+      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
         <th>Rapport</th><th>Période</th><th>Points</th><th>État</th><th>Envoi</th><th></th>
-      </tr></thead><tbody></tbody></table>
+      </tr></thead><tbody></tbody></table></div></div>
       <p class="hint" style="margin-top:var(--s4)">Vous n'avez rien à demander : chaque rapport
         part vers l'administrateur de l'entreprise dès la clôture de sa période, une fois et une
         seule. Un rapport reçu deux fois est une erreur qu'on remarque, et qui coûte la confiance
@@ -2279,11 +2301,11 @@ function vueAbonnement(u){
             <button class="btn btn--ghost btn--sm" id="csvF">Exporter</button>
           </div>
         </div>
-        <table class="table"><thead><tr>
+        <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
           <th>Référence</th><th>Libellé</th><th>Émise</th><th>Échéance</th>
           <th style="text-align:right">HT</th><th style="text-align:right">TTC</th>
           <th>État</th><th></th>
-        </tr></thead><tbody></tbody></table>
+        </tr></thead><tbody></tbody></table></div></div>
       </section>
 
       <div class="stack" style="--gap:var(--s5)">
@@ -2966,7 +2988,7 @@ function vueParametres(u){
   const journalAcces = DB.acces(u.org);
   if (!journalAcces.length) boxA.appendChild(h(`<p class="muted" style="font-size:var(--t-sm)">Rien encore.</p>`));
   else {
-    const t = h(`<table class="table"><tbody></tbody></table>`);
+    const t = h(`<div class="tableau"><div class="tableau"><table class="table"><tbody></tbody></table></div></div>`);
     journalAcces.forEach(a => {
       const who = a.utilisateur ? DB.utilisateur(a.utilisateur) : null;
       t.querySelector("tbody").appendChild(h(`<tr>
@@ -2984,7 +3006,11 @@ function vueParametres(u){
     toast("Export téléchargé.");
   };
   el.querySelector("#exp").onclick = () => {
-    const ms = DB.missions({ entreprise: u.org });
+    /* Meme regle que le rapport et que le mecenat : un don personnel de salarie
+       ne sort jamais de l'espace employeur. Le seuil d'agregation de cinq
+       donateurs ne vaut rien si le detail ressort par une autre porte, et
+       celle-ci s'appelle « Exporter toutes nos donnees ». */
+    const ms = DB.missionsVueEmployeur(u.org).filter(m => !m.masquee);
     versCSV("riseva-export-complet.csv",
       ["Type", "Libellé", "Association", "Salarié", "Date", "Quantité", "Points", "État"],
       [...ms.map(m => { const a = DB.annonceDe(m), sal = DB.utilisateur(m.salarie);
@@ -3210,8 +3236,8 @@ function tableauAsso(u){
 }
 
 function tableAnnoncesAsso(annonces, u){
-  const t = h(`<table class="table"><thead><tr>
-    <th>Annonce</th><th>Format</th><th>Il reste</th><th>État</th><th></th></tr></thead><tbody></tbody></table>`);
+  const t = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+    <th>Annonce</th><th>Format</th><th>Il reste</th><th>État</th><th></th></tr></thead><tbody></tbody></table></div></div>`);
   const tb = t.querySelector("tbody");
   if (!annonces.length)
     tb.appendChild(h(`<tr><td colspan="5" class="empty">Aucune annonce publiée.</td></tr>`));
@@ -3503,10 +3529,10 @@ function vueAValider(u){
           sans confirmation : l'entreprise marque ses points, le résultat reste estimé et il est
           écrit comme tel. Ce n'est pas une faute.</p></div>
       </div>
-      <table class="table"><thead><tr>
+      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
         <th style="width:36px"></th><th>Mission</th><th>Entreprise</th><th>Salarié</th>
         <th>Date</th><th>Délai</th><th>État</th><th></th>
-      </tr></thead><tbody></tbody></table>
+      </tr></thead><tbody></tbody></table></div></div>
     </section>
   </div>`);
 
@@ -3532,7 +3558,7 @@ function vueAValider(u){
       <td class="muted">${esc(e ? e.nom : "-")}</td>
       <td class="muted">${esc(sal ? sal.nom : "-")}</td>
       <td class="muted tnum">${dateCourte(m.date)}</td>
-      <td>${jours === null ? '<span class="muted">,</span>'
+      <td>${jours === null ? '<span class="muted">sans délai</span>'
             : `<span class="badge ${jours <= 3 ? "badge--warn" : ""}">${jours} j</span>`}</td>
       <td><span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].labelAsso}</span></td>
       <td style="text-align:right"></td></tr>`);
@@ -3813,9 +3839,9 @@ function tableauAdmin(){
 }
 
 function vueAdminEntreprises(){
-  const el = h(`<section class="card"><table class="table"><thead><tr>
+  const el = h(`<section class="card"><div class="tableau"><div class="tableau"><table class="table"><thead><tr>
     <th>Entreprise</th><th>Secteur</th><th>Places</th><th>Points</th><th>Rang</th>
-  </tr></thead><tbody></tbody></table></section>`);
+  </tr></thead><tbody></tbody></table></div></div></section>`);
   const tb = el.querySelector("tbody");
   DB.classement().forEach(e => {
     const si = DB.sieges(e.id);
@@ -3841,10 +3867,10 @@ function vueAdminAssos(){
         présente aux entreprises.</p>
     </section>` : ""}
     <section class="card">
-      <table class="table"><thead><tr>
+      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
         <th>Association</th><th>Cause</th><th>Identifiant</th><th>Registre</th>
         <th>Vérifiée</th><th>Annonces</th><th>État</th><th></th>
-      </tr></thead><tbody></tbody></table>
+      </tr></thead><tbody></tbody></table></div></div>
     </section>
   </div>`);
   const tb = el.querySelector("tbody");
@@ -3936,9 +3962,9 @@ function vueAdminAssos(){
 
 function vueAdminPreinscriptions(){
   const etats = { preinscrite:["Préinscrite",""], relancee:["Relancée","badge--warn"], confirmee:["Confirmée","badge--ok"] };
-  const el = h(`<section class="card"><table class="table"><thead><tr>
+  const el = h(`<section class="card"><div class="tableau"><div class="tableau"><table class="table"><thead><tr>
     <th>Entreprise</th><th>Contact</th><th>Effectif</th><th>Date</th><th>État</th>
-  </tr></thead><tbody></tbody></table></section>`);
+  </tr></thead><tbody></tbody></table></div></div></section>`);
   const tb = el.querySelector("tbody");
   if (!DB.preinscriptions().length)
     tb.appendChild(h(`<tr><td colspan="5" class="muted" style="font-size:var(--t-sm)">
@@ -3997,7 +4023,7 @@ function vuePilotes(){
     <div class="two">
       <section class="card">
         <h3>Définitions</h3>
-        <table class="table" style="margin-top:var(--s5)"><tbody>
+        <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5)"><tbody>
           ${lignes.map(([cle, titre, unite]) => {
             const x = global[cle];
             return `<tr>
@@ -4006,14 +4032,14 @@ function vuePilotes(){
                   x.valeur === null ? "-" : x.valeur + (unite ? " " + unite : "")}</span></td>
               <td class="muted">${esc(x.definition)}</td></tr>`;
           }).join("")}
-        </tbody></table>
+        </tbody></table></div></div>
       </section>
 
       <section class="card">
         <h3>Par entreprise</h3>
-        <table class="table" style="margin-top:var(--s5)"><thead><tr>
+        <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5)"><thead><tr>
           <th>Entreprise</th><th>Inscription</th><th>Participation</th><th>Réalisation</th>
-        </tr></thead><tbody id="pe"></tbody></table>
+        </tr></thead><tbody id="pe"></tbody></table></div></div>
         <hr class="sep">
         <button class="btn btn--ghost btn--block btn--sm" id="csvI">Exporter les indicateurs</button>
       </section>
@@ -4072,7 +4098,7 @@ function vueAdminSaison(){
         Elle vit dans le code, pas dans un champ de saisie : c'est elle qui est affichée sur le
         site public, calculée dans les devis et reprise dans les contrats. Un prix modifiable
         depuis un écran finirait par ne plus correspondre à celui qu'un client a lu.</p>
-      <table class="table" style="margin-top:var(--s5)"><thead><tr>
+      <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5)"><thead><tr>
         <th>Tranche</th><th style="text-align:right">Saison HT</th>
         <th style="text-align:right">Sites compris</th><th style="text-align:right">€ / salarié</th>
       </tr></thead><tbody>
@@ -4083,7 +4109,7 @@ function vueAdminSaison(){
             <td class="tnum" style="text-align:right">${x.sites}</td>
             <td class="tnum muted" style="text-align:right">${nb2(Math.round(x.prix / ref * 10) / 10)} €</td>
           </tr>`; }).join("")}
-      </tbody></table>
+      </tbody></table></div></div>
       <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
         <div class="between"><span class="muted">Site supplémentaire</span>
           <span class="tnum">${eur(TARIFS.site_supplementaire)} HT</span></div>
@@ -4373,9 +4399,9 @@ function vueActivite(u){
       action: { label: "Voir les annonces", onClick: () => { location.hash = "#/annonces"; } }
     }));
   } else {
-    const t = h(`<table class="table"><thead><tr>
+    const t = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
       <th>Mission</th><th>Association</th><th>Date</th><th>Points</th><th>État</th>
-    </tr></thead><tbody></tbody></table>`);
+    </tr></thead><tbody></tbody></table></div></div>`);
     const tb = t.querySelector("tbody");
     ms.forEach(m => {
       const a = DB.annonceDe(m), asso = DB.association(a.asso);
@@ -4418,9 +4444,9 @@ function vueModeration(){
         à son auteur, quelle que soit la taille de l'hébergeur. Une décision non motivée ne vaut rien.</p>
     </section>
     <section class="card">
-      <table class="table"><thead><tr>
+      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
         <th>Annonce</th><th>Motif</th><th>Reçu</th><th>État</th><th></th>
-      </tr></thead><tbody></tbody></table>
+      </tr></thead><tbody></tbody></table></div></div>
     </section>
   </div>`);
   const tb = el.querySelector("tbody");
@@ -4507,13 +4533,13 @@ function vueMoteur(){
     <div class="two">
       <section class="card">
         <h3>Ce qui tourne sans personne</h3>
-        <table class="table" style="margin-top:var(--s5)"><tbody>
+        <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5)"><tbody>
           ${regles.map(([t, d, v]) => `<tr>
             <td style="width:36%"><strong>${esc(t)}</strong><br>
               <span class="tnum" style="color:var(--forest-800);font-weight:600">${
                 v === undefined ? "-" : (typeof v === "number" ? nb(v) : esc(v))}</span></td>
             <td class="muted">${esc(d)}</td></tr>`).join("")}
-        </tbody></table>
+        </tbody></table></div></div>
         <hr class="sep">
         <p class="hint">En production ces règles sont des tâches planifiées dans la base
           (<span style="font-family:var(--font-mono)">supabase/05_taches.sql</span>), pas du code
@@ -4533,8 +4559,8 @@ function vueMoteur(){
   const hj = el.querySelector("#hj");
   if (!j.length) hj.appendChild(vide({ titre:"Aucun passage", texte:"Le moteur n'a pas encore tourné." }));
   else {
-    const t = h(`<table class="table"><thead><tr>
-      <th>Date</th><th>Validations</th><th>Fermetures</th><th>Intentions éteintes</th><th>Rapports</th></tr></thead><tbody></tbody></table>`);
+    const t = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+      <th>Date</th><th>Validations</th><th>Fermetures</th><th>Intentions éteintes</th><th>Rapports</th></tr></thead><tbody></tbody></table></div></div>`);
     j.forEach(x => t.querySelector("tbody").appendChild(h(`<tr>
       <td class="muted tnum">${dateCourte(x.le)}</td>
       <td class="tnum">${nb(x.validations_auto)}</td>
@@ -4600,9 +4626,9 @@ function vueJournal(){
       box.appendChild(vide({ titre:"Aucun message", texte:"Rien ne correspond à ce filtre." }));
       return;
     }
-    const t = h(`<table class="table"><thead><tr>
+    const t = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
       <th>Date</th><th>Message</th><th>Destinataire</th><th>Objet</th><th>État</th>
-    </tr></thead><tbody></tbody></table>`);
+    </tr></thead><tbody></tbody></table></div></div>`);
     const tb = t.querySelector("tbody");
     l.forEach(x => tb.appendChild(h(`<tr>
       <td class="muted tnum">${dateCourte(x.date)}</td>
@@ -4717,7 +4743,7 @@ function vueMecenat(u){
     <div class="two">
       <section class="card" style="padding:var(--s8)">
         <h3>Le calcul, ligne par ligne</h3>
-        <table class="table" style="margin-top:var(--s5)"><tbody>
+        <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5)"><tbody>
           <tr><td>Dons versés par l'entreprise elle-même</td>
               <td class="tnum" style="text-align:right">${eur(v.donsEntreprise)}</td></tr>
           <tr><td>Mécénat de compétences, au coût de revient<br>
@@ -4743,7 +4769,7 @@ function vueMecenat(u){
                 : "Estimation maximale potentielle, plafond non appliqué"}</strong></td>
               <td class="tnum" style="text-align:right"><strong style="color:var(--forest-800)">${
                 v.plafondCalculable ? eur(v.reduction) : eur(v.estimationMax)}</strong></td></tr>
-        </tbody></table>
+        </tbody></table></div></div>
 
         <hr class="sep">
         <h3 style="font-size:var(--t-lg)">La piste d'audit, salarié par salarié</h3>
@@ -4752,7 +4778,7 @@ function vueMecenat(u){
           mise à disposition : qui, quand, pour quelle association, combien d'heures, à quel coût
           horaire chargé, avec quelle convention et quel reçu.</p>
         ${v.detailSalaries.length ? `<div style="overflow-x:auto">
-        <table class="table" style="margin-top:var(--s5);font-size:var(--t-sm)">
+        <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5);font-size:var(--t-sm)">
           <thead><tr><th>Salarié</th><th>Date</th><th>Association</th><th>Heures</th>
             <th>Coût retenu</th><th>Convention</th><th>Confirmation</th><th>Reçu</th></tr></thead>
           <tbody>
@@ -4771,7 +4797,7 @@ function vueMecenat(u){
                 : `<span class="badge badge--warn">attendu</span>`}</td>
             </tr>`)).join("")}
           </tbody>
-        </table></div>
+        </table></div></div></div>
         ${v.heuresEstimees ? `<p class="hint" style="margin-top:var(--s4)">
           Les durées marquées « conventionnelle » viennent du barème : une demi-journée vaut
           ${FISCAL.heures_demi_journee} heures. C'est un ordre de grandeur, pas une pièce
@@ -4918,7 +4944,11 @@ function vueMecenat(u){
      { label:"Imprimer", classe:"btn--primary", onClick: () => setTimeout(() => window.print(), 300) }]);
 
   el.querySelector("#csvM").onclick = () => {
-    const ms = DB.missions({ entreprise: u.org })
+    /* Un don personnel n'entre pas dans l'assiette de mecenat de l'entreprise :
+       il n'est pas verse par elle. Il sortait ici avec le nom du salarie et le
+       montant. */
+    const ms = DB.missionsVueEmployeur(u.org)
+                 .filter(m => !m.masquee)
                  .filter(m => m.etat === "validee" || m.etat === "validee_auto");
     versCSV("riseva-mecenat.csv",
       ["Mission", "Association", "Format", "Sur le temps de travail", "Salarié", "Date",
@@ -5334,7 +5364,10 @@ function vuePreferences(u){
         <div class="stack" style="--gap:var(--s3);margin-top:var(--s5)" id="apercu"></div>
       </section>
 
-      <section class="card">
+      ${/* Cette carte parle de la DEMONSTRATION. Elle s'affichait aussi en
+            production, ou elle proposait a un client de « remettre a neuf » ce
+            qui est sa vraie base. */""}
+      ${DB.mode === "supabase" ? "" : `<section class="card">
         <h3>Cet environnement</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
           Tout ce que vous faites ici est enregistré et retrouvé à votre retour, exactement
@@ -5344,7 +5377,7 @@ function vuePreferences(u){
           Remettre la démonstration à neuf</button>
         <p class="hint">Efface tout ce qui a été saisi et revient au jeu de départ.
           Une démonstration qu'on ne peut pas remettre à zéro finit par ne plus rien démontrer.</p>
-      </section>
+      </section>`}
     </div>
   </div>`);
   const box = el.querySelector("#l");
@@ -5369,7 +5402,7 @@ function vuePreferences(u){
     if (vp) DB.reglerVisibiliteParis(u.id, vp.checked);
     toast("Préférences enregistrées.");
   };
-  el.querySelector("#raz").onclick = () => modal("Remettre la démonstration à neuf",
+  el.querySelector("#raz")?.addEventListener("click", () => modal("Remettre la démonstration à neuf",
     `<p class="muted">Tout ce qui a été saisi depuis le début disparaît : annonces publiées,
      missions engagées, réglages, comptes créés. Le jeu de départ revient.</p>
      <p class="hint" style="margin-top:var(--s4)">Cette action ne se défait pas.</p>`,
@@ -5377,7 +5410,7 @@ function vuePreferences(u){
      { label:"Tout remettre à neuf", classe:"btn--primary", onClick: () => {
          DB.reinitialiser();
          try { localStorage.removeItem("riseva.notifs.lues"); } catch {}
-         location.reload(); }}]);
+         location.reload(); }}]));
   return el;
 }
 
@@ -5536,11 +5569,11 @@ function vueGroupe(u){
           <button class="btn btn--ghost btn--sm" id="csvG">Exporter</button>
         </div>
       </div>
-      <table class="table"><thead><tr>
+      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
         <th>Société / site</th><th>SIREN</th><th style="text-align:right">Effectif</th>
         <th style="text-align:right">Comptes</th><th style="text-align:right">Missions</th>
         <th style="text-align:right">Points</th><th style="text-align:right">Par salarié</th>
-      </tr></thead><tbody></tbody></table>
+      </tr></thead><tbody></tbody></table></div></div>
     </section>
 
     <div class="two">
@@ -5902,11 +5935,11 @@ function vueSites(u){
         ${kpi("Encore activables", nb(Math.max(0, q.alloue - ouverts)),
               "dans les quotas déjà répartis, sans rien réallouer")}
       </div>
-      <table class="table"><thead><tr>
+      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
         <th>Établissement</th><th>SIRET</th><th style="text-align:right">Effectif</th>
         <th style="text-align:right">Comptes</th><th style="text-align:right">Quota</th>
         <th>Référent</th><th></th>
-      </tr></thead><tbody></tbody></table>
+      </tr></thead><tbody></tbody></table></div></div>
     </section>`);
     const tb = bloc.querySelector("tbody");
     const etabs = DB.etablissements(soc.id);
@@ -6110,7 +6143,7 @@ function blocRapport(r){
           <h4 style="font-size:var(--t-md);margin:0">${esc(s.libelle)}</h4>
           <span class="muted" style="font-size:var(--t-xs)">${esc(s.aide)}</span>
         </div>
-        <table class="table" style="margin-top:var(--s3)"><thead><tr>
+        <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s3)"><thead><tr>
           <th>Indicateur</th>
           <th style="text-align:right">Total du périmètre</th>
           <th style="text-align:right">Sites renseignés</th>
@@ -6125,14 +6158,14 @@ function blocRapport(r){
                 nb(tt.sites)} / ${nb(r.repondus)}</td>
             </tr>`;
           }).join("")}
-        </tbody></table>
+        </tbody></table></div></div>
       </div>`).join("")}
 
       ${r.ratios.length ? `<div>
         <h4 style="font-size:var(--t-md);margin:0">Ce que ça donne</h4>
         <p class="muted" style="font-size:var(--t-xs);margin-top:2px">
           Rapport de sommes, jamais moyenne de taux.</p>
-        <table class="table" style="margin-top:var(--s3)"><thead><tr>
+        <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s3)"><thead><tr>
           <th>Indicateur</th><th style="text-align:right">Valeur</th><th>Assise</th>
         </tr></thead><tbody>
           ${r.ratios.map(x => `<tr>
@@ -6144,7 +6177,7 @@ function blocRapport(r){
               ? "tous les sites ayant répondu"
               : "périmètre partiel, à lire avec précaution"}</td>
           </tr>`).join("")}
-        </tbody></table>
+        </tbody></table></div></div>
       </div>` : ""}
 
       ${manquants.length ? `<div class="card card--flat"
@@ -6260,9 +6293,9 @@ function vueIndicateurs(u){
         <div class="row" style="--gap:var(--s3)">
           <button class="btn btn--ghost btn--sm" id="dicoI">Dictionnaire des données</button>
           <button class="btn btn--ghost btn--sm" id="csvI">Exporter</button></div></div>
-      <table class="table"><thead><tr>
+      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
         <th>Établissement</th><th>État</th><th>Saisi par</th><th>Approuvé par</th><th></th>
-      </tr></thead><tbody></tbody></table>
+      </tr></thead><tbody></tbody></table></div></div>
     </section>
 
     ${monSite ? "" : blocRapport(rap)}
@@ -6282,7 +6315,7 @@ function vueIndicateurs(u){
             encore une approbation. La colonne « approuvé » est la seule qui entre dans un
             rapport ou dans une réponse à un client.</p>
         </div>` : ""}
-        <table class="table" style="margin-top:var(--s5)"><thead><tr>
+        <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5)"><thead><tr>
           <th>Indicateur</th>
           <th style="text-align:right">Approuvé</th>
           ${brouillon.provisoire ? `<th style="text-align:right">Provisoire</th>` : ""}
@@ -6292,12 +6325,12 @@ function vueIndicateurs(u){
               ${d.note ? `<br><span class="muted" style="font-size:var(--t-xs)">${esc(d.note)}</span>` : ""}</td>
             <td class="tnum" style="text-align:right">${ind && ind.calcules[d.cle] !== null
               ? nb2(ind.calcules[d.cle]) + (d.unite ? " " + d.unite : "")
-              : `<span class="muted">,</span>`}</td>
+              : `<span class="muted">non calculé</span>`}</td>
             ${brouillon.provisoire ? `<td class="tnum muted" style="text-align:right">${
               brouillon.calcules[d.cle] !== null
                 ? nb2(brouillon.calcules[d.cle]) + (d.unite ? " " + d.unite : "") : "-"}</td>` : ""}
           </tr>`).join("")}
-        </tbody></table>
+        </tbody></table></div></div>
         <p class="hint" style="margin-top:var(--s4)">
           Approuvé : ${ind.sites} site${ind.sites > 1 ? "s" : ""} sur ${ind.attendus},
           soit ${nb(ind.effectifCouvert)} salariés sur ${nb(ind.effectifTotal)}.
@@ -6581,9 +6614,9 @@ function vueSupports(u){
         </div>
         <button class="btn btn--forest btn--sm" id="affiche">Imprimer une affiche</button>
       </div>
-      <table class="table" style="margin-top:var(--s6)"><thead><tr>
+      <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s6)"><thead><tr>
         <th>Envoi</th><th>Contenu</th><th>Prévu</th><th>État</th><th></th>
-      </tr></thead><tbody id="kits"></tbody></table>
+      </tr></thead><tbody id="kits"></tbody></table></div></div>
       <p class="hint" style="margin-top:var(--s4)">C'est vous qui confirmez la réception, pas
         nous : un suivi où Riseva se déclare à elle-même que le colis est arrivé ne vaut rien le
         jour où vous dites n'avoir rien reçu.</p>
@@ -6651,9 +6684,9 @@ function vueExpeditions(){
   if (!l.length) apr.appendChild(vide({ titre:"Rien à préparer",
     texte:"Toutes les vagues dues ont été expédiées." }));
   else {
-    const tb = h(`<table class="table"><thead><tr>
+    const tb = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
       <th>Entreprise</th><th>Envoi</th><th>Sites</th><th>Prévu</th><th></th>
-    </tr></thead><tbody></tbody></table>`);
+    </tr></thead><tbody></tbody></table></div></div>`);
     l.forEach(x => {
       const tr = h(`<tr>
         <td><strong>${esc(x.entreprise.nom)}</strong>
@@ -6690,9 +6723,9 @@ function vueExpeditions(){
   if (!faites.length) fai.appendChild(vide({ titre:"Aucune expédition",
     texte:"Les envois marqués expédiés apparaîtront ici." }));
   else {
-    const tb = h(`<table class="table"><thead><tr>
+    const tb = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
       <th>Entreprise</th><th>Envoi</th><th>Expédié</th><th>Suivi</th><th>Reçu</th>
-    </tr></thead><tbody></tbody></table>`);
+    </tr></thead><tbody></tbody></table></div></div>`);
     faites.forEach(x => {
       const e = DB.entreprise(x.entreprise) || {};
       const k = KITS_SAISON.find(y => y.code === x.kit) || {};
@@ -6810,10 +6843,10 @@ function vueSecurite(u){
           <h3>Sites</h3>
           ${monSite ? "" : `<span class="muted" style="font-size:var(--t-xs)">registre par site</span>`}
         </div>
-        <table class="table"><thead><tr>
+        <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
           <th>Site</th><th style="text-align:right">Avec arrêt</th>
           <th style="text-align:right">Jours</th><th>Registre</th>
-        </tr></thead><tbody id="parSite"></tbody></table>
+        </tr></thead><tbody id="parSite"></tbody></table></div></div>
         <p class="hint" style="margin-top:var(--s4)">Activer le registre pour un site fait
           disparaître les quatre champs correspondants de sa campagne d'indicateurs : ils sont
           alors déduits, et ne peuvent plus être saisis à la main.</p>
@@ -6899,9 +6932,9 @@ function vueSecurite(u){
   if (!acts.length) plan.appendChild(vide({ titre:"Aucune action ouverte",
     texte:"Les actions se créent depuis un événement du registre." }));
   else {
-    const tb = h(`<table class="table"><thead><tr>
+    const tb = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
       <th>Action</th><th>Site</th><th>Responsable</th><th>Échéance</th><th>État</th><th></th>
-    </tr></thead><tbody></tbody></table>`);
+    </tr></thead><tbody></tbody></table></div></div>`);
     acts.forEach(a => {
       const et = DB.etablissement(a.etablissement) || {};
       const tard = ["a_faire", "en_cours"].includes(a.etat) && a.echeance < "2026-08-20";
@@ -6928,10 +6961,10 @@ function vueSecurite(u){
   if (!evs.length) reg.appendChild(vide({ titre:"Aucun événement déclaré sur cette période",
     texte:"Déclarer prend quinze secondes, et c'est ce qui remplace le tableau de fin d'année." }));
   else {
-    const tb = h(`<table class="table"><thead><tr>
+    const tb = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
       <th>Date</th><th>Site</th><th>Nature</th><th>Type</th><th>Zone</th>
       <th style="text-align:right">Jours</th><th>Gravité</th><th></th>
-    </tr></thead><tbody></tbody></table>`);
+    </tr></thead><tbody></tbody></table></div></div>`);
     evs.forEach(e => {
       const et = DB.etablissement(e.etablissement) || {};
       const g = GRAVITES_EVENEMENT[e.gravite];
@@ -7186,7 +7219,7 @@ function vueCSE(u){
       <p class="hint" style="margin-top:var(--s4)">Périmètre : ${nb(ind.sites)} site${ind.sites > 1 ? "s" : ""}
         sur ${nb(ind.attendus)}, soit ${nb(ind.effectifCouvert)} salariés sur ${nb(ind.effectifTotal)}.
         ${!ind.complet ? "Périmètre incomplet : les sites qui n'ont pas répondu ne sont pas comblés avec la période précédente." : ""}</p>
-      <table class="table" style="margin-top:var(--s5)"><thead><tr>
+      <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5)"><thead><tr>
         <th>Indicateur</th><th style="text-align:right">Valeur</th><th>Comment il est calculé</th>
       </tr></thead><tbody>
         ${INDICATEURS.calcules.map(x => `<tr>
@@ -7204,7 +7237,7 @@ function vueCSE(u){
             : `<span class="muted">non disponible</span>`}</td>
           <td class="muted" style="font-size:var(--t-xs)">déclaré par les sites, ${esc(x.source || "")}</td>
         </tr>`).join("")}
-      </tbody></table>`}
+      </tbody></table></div></div>`}
     </section>
 
     ${secu.sous_seuil ? `<section class="card card--flat"
@@ -7258,8 +7291,8 @@ function vueCSE(u){
   if (!d.rapports.length) r.appendChild(vide({ titre:"Aucun rapport encore arrêté",
     texte:"Les rapports sont produits à la clôture de chaque période." }));
   else {
-    const tb = h(`<table class="table"><thead><tr>
-      <th>Rapport</th><th>Période</th><th>Arrêté le</th><th></th></tr></thead><tbody></tbody></table>`);
+    const tb = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+      <th>Rapport</th><th>Période</th><th>Arrêté le</th><th></th></tr></thead><tbody></tbody></table></div></div>`);
     d.rapports.forEach(x => {
       const tr = h(`<tr><td><strong>${esc(x.titre)}</strong></td>
         <td class="muted">${dateCourte(x.periode.debut)}, ${dateCourte(x.periode.fin)}</td>
@@ -7304,7 +7337,7 @@ function ouvrirDictionnaire(cid){
 
     <div>
       <h4>Ce que les sites déclarent</h4>
-      <table class="table" style="margin-top:var(--s4)"><thead><tr>
+      <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s4)"><thead><tr>
         <th>Indicateur</th><th>Source</th><th>On compte</th><th>On ne compte pas</th>
       </tr></thead><tbody>
         ${d.saisis.map(x => `<tr>
@@ -7313,12 +7346,12 @@ function ouvrirDictionnaire(cid){
           <td class="muted" style="font-size:var(--t-xs)">${esc(x.inclut || "-")}</td>
           <td class="muted" style="font-size:var(--t-xs)">${esc(x.exclut || "-")}</td>
         </tr>`).join("")}
-      </tbody></table>
+      </tbody></table></div></div>
     </div>
 
     <div>
       <h4>Ce que Riseva calcule</h4>
-      <table class="table" style="margin-top:var(--s4)"><thead><tr>
+      <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s4)"><thead><tr>
         <th>Indicateur</th><th>Formule</th><th>Agrégation</th><th>Réglementaire</th>
       </tr></thead><tbody>
         ${d.calcules.map(x => `<tr>
@@ -7329,7 +7362,7 @@ function ouvrirDictionnaire(cid){
           <td>${x.reglementaire ? `<span class="badge badge--ok">oui</span>`
                                 : `<span class="badge badge--attente">non</span>`}</td>
         </tr>`).join("")}
-      </tbody></table>
+      </tbody></table></div></div>
     </div>
 
     ${d.explications.length ? `<div>
@@ -7337,14 +7370,14 @@ function ouvrirDictionnaire(cid){
       <p class="muted" style="font-size:var(--t-sm);margin-top:4px">Au-delà de
         ${Math.round(d.seuil_ecart * 100)} % de variation, le site doit dire ce qui s'est passé.
         Un événement réel et une erreur de saisie se ressemblent exactement dans une base.</p>
-      <table class="table" style="margin-top:var(--s4)"><thead><tr>
+      <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s4)"><thead><tr>
         <th>Site</th><th>Écart</th><th>Explication</th></tr></thead><tbody>
         ${d.explications.map(x => `<tr>
           <td>${esc(x.site)}</td>
           <td class="muted" style="font-size:var(--t-xs)">${x.ecarts.map(esc).join("<br>")}</td>
           <td class="muted" style="font-size:var(--t-xs)">${esc(x.commentaire)}</td>
         </tr>`).join("")}
-      </tbody></table></div>` : ""}
+      </tbody></table></div></div></div>` : ""}
 
     <div class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
       <h4>Ce que Riseva ne fait pas</h4>
@@ -7595,7 +7628,11 @@ function tableauSite(u){
   if (!et) return h(`<section class="card"><p class="empty">Aucun site rattaché à ce compte.</p></section>`);
   const si = DB.sieges(u.org, { etablissement: et.id });
   const gens = DB.salaries(u.org).filter(x => x.etablissement === et.id && !x.anonyme);
-  const ms = DB.missions({ entreprise: u.org })
+  /* Meme regle que partout cote employeur : un don personnel ne compte pas dans
+     les points du site. Il faisait remonter un site dans le challenge interne a
+     cause d'un versement prive de l'un de ses salaries. */
+  const ms = DB.missionsVueEmployeur(u.org)
+    .filter(m => !m.masquee)
     .filter(m => (m.etablissement || (DB.utilisateur(m.salarie) || {}).etablissement) === et.id);
   const validees = ms.filter(m => ["validee", "validee_auto"].includes(m.etat));
   const points = validees.reduce((n, m) => n + (m.points || 0), 0);
@@ -7617,7 +7654,7 @@ function tableauSite(u){
         Ces personnes se sont inscrites avec votre lien. Une adresse professionnelle ne dit pas
         sur quel site quelqu'un travaille : tant que vous n'avez pas confirmé, elles peuvent tout
         consulter mais pas s'engager, leurs points iraient au mauvais endroit.</p>
-      <table class="table" style="margin-top:var(--s5)"><tbody id="conf"></tbody></table>
+      <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5)"><tbody id="conf"></tbody></table></div></div>
     </section>` : ""}
 
     ${camp && !obs ? `<section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
@@ -7650,7 +7687,7 @@ function tableauSite(u){
         <h3>Ce qui arrive</h3>
         <a class="btn btn--quiet btn--sm" href="#/missions">Toutes les missions</a>
       </div>
-      <table class="table"><thead><tr>
+      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
         <th>Quand</th><th>Qui</th><th>Où</th><th>État</th>
       </tr></thead><tbody>
         ${prochains.slice(0, 6).map(m => {
@@ -7663,7 +7700,7 @@ function tableauSite(u){
               <span style="font-size:var(--t-xs)">${esc(a2.titre || "")}</span></td>
             <td><span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].label}</span></td>
           </tr>`; }).join("")}
-      </tbody></table>
+      </tbody></table></div></div>
     </section>` : ""}
 
     <section class="card">
@@ -7749,12 +7786,12 @@ function vueMateriel(u){
           qui l'a confirmé.</p></div>
         <button class="btn btn--ghost btn--sm" id="csvM">Exporter</button>
       </div>
-      <div style="overflow-x:auto"><table class="table"><thead><tr>
+      <div style="overflow-x:auto"><div class="tableau"><div class="tableau"><table class="table"><thead><tr>
         <th>Date</th><th>Nature</th><th style="text-align:right">Quantité</th>
         <th>Association</th><th>Site</th><th>Catégorie</th>
         <th style="text-align:right">Valeur déclarée</th>
         <th>Réception</th><th>Reçu</th><th></th>
-      </tr></thead><tbody></tbody></table></div>
+      </tr></thead><tbody></tbody></table></div></div></div>
     </section>
 
     <section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
@@ -7938,13 +7975,13 @@ function vueDossier(u){
   const lignes = [
     ["Effectif", [
       ["Effectif total déclaré", e.effectif ? nb(e.effectif) : null, VOUS],
-      ["Effectif à la clôture de la période", vi("effectif_fin") ? nb(vi("effectif_fin")) : null, SITE],
+      ["Effectif à la clôture de la période", vi("effectif_fin") !== null ? nb(vi("effectif_fin")) : null, SITE],
       ["Entrées sur la période", vi("entrees") !== null ? nb(vi("entrees")) : null, SITE],
       ["Sorties sur la période", vi("sorties") !== null ? nb(vi("sorties")) : null, SITE],
       ["Rotation du personnel", vc("turnover") !== null ? nb2(vc("turnover")) + " %" : null, SITE]
     ]],
     ["Santé et sécurité au travail", [
-      ["Heures travaillées", vi("heures_travaillees") ? nb(vi("heures_travaillees")) : null, SITE],
+      ["Heures travaillées", vi("heures_travaillees") !== null ? nb(vi("heures_travaillees")) : null, SITE],
       ["Accidents du travail avec arrêt", vi("at_avec_arret") !== null ? nb(vi("at_avec_arret")) : null, SITE],
       ["Journées perdues pour accident", vi("jours_arret") !== null ? nb(vi("jours_arret")) : null, SITE],
       ["Taux de fréquence (avec arrêt)", vc("tf1") !== null ? nb2(vc("tf1")) : null, SITE],
@@ -7960,8 +7997,8 @@ function vueDossier(u){
       ["Écart de rémunération femmes-hommes", null, null]
     ]],
     ["Formation", [
-      ["Heures de formation", vi("formation_heures") ? nb(vi("formation_heures")) : null, SITE],
-      ["Salariés formés", vi("formation_benef") ? nb(vi("formation_benef")) : null, SITE]
+      ["Heures de formation", vi("formation_heures") !== null ? nb(vi("formation_heures")) : null, SITE],
+      ["Salariés formés", vi("formation_benef") !== null ? nb(vi("formation_benef")) : null, SITE]
     ]],
     ["Engagement territorial et associatif", [
       ["Associations soutenues", assos ? nb(assos) : null, RISEVA],
@@ -8007,9 +8044,9 @@ function vueDossier(u){
     </section>
 
     <section class="card">
-      <table class="table"><thead><tr>
+      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
         <th>Donnée</th><th style="text-align:right">Valeur</th><th>Provenance</th>
-      </tr></thead><tbody></tbody></table>
+      </tr></thead><tbody></tbody></table></div></div>
     </section>
 
     <section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
@@ -8259,9 +8296,9 @@ function vueDonsAsso(u){
   if (!attendus.length) att.appendChild(vide({ titre:"Rien en attente",
     texte:"Aucun virement n'a été annoncé pour le moment." }));
   else {
-    const t = h(`<table class="table"><thead><tr>
+    const t = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
       <th>Référence</th><th>Annoncé le</th><th>Montant annoncé</th><th>S'éteint le</th><th></th>
-    </tr></thead><tbody></tbody></table>`);
+    </tr></thead><tbody></tbody></table></div></div>`);
     attendus.forEach(i => {
       const tr = h(`<tr>
         <td style="font-family:var(--font-mono)">${esc(i.reference)}</td>
@@ -8297,8 +8334,8 @@ function vueDonsAsso(u){
   if (!recus.length) rec.appendChild(vide({ titre:"Aucun don confirmé",
     texte:"Les dons que vous confirmez apparaîtront ici." }));
   else {
-    const t = h(`<table class="table"><thead><tr>
-      <th>Référence</th><th>Confirmé le</th><th>Montant reçu</th></tr></thead><tbody></tbody></table>`);
+    const t = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+      <th>Référence</th><th>Confirmé le</th><th>Montant reçu</th></tr></thead><tbody></tbody></table></div></div>`);
     recus.forEach(i => t.querySelector("tbody").appendChild(h(`<tr>
       <td style="font-family:var(--font-mono)">${esc(i.reference)}</td>
       <td class="muted tnum">${dateCourte(i.confirme_le || i.declare_le)}</td>
@@ -8622,8 +8659,8 @@ function vueVSME(u){
       </div>
       ${r.apporte ? `<p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
         ${esc(r.apporte)}</p>` : ""}
-      ${r.lignes.length ? `<table class="table" style="margin-top:var(--s4)"><tbody>
-        ${r.lignes.map(ligne).join("")}</tbody></table>` : ""}
+      ${r.lignes.length ? `<div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s4)"><tbody>
+        ${r.lignes.map(ligne).join("")}</tbody></table></div></div>` : ""}
       ${r.manque ? `<p class="hint" style="margin-top:var(--s4)">
         <strong style="color:var(--ink)">Ce que Riseva n'a pas :</strong> ${esc(r.manque)}
         ${r.ailleurs ? ` ${esc(r.ailleurs)}` : ""}</p>` : ""}
@@ -8657,7 +8694,7 @@ function vueVSME(u){
       <p style="font-size:var(--t-sm);color:var(--ink-600)">
         <strong style="color:var(--ink)">${f.indicateurs.sites} site${
           f.indicateurs.sites > 1 ? "s ont" : " a"} répondu sur ${f.indicateurs.attendus}</strong>,
-        soit ${pct(f.indicateurs.partEffectif)} % de l'effectif. Les chiffres ci-dessous ne portent
+        soit ${pct(f.indicateurs.partEffectif * 100)} % de l'effectif. Les chiffres ci-dessous ne portent
         que sur ce périmètre-là, et une fiche qui ne le dirait pas serait fausse sans être
         inexacte.</p>
     </section>` : ""}
@@ -8689,7 +8726,7 @@ function vueVSME(u){
           l.texte !== undefined ? l.texte
             : (l.valeur === null || l.valeur === undefined ? "non renseigné" : l.valeur),
           l.unite || ""])
-      : [[r.cle, r.titre, r.pilier, "non", ",", "non renseigné", ""]]));
+      : [[r.cle, r.titre, r.pilier, "non", "", "non renseigné", ""]]));
   return el;
 }
 

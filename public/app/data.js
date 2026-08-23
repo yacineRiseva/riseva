@@ -2094,7 +2094,17 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
              réidentifier là où un seul ne suffit pas. */
           nomAffiche: anonyme
             ? `Entreprise, ${e.categorie.label.toLowerCase()}`
-            : e.nom };
+            : e.nom,
+          /* Une ligne anonyme garde son RANG et sa position relative, et rien de
+             plus. Elle rendait ses totaux exacts — points, brut, participation,
+             activation, points par salarie — qui se rapprochent d'une
+             communication publique ou d'un chiffre vu ailleurs et lèvent le
+             masque en une soustraction. La couche SQL les met deja a NULL
+             (`classement_saison`, « une jointure sur deux nombres levait le
+             masque ») ; le navigateur faisait autrement, et c'est le navigateur
+             qui avait tort. */
+          ...(anonyme ? { points: null, brut: null, parSalarie: null,
+                          participation: null, activation: null, effectif: null } : {}) };
       });
     },
     rangDe(eid, options){
@@ -2464,6 +2474,11 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
              modèle multi-sites, et pour elles seulement. */
           const ms = api.missions({ entreprise: e.id })
             .filter(m => ["validee", "validee_auto"].includes(m.etat))
+            /* Un don personnel ne compte pas dans le score de l'entreprise
+               (`pointsDe` l'exclut) : le laisser peser ici faisait remonter un
+               site dans le classement interne a cause d'un versement prive, et
+               l'ecart entre les deux totaux se lisait a dix euros pres. */
+            .filter(m => !api.estDonPersonnel(m))
             .filter(m => (m.etablissement
               || ((api.utilisateur(m.salarie) || {}).etablissement)) === et.id);
           const points = ms.reduce((n, m) => n + (m.points || 0), 0);
@@ -3327,7 +3342,14 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const sites = api.etablissements(eid);
       const cs = api.campagnes((e.groupe || undefined))
                    .slice().sort((a, b) => b.debut.localeCompare(a.debut));
-      const cid = campagne || (cs[0] || {}).id || null;
+      /* La periode ouverte par defaut est la derniere CLOSE, pas la plus
+         recente : une campagne encore ouverte n'a le plus souvent aucune saisie
+         approuvee, et l'elu ouvrait son ecran sur « aucune donnee approuvee »
+         alors que le semestre precedent, complet, etait a un clic. La fiche VSME
+         choisit deja ainsi. */
+      const cid = campagne
+        || (cs.find(c => c.etat === "close") || cs[0] || {}).id
+        || null;
       const ind = cid ? api.indicateursDe({ campagne: cid, societe: eid,
                                             approuvesSeulement: true }) : null;
       const pts = api.pointsDe(eid);
@@ -3602,6 +3624,12 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const total = {}, estime = {};
       let missions = 0, sansReponse = 0;
       s.missions.forEach(m => {
+        /* Vu depuis l'entreprise, un don personnel n'existe pas : ni ses points,
+           ni son montant, ni son resultat. Les soixante-huit colis finances par
+           le versement prive d'un salarie entraient dans « ce que vos equipes
+           ont produit » et dans la fiche VSME, document qui sort de l'entreprise
+           — pendant que le seuil d'agregation refusait d'en dire le nombre. */
+        if (entreprise && api.estDonPersonnel(m)) return;
         if (entreprise && m.entreprise !== entreprise) return;
         if (salarie && m.salarie !== salarie) return;
         if (depuis && m.date < depuis) return;
@@ -3720,17 +3748,6 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         .slice(0, limite);
     },
 
-    /* L'association corrige le chiffre au moment de valider : c'est elle qui était là. */
-    declarerRealise(mid, quantite){
-      const m = s.missions.find(x => x.id === mid);
-      if (!m) return null;
-      /* On ne déclare un chiffre que sur une mission qu'on est en train de trancher :
-         corriger après coup une mission déjà validée d'office rouvrirait un compteur
-         que le rapport a peut-être déjà scellé. */
-      if (m.etat !== "a_valider" && m.etat !== "validee") return null;
-      m.realise = Math.max(0, Number(quantite) || 0);
-      return m;
-    },
 
     /* ------------------------------------------------------------------ */
     /* Proximité                                                          */
@@ -4043,7 +4060,13 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
     missionsVueEmployeur(eid){
       return api.missions({ entreprise: eid }).map(m => {
         if (!api.estDonPersonnel(m)) return m;
-        return { ...m, masquee: true, salarie: null, annonce: m.annonce, quantite: null };
+        /* Les points partent aussi : au bareme d'un point par tranche de dix
+           euros, ils redonnent le montant a dix euros pres. Masquer la quantite
+           en laissant les points ne masque rien. La date reste au mois : le jour
+           exact, croise avec un releve bancaire, designe la personne. */
+        return { ...m, masquee: true, salarie: null, annonce: m.annonce,
+                 quantite: null, points: null,
+                 date: m.date ? String(m.date).slice(0, 7) + "-01" : null };
       });
     },
 
@@ -4661,7 +4684,12 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const miens = ms.filter(m => m.entreprise === u.org);
       const noms = miens
         .map(m => api.utilisateur(m.salarie))
-        .filter(x => x && !x.anonyme && x.id !== uid && x.visible_pairs)
+        /* Deux formes pour le meme reglage : `visible_pairs` sur l'objet en
+           demonstration, `prefs.visible_pairs` en production, ou il vient de la
+           vue filtree sur auth.uid(). Le defaut, dans les deux cas, est de ne
+           pas montrer : un prenom ne s'affiche que sur un oui explicite. */
+        .filter(x => x && !x.anonyme && x.id !== uid
+                       && (x.visible_pairs || (x.prefs && x.prefs.visible_pairs)))
         .map(x => String(x.nom || "").split(/\s+/)[0]);
       return {
         total: miens.length,
@@ -6024,6 +6052,10 @@ export async function connecterSupabase(config, { client: injecte = null } = {})
      une erreur visible vaut mieux qu'une donnee perdue. */
 const ECRITURES = [
   "abandonnerIntentionDon", "accepterInvitationCSE", "accepterInvitationReferent",
+  /* `reglerVisibiliteParis` porte un choix de vie privee — « mon prenom est
+     visible de mes collegues » — qui se perdait en silence au rechargement.
+     `moteur` mute l'etat a chaque ouverture de session. Les deux manquaient. */
+  "reglerVisibiliteParis", "moteur",
   "accepterMandatRecus", "activerClassementSites", "activerRegistre", "ajouterAction",
   "ajouterEtablissement", "allouerQuota", "annulerEvenement", "approuverIndicateurs",
   "cloreCampagne", "confirmerAffectation", "confirmerDonRecu", "confirmerReception",
@@ -6269,7 +6301,8 @@ async function chargerEtat(client){
          annonces, missions, profils, invitations, campagnes, observations,
          acces, signalements, intentions, controles,
          evenements, actionsCorrectives,
-         abonnements, factures, preinscriptions, reglagesAsso] = await Promise.all([
+         abonnements, factures, preinscriptions, reglagesAsso,
+         reglagesProfil] = await Promise.all([
     lire("saison"), lire("bareme"), lire("entreprise"), lire("groupe"),
     lire("etablissement"), lire("association"), lire("annonce"), lire("mission"),
     lire("profil"), lire("invitation"), lire("campagne_indicateurs"),
@@ -6280,7 +6313,7 @@ async function chargerEtat(client){
        client etait donc vide en production, et l'ecran « Preinscriptions » de
        Riseva aussi. Elles existaient en base ; personne n'allait les chercher. */
     lire("abonnement"), lire("facture"), lire("preinscription"),
-    lire("association_reglages")
+    lire("association_reglages"), lire("profil_reglages")
   ]);
 
   const saison = saisons.find(x => x.etat === "ouverte") || saisons[0] || null;
@@ -6314,9 +6347,13 @@ async function chargerEtat(client){
     /* Un profil ne porte ni rôle ni entreprise : ce sont des colonnes du schéma
        privé, invisibles depuis le navigateur, par construction. Le rôle de la
        personne connectée vient de son jeton ; celui des autres ne la regarde pas. */
+    /* Les reglages d'une personne ne sortent que pour elle : ils viennent d'une
+       vue filtree sur `auth.uid()`, jamais de la colonne, que la policy de
+       `profil` aurait ouverte a tous les collegues. */
     utilisateurs: profils.map(r => ({
       id: r.id, nom: r.nom, email: r.id === (moi && moi.id) ? (moi.email || null) : null,
-      role: null, org: null, actif: true, anonyme: false
+      role: null, org: null, actif: true, anonyme: false,
+      prefs: (reglagesProfil.find(x => x.id === r.id) || {}).preferences || undefined
     })),
     invitations: invitations.map(versEtat.invitation),
     campagnes: campagnes.map(versEtat.campagne),
@@ -6604,6 +6641,16 @@ function creerSupabase(client){
       rpc("rejoindre_comme_cse", { p_code: code })),
     majPreferences: (uid, champs = {}) => ecrire(() =>
       rpc("maj_preferences", { p_preferences: champs })),
+    /* Le prenom visible des collegues est un reglage de la personne : il passe
+       par la meme fonction que ses autres reglages, filtree sur auth.uid(). */
+    reglerVisibiliteParis: (uid, oui) => ecrire(() =>
+      rpc("maj_preferences", { p_preferences: { visible_pairs: !!oui } })),
+    /* Le moteur est une tache PLANIFIEE cote serveur (pg_cron, `05_taches.sql`).
+       Le navigateur ne la declenche pas : il retombait sur le moteur en memoire,
+       et l'ecran annoncait des validations automatiques et des envois que le
+       serveur n'avait jamais faits. */
+    moteur: () => ({ validations_auto: 0, annonces_closes: 0, relances: 0,
+                     le: null, cote: "serveur" }),
 
     rouvrirAnnonce: (aid) => ecrire(() => rpc("rouvrir_annonce", { p_annonce: aid })),
     supprimerAnnonce: (aid) => ecrire(() => rpc("supprimer_annonce", { p_annonce: aid })),

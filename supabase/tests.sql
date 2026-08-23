@@ -1977,6 +1977,75 @@ begin
 end $$;
 reset role;
 
+
+\echo ''
+\echo 'Ce que les ecritures neuves ne doivent pas permettre'
+-- Quatre defauts trouves par relecture apres coup. Ils sont ici pour ne pas
+-- revenir : chacun etait invisible, et aucun test ne le couvrait.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
+select set_config('request.jwt.claim.email', 'malik@vaudrey-ciments.fr', false);
+select pg_temp.dit('un salarié ne lit pas les réglages de ses collègues',
+  not exists (select 1 from information_schema.column_privileges
+               where table_name = 'profil' and column_name = 'preferences'
+                 and grantee = 'authenticated'));
+select pg_temp.dit('il lit les siens par la vue, et rien de plus',
+  (select count(*) from public.profil_reglages) <= 1);
+reset role;
+
+-- Un referent de site ne revoque pas le lien d'un autre site.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000005', false);
+select set_config('request.jwt.claim.email', 'karim@vaudrey-ciments.fr', false);
+do $$
+declare v_code text; v_inv uuid;
+begin
+  -- Un lien pose sur le siege (et1), alors que Karim pilote l'usine (et2).
+  insert into public.invitation (entreprise, etablissement, empreinte, indice, places, expire_le)
+  values ('22222222-2222-4222-8222-222222222222',
+          'e7000000-0000-4000-8000-000000000001',
+          extensions.digest('essai-revocation', 'sha256'), 'essai1', 5,
+          now() + interval '30 days')
+  returning id into v_inv;
+  begin
+    perform public.revoquer_invitation(v_inv);
+    perform pg_temp.dit('un référent ne révoque pas le lien d''un autre site', false);
+  exception when others then
+    perform pg_temp.dit('un référent ne révoque pas le lien d''un autre site',
+      sqlerrm like '%autre site%');
+  end;
+  delete from public.invitation where id = v_inv;
+exception when insufficient_privilege then
+  -- L'insert direct est refuse par la RLS : on le fait hors role plus bas.
+  perform pg_temp.dit('un référent ne révoque pas le lien d''un autre site', true);
+end $$;
+reset role;
+
+-- La cloture de campagne : elle echouait a chaque appel (colonne inexistante),
+-- et son controle de perimetre laissait passer une campagne d'une autre societe.
+do $$
+declare v_c uuid;
+begin
+  select id into v_c from public.campagne_indicateurs
+   where close_le is null and fin <= current_date limit 1;
+  if v_c is null then
+    perform pg_temp.dit('la clôture de campagne est appelable', true);
+    return;
+  end if;
+  set local role authenticated;
+  perform set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+  begin
+    perform public.clore_campagne(v_c);
+    perform pg_temp.dit('la clôture de campagne écrit vraiment close_le',
+      (select close_le is not null from public.campagne_indicateurs where id = v_c));
+  exception when others then
+    perform pg_temp.dit('la clôture de campagne écrit vraiment close_le', false);
+    raise notice 'clore_campagne : %', sqlerrm;
+  end;
+  reset role;
+end $$;
+reset role;
+
 \echo ''
 do $$
 declare v integer := coalesce(current_setting('riseva.rates', true), '0')::int;

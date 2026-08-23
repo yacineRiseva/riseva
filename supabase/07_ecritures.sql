@@ -311,6 +311,13 @@ begin
   if v_i.entreprise <> v_ent or private.mon_role() not in ('entreprise_admin', 'site_referent') then
     raise exception 'Réservé à votre société' using errcode = '42501';
   end if;
+  -- Un referent de site ne revoque que les liens de SON site. La policy de
+  -- lecture le bornait deja ainsi ; l'ecriture etait plus large que la lecture,
+  -- ce qui lui permettait de couper le lien d'inscription d'un autre site.
+  if private.mon_role() = 'site_referent'
+     and v_i.etablissement is distinct from private.mon_etablissement() then
+    raise exception 'Ce lien appartient à un autre site' using errcode = '42501';
+  end if;
   update public.invitation i set active = false where i.id = p_invitation;
   insert into public.acces (entreprise, profil, quoi, indice)
   values (v_ent, auth.uid(), 'revocation_lien', v_i.indice);
@@ -372,6 +379,14 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------- préférences
+-- Ses propres reglages, pour lui seul. Une vue plutot qu'une colonne accordee :
+-- la policy de lecture de `profil` laisse voir les lignes des collegues, donc
+-- accorder la colonne revenait a publier les reglages de tout le monde.
+create or replace view public.profil_reglages as
+  select p.id, p.preferences
+    from public.profil p
+   where p.id = auth.uid();
+
 create or replace function public.maj_preferences(p_preferences jsonb)
 returns jsonb
 language plpgsql security definer set search_path = '' as $$
@@ -381,7 +396,11 @@ begin
   if p_preferences is null or jsonb_typeof(p_preferences) <> 'object' then
     raise exception 'Des réglages sont un objet' using errcode = '22023';
   end if;
-  if length(p_preferences::text) > 4000 then
+  -- La borne porte sur le RESULTAT fusionne : borner la seule entree laissait
+  -- passer un cumul au-dela de quatre mille caracteres, et la contrainte de la
+  -- table levait alors une erreur brute a la place d'un message lisible.
+  if length(((select p.preferences from public.profil p where p.id = v_uid)
+             || p_preferences)::text) > 4000 then
     raise exception 'Réglages trop volumineux' using errcode = '22023';
   end if;
   update public.profil p set preferences = p.preferences || p_preferences, maj_le = now()
@@ -468,10 +487,20 @@ declare v_c public.campagne_indicateurs;
 begin
   select * into v_c from public.campagne_indicateurs c where c.id = p_campagne;
   if not found then raise exception 'Campagne inconnue' using errcode = '42704'; end if;
-  if v_c.groupe is distinct from private.mon_groupe() or private.mon_role() <> 'entreprise_admin' then
-    raise exception 'Réservé à l''administrateur du groupe' using errcode = '42501';
+
+  -- Une campagne appartient a un groupe OU a une societe, jamais aux deux. Le
+  -- controle portait sur le seul groupe : pour une campagne de societe, les
+  -- deux cotes valaient NULL, `is distinct from` rendait faux, et n'importe quel
+  -- administrateur sans groupe pouvait clore la campagne d'une autre societe.
+  if private.mon_role() <> 'entreprise_admin'
+     or (v_c.groupe is not null and v_c.groupe is distinct from private.mon_groupe())
+     or (v_c.groupe is null and v_c.entreprise is distinct from private.mon_entreprise()) then
+    raise exception 'Réservé à l''administrateur du périmètre de cette campagne'
+      using errcode = '42501';
   end if;
-  if v_c.etat = 'close' then
+  -- L'etat de cloture est porte par `close_le`, pas par une colonne `etat` :
+  -- celle-ci n'existe pas, et la fonction echouait donc a chaque appel.
+  if v_c.close_le is not null then
     raise exception 'Cette campagne est déjà close' using errcode = '22023';
   end if;
   if v_c.fin > current_date then
@@ -479,18 +508,19 @@ begin
       v_c.fin using errcode = '22023';
   end if;
 
-  -- Les sites qui n'ont pas répondu sont clos SANS RÉPONSE, pas comblés avec la
-  -- période précédente. Un chiffre absent reste absent : c'est la règle qui rend
-  -- le rapport défendable.
+  -- Les sites qui n'ont pas repondu sont clos SANS REPONSE, pas combles avec la
+  -- periode precedente. Un chiffre absent reste absent : c'est la regle qui rend
+  -- le rapport defendable. Le perimetre suit celui de la campagne.
   insert into public.observation_indicateur (campagne, etablissement, etat, valeurs)
   select p_campagne, et.id, 'clos_sans_reponse', '{}'::jsonb
     from public.etablissement et
     join public.entreprise e on e.id = et.societe
-   where e.groupe = v_c.groupe
+   where ((v_c.groupe is not null and e.groupe = v_c.groupe)
+          or (v_c.groupe is null and e.id = v_c.entreprise))
      and not exists (select 1 from public.observation_indicateur o
                       where o.campagne = p_campagne and o.etablissement = et.id);
 
-  update public.campagne_indicateurs c set etat = 'close' where c.id = p_campagne;
+  update public.campagne_indicateurs c set close_le = now() where c.id = p_campagne;
 end $$;
 
 -- ---------------------------------------------------------------- Riseva seul
@@ -596,6 +626,8 @@ end $$;
 -- `03_rls.sql` a retiré l'exécution par défaut sur tout ce qui serait créé
 -- ensuite : sans les lignes ci-dessous, ces fonctions existent et ne sont
 -- appelables par personne. On rend nommément, comme pour les autres.
+grant select on public.profil_reglages to authenticated;
+
 grant execute on function
   public.maj_entreprise(text, text, text, text, numeric, numeric, integer),
   public.maj_domaines(text[]),

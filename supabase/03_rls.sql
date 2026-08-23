@@ -126,10 +126,11 @@ create policy annonce_lecture on public.annonce for select to anon, authenticate
 
 -- Profil : son propre profil, et les noms des collègues — rien de plus. Un
 -- salarié n'a pas à lire la fiche de toute l'entreprise.
--- Ses propres reglages en plus du nom : la policy de lecture ci-dessous laisse
--- voir les collegues, mais `preferences` ne sort que par la RPC qui filtre sur
--- auth.uid(). Le grant reste minimal.
-grant select (id, nom, preferences) on public.profil to authenticated;
+-- Le nom, et rien d'autre. `preferences` etait accordee ici avec un commentaire
+-- qui affirmait le contraire : la policy laisse voir les lignes des collegues,
+-- donc chaque salarie pouvait lire les reglages de tous les autres. Les
+-- reglages d'une personne ne sortent que par la RPC, filtree sur auth.uid().
+grant select (id, nom) on public.profil to authenticated;
 create policy profil_lecture on public.profil for select to authenticated
   using (
     id = auth.uid()

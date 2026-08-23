@@ -52,10 +52,14 @@ const espacer = (s) => s.replace(/[\u202f\u00a0]/g, " ");
 export const nb  = (n) => espacer(new Intl.NumberFormat("fr-FR").format(Math.round(n)));
 export const eur = (n) => espacer(new Intl.NumberFormat("fr-FR",{ style:"currency",
   currency:"EUR", maximumFractionDigits:0 }).format(n));
-export const dateFR = (s) => new Date(s).toLocaleDateString("fr-FR",
-  { day:"numeric", month:"long", year:"numeric" });
-export const dateCourte = (s) => new Date(s).toLocaleDateString("fr-FR",
-  { day:"2-digit", month:"short" });
+/* Une annonce sans date — un parrainage, une adoption, un besoin permanent — a
+   une date nulle. `new Date(null)` vaut le 1er janvier 1970, et c'est ce que les
+   ecrans affichaient : une date d'epoque unix dans un produit qu'on paie a
+   l'annee se remarque tout de suite. */
+export const dateFR = (s) => (s ? new Date(s).toLocaleDateString("fr-FR",
+  { day:"numeric", month:"long", year:"numeric" }) : "sans date");
+export const dateCourte = (s) => (s ? new Date(s).toLocaleDateString("fr-FR",
+  { day:"2-digit", month:"short" }) : "sans date");
 
 export const rangFR = (n) => n + "<sup style='font-size:.55em'>" + (n === 1 ? "er" : "e") + "</sup>";
 
@@ -99,6 +103,10 @@ export const ICONS = {
   check:     P(`<path d="M20 6 9 17l-5-5"/>`),
   /* Un bouclier monoline : le trait fin du logo interdit un pictogramme plein. */
   shield:    P(`<path d="M12 3 5 6v5c0 4.2 2.8 8 7 10 4.2-2 7-5.8 7-10V6l-7-3Z"/><path d="M9.5 12l1.8 1.8 3.4-3.6"/>`),
+  /* Le menu de l'administration demandait cette icone depuis toujours. Elle
+     n'existait pas, et `${ICONS[ico]}` ecrivait donc le mot « undefined » dans
+     la barre laterale, sur tous les ecrans de Riseva. */
+  alert:     P(`<path d="M12 4.5 3 19.5h18L12 4.5Z"/><path d="M12 10v4"/><path d="M12 17h.01"/>`),
   trophy:    P(`<path d="M8 4h8v5a4 4 0 0 1-8 0V4Z"/><path d="M8 5H5v2a3 3 0 0 0 3 3"/><path d="M16 5h3v2a3 3 0 0 1-3 3"/><path d="M12 13v4"/><path d="M9 21h6"/><path d="M10 17h4l1 4H9l1-4Z"/>`),
   users:     P(`<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 5.5a3 3 0 0 1 0 5"/><path d="M18 20a5.5 5.5 0 0 0-3-4.9"/>`),
   report:    P(`<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"/><path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/>`),
