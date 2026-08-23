@@ -346,10 +346,24 @@ create table association (
   -- Restreinte au domaine de HelloAsso : ce lien est présenté à des donateurs
   -- sous la phrase « donnez ici », et un champ libre pointant n'importe où serait
   -- un détournement de dons offert à qui prendrait la main sur un compte.
-  -- Riseva ne détient aucune clé d'API d'association : l'intégration
-  -- serveur-à-serveur suppose un compte partenaire, qui suppose une personne
-  -- morale, et rien ici n'attend cette étape pour fonctionner.
+  -- Elle reste pour les associations qui n'ont pas autorisé Riseva : un lien
+  -- collé vaut mieux que rien. Le circuit principal, lui, passe par l'API.
   helloasso         text check (helloasso ~ '^https://(www\.)?helloasso\.com/associations/[a-z0-9-]+/(formulaires|collectes|evenements|adhesions|boutiques)/[a-zA-Z0-9-]+/?$'),
+  -- Le nom court de l'organisation chez HelloAsso, tel qu'il apparaît dans
+  -- l'adresse de sa page. C'est la seule chose publique de la liaison : le jeton
+  -- qui permet d'agir en son nom vit dans le schéma privé, hors de portée du
+  -- navigateur, et n'en sort jamais.
+  --
+  -- Ce que la liaison change, et pourquoi elle existe. Sans elle, un don passait
+  -- par un virement avec référence : le donateur ouvrait son application
+  -- bancaire, recopiait un IBAN et une référence, et l'association devait
+  -- confirmer à la main l'avoir reçu, parfois trois semaines plus tard. Avec
+  -- elle, le donateur paie par carte sur une page HelloAsso, l'argent va
+  -- directement sur le compte de l'association, et la confirmation revient
+  -- toute seule. Riseva ne touche toujours pas aux fonds : elle ne fait
+  -- qu'ouvrir une intention de paiement sur l'organisation qui l'a autorisée.
+  helloasso_slug    text check (helloasso_slug ~ '^[a-z0-9-]{1,120}$'),
+  helloasso_lie_le  timestamptz,
   bic               text check (bic ~ '^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$'),
   titulaire_compte  text check (length(titulaire_compte) <= 200),
   cree_le   timestamptz not null default now(),
@@ -385,6 +399,35 @@ create table profil (
 -- un site mal servi ne cesse pas de l'être parce que la personne qui l'a signalé
 -- a changé d'entreprise.
 alter table sourcing add column par uuid references profil(id) on delete set null;
+
+-- La liaison HelloAsso d'une association : ce qui permet d'agir en son nom.
+-- Elle vit dans le schéma privé et n'est accordée à personne — ni au client, ni
+-- à l'association elle-même. Seule la fonction Edge, qui détient la clé de
+-- service, la lit et l'écrit. Un jeton de rafraîchissement lisible depuis un
+-- navigateur serait un compte de collecte de dons ouvert à qui sait regarder.
+create table private.helloasso_lien (
+  association   uuid primary key references public.association(id) on delete cascade,
+  slug          text not null check (slug ~ '^[a-z0-9-]{1,120}$'),
+  -- HelloAsso rend un jeton de rafraîchissement valable trente jours, et en rend
+  -- un neuf à chaque rafraîchissement : celui-ci est donc réécrit souvent.
+  jeton         text not null,
+  obtenu_le     timestamptz not null default now(),
+  -- Ce que l'association a autorisé, tel que HelloAsso l'a rendu. On le garde
+  -- pour savoir, sans essayer, si une opération est possible.
+  privileges    text[] not null default '{}',
+  constraint helloasso_jeton_borne check (length(jeton) <= 4000)
+);
+
+-- L'état d'une autorisation en cours. Le vérificateur PKCE ne peut pas voyager
+-- par le navigateur : il est posé ici le temps de l'aller-retour, et effacé
+-- ensuite. Les lignes de plus d'une heure sont purgées par la tâche planifiée.
+create table private.helloasso_etat (
+  etat          text primary key check (length(etat) between 16 and 128),
+  association   uuid not null references public.association(id) on delete cascade,
+  verificateur  text not null check (length(verificateur) between 43 and 128),
+  retour        text check (length(retour) <= 300),
+  cree_le       timestamptz not null default now()
+);
 
 create table private.appartenance (
   profil       uuid primary key references profil(id) on delete cascade,

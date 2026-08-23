@@ -807,3 +807,239 @@ begin
     end if;
   end loop;
 end $$;
+
+-- ------------------------------------------------------------- HelloAsso
+-- Le don en argent passe par HelloAsso. Ce que cela change pour une association
+-- et pour un donateur, et pourquoi c'est ici plutot que dans le navigateur.
+--
+-- Avant : le donateur recevait un IBAN et une reference, ouvrait son application
+-- bancaire, recopiait les deux, et l'association devait confirmer a la main
+-- avoir recu l'argent, parfois trois semaines plus tard. Trois gestes manuels,
+-- trois occasions d'abandonner, et un delai entre le clic et le point marque.
+--
+-- Maintenant : l'association autorise Riseva depuis la mire d'autorisation de
+-- HelloAsso, une fois. Le donateur paie par carte sur une page HelloAsso.
+-- L'argent va DIRECTEMENT sur le compte de l'association, jamais par nous : ce
+-- n'est donc toujours pas un service de paiement au sens des articles L. 314-1
+-- et L. 521-1 du code monetaire et financier, et Riseva n'a aucun agrement a
+-- obtenir. La confirmation revient toute seule.
+--
+-- Ce qui reste dans le navigateur : rien. Le jeton qui permet d'agir au nom
+-- d'une association vit dans `private.helloasso_lien`, que personne n'a le droit
+-- de lire, et seule la fonction Edge le manipule.
+
+-- L'association voit l'etat de sa liaison, jamais le jeton.
+create or replace view public.helloasso_etat_liaison as
+  select a.id as association,
+         a.helloasso_slug as slug,
+         a.helloasso_lie_le as lie_le,
+         (a.helloasso_slug is not null) as lie
+    from public.association a
+   where a.id = private.mon_association() or private.est_admin();
+
+-- Rompre la liaison. Le geste appartient a l'association : elle a autorise, elle
+-- peut retirer. Le jeton est efface, pas seulement oublie.
+create or replace function public.delier_helloasso()
+returns void
+language plpgsql security definer set search_path = '' as $$
+declare v_a uuid := private.mon_association();
+begin
+  if v_a is null then
+    raise exception 'Réservé à l''association elle-même' using errcode = '42501';
+  end if;
+  delete from private.helloasso_lien where association = v_a;
+  update public.association a
+     set helloasso_slug = null, helloasso_lie_le = null
+   where a.id = v_a;
+end $$;
+
+grant select on public.helloasso_etat_liaison to authenticated;
+grant execute on function public.delier_helloasso() to authenticated;
+
+-- Les fonctions appelees par la fonction Edge, et par elle seule : elle detient
+-- la cle de service. Aucune n'est accordee a `authenticated`.
+
+-- Ouvrir une autorisation : on pose l'etat et le verificateur PKCE, qui ne
+-- peuvent pas voyager par le navigateur.
+create or replace function public.helloasso_ouvrir_autorisation(
+  p_association uuid, p_etat text, p_verificateur text, p_retour text default null)
+returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  delete from private.helloasso_etat where cree_le < now() - interval '1 hour';
+  insert into private.helloasso_etat (etat, association, verificateur, retour)
+  values (p_etat, p_association, p_verificateur, p_retour);
+end $$;
+
+-- Reprendre une autorisation : l'etat est a usage unique, il est efface en meme
+-- temps qu'il est lu. Un code d'autorisation rejoue ne trouve plus rien.
+create or replace function public.helloasso_reprendre_autorisation(p_etat text)
+returns table (association uuid, verificateur text, retour text)
+language plpgsql security definer set search_path = '' as $$
+begin
+  return query
+    delete from private.helloasso_etat e
+     where e.etat = p_etat and e.cree_le > now() - interval '1 hour'
+    returning e.association, e.verificateur, e.retour;
+end $$;
+
+-- Enregistrer la liaison, une fois le jeton obtenu.
+create or replace function public.helloasso_enregistrer_lien(
+  p_association uuid, p_slug text, p_jeton text, p_privileges text[] default '{}')
+returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  insert into private.helloasso_lien (association, slug, jeton, privileges)
+  values (p_association, p_slug, p_jeton, coalesce(p_privileges, '{}'))
+  on conflict (association) do update
+    set slug = excluded.slug, jeton = excluded.jeton,
+        privileges = excluded.privileges, obtenu_le = now();
+  update public.association a
+     set helloasso_slug = p_slug, helloasso_lie_le = now()
+   where a.id = p_association;
+end $$;
+
+-- Lire la liaison. Rendue au seul role de service : c'est le jeton.
+create or replace function public.helloasso_lien(p_association uuid)
+returns table (slug text, jeton text)
+language sql security definer set search_path = '' as $$
+  select l.slug, l.jeton from private.helloasso_lien l where l.association = p_association;
+$$;
+
+-- HelloAsso rend un jeton neuf a chaque rafraichissement : celui d'avant cesse
+-- de valoir. Ne pas le reecrire, c'est perdre la liaison au bout de trente jours.
+create or replace function public.helloasso_rafraichir_jeton(
+  p_association uuid, p_jeton text)
+returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  update private.helloasso_lien l set jeton = p_jeton, obtenu_le = now()
+   where l.association = p_association;
+end $$;
+
+-- Poser l'intention de paiement sur une intention de don deja creee : c'est ce
+-- qui permet, au retour, de retrouver le don a partir de ce que HelloAsso rend.
+alter table public.intention_don
+  add column if not exists helloasso_intent bigint;
+
+create or replace function public.helloasso_poser_intent(
+  p_intention uuid, p_intent bigint)
+returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  update public.intention_don i set helloasso_intent = p_intent where i.id = p_intention;
+end $$;
+
+create or replace function public.helloasso_intention(p_intention uuid)
+returns table (id uuid, annonce uuid, association uuid, salarie uuid,
+               origine public.origine_don, montant numeric, reference text,
+               etat text, helloasso_intent bigint, slug text)
+language sql security definer set search_path = '' as $$
+  select i.id, i.annonce, i.association, i.salarie, i.origine, i.montant,
+         i.reference, i.etat, i.helloasso_intent, a.helloasso_slug
+    from public.intention_don i
+    join public.association a on a.id = i.association
+   where i.id = p_intention;
+$$;
+
+-- De quelle association releve un profil : la fonction Edge tourne avec la cle
+-- de service, donc `private.mon_association()` ne lui apprend rien. Elle ne doit
+-- pas non plus croire le corps de la requete sur parole.
+create or replace function public.mon_association_de(p_profil uuid)
+returns uuid
+language sql security definer set search_path = '' as $$
+  select a.association from private.appartenance a
+   where a.profil = p_profil and a.role = 'association' and a.actif;
+$$;
+
+-- L'intention de don, ouverte pour un profil donne. C'est la meme regle que
+-- `declarer_intention_don`, a une difference pres : l'appelant est la fonction
+-- Edge, pas la personne. Elle passe donc le profil, et TOUT le reste est
+-- controle ici — l'annonce, son etat, le montant, le role pour un don
+-- d'entreprise. Une fonction de service qui ferait confiance a son appelant
+-- serait une porte ouverte sur les points de n'importe quelle entreprise.
+create or replace function public.declarer_intention_don_pour(
+  p_annonce uuid, p_montant numeric, p_origine public.origine_don, p_profil uuid)
+returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare v_an public.annonce; v_a public.association; v_ent uuid; v_role public.role_utilisateur;
+        v_id uuid;
+begin
+  select a.role, a.entreprise into v_role, v_ent
+    from private.appartenance a where a.profil = p_profil and a.actif;
+  if v_role is null then
+    raise exception 'Compte inconnu ou suspendu' using errcode = '42501';
+  end if;
+  select * into v_an from public.annonce a where a.id = p_annonce;
+  if not found or v_an.type <> 'don_financier' or v_an.etat <> 'ouverte' then
+    raise exception 'Annonce indisponible' using errcode = '42501';
+  end if;
+  select * into v_a from public.association a where a.id = v_an.association;
+  if not v_a.valide or v_a.suspendue then
+    raise exception 'Cette association ne peut pas recevoir de don pour l''instant'
+      using errcode = '42501';
+  end if;
+  if v_a.helloasso_slug is null then
+    raise exception 'Cette association n''a pas connecté son compte HelloAsso'
+      using errcode = '42501';
+  end if;
+  if p_montant is null or p_montant < 5 then
+    raise exception 'Le minimum est de 5 €' using errcode = '22023';
+  end if;
+  if p_origine = 'entreprise' then
+    if v_role <> 'entreprise_admin' then
+      raise exception 'Seul un administrateur de l''entreprise engage un don d''entreprise'
+        using errcode = '42501';
+    end if;
+  else
+    v_ent := null;   -- un don personnel ne porte pas l'entreprise
+  end if;
+
+  insert into public.intention_don (annonce, association, salarie, entreprise, origine,
+                                    montant, reference, expire_le)
+  values (p_annonce, v_an.association, p_profil, v_ent, p_origine, p_montant,
+          private.reference_virement(), current_date + 30)
+  returning id into v_id;
+  return v_id;
+end $$;
+
+grant execute on function
+  public.mon_association_de(uuid),
+  public.declarer_intention_don_pour(uuid, numeric, public.origine_don, uuid),
+  public.helloasso_ouvrir_autorisation(uuid, text, text, text),
+  public.helloasso_reprendre_autorisation(text),
+  public.helloasso_enregistrer_lien(uuid, text, text, text[]),
+  public.helloasso_lien(uuid),
+  public.helloasso_rafraichir_jeton(uuid, text),
+  public.helloasso_poser_intent(uuid, bigint),
+  public.helloasso_intention(uuid)
+to service_role;
+
+do $$
+declare f record;
+begin
+  for f in
+    select p.oid::regprocedure as sig
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      join pg_roles ro on ro.oid = p.proowner
+     where n.nspname in ('public','private') and p.prosecdef
+       and ro.rolname <> 'riseva_definer'
+  loop
+    execute format('alter function %s owner to riseva_definer', f.sig);
+  end loop;
+end $$;
+
+do $$
+declare t record;
+begin
+  for t in select tablename from pg_tables where schemaname = 'public'
+  loop
+    if not exists (select 1 from pg_policies
+                    where schemaname = 'public' and tablename = t.tablename
+                      and policyname = 'moteur_' || t.tablename) then
+      execute format(
+        'create policy moteur_%I on public.%I to riseva_definer using (true) with check (true)',
+        t.tablename, t.tablename);
+    end if;
+  end loop;
+end $$;

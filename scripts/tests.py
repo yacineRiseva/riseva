@@ -191,8 +191,13 @@ def main():
         verifie("le don en argent est annoncé sans intermédiaire",
                 "sans transiter par Riseva" in corps and "aucune commission" in corps
                 and "Riseva n'encaisse rien" in corps)
-        verifie("les points d'un don ne sont crédités qu'après confirmation",
-                "quand l'association confirme la réception, et pas avant" in corps)
+        # Le don par carte se confirme par le paiement, pas par un silence : la
+        # page doit dire quand les points tombent, et ce n'est plus « quand
+        # l'association confirme la reception ».
+        verifie("les points d'un don ne sont crédités qu'après le paiement",
+                "quand le paiement est confirmé" in corps)
+        verifie("la vitrine dit qui encaisse, et que ce n'est pas Riseva",
+                "HelloAsso" in corps and "sans transiter par Riseva" in corps)
         # L'aveu tenait une section entière, avec un titre « Ce qu'on ne promet
         # pas » et une colonne de tout ce que Riseva ne fait pas. Énumérer ses
         # propres manques en grand sur une page qui vend est un mauvais calcul :
@@ -2294,8 +2299,14 @@ def main():
                 "Mandat accordé le" in dn and "Élise Tournier" in dn)
         verifie("le mandat rappelle que l'association reste seule émettrice",
                 "reste seule émettrice" in dn and "révocable à tout moment" in dn)
-        verifie("rien n'est validé automatiquement sur l'argent",
-                "un silence ne vaut pas encaissement" in dn)
+        # Le circuit principal est la carte : le don se confirme tout seul, et
+        # l'association n'a plus de releve a rapprocher. Le virement reste le
+        # repli, et lui demande toujours une confirmation a la main.
+        verifie("le don par carte se confirme sans rapprochement bancaire",
+                "vous n'avez rien à rapprocher" in dn)
+        verifie("l'argent ne transite toujours pas par Riseva",
+                "nous n'encaissons pas" in dn
+                and "pas d'agrément d'établissement de paiement" in dn)
 
         r3 = p.evaluate("""async () => {
           const d = await import('/app/data.js');
@@ -2360,15 +2371,44 @@ def main():
         verifie("un lien en http est refusé", ha.get("refusHttp") is not None)
         verifie("ajouter un formulaire ouvre le circuit carte",
                 ha["apres"] == ["helloasso", "virement"], str(ha["apres"]))
-        verifie("HelloAsso n'est pas présenté comme un manque à combler",
-                ha["options"] == 0)
+        # Connecter son compte n'est plus une option de confort : c'est ce qui
+        # transforme un virement recopie a la main en un paiement par carte qui
+        # se confirme seul. L'ecran le propose donc, en tete.
+        verifie("connecter HelloAsso est proposé, pas relégué",
+                ha["options"] == 1, str(ha["options"]))
 
         connecte(p, "u7", "#/dons")
         dh = norm(p.inner_text(".content"))
-        verifie("l'association n'a ni clé ni mot de passe à fournir",
-                "ni clé, ni mot de passe" in dh)
-        verifie("et le virement reste annoncé comme suffisant",
-                "le virement fonctionne" in dh)
+        verifie("l'association autorise depuis HelloAsso, sans livrer d'identifiants",
+                "Nous ne voyons jamais vos identifiants" in dh)
+        verifie("le virement reste offert à celles qui n'ont pas de compte",
+                "le virement ci-contre fonctionne" in dh)
+        verifie("elle peut retirer son autorisation quand elle veut",
+                "vous pouvez retirer l'autorisation" in dh)
+
+        # La liaison elle-meme : elle ouvre le paiement par carte, et sa rupture
+        # le referme sans toucher aux dons deja recus.
+        li = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const out = {};
+          out.avant = d.DB.helloassoLie('a2');
+          d.DB.lierHelloAsso('a2', 'refuge-des-quatre-vents');
+          out.apres = d.DB.helloassoLie('a2');
+          out.circuits = d.DB.circuitsDon('a2').map(x => x.cle);
+          out.options = d.DB.optionsDon('a2').length;
+          try { d.DB.lierHelloAsso('a2', 'https://helloasso.com/x'); out.refus = null; }
+          catch (e){ out.refus = e.message; }
+          d.DB.delierHelloAsso('a2');
+          out.rompu = d.DB.helloassoLie('a2');
+          return out;
+        }""")
+        verifie("connecter le compte ouvre le paiement par carte",
+                not li["avant"] and li["apres"] and li["circuits"][0] == "helloasso",
+                str(li))
+        verifie("une adresse complète n'est pas un nom d'organisation",
+                li["refus"] is not None)
+        verifie("une fois connecté, plus rien n'est réclamé", li["options"] == 0)
+        verifie("l'association peut rompre la liaison", not li["rompu"])
 
         print("\nRegistre public et dossier de l'association")
         connecte(p, "u7", "#/dossier")

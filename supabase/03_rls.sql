@@ -85,7 +85,8 @@ create policy entreprise_privee on public.entreprise for select to authenticated
 -- publique. Elles passent maintenant par la vue `association_reglages`.
 grant select (id, nom, nom_juridique, rna, siren, cause, ville, resume, adresse,
               lat, lon, site, photo, valide, suspendue, verifiee_le, a_reverifier_le,
-              eligible_mecenat, helloasso, iban, bic, titulaire_compte, cree_le)
+              eligible_mecenat, helloasso, helloasso_slug, helloasso_lie_le,
+              iban, bic, titulaire_compte, cree_le)
   on public.association to anon, authenticated;
 create policy association_lecture on public.association for select to anon, authenticated
   using ((valide and not suspendue) or id = private.mon_association() or private.est_admin());

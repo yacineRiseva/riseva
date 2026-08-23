@@ -106,15 +106,23 @@ export const DON = {
    virement. Aucun secret ne transite, et rien n'attend une réponse de qui que
    ce soit pour fonctionner. */
 export const CIRCUITS_DON = {
+  /* Le circuit principal. L'association connecte son compte HelloAsso une fois ;
+     ensuite un don se fait par carte, en trois clics, et se confirme tout seul.
+     L'argent va de la carte du donateur au compte de l'association : Riseva n'y
+     touche pas, donc pas d'agrément d'établissement de paiement à obtenir. */
   helloasso: {
-    label: "Carte bancaire, via HelloAsso",
-    aide: "Immédiat, sans commission. HelloAsso se rémunère sur une contribution volontaire du donateur, modifiable et supprimable.",
+    label: "Carte bancaire",
+    aide: "Trois clics, et c'est fait. L'argent arrive sur le compte de l'association sans passer par Riseva, et le don se confirme tout seul. HelloAsso ne prend aucune commission : il se rémunère sur une contribution volontaire du donateur, modifiable et supprimable.",
     immediat: true,
-    exige: "un compte HelloAsso vérifié et un formulaire de don en ligne"
+    exige: "un compte HelloAsso connecté à Riseva"
   },
+  /* Le repli, pour une association qui n'a pas encore de compte HelloAsso. Il
+     marche partout et ne demande rien à personne, mais il coûte trois gestes
+     manuels et une confirmation à la main : c'est pour cela qu'il n'est plus le
+     circuit qu'on propose en premier. */
   virement: {
     label: "Virement bancaire",
-    aide: "Universel : aucune inscription nulle part, l'argent va de banque à banque.",
+    aide: "Universel, mais manuel : le donateur recopie l'IBAN et la référence, et vous confirmez la réception depuis votre espace.",
     immediat: false,
     exige: "un IBAN"
   }
@@ -4944,10 +4952,36 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
     /* Un don ne peut être annoncé que si l'argent a où aller, et si l'association
        est bien en ligne. Une page qui afficherait un formulaire de don pour une
        association suspendue serait la pire chose que ce produit puisse faire. */
+    /* Une association peut recevoir de l'argent des qu'elle a UN moyen de le
+       recevoir : un compte HelloAsso connecte, ou un IBAN. Exiger l'IBAN meme
+       quand le compte est connecte reclamait un numero dont plus personne ne se
+       sert, et bloquait le don pour une association parfaitement equipee. */
     donsOuverts(aid){
       const a = api.association(aid);
-      return !!(DON.ouvert && a && a.valide && !a.suspendue && a.iban && ibanValide(a.iban));
+      if (!DON.ouvert || !a || !a.valide || a.suspendue) return false;
+      return !!a.helloasso_slug || !!(a.iban && ibanValide(a.iban));
     },
+    /* Connecter le compte HelloAsso d'une association. En production, la vraie
+       liaison passe par la mire d'autorisation de HelloAsso et une fonction
+       Edge : le navigateur ne voit jamais le jeton. En demonstration, on simule
+       le retour de cette mire pour que le parcours se traverse en entier. */
+    lierHelloAsso(aid, slug){
+      const a = api.association(aid);
+      if (!a) throw new Error("Association inconnue");
+      const v = String(slug || "").trim().toLowerCase();
+      if (!/^[a-z0-9-]{1,120}$/.test(v))
+        throw new Error("Ce nom d'organisation ne ressemble pas à celui d'une page HelloAsso.");
+      a.helloasso_slug = v;
+      a.helloasso_lie_le = new Date().toISOString().slice(0, 10);
+      return a;
+    },
+    delierHelloAsso(aid){
+      const a = api.association(aid);
+      if (!a) return null;
+      a.helloasso_slug = null; a.helloasso_lie_le = null;
+      return a;
+    },
+
     enregistrerHelloAsso(aid, lien){
       const a = api.association(aid); if (!a) return null;
       const v = String(lien || "").trim();
@@ -4965,8 +4999,17 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const a = api.association(aid) || {};
       if (!api.donsOuverts(aid)) return [];
       const l = [];
-      if (a.helloasso) l.push({ cle:"helloasso", ...CIRCUITS_DON.helloasso, lien:a.helloasso });
-      l.push({ cle:"virement", ...CIRCUITS_DON.virement, ...api.coordonneesDon(aid) });
+      /* Le compte connecte d'abord : c'est celui qui se paie par carte et se
+         confirme seul. Le lien colle a la main ensuite, pour celles qui ont un
+         formulaire sans avoir autorise Riseva. Le virement en dernier. */
+      if (a.helloasso_slug)
+        l.push({ cle:"helloasso", ...CIRCUITS_DON.helloasso, slug:a.helloasso_slug, api:true });
+      else if (a.helloasso)
+        l.push({ cle:"helloasso", ...CIRCUITS_DON.helloasso,
+                 aide:"Paiement par carte sur le formulaire de l'association.",
+                 lien:a.helloasso, api:false });
+      if (api.coordonneesDon(aid))
+        l.push({ cle:"virement", ...CIRCUITS_DON.virement, ...api.coordonneesDon(aid) });
       return l;
     },
     coordonneesDon(aid){
@@ -5079,8 +5122,12 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const l = [];
       if (!a.valide || a.suspendue) l.push({ quoi:"mise en ligne de l'association",
         pourquoi:"une association hors ligne ne reçoit pas de dons par Riseva" });
-      if (!a.iban) l.push({ quoi:"IBAN de l'association",
-        pourquoi:"c'est le compte que le donateur verra ; l'argent ne transite jamais par Riseva" });
+      /* Ce qui manque VRAIMENT pour recevoir de l'argent : un moyen de le
+         recevoir. Le compte HelloAsso connecte suffit, l'IBAN aussi ; c'est
+         l'absence des deux qui bloque. Exiger l'IBAN quand le compte est
+         connecte demandait un numero dont plus personne ne se sert. */
+      if (!a.helloasso_slug && !a.iban) l.push({ quoi:"un moyen de recevoir les dons",
+        pourquoi:"connectez votre compte HelloAsso, ou renseignez un IBAN pour les virements" });
       if (!r.eligible_mecenat) l.push({ quoi:"déclaration d'éligibilité au mécénat",
         pourquoi:"sans elle, le don reste possible mais aucun reçu n'est préparé" });
       if (!api.mandatRecus(aid)) l.push({ quoi:"mandat de préparation des reçus",
@@ -5093,9 +5140,14 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
        part, ce qui est exactement la promesse qu'on lui a faite de ne pas faire. */
     optionsDon(aid){
       const a = api.association(aid) || {};
-      return a.helloasso ? [] : [{ quoi:"lien HelloAsso (facultatif)",
-        pourquoi:"si vous avez déjà un formulaire de don HelloAsso, vos donateurs pourront payer par carte en un clic. Sans lui, le virement fonctionne très bien." }];
+      if (a.helloasso_slug) return [];
+      return [{ quoi:"connecter votre compte HelloAsso",
+        pourquoi:"vos donateurs paient par carte en trois clics, l'argent arrive chez vous, et le don se confirme sans que vous ayez rien à faire" }];
     },
+
+    /* L'etat de la liaison HelloAsso, tel que l'ecran le lit. */
+    helloassoLie: (aid) => !!(api.association(aid) || {}).helloasso_slug,
+    helloassoSlug: (aid) => (api.association(aid) || {}).helloasso_slug || null,
 
 
 
@@ -6019,6 +6071,16 @@ export async function connecterSupabase(config, { client: injecte = null } = {})
   }
   const { createClient } = await chargerPilote();
   const client = createClient(config.url, config.anonKey);
+  /* Le jeton de la session, mis a disposition des appels aux fonctions Edge.
+     C'est le meme que celui que la bibliotheque envoie deja a chaque requete :
+     il ne sort pas de l'onglet, et il expire avec la session. */
+  try {
+    const { data } = await client.auth.getSession();
+    if (data && data.session) window.RISEVA_JETON = data.session.access_token;
+    client.auth.onAuthStateChange((_e, sess) => {
+      window.RISEVA_JETON = sess ? sess.access_token : null;
+    });
+  } catch (e) { /* pas de session : les fonctions Edge refuseront, et c'est juste */ }
   const dos = creerSupabase(client);
   /* On charge avant de vérifier : tant que l'état n'est pas là, la couche n'a
      que ses écritures et la vérification ci-dessous se plaindrait à tort. */
@@ -6062,7 +6124,8 @@ const ECRITURES = [
   "controlerEnregistrement", "creerAnnonce", "creerCompteAssociation",
   "creerCompteEntreprise", "creerInvitation", "creerInvitationCSE",
   "creerInvitationReferent", "deciderSignalement", "declarerEvenement", "declarerFaite",
-  "declarerIntentionDon", "declarerValeurMateriel", "engager", "enregistrerHelloAsso",
+  "declarerIntentionDon", "declarerValeurMateriel", "delierHelloAsso", "engager",
+  "enregistrerHelloAsso", "lierHelloAsso",
   "enregistrerIban", "enregistrerNumeros", "expedier", "fermerAnnonce", "inviterSalarie",
   "majAction", "majAssociation", "majContrat", "majDomaines", "majEntreprise",
   "majPreferences", "majReglagesRecus", "marquerFacturePayee", "modifierEtablissement",
@@ -6145,6 +6208,7 @@ const versEtat = {
     cause: r.cause, ville: r.ville,
     resume: r.resume, adresse: r.adresse, lat: r.lat, lon: r.lon,
     valide: r.valide, suspendue: r.suspendue, site: r.site, photo: r.photo,
+    helloasso_slug: r.helloasso_slug || null, helloasso_lie_le: r.helloasso_lie_le || null,
     verifiee_le: r.verifiee_le, verifiee_jusqua: r.verifiee_jusqua,
     iban: r.iban, bic: r.bic, titulaire_compte: r.titulaire_compte,
     mandat_recus: r.mandat_recus_le
@@ -6555,6 +6619,12 @@ function creerSupabase(client){
     enregistrerIban: (aid, { iban, bic, titulaire } = {}) => ecrire(() =>
       rpc("enregistrer_iban", { p_association: aid, p_iban: iban,
                                 p_bic: bic || null, p_titulaire: titulaire || null })),
+    delierHelloAsso: () => ecrire(() => rpc("delier_helloasso", {})),
+    /* Lier ne s'ecrit pas d'ici : la mire d'autorisation de HelloAsso renvoie
+       vers la fonction Edge, qui detient le secret partenaire et enregistre la
+       liaison avec la cle de service. L'ecran se contente d'ouvrir la mire. */
+    lierHelloAsso: () => { throw new Error(
+      "La connexion HelloAsso passe par la page d'autorisation de HelloAsso."); },
     enregistrerHelloAsso: (aid, lien) => ecrire(() =>
       rpc("enregistrer_helloasso", { p_association: aid, p_lien: lien })),
     enregistrerNumeros: (aid, { siren, rna } = {}) => ecrire(() =>

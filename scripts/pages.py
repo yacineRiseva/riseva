@@ -1186,10 +1186,15 @@ l'informatique et des libertés, 3 place de Fontenoy, TSA 80715, 75334 Paris Ced
 
 <h2>Dons</h2>
 <p>Riseva <strong>n'encaisse pas les dons</strong> et n'est pas un établissement de paiement au
-sens de l'article L. 522-1 du code monétaire et financier. Les virements vont du donateur à
-l'association bénéficiaire, sans transiter par Riseva ni par aucun prestataire, et sans aucune
-commission. Riseva fournit la référence qui permet à l'association de rapprocher le virement du
-don annoncé.</p>
+sens de l'article L. 522-1 du code monétaire et financier. Les paiements par carte sont encaissés
+par <strong>HelloAsso</strong> pour le compte de l'association bénéficiaire, sur l'organisation
+que celle-ci a elle-même autorisée depuis son compte HelloAsso ; les fonds ne transitent à aucun
+moment par Riseva, qui ne prélève aucune commission. Riseva ouvre l'intention de paiement au nom
+de l'association et n'a accès ni à ses identifiants, ni à ses fonds. L'autorisation est révocable
+à tout moment par l'association, depuis son espace ou depuis son compte HelloAsso.</p>
+<p>Le virement bancaire direct reste possible pour les associations qui n'ont pas connecté de
+compte HelloAsso : dans ce cas, Riseva fournit la référence qui permet à l'association de
+rapprocher le virement du don annoncé, et c'est elle qui confirme la réception.</p>
 <p>Le reçu fiscal est émis par l'association elle-même, sous sa seule responsabilité. Riseva le
 prépare sur <strong>mandat écrit et révocable</strong>, et ne juge jamais de l'éligibilité de
 l'association au régime de l'article 200 ou 238 bis du code général des impôts.</p>

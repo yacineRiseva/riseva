@@ -14,7 +14,7 @@ le contenu est écrit deux fois, exprès.
 
 Règles qui tiennent sur les deux pages, et que la recette vérifie :
 , aucun chiffre issu du jeu de démonstration ;
-, trois formats, dont le don par virement direct : Riseva n'encaisse jamais ;
+, trois formats, dont le don par carte encaissé par HelloAsso pour l'association : Riseva n'encaisse jamais ;
 , la formule canonique des quatorze jours, mot pour mot ;
 , aucune requête vers un domaine tiers, polices comprises.
 """
@@ -641,8 +641,8 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
       ("14 j", "le délai au bout duquel une mission sans réponse est clôturée, avec son "
         "résultat marqué comme estimé partout où il apparaît. C'est notre engagement, et il "
         "ne dépend que de nous.", None),
-      ("0 €", "de commission sur les dons, et rien de facturé aux associations. Le virement "
-        "va du donateur à l'association, sans passer par Riseva.", None),
+      ("0 €", "de commission sur les dons, et rien de facturé aux associations. Le paiement "
+        "va de la carte du donateur au compte de l'association, sans passer par Riseva.", None),
     ])}
 
     <div class="scene">
@@ -776,12 +776,13 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
         <li><div><b>L'adoption d'un animal</b> auprès d'un refuge partenaire, confirmée par le
           refuge.</div><span>400 pts</span></li>
         <li><div><b>Un don de matériel</b> : c'est l'association qui déclare ce qu'elle a reçu.</div><span>100 pts</span></li>
-        <li><div><b>Un don en argent, par virement direct</b> de banque à banque,
-          <b>sans transiter par Riseva</b>.</div><span>1 pt / 10 €</span></li>
+        <li><div><b>Un don en argent, par carte</b>, encaissé par
+          <b>HelloAsso</b> pour l'association, <b>sans transiter par Riseva</b>.</div><span>1 pt / 10 €</span></li>
       </ul>
       <p class="fmt-bareme">Sur le don en argent : <b>aucune commission</b>, aucun délai de
-        reversement, <b>Riseva n'encaisse rien</b>, et les points sont crédités
-        <b>quand l'association confirme la réception, et pas avant</b>. Le barème est identique
+        reversement, <b>Riseva n'encaisse rien</b>. Le paiement se fait par carte sur une page
+        HelloAsso et arrive sur le compte de l'association ; les points sont crédités
+        <b>quand le paiement est confirmé</b>. Le barème est identique
         pour toutes les entreprises et c'est la plateforme qui l'attribue, jamais l'association. Aucun format ne peut peser plus de la
         moitié des points d'une entreprise sur la saison. Le calcul complet, écrêtage compris,
         est dans <a href="/reglement.html">le règlement</a>, avec un exemple chiffré qui se
@@ -1068,9 +1069,9 @@ FAQ_ENT = faq([
    "barème, l'accompagnement au lancement, les affiches et les supports, et les rapports "
    "trimestriels et annuel.</p>"
    "<p>Sur le don en argent, une précision qui compte : Riseva <b>n'encaisse rien</b>. Le "
-   "virement va du donateur à l'association, avec une référence que nous émettons. Nous ne "
-   "sommes donc pas un établissement de paiement, il n'y a aucune commission, et l'association "
-   "reçoit la totalité du don.</p>"),
+   "donateur paie par carte sur une page <b>HelloAsso</b>, et l'argent arrive sur le compte "
+   "de l'association. Nous ne sommes donc pas un établissement de paiement, il n'y a aucune "
+   "commission de notre part, et l'association reçoit son don sans délai de reversement.</p>"),
   ("Qu'est-ce que « démarrer » veut dire, précisément ?",
    "<p>Cinq critères, constatés à la date convenue : votre espace est ouvert et le lien "
    "d'inscription fonctionne depuis un de vos postes ; les comptes commandés sont "
@@ -1386,9 +1387,10 @@ CHALLENGE_ASSO = f"""<section id="challenge">
           sous quatorze jours, elle est comptée mais reste écrite comme non confirmée, et le
           résultat comme estimé. Ce n'est pas une faute, et vous pouvez répondre plus tard.</p></div>
       <div><h4>Elles cherchent près de chez vous</h4>
-        <p>Chaque entreprise voit les besoins ouverts dans un rayon de trente kilomètres autour
-          de ses sites. Tant que vous n'avez rien publié, vous n'apparaissez pas dans cette
-          liste.</p></div>
+        <p>Votre fiche entre dans l'annuaire de chaque entreprise abonnée dès que votre
+          enregistrement est vérifié, que vous ayez publié une annonce ou non : leurs salariés
+          peuvent vous trouver, lire ce que vous faites et vous contacter. Une annonce ouverte
+          vous fait remonter en plus dans les besoins à trente kilomètres de leurs sites.</p></div>
       <div><h4>Vous ne leur devez rien</h4>
         <p>Pas de contrepartie, pas de logo obligatoire, pas de compte à rendre. Vous acceptez
           ou vous refusez une proposition sans avoir à vous justifier.</p></div>
@@ -1404,12 +1406,15 @@ ARGENT_ASSO = f"""<section id="argent" class="band-moss">
 
     <div class="duo duo--texte">
       <div class="col">
-        <h3>Un virement, de leur banque à la vôtre</h3>
-        <p>Le donateur reçoit votre IBAN et une référence que nous générons. L'argent ne
-          transite jamais par nous, il n'y a donc ni commission, ni délai de reversement, ni
-          plafond. Vous recevez la totalité du don.</p>
-        <p>Vous confirmez la réception dans votre espace, et c'est à ce moment que le donateur
-          voit son don validé.</p>
+        <h3>Par carte, sur votre compte HelloAsso</h3>
+        <p>Vous connectez votre compte HelloAsso une fois, depuis leur page d'autorisation.
+          Ensuite, un donateur paie par carte en trois clics et l'argent arrive chez vous.
+          L'argent ne transite jamais par Riseva : ni commission de notre part, ni délai de
+          reversement, ni plafond.</p>
+        <p>Le don se confirme tout seul. Vous n'avez aucun relevé à rapprocher, et le donateur
+          n'a aucune référence à recopier.</p>
+        <p class="mono">Pas encore de compte HelloAsso ? En ouvrir un est gratuit et prend
+          quelques minutes. En attendant, le virement reste possible.</p>
       </div>
       <div class="col">
         <h3>Les reçus fiscaux restent les vôtres</h3>

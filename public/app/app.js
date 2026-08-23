@@ -1340,9 +1340,15 @@ function vueAnnuaire(u){
         <h3>${esc(a.nom)}</h3>
         <p class="muted" style="font-size:var(--t-sm)">${esc(a.resume)}</p>
         <div class="between" style="margin-top:auto;padding-top:var(--s4);border-top:var(--line-soft)">
-          <span class="muted" style="font-size:var(--t-sm)">${n} besoin${n > 1 ? "s" : ""} ouvert${n > 1 ? "s" : ""}</span>
+          ${/* Une association sans annonce ouverte reste dans l'annuaire et reste
+                joignable : elle n'a pas de besoin PUBLIE, ce qui n'est pas la
+                meme chose que ne rien faire. « 0 besoin ouvert » se lisait comme
+                une association endormie. */""}
+          <span class="muted" style="font-size:var(--t-sm)">${n
+            ? `${n} besoin${n > 1 ? "s" : ""} ouvert${n > 1 ? "s" : ""}`
+            : "aucun besoin publié en ce moment"}</span>
           <span class="row" style="gap:var(--s2)">
-            <button class="btn btn--ghost btn--sm">Voir les annonces</button>
+            <button class="btn btn--ghost btn--sm">${n ? "Voir les annonces" : "Voir la fiche"}</button>
           </span>
         </div>
       </article>`);
@@ -1356,6 +1362,10 @@ function vueAnnuaire(u){
       };
       c.querySelector("button").onclick = (ev) => {
         ev.stopPropagation();
+        /* Sans annonce ouverte, le bouton menait a une liste filtree vide. Il
+           mene a la fiche : c'est la que se lit ce que fait l'association, et
+           c'est de la que l'on peut la contacter. */
+        if (!n){ window.open(`/asso.html?id=${a.id}`, "_blank"); return; }
         location.hash = "#/annonces";
         setTimeout(() => {
           const zone = document.querySelector("#filtresPlus");
@@ -1395,9 +1405,9 @@ function vueMissions(u){
             : ""}</p>
     </section>` : ""}
     <section class="card">
-    <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+    <div class="tableau"><table class="table"><thead><tr>
       <th>Mission</th><th>Association</th><th>Salarié</th><th>Date</th>
-      <th>Points</th><th>État</th><th></th></tr></thead><tbody></tbody></table></div></div>
+      <th>Points</th><th>État</th><th></th></tr></thead><tbody></tbody></table></div>
   </section></div>`);
   const tb = el.querySelector("tbody");
   if (!ms.length) tb.appendChild(h(`<tr><td colspan="7" class="empty">
@@ -1764,8 +1774,8 @@ function vueEquipe(u){
           <option value="anonyme">Départs anonymisés</option>
         </select>
       </div>
-      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
-        <th>Nom</th><th>Email</th><th>Points des missions</th><th>État</th><th></th></tr></thead><tbody></tbody></table></div></div>
+      <div class="tableau"><table class="table"><thead><tr>
+        <th>Nom</th><th>Email</th><th>Points des missions</th><th>État</th><th></th></tr></thead><tbody></tbody></table></div>
       <p class="hint" id="compte"></p>
       <p class="hint">Les points affichés ici sont ceux des missions. Les dons personnels d'un
         salarié n'y figurent pas et ne vous sont jamais rattachés à un nom : la cause d'une
@@ -2100,9 +2110,9 @@ function vueRapports(u){
           Générés automatiquement à la clôture de chaque période. Rien à demander,
           rien à consolider.</p></div>
       </div>
-      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+      <div class="tableau"><table class="table"><thead><tr>
         <th>Rapport</th><th>Période</th><th>Points</th><th>État</th><th>Envoi</th><th></th>
-      </tr></thead><tbody></tbody></table></div></div>
+      </tr></thead><tbody></tbody></table></div>
       <p class="hint" style="margin-top:var(--s4)">Vous n'avez rien à demander : chaque rapport
         part vers l'administrateur de l'entreprise dès la clôture de sa période, une fois et une
         seule. Un rapport reçu deux fois est une erreur qu'on remarque, et qui coûte la confiance
@@ -2304,11 +2314,11 @@ function vueAbonnement(u){
             <button class="btn btn--ghost btn--sm" id="csvF">Exporter</button>
           </div>
         </div>
-        <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+        <div class="tableau"><table class="table"><thead><tr>
           <th>Référence</th><th>Libellé</th><th>Émise</th><th>Échéance</th>
           <th style="text-align:right">HT</th><th style="text-align:right">TTC</th>
           <th>État</th><th></th>
-        </tr></thead><tbody></tbody></table></div></div>
+        </tr></thead><tbody></tbody></table></div>
       </section>
 
       <div class="stack" style="--gap:var(--s5)">
@@ -2991,7 +3001,7 @@ function vueParametres(u){
   const journalAcces = DB.acces(u.org);
   if (!journalAcces.length) boxA.appendChild(h(`<p class="muted" style="font-size:var(--t-sm)">Rien encore.</p>`));
   else {
-    const t = h(`<div class="tableau"><div class="tableau"><table class="table"><tbody></tbody></table></div></div>`);
+    const t = h(`<div class="tableau"><table class="table"><tbody></tbody></table></div>`);
     journalAcces.forEach(a => {
       const who = a.utilisateur ? DB.utilisateur(a.utilisateur) : null;
       t.querySelector("tbody").appendChild(h(`<tr>
@@ -3239,8 +3249,8 @@ function tableauAsso(u){
 }
 
 function tableAnnoncesAsso(annonces, u){
-  const t = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
-    <th>Annonce</th><th>Format</th><th>Il reste</th><th>État</th><th></th></tr></thead><tbody></tbody></table></div></div>`);
+  const t = h(`<div class="tableau"><table class="table"><thead><tr>
+    <th>Annonce</th><th>Format</th><th>Il reste</th><th>État</th><th></th></tr></thead><tbody></tbody></table></div>`);
   const tb = t.querySelector("tbody");
   if (!annonces.length)
     tb.appendChild(h(`<tr><td colspan="5" class="empty">Aucune annonce publiée.</td></tr>`));
@@ -3532,10 +3542,10 @@ function vueAValider(u){
           sans confirmation : l'entreprise marque ses points, le résultat reste estimé et il est
           écrit comme tel. Ce n'est pas une faute.</p></div>
       </div>
-      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+      <div class="tableau"><table class="table"><thead><tr>
         <th style="width:36px"></th><th>Mission</th><th>Entreprise</th><th>Salarié</th>
         <th>Date</th><th>Délai</th><th>État</th><th></th>
-      </tr></thead><tbody></tbody></table></div></div>
+      </tr></thead><tbody></tbody></table></div>
     </section>
   </div>`);
 
@@ -3842,9 +3852,9 @@ function tableauAdmin(){
 }
 
 function vueAdminEntreprises(){
-  const el = h(`<section class="card"><div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+  const el = h(`<section class="card"><div class="tableau"><table class="table"><thead><tr>
     <th>Entreprise</th><th>Secteur</th><th>Places</th><th>Points</th><th>Rang</th>
-  </tr></thead><tbody></tbody></table></div></div></section>`);
+  </tr></thead><tbody></tbody></table></div></section>`);
   const tb = el.querySelector("tbody");
   DB.classement().forEach(e => {
     const si = DB.sieges(e.id);
@@ -3870,10 +3880,10 @@ function vueAdminAssos(){
         présente aux entreprises.</p>
     </section>` : ""}
     <section class="card">
-      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+      <div class="tableau"><table class="table"><thead><tr>
         <th>Association</th><th>Cause</th><th>Identifiant</th><th>Registre</th>
         <th>Vérifiée</th><th>Annonces</th><th>État</th><th></th>
-      </tr></thead><tbody></tbody></table></div></div>
+      </tr></thead><tbody></tbody></table></div>
     </section>
   </div>`);
   const tb = el.querySelector("tbody");
@@ -3965,9 +3975,9 @@ function vueAdminAssos(){
 
 function vueAdminPreinscriptions(){
   const etats = { preinscrite:["Préinscrite",""], relancee:["Relancée","badge--warn"], confirmee:["Confirmée","badge--ok"] };
-  const el = h(`<section class="card"><div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+  const el = h(`<section class="card"><div class="tableau"><table class="table"><thead><tr>
     <th>Entreprise</th><th>Contact</th><th>Effectif</th><th>Date</th><th>État</th>
-  </tr></thead><tbody></tbody></table></div></div></section>`);
+  </tr></thead><tbody></tbody></table></div></section>`);
   const tb = el.querySelector("tbody");
   if (!DB.preinscriptions().length)
     tb.appendChild(h(`<tr><td colspan="5" class="muted" style="font-size:var(--t-sm)">
@@ -4026,7 +4036,7 @@ function vuePilotes(){
     <div class="two">
       <section class="card">
         <h3>Définitions</h3>
-        <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5)"><tbody>
+        <div class="tableau"><table class="table" style="margin-top:var(--s5)"><tbody>
           ${lignes.map(([cle, titre, unite]) => {
             const x = global[cle];
             return `<tr>
@@ -4035,14 +4045,14 @@ function vuePilotes(){
                   x.valeur === null ? "-" : x.valeur + (unite ? " " + unite : "")}</span></td>
               <td class="muted">${esc(x.definition)}</td></tr>`;
           }).join("")}
-        </tbody></table></div></div>
+        </tbody></table></div>
       </section>
 
       <section class="card">
         <h3>Par entreprise</h3>
-        <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5)"><thead><tr>
+        <div class="tableau"><table class="table" style="margin-top:var(--s5)"><thead><tr>
           <th>Entreprise</th><th>Inscription</th><th>Participation</th><th>Réalisation</th>
-        </tr></thead><tbody id="pe"></tbody></table></div></div>
+        </tr></thead><tbody id="pe"></tbody></table></div>
         <hr class="sep">
         <button class="btn btn--ghost btn--block btn--sm" id="csvI">Exporter les indicateurs</button>
       </section>
@@ -4101,7 +4111,7 @@ function vueAdminSaison(){
         Elle vit dans le code, pas dans un champ de saisie : c'est elle qui est affichée sur le
         site public, calculée dans les devis et reprise dans les contrats. Un prix modifiable
         depuis un écran finirait par ne plus correspondre à celui qu'un client a lu.</p>
-      <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5)"><thead><tr>
+      <div class="tableau"><table class="table" style="margin-top:var(--s5)"><thead><tr>
         <th>Tranche</th><th style="text-align:right">Saison HT</th>
         <th style="text-align:right">Sites compris</th><th style="text-align:right">€ / salarié</th>
       </tr></thead><tbody>
@@ -4112,7 +4122,7 @@ function vueAdminSaison(){
             <td class="tnum" style="text-align:right">${x.sites}</td>
             <td class="tnum muted" style="text-align:right">${nb2(Math.round(x.prix / ref * 10) / 10)} €</td>
           </tr>`; }).join("")}
-      </tbody></table></div></div>
+      </tbody></table></div>
       <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
         <div class="between"><span class="muted">Site supplémentaire</span>
           <span class="tnum">${eur(TARIFS.site_supplementaire)} HT</span></div>
@@ -4402,9 +4412,9 @@ function vueActivite(u){
       action: { label: "Voir les annonces", onClick: () => { location.hash = "#/annonces"; } }
     }));
   } else {
-    const t = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+    const t = h(`<div class="tableau"><table class="table"><thead><tr>
       <th>Mission</th><th>Association</th><th>Date</th><th>Points</th><th>État</th>
-    </tr></thead><tbody></tbody></table></div></div>`);
+    </tr></thead><tbody></tbody></table></div>`);
     const tb = t.querySelector("tbody");
     ms.forEach(m => {
       const a = DB.annonceDe(m), asso = DB.association(a.asso);
@@ -4447,9 +4457,9 @@ function vueModeration(){
         à son auteur, quelle que soit la taille de l'hébergeur. Une décision non motivée ne vaut rien.</p>
     </section>
     <section class="card">
-      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+      <div class="tableau"><table class="table"><thead><tr>
         <th>Annonce</th><th>Motif</th><th>Reçu</th><th>État</th><th></th>
-      </tr></thead><tbody></tbody></table></div></div>
+      </tr></thead><tbody></tbody></table></div>
     </section>
   </div>`);
   const tb = el.querySelector("tbody");
@@ -4536,13 +4546,13 @@ function vueMoteur(){
     <div class="two">
       <section class="card">
         <h3>Ce qui tourne sans personne</h3>
-        <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5)"><tbody>
+        <div class="tableau"><table class="table" style="margin-top:var(--s5)"><tbody>
           ${regles.map(([t, d, v]) => `<tr>
             <td style="width:36%"><strong>${esc(t)}</strong><br>
               <span class="tnum" style="color:var(--forest-800);font-weight:600">${
                 v === undefined ? "-" : (typeof v === "number" ? nb(v) : esc(v))}</span></td>
             <td class="muted">${esc(d)}</td></tr>`).join("")}
-        </tbody></table></div></div>
+        </tbody></table></div>
         <hr class="sep">
         <p class="hint">En production ces règles sont des tâches planifiées dans la base
           (<span style="font-family:var(--font-mono)">supabase/05_taches.sql</span>), pas du code
@@ -4562,8 +4572,8 @@ function vueMoteur(){
   const hj = el.querySelector("#hj");
   if (!j.length) hj.appendChild(vide({ titre:"Aucun passage", texte:"Le moteur n'a pas encore tourné." }));
   else {
-    const t = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
-      <th>Date</th><th>Validations</th><th>Fermetures</th><th>Intentions éteintes</th><th>Rapports</th></tr></thead><tbody></tbody></table></div></div>`);
+    const t = h(`<div class="tableau"><table class="table"><thead><tr>
+      <th>Date</th><th>Validations</th><th>Fermetures</th><th>Intentions éteintes</th><th>Rapports</th></tr></thead><tbody></tbody></table></div>`);
     j.forEach(x => t.querySelector("tbody").appendChild(h(`<tr>
       <td class="muted tnum">${dateCourte(x.le)}</td>
       <td class="tnum">${nb(x.validations_auto)}</td>
@@ -4629,9 +4639,9 @@ function vueJournal(){
       box.appendChild(vide({ titre:"Aucun message", texte:"Rien ne correspond à ce filtre." }));
       return;
     }
-    const t = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+    const t = h(`<div class="tableau"><table class="table"><thead><tr>
       <th>Date</th><th>Message</th><th>Destinataire</th><th>Objet</th><th>État</th>
-    </tr></thead><tbody></tbody></table></div></div>`);
+    </tr></thead><tbody></tbody></table></div>`);
     const tb = t.querySelector("tbody");
     l.forEach(x => tb.appendChild(h(`<tr>
       <td class="muted tnum">${dateCourte(x.date)}</td>
@@ -4746,7 +4756,7 @@ function vueMecenat(u){
     <div class="two">
       <section class="card" style="padding:var(--s8)">
         <h3>Le calcul, ligne par ligne</h3>
-        <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5)"><tbody>
+        <div class="tableau"><table class="table" style="margin-top:var(--s5)"><tbody>
           <tr><td>Dons versés par l'entreprise elle-même</td>
               <td class="tnum" style="text-align:right">${eur(v.donsEntreprise)}</td></tr>
           <tr><td>Mécénat de compétences, au coût de revient<br>
@@ -4772,7 +4782,7 @@ function vueMecenat(u){
                 : "Estimation maximale potentielle, plafond non appliqué"}</strong></td>
               <td class="tnum" style="text-align:right"><strong style="color:var(--forest-800)">${
                 v.plafondCalculable ? eur(v.reduction) : eur(v.estimationMax)}</strong></td></tr>
-        </tbody></table></div></div>
+        </tbody></table></div>
 
         <hr class="sep">
         <h3 style="font-size:var(--t-lg)">La piste d'audit, salarié par salarié</h3>
@@ -4781,7 +4791,7 @@ function vueMecenat(u){
           mise à disposition : qui, quand, pour quelle association, combien d'heures, à quel coût
           horaire chargé, avec quelle convention et quel reçu.</p>
         ${v.detailSalaries.length ? `<div style="overflow-x:auto">
-        <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5);font-size:var(--t-sm)">
+        <div class="tableau"><table class="table" style="margin-top:var(--s5);font-size:var(--t-sm)">
           <thead><tr><th>Salarié</th><th>Date</th><th>Association</th><th>Heures</th>
             <th>Coût retenu</th><th>Convention</th><th>Confirmation</th><th>Reçu</th></tr></thead>
           <tbody>
@@ -4800,7 +4810,7 @@ function vueMecenat(u){
                 : `<span class="badge badge--warn">attendu</span>`}</td>
             </tr>`)).join("")}
           </tbody>
-        </table></div></div></div>
+        </table></div></div>
         ${v.heuresEstimees ? `<p class="hint" style="margin-top:var(--s4)">
           Les durées marquées « conventionnelle » viennent du barème : une demi-journée vaut
           ${FISCAL.heures_demi_journee} heures. C'est un ordre de grandeur, pas une pièce
@@ -5572,11 +5582,11 @@ function vueGroupe(u){
           <button class="btn btn--ghost btn--sm" id="csvG">Exporter</button>
         </div>
       </div>
-      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+      <div class="tableau"><table class="table"><thead><tr>
         <th>Société / site</th><th>SIREN</th><th style="text-align:right">Effectif</th>
         <th style="text-align:right">Comptes</th><th style="text-align:right">Missions</th>
         <th style="text-align:right">Points</th><th style="text-align:right">Par salarié</th>
-      </tr></thead><tbody></tbody></table></div></div>
+      </tr></thead><tbody></tbody></table></div>
     </section>
 
     <div class="two">
@@ -5938,11 +5948,11 @@ function vueSites(u){
         ${kpi("Encore activables", nb(Math.max(0, q.alloue - ouverts)),
               "dans les quotas déjà répartis, sans rien réallouer")}
       </div>
-      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+      <div class="tableau"><table class="table"><thead><tr>
         <th>Établissement</th><th>SIRET</th><th style="text-align:right">Effectif</th>
         <th style="text-align:right">Comptes</th><th style="text-align:right">Quota</th>
         <th>Référent</th><th></th>
-      </tr></thead><tbody></tbody></table></div></div>
+      </tr></thead><tbody></tbody></table></div>
     </section>`);
     const tb = bloc.querySelector("tbody");
     const etabs = DB.etablissements(soc.id);
@@ -6146,7 +6156,7 @@ function blocRapport(r){
           <h4 style="font-size:var(--t-md);margin:0">${esc(s.libelle)}</h4>
           <span class="muted" style="font-size:var(--t-xs)">${esc(s.aide)}</span>
         </div>
-        <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s3)"><thead><tr>
+        <div class="tableau"><table class="table" style="margin-top:var(--s3)"><thead><tr>
           <th>Indicateur</th>
           <th style="text-align:right">Total du périmètre</th>
           <th style="text-align:right">Sites renseignés</th>
@@ -6161,14 +6171,14 @@ function blocRapport(r){
                 nb(tt.sites)} / ${nb(r.repondus)}</td>
             </tr>`;
           }).join("")}
-        </tbody></table></div></div>
+        </tbody></table></div>
       </div>`).join("")}
 
       ${r.ratios.length ? `<div>
         <h4 style="font-size:var(--t-md);margin:0">Ce que ça donne</h4>
         <p class="muted" style="font-size:var(--t-xs);margin-top:2px">
           Rapport de sommes, jamais moyenne de taux.</p>
-        <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s3)"><thead><tr>
+        <div class="tableau"><table class="table" style="margin-top:var(--s3)"><thead><tr>
           <th>Indicateur</th><th style="text-align:right">Valeur</th><th>Assise</th>
         </tr></thead><tbody>
           ${r.ratios.map(x => `<tr>
@@ -6180,7 +6190,7 @@ function blocRapport(r){
               ? "tous les sites ayant répondu"
               : "périmètre partiel, à lire avec précaution"}</td>
           </tr>`).join("")}
-        </tbody></table></div></div>
+        </tbody></table></div>
       </div>` : ""}
 
       ${manquants.length ? `<div class="card card--flat"
@@ -6296,9 +6306,9 @@ function vueIndicateurs(u){
         <div class="row" style="--gap:var(--s3)">
           <button class="btn btn--ghost btn--sm" id="dicoI">Dictionnaire des données</button>
           <button class="btn btn--ghost btn--sm" id="csvI">Exporter</button></div></div>
-      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+      <div class="tableau"><table class="table"><thead><tr>
         <th>Établissement</th><th>État</th><th>Saisi par</th><th>Approuvé par</th><th></th>
-      </tr></thead><tbody></tbody></table></div></div>
+      </tr></thead><tbody></tbody></table></div>
     </section>
 
     ${monSite ? "" : blocRapport(rap)}
@@ -6318,7 +6328,7 @@ function vueIndicateurs(u){
             encore une approbation. La colonne « approuvé » est la seule qui entre dans un
             rapport ou dans une réponse à un client.</p>
         </div>` : ""}
-        <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5)"><thead><tr>
+        <div class="tableau"><table class="table" style="margin-top:var(--s5)"><thead><tr>
           <th>Indicateur</th>
           <th style="text-align:right">Approuvé</th>
           ${brouillon.provisoire ? `<th style="text-align:right">Provisoire</th>` : ""}
@@ -6333,7 +6343,7 @@ function vueIndicateurs(u){
               brouillon.calcules[d.cle] !== null
                 ? nb2(brouillon.calcules[d.cle]) + (d.unite ? " " + d.unite : "") : "-"}</td>` : ""}
           </tr>`).join("")}
-        </tbody></table></div></div>
+        </tbody></table></div>
         <p class="hint" style="margin-top:var(--s4)">
           Approuvé : ${ind.sites} site${ind.sites > 1 ? "s" : ""} sur ${ind.attendus},
           soit ${nb(ind.effectifCouvert)} salariés sur ${nb(ind.effectifTotal)}.
@@ -6617,9 +6627,9 @@ function vueSupports(u){
         </div>
         <button class="btn btn--forest btn--sm" id="affiche">Imprimer une affiche</button>
       </div>
-      <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s6)"><thead><tr>
+      <div class="tableau"><table class="table" style="margin-top:var(--s6)"><thead><tr>
         <th>Envoi</th><th>Contenu</th><th>Prévu</th><th>État</th><th></th>
-      </tr></thead><tbody id="kits"></tbody></table></div></div>
+      </tr></thead><tbody id="kits"></tbody></table></div>
       <p class="hint" style="margin-top:var(--s4)">C'est vous qui confirmez la réception, pas
         nous : un suivi où Riseva se déclare à elle-même que le colis est arrivé ne vaut rien le
         jour où vous dites n'avoir rien reçu.</p>
@@ -6687,9 +6697,9 @@ function vueExpeditions(){
   if (!l.length) apr.appendChild(vide({ titre:"Rien à préparer",
     texte:"Toutes les vagues dues ont été expédiées." }));
   else {
-    const tb = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+    const tb = h(`<div class="tableau"><table class="table"><thead><tr>
       <th>Entreprise</th><th>Envoi</th><th>Sites</th><th>Prévu</th><th></th>
-    </tr></thead><tbody></tbody></table></div></div>`);
+    </tr></thead><tbody></tbody></table></div>`);
     l.forEach(x => {
       const tr = h(`<tr>
         <td><strong>${esc(x.entreprise.nom)}</strong>
@@ -6726,9 +6736,9 @@ function vueExpeditions(){
   if (!faites.length) fai.appendChild(vide({ titre:"Aucune expédition",
     texte:"Les envois marqués expédiés apparaîtront ici." }));
   else {
-    const tb = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+    const tb = h(`<div class="tableau"><table class="table"><thead><tr>
       <th>Entreprise</th><th>Envoi</th><th>Expédié</th><th>Suivi</th><th>Reçu</th>
-    </tr></thead><tbody></tbody></table></div></div>`);
+    </tr></thead><tbody></tbody></table></div>`);
     faites.forEach(x => {
       const e = DB.entreprise(x.entreprise) || {};
       const k = KITS_SAISON.find(y => y.code === x.kit) || {};
@@ -6846,10 +6856,10 @@ function vueSecurite(u){
           <h3>Sites</h3>
           ${monSite ? "" : `<span class="muted" style="font-size:var(--t-xs)">registre par site</span>`}
         </div>
-        <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+        <div class="tableau"><table class="table"><thead><tr>
           <th>Site</th><th style="text-align:right">Avec arrêt</th>
           <th style="text-align:right">Jours</th><th>Registre</th>
-        </tr></thead><tbody id="parSite"></tbody></table></div></div>
+        </tr></thead><tbody id="parSite"></tbody></table></div>
         <p class="hint" style="margin-top:var(--s4)">Activer le registre pour un site fait
           disparaître les quatre champs correspondants de sa campagne d'indicateurs : ils sont
           alors déduits, et ne peuvent plus être saisis à la main.</p>
@@ -6935,9 +6945,9 @@ function vueSecurite(u){
   if (!acts.length) plan.appendChild(vide({ titre:"Aucune action ouverte",
     texte:"Les actions se créent depuis un événement du registre." }));
   else {
-    const tb = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+    const tb = h(`<div class="tableau"><table class="table"><thead><tr>
       <th>Action</th><th>Site</th><th>Responsable</th><th>Échéance</th><th>État</th><th></th>
-    </tr></thead><tbody></tbody></table></div></div>`);
+    </tr></thead><tbody></tbody></table></div>`);
     acts.forEach(a => {
       const et = DB.etablissement(a.etablissement) || {};
       const tard = ["a_faire", "en_cours"].includes(a.etat) && a.echeance < "2026-08-20";
@@ -6964,10 +6974,10 @@ function vueSecurite(u){
   if (!evs.length) reg.appendChild(vide({ titre:"Aucun événement déclaré sur cette période",
     texte:"Déclarer prend quinze secondes, et c'est ce qui remplace le tableau de fin d'année." }));
   else {
-    const tb = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+    const tb = h(`<div class="tableau"><table class="table"><thead><tr>
       <th>Date</th><th>Site</th><th>Nature</th><th>Type</th><th>Zone</th>
       <th style="text-align:right">Jours</th><th>Gravité</th><th></th>
-    </tr></thead><tbody></tbody></table></div></div>`);
+    </tr></thead><tbody></tbody></table></div>`);
     evs.forEach(e => {
       const et = DB.etablissement(e.etablissement) || {};
       const g = GRAVITES_EVENEMENT[e.gravite];
@@ -7222,7 +7232,7 @@ function vueCSE(u){
       <p class="hint" style="margin-top:var(--s4)">Périmètre : ${nb(ind.sites)} site${ind.sites > 1 ? "s" : ""}
         sur ${nb(ind.attendus)}, soit ${nb(ind.effectifCouvert)} salariés sur ${nb(ind.effectifTotal)}.
         ${!ind.complet ? "Périmètre incomplet : les sites qui n'ont pas répondu ne sont pas comblés avec la période précédente." : ""}</p>
-      <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5)"><thead><tr>
+      <div class="tableau"><table class="table" style="margin-top:var(--s5)"><thead><tr>
         <th>Indicateur</th><th style="text-align:right">Valeur</th><th>Comment il est calculé</th>
       </tr></thead><tbody>
         ${INDICATEURS.calcules.map(x => `<tr>
@@ -7240,7 +7250,7 @@ function vueCSE(u){
             : `<span class="muted">non disponible</span>`}</td>
           <td class="muted" style="font-size:var(--t-xs)">déclaré par les sites, ${esc(x.source || "")}</td>
         </tr>`).join("")}
-      </tbody></table></div></div>`}
+      </tbody></table></div>`}
     </section>
 
     ${secu.sous_seuil ? `<section class="card card--flat"
@@ -7294,8 +7304,8 @@ function vueCSE(u){
   if (!d.rapports.length) r.appendChild(vide({ titre:"Aucun rapport encore arrêté",
     texte:"Les rapports sont produits à la clôture de chaque période." }));
   else {
-    const tb = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
-      <th>Rapport</th><th>Période</th><th>Arrêté le</th><th></th></tr></thead><tbody></tbody></table></div></div>`);
+    const tb = h(`<div class="tableau"><table class="table"><thead><tr>
+      <th>Rapport</th><th>Période</th><th>Arrêté le</th><th></th></tr></thead><tbody></tbody></table></div>`);
     d.rapports.forEach(x => {
       const tr = h(`<tr><td><strong>${esc(x.titre)}</strong></td>
         <td class="muted">${dateCourte(x.periode.debut)}, ${dateCourte(x.periode.fin)}</td>
@@ -7340,7 +7350,7 @@ function ouvrirDictionnaire(cid){
 
     <div>
       <h4>Ce que les sites déclarent</h4>
-      <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s4)"><thead><tr>
+      <div class="tableau"><table class="table" style="margin-top:var(--s4)"><thead><tr>
         <th>Indicateur</th><th>Source</th><th>On compte</th><th>On ne compte pas</th>
       </tr></thead><tbody>
         ${d.saisis.map(x => `<tr>
@@ -7349,12 +7359,12 @@ function ouvrirDictionnaire(cid){
           <td class="muted" style="font-size:var(--t-xs)">${esc(x.inclut || "-")}</td>
           <td class="muted" style="font-size:var(--t-xs)">${esc(x.exclut || "-")}</td>
         </tr>`).join("")}
-      </tbody></table></div></div>
+      </tbody></table></div>
     </div>
 
     <div>
       <h4>Ce que Riseva calcule</h4>
-      <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s4)"><thead><tr>
+      <div class="tableau"><table class="table" style="margin-top:var(--s4)"><thead><tr>
         <th>Indicateur</th><th>Formule</th><th>Agrégation</th><th>Réglementaire</th>
       </tr></thead><tbody>
         ${d.calcules.map(x => `<tr>
@@ -7365,7 +7375,7 @@ function ouvrirDictionnaire(cid){
           <td>${x.reglementaire ? `<span class="badge badge--ok">oui</span>`
                                 : `<span class="badge badge--attente">non</span>`}</td>
         </tr>`).join("")}
-      </tbody></table></div></div>
+      </tbody></table></div>
     </div>
 
     ${d.explications.length ? `<div>
@@ -7373,14 +7383,14 @@ function ouvrirDictionnaire(cid){
       <p class="muted" style="font-size:var(--t-sm);margin-top:4px">Au-delà de
         ${Math.round(d.seuil_ecart * 100)} % de variation, le site doit dire ce qui s'est passé.
         Un événement réel et une erreur de saisie se ressemblent exactement dans une base.</p>
-      <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s4)"><thead><tr>
+      <div class="tableau"><table class="table" style="margin-top:var(--s4)"><thead><tr>
         <th>Site</th><th>Écart</th><th>Explication</th></tr></thead><tbody>
         ${d.explications.map(x => `<tr>
           <td>${esc(x.site)}</td>
           <td class="muted" style="font-size:var(--t-xs)">${x.ecarts.map(esc).join("<br>")}</td>
           <td class="muted" style="font-size:var(--t-xs)">${esc(x.commentaire)}</td>
         </tr>`).join("")}
-      </tbody></table></div></div></div>` : ""}
+      </tbody></table></div></div>` : ""}
 
     <div class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
       <h4>Ce que Riseva ne fait pas</h4>
@@ -7657,7 +7667,7 @@ function tableauSite(u){
         Ces personnes se sont inscrites avec votre lien. Une adresse professionnelle ne dit pas
         sur quel site quelqu'un travaille : tant que vous n'avez pas confirmé, elles peuvent tout
         consulter mais pas s'engager, leurs points iraient au mauvais endroit.</p>
-      <div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s5)"><tbody id="conf"></tbody></table></div></div>
+      <div class="tableau"><table class="table" style="margin-top:var(--s5)"><tbody id="conf"></tbody></table></div>
     </section>` : ""}
 
     ${camp && !obs ? `<section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
@@ -7690,7 +7700,7 @@ function tableauSite(u){
         <h3>Ce qui arrive</h3>
         <a class="btn btn--quiet btn--sm" href="#/missions">Toutes les missions</a>
       </div>
-      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+      <div class="tableau"><table class="table"><thead><tr>
         <th>Quand</th><th>Qui</th><th>Où</th><th>État</th>
       </tr></thead><tbody>
         ${prochains.slice(0, 6).map(m => {
@@ -7703,7 +7713,7 @@ function tableauSite(u){
               <span style="font-size:var(--t-xs)">${esc(a2.titre || "")}</span></td>
             <td><span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].label}</span></td>
           </tr>`; }).join("")}
-      </tbody></table></div></div>
+      </tbody></table></div>
     </section>` : ""}
 
     <section class="card">
@@ -7789,12 +7799,12 @@ function vueMateriel(u){
           qui l'a confirmé.</p></div>
         <button class="btn btn--ghost btn--sm" id="csvM">Exporter</button>
       </div>
-      <div style="overflow-x:auto"><div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+      <div style="overflow-x:auto"><div class="tableau"><table class="table"><thead><tr>
         <th>Date</th><th>Nature</th><th style="text-align:right">Quantité</th>
         <th>Association</th><th>Site</th><th>Catégorie</th>
         <th style="text-align:right">Valeur déclarée</th>
         <th>Réception</th><th>Reçu</th><th></th>
-      </tr></thead><tbody></tbody></table></div></div></div>
+      </tr></thead><tbody></tbody></table></div></div>
     </section>
 
     <section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
@@ -8047,9 +8057,9 @@ function vueDossier(u){
     </section>
 
     <section class="card">
-      <div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+      <div class="tableau"><table class="table"><thead><tr>
         <th>Donnée</th><th style="text-align:right">Valeur</th><th>Provenance</th>
-      </tr></thead><tbody></tbody></table></div></div>
+      </tr></thead><tbody></tbody></table></div>
     </section>
 
     <section class="card card--flat" style="background:var(--warn-bg);border-color:transparent">
@@ -8159,9 +8169,11 @@ function ouvrirDon(a, u){
   const asso = DB.association(a.asso) || {};
   if (!DB.donsOuverts(a.asso)){
     modal("Don impossible pour l'instant",
-      `<p class="muted">${esc(asso.nom)} n'a pas encore renseigné le compte sur lequel
-       recevoir les virements. Riseva n'encaisse pas à sa place : sans son IBAN, il n'y a
-       nulle part où envoyer l'argent.</p>`, [{ label:"Fermer" }]);
+      `<p class="muted">${esc(asso.nom)} n'a pas encore indiqué où recevoir l'argent :
+       ni compte HelloAsso connecté, ni IBAN. Riseva n'encaisse pas à sa place, donc il n'y
+       a nulle part où l'envoyer.</p>
+       <p class="hint" style="margin-top:var(--s4)">Les autres façons d'aider cette
+       association, elles, restent ouvertes.</p>`, [{ label:"Fermer" }]);
     return;
   }
   const peutEntreprise = u.role === "entreprise_admin";
@@ -8197,9 +8209,14 @@ function ouvrirDon(a, u){
   corps.querySelector("#orig")?.addEventListener("change", maj);
   maj();
 
+  /* Deux chemins, et un seul est propose a la fois. Compte HelloAsso connecte :
+     on paie par carte, et le don se confirme tout seul. Sinon : le bon de
+     virement, avec sa reference a recopier et sa confirmation a la main. */
+  const parCarte = DB.helloassoLie(a.asso);
   modal("Don à " + asso.nom, corps, [
     { label:"Annuler" },
-    { label:"Obtenir la référence", classe:"btn--primary", onClick: () => {
+    { label: parCarte ? "Payer par carte" : "Obtenir la référence", classe:"btn--primary",
+      onClick: () => {
         const orig = corps.querySelector("#orig");
         const origine = orig ? orig.value : "salarie";
         let i;
@@ -8208,9 +8225,60 @@ function ouvrirDon(a, u){
             origine, salarie: u.id,
             entreprise: origine === "entreprise" ? u.org : null });
         } catch (e){ toast(e.message); return false; }
+        if (parCarte){ ouvrirPaiementCarte(i, asso, a); return; }
         modal("Votre virement à " + asso.nom, bonDeVirement(i, asso),
           [{ label:"C'est noté", classe:"btn--primary", onClick: () => rendre() }]);
       }}
+  ]);
+}
+
+/* Le paiement par carte. En production, on demande a la fonction Edge d'ouvrir
+   une intention de paiement chez HelloAsso, et on part sur leur page : c'est la
+   que la carte est saisie, jamais chez nous. Au retour, la fonction Edge relit
+   l'etat du paiement AUPRES DE HELLOASSO avant de crediter quoi que ce soit —
+   une redirection est une intention, pas une preuve.
+
+   En demonstration, il n'y a pas de page a ouvrir : on simule le paiement, et on
+   le dit. */
+function ouvrirPaiementCarte(intention, asso, annonce){
+  if (DB.mode === "supabase"){
+    const base = (window.RISEVA_CONFIG || {}).url || "";
+    toast("Ouverture de la page de paiement...");
+    fetch(`${base}/functions/v1/helloasso/don`, {
+      method: "POST",
+      headers: { "content-type": "application/json",
+                 authorization: `Bearer ${(window.RISEVA_JETON || "")}` },
+      body: JSON.stringify({ annonce: annonce.id, montant: intention.montant,
+                             origine: intention.origine })
+    }).then(r => r.json()).then(r => {
+      if (r.redirection) location.href = r.redirection;
+      else toast(r.erreur || "Le paiement n'a pas pu être ouvert.");
+    }).catch(() => toast("Le paiement n'a pas pu être ouvert."));
+    return;
+  }
+  const corps = h(`<div class="stack" style="--gap:var(--s4)">
+    <p class="muted" style="font-size:var(--t-sm)">
+      Sur riseva.fr, ce bouton vous emmène sur la page de paiement de HelloAsso :
+      vous saisissez votre carte chez eux, l'argent arrive sur le compte de
+      ${esc(asso.nom)}, et vos points sont crédités au retour. Riseva ne voit jamais
+      votre numéro de carte et ne touche pas à l'argent.</p>
+    <div class="card card--flat" style="padding:var(--s5)">
+      <p class="muted" style="font-size:var(--t-sm)">Montant</p>
+      <strong style="font-size:var(--t-lg)">${eur(intention.montant)}</strong>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s4)">Bénéficiaire</p>
+      <strong>${esc(asso.nom)}</strong>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s4)">Référence</p>
+      <strong style="font-family:var(--font-mono)">${esc(intention.reference)}</strong>
+    </div>
+    <p class="hint">Ici, c'est une démonstration : rien n'est débité, et le don sera
+      simplement marqué comme reçu.</p>
+  </div>`);
+  modal("Payer par carte", corps, [
+    { label:"Annuler" },
+    { label:"Simuler le paiement", classe:"btn--primary", onClick: () => {
+        try { DB.confirmerDonRecu(intention.id, { montant: intention.montant }); }
+        catch (e){ toast(e.message); return false; }
+        toast("Don confirmé, points crédités."); rendre(); }}
   ]);
 }
 
@@ -8227,11 +8295,11 @@ function vueDonsAsso(u){
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     <section class="card card--flat">
       <h3 style="font-size:var(--t-lg)">L'argent ne passe pas par Riseva</h3>
-      <p class="muted" style="margin-top:6px">Les donateurs virent directement sur votre
-      compte, avec une référence que nous leur donnons. Vous touchez la totalité du don, le
-      jour où votre banque le crédite. Riseva ne prélève rien et ne peut rien retenir : nous
-      n'encaissons pas, donc nous n'avons pas d'agrément d'établissement de paiement à
-      obtenir, et vous n'avez pas de délai de reversement à subir.</p>
+      <p class="muted" style="margin-top:6px">Le donateur paie par carte sur une page
+      HelloAsso, et l'argent arrive sur votre compte HelloAsso. Riseva n'y touche à aucun
+      moment : nous n'encaissons pas, donc nous n'avons pas d'agrément d'établissement de
+      paiement à obtenir, et vous n'avez aucun délai de reversement à subir. Le don se
+      confirme tout seul : vous n'avez rien à rapprocher d'un relevé.</p>
       ${manque.length ? `<ul class="liste-ecarts" style="margin-top:var(--s4)">${
         manque.map(m => `<li><strong>${esc(m.quoi)}</strong>, ${esc(m.pourquoi)}</li>`).join("")}</ul>`
       : `<p class="muted" style="margin-top:var(--s3)"><strong>Tout est en place.</strong></p>`}
@@ -8255,18 +8323,42 @@ function vueDonsAsso(u){
           nulle part.</p>`}
       </section>
 
-      <section class="card">
-        <div class="between"><h3>Paiement par carte</h3>
-          <button class="btn btn--ghost btn--sm" id="majHa">${DB.lienHelloAsso(u.org) ? "Modifier" : "Ajouter"}</button></div>
-        <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s4)">
-          Si vous avez déjà un formulaire de don <strong>HelloAsso</strong>, collez son adresse :
-          vos donateurs pourront payer par carte en un clic, sans commission. Nous ne vous
-          demandons ni clé, ni mot de passe, ni accès à votre compte, juste l'adresse publique
-          de votre formulaire.</p>
-        ${DB.lienHelloAsso(u.org) ? `<p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3);word-break:break-all">
-          <a href="${esc(DB.lienHelloAsso(u.org))}" target="_blank" rel="noopener noreferrer">${esc(DB.lienHelloAsso(u.org))}</a></p>`
-        : `<p class="hint" style="margin-top:var(--s3)">Sans HelloAsso, le virement fonctionne
-           très bien : c'est le circuit par défaut, et il ne demande rien à personne.</p>`}
+      <section class="card${DB.helloassoLie(u.org) ? "" : " card--dark grain"}">
+        <div class="between"><h3${DB.helloassoLie(u.org) ? "" : ` style="color:var(--paper)"`}>Paiement par carte</h3>
+          ${DB.helloassoLie(u.org)
+            ? `<span class="badge badge--ok">Connecté</span>`
+            : `<span class="badge badge--lime-clair">Recommandé</span>`}</div>
+        ${DB.helloassoLie(u.org) ? `
+          <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s4)">
+            Votre compte <strong>HelloAsso</strong> est connecté depuis le
+            ${dateFR(DB.association(u.org).helloasso_lie_le)}. Vos donateurs paient par carte,
+            l'argent arrive chez vous, et le don se confirme tout seul.</p>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+            Organisation : <strong style="font-family:var(--font-mono)">${esc(DB.helloassoSlug(u.org))}</strong></p>
+          <div class="row" style="gap:var(--s3);margin-top:var(--s5)">
+            <button class="btn btn--ghost btn--sm" id="delierHa">Déconnecter</button>
+          </div>
+          <p class="hint" style="margin-top:var(--s4)">Déconnecter n'efface rien chez HelloAsso
+            et ne touche pas aux dons déjà reçus. Riseva cesse simplement de pouvoir ouvrir un
+            paiement en votre nom.</p>`
+        : `
+          <p style="color:var(--forest-100);opacity:.85;font-size:var(--t-sm);margin-top:var(--s4)">
+            Connectez votre compte <strong style="color:var(--paper)">HelloAsso</strong> :
+            vos donateurs paieront par carte en trois clics, l'argent arrivera directement sur
+            votre compte, et le don se confirmera sans que vous ayez à rapprocher quoi que ce
+            soit d'un relevé bancaire.</p>
+          <p style="color:var(--forest-100);opacity:.85;font-size:var(--t-sm);margin-top:var(--s3)">
+            Vous autorisez Riseva depuis la page de HelloAsso, en une fois. Nous ne voyons
+            jamais vos identifiants, et vous pouvez retirer l'autorisation quand vous voulez.</p>
+          <div class="row" style="gap:var(--s3);margin-top:var(--s5);flex-wrap:wrap">
+            <button class="btn btn--lime btn--sm" id="lierHa">Connecter mon compte HelloAsso</button>
+            <a class="btn btn--ghost btn--sm" href="https://www.helloasso.com/associations/inscription"
+               target="_blank" rel="noopener noreferrer" style="color:var(--paper)">Je n'ai pas de compte</a>
+          </div>
+          <p class="hint" style="margin-top:var(--s4);color:var(--forest-100);opacity:.7">
+            Ouvrir un compte HelloAsso est gratuit et prend quelques minutes. En attendant, le
+            virement ci-contre fonctionne : il demande seulement à vos donateurs de recopier
+            un IBAN, et à vous de confirmer la réception.</p>`}
       </section>
 
       <section class="card">
@@ -8280,7 +8372,7 @@ function vueDonsAsso(u){
       </section>
     </div>
 
-    <section class="card">
+    <section class="card"${attendus.length ? "" : ` hidden`}>
       <h3>Virements annoncés, en attente de votre confirmation</h3>
       <p class="muted" style="font-size:var(--t-sm);margin-top:6px">Rapprochez chaque ligne de
       votre relevé bancaire par sa référence, puis confirmez le montant réellement crédité.
@@ -8299,9 +8391,9 @@ function vueDonsAsso(u){
   if (!attendus.length) att.appendChild(vide({ titre:"Rien en attente",
     texte:"Aucun virement n'a été annoncé pour le moment." }));
   else {
-    const t = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
+    const t = h(`<div class="tableau"><table class="table"><thead><tr>
       <th>Référence</th><th>Annoncé le</th><th>Montant annoncé</th><th>S'éteint le</th><th></th>
-    </tr></thead><tbody></tbody></table></div></div>`);
+    </tr></thead><tbody></tbody></table></div>`);
     attendus.forEach(i => {
       const tr = h(`<tr>
         <td style="font-family:var(--font-mono)">${esc(i.reference)}</td>
@@ -8337,8 +8429,8 @@ function vueDonsAsso(u){
   if (!recus.length) rec.appendChild(vide({ titre:"Aucun don confirmé",
     texte:"Les dons que vous confirmez apparaîtront ici." }));
   else {
-    const t = h(`<div class="tableau"><div class="tableau"><table class="table"><thead><tr>
-      <th>Référence</th><th>Confirmé le</th><th>Montant reçu</th></tr></thead><tbody></tbody></table></div></div>`);
+    const t = h(`<div class="tableau"><table class="table"><thead><tr>
+      <th>Référence</th><th>Confirmé le</th><th>Montant reçu</th></tr></thead><tbody></tbody></table></div>`);
     recus.forEach(i => t.querySelector("tbody").appendChild(h(`<tr>
       <td style="font-family:var(--font-mono)">${esc(i.reference)}</td>
       <td class="muted tnum">${dateCourte(i.confirme_le || i.declare_le)}</td>
@@ -8370,31 +8462,56 @@ function vueDonsAsso(u){
           toast("Compte enregistré."); rendre(); }}]);
   };
 
-  el.querySelector("#majHa").onclick = () => {
+  /* Connecter le compte. En production, le bouton envoie vers la mire
+     d'autorisation de HelloAsso : c'est la que l'association dit oui, et c'est
+     la fonction Edge qui recoit le code et garde le jeton. Le navigateur ne voit
+     jamais rien de secret.
+
+     En demonstration, il n'y a pas de mire a ouvrir : on demande le nom de
+     l'organisation et on ecrit la liaison, en disant que c'est une simulation.
+     Un parcours qu'on ne peut pas traverser en entier est un parcours qu'on ne
+     peut pas montrer. */
+  el.querySelector("#lierHa")?.addEventListener("click", () => {
+    if (DB.mode === "supabase"){
+      const base = (window.RISEVA_CONFIG || {}).url || "";
+      location.href = `${base}/functions/v1/helloasso/lier?retour=/dons`;
+      return;
+    }
     const corps = h(`<div class="stack" style="--gap:var(--s4)">
-      <p class="muted" style="font-size:var(--t-sm)">Ouvrez votre formulaire de don sur HelloAsso
-      et copiez l'adresse de la barre du navigateur. Elle ressemble à
-      <span style="font-family:var(--font-mono);font-size:var(--t-xs)">https://www.helloasso.com/associations/votre-asso/formulaires/1</span>.</p>
-      <div class="field"><label for="ha">Adresse du formulaire</label>
-        <input class="input" id="ha" value="${esc(DB.lienHelloAsso(u.org) || "")}"
-               placeholder="https://www.helloasso.com/associations/…"></div>
-      <p class="hint">Seules les adresses du domaine helloasso.com sont acceptées. Ce lien est
-        présenté à des donateurs sous la phrase « donnez ici » : un champ libre pointant
-        n'importe où serait un détournement de dons offert à qui prendrait la main sur un
-        compte.</p>
-      <p class="hint">Un jour où Riseva aura obtenu un accès partenaire chez HelloAsso, la
-        confirmation des dons se fera toute seule. En attendant, vous confirmez la réception
-        comme pour un virement, et rien n'attend une réponse de qui que ce soit pour
-        fonctionner.</p>
+      <p class="muted" style="font-size:var(--t-sm)">
+        Sur riseva.fr, ce bouton ouvre la page d'autorisation de HelloAsso : vous vous
+        connectez chez eux, vous autorisez Riseva, et c'est fini. Riseva ne voit ni votre
+        mot de passe, ni vos identifiants.</p>
+      <p class="muted" style="font-size:var(--t-sm)">
+        Ici, c'est une démonstration : indiquez le nom court de votre organisation, celui
+        qui apparaît dans l'adresse de votre page HelloAsso, et la connexion sera simulée.</p>
+      <div class="field"><label for="ha-slug">Nom de l'organisation</label>
+        <input class="input" id="ha-slug" placeholder="refuge-des-quatre-vents"
+               value="${esc(DB.helloassoSlug(u.org) || "")}">
+        <p class="hint">Dans
+          <span style="font-family:var(--font-mono);font-size:var(--t-xs)">helloasso.com/associations/<b>refuge-des-quatre-vents</b></span>,
+          c'est la partie en gras.</p></div>
     </div>`);
-    modal("Formulaire HelloAsso", corps, [
+    modal("Connecter HelloAsso", corps, [
       { label:"Annuler" },
-      { label: DB.lienHelloAsso(u.org) ? "Enregistrer" : "Ajouter", classe:"btn--primary",
-        onClick: () => {
-          try { DB.enregistrerHelloAsso(u.org, corps.querySelector("#ha").value); }
+      { label:"Connecter", classe:"btn--primary", onClick: () => {
+          try { DB.lierHelloAsso(u.org, corps.querySelector("#ha-slug").value); }
           catch (e){ toast(e.message); return false; }
-          toast("Formulaire enregistré."); rendre(); }}]);
-  };
+          toast("Compte connecté. Vos donateurs peuvent payer par carte.");
+          rendre(); }}]);
+  });
+
+  el.querySelector("#delierHa")?.addEventListener("click", () => {
+    modal("Déconnecter HelloAsso",
+      `<p class="muted">Riseva cessera de pouvoir ouvrir un paiement en votre nom. Les dons
+       déjà reçus ne bougent pas, et rien n'est effacé chez HelloAsso.</p>
+       <p class="hint" style="margin-top:var(--s4)">Vos donateurs retomberont sur le virement,
+       s'il est renseigné.</p>`,
+      [{ label:"Annuler" },
+       { label:"Déconnecter", classe:"btn--primary", onClick: () => {
+           try { DB.delierHelloAsso(u.org); } catch (e){ toast(e.message); return false; }
+           toast("Compte déconnecté."); rendre(); }}]);
+  });
 
   el.querySelector("#majMandat").onclick = () => {
     if (mandat){
@@ -8662,8 +8779,8 @@ function vueVSME(u){
       </div>
       ${r.apporte ? `<p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
         ${esc(r.apporte)}</p>` : ""}
-      ${r.lignes.length ? `<div class="tableau"><div class="tableau"><table class="table" style="margin-top:var(--s4)"><tbody>
-        ${r.lignes.map(ligne).join("")}</tbody></table></div></div>` : ""}
+      ${r.lignes.length ? `<div class="tableau"><table class="table" style="margin-top:var(--s4)"><tbody>
+        ${r.lignes.map(ligne).join("")}</tbody></table></div>` : ""}
       ${r.manque ? `<p class="hint" style="margin-top:var(--s4)">
         <strong style="color:var(--ink)">Ce que Riseva n'a pas :</strong> ${esc(r.manque)}
         ${r.ailleurs ? ` ${esc(r.ailleurs)}` : ""}</p>` : ""}
