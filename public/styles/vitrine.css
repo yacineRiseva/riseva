@@ -3271,3 +3271,29 @@ body{
 .vd .layer > p.s-note{max-width:62ch;}
 .vd .tar .tar-n,
 .vd .tar-sim-notes .tar-n{max-width:66ch;}
+
+/* ── ce qui est compris, sans colonne defensive a cote ───────────────────── */
+/* La liste des exclusions vivait dans une seconde colonne, juste sous la grille
+   tarifaire. Elle etait honnete et mal placee : quatre objections negatives
+   affichees a la seconde ou le lecteur evalue le prix. Elle est descendue dans
+   la question de la FAQ qui traite deja du perimetre, ou elle repond a quelqu'un
+   qui la cherche au lieu de contredire quelqu'un qui decide.
+   La liste restante s'etale donc sur deux colonnes plutot que sur une, et le
+   bloc reprend la largeur que la colonne voisine occupait. */
+.vd .tar-inclus{margin-top:clamp(26px,3vw,44px);}
+/* `columns` n'a aucun effet sur un conteneur flex, et `.tar-l` en etait un. La
+   liste restait donc sur une colonne pleine largeur, avec des lignes a cent
+   cinquante-sept signes. On repasse en grille a deux colonnes, ce qui donne le
+   meme dessin et respecte l'espacement d'origine. */
+.vd .tar-inclus .tar-l{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  column-gap:clamp(24px,3vw,52px);row-gap:9px;align-content:start;
+}
+@media (max-width:760px){ .vd .tar-inclus .tar-l{grid-template-columns:1fr;} }
+.vd .qa-l{margin:10px 0 0;padding-left:1.1em;max-width:62ch;}
+.vd .qa-l li{margin-bottom:6px;max-width:62ch;}
+
+/* Les filets de la FAQ, allegés. Repetes vingt fois dans la colonne de gauche,
+   ils dessinaient une grille plus visible que les questions elles-memes. */
+.vd .qa-index li{border-bottom-color:var(--line-soft);}
+.vd .qa-index li:last-child{border-bottom:0;}

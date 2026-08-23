@@ -732,7 +732,8 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
 
     <div class="photos3">
       {photo("refuge", "Un chien recueilli, allongé dans un box de refuge", "")}
-      {photo("plantation", "Deux mains tassent la terre autour d'un jeune arbre planté", "")}
+      {photo("maraude", "Une table de maraude dressée devant une camionnette, à la tombée "
+             "du jour", "")}
       {photo("collecte", "Des mains gantées trient des conserves dans des cagettes", "")}
     </div>
 
@@ -804,9 +805,10 @@ PILOTAGE_ENT = f"""<section id="pilotage">
         "Quatre écrans de l'application, remplis avec un jeu de démonstration.")}
 
     {objection("Qu'obtient l'entreprise en fin de saison ?",
-               "Des chiffres datés, confirmés par un tiers nommé, avec la méthode qui les a "
-               "produits. C'est la pièce qu'on vous demande en appel d'offres et dans les "
-               "questionnaires de vos donneurs d'ordre.")}
+               "Des chiffres datés, avec leur source et leur méthode. Pour les missions, le "
+               "rapport conserve en plus la confirmation de l'association qui était sur place. "
+               "C'est la pièce qu'on vous demande en appel d'offres et dans les questionnaires "
+               "de vos donneurs d'ordre.")}
 
 {onglets([
   ("miss", "Les missions", capture("missions",
@@ -860,8 +862,7 @@ OUTIL_ENT = f"""<section id="outil" class="band">
    "Effectifs, sécurité, formation, diversité, énergie et eau, déchets, mobilité, achats. "
    "Vous cochez ce que vous demandez pour cette période, et l'écran vous dit combien de "
    "valeurs chaque site devra trouver <b>avant</b> que la collecte parte. C'est le seul "
-   "chiffre qui prédit le taux de réponse : vingt-sept champs reviennent à moitié remplis, "
-   "six reviennent entiers."),
+   "chiffre qui décide du reste : plus la liste est courte, plus elle revient complète."),
   ("Les sites répondent", "Sur leur écran,<br><span class='it'>pas dans votre boîte.</span>",
    "Chaque référent de site voit ce qu'on attend de lui, rangé par source : la paie pour les "
    "effectifs, le registre pour la sécurité, les factures pour l'énergie. Chaque champ dit ce "
@@ -921,10 +922,10 @@ CHANGE_ENT = f"""<section id="change" class="band">
    "21.08.26", "Entrée en vigueur du critère environnemental pour toute nouvelle "
    "consultation. Code de la commande publique, art. L. 2152-7, date fixée par le décret "
    "n° 2022-767 du 2 mai 2022."),
-  ("Des allégations que vous pouvez <span class='it'>écrire.</span>",
+  ("Des résultats datés que vous pouvez <span class='it'>reprendre.</span>",
    "À partir du 27 septembre 2026, les allégations environnementales vagues sont encadrées "
    "dans toute l'Union. « Engagés pour la planète » devient difficile à tenir ; "
-   "« 42 demi-journées confirmées par 7 associations en 2027 » tient devant un contrôle.",
+   "« 42 demi-journées confirmées par 7 associations en 2027 » est un fait daté et sourcé.",
    "27.09.26", "Entrée en application de la directive (UE) 2024/825."),
   ("Des équipes qui se <span class='it'>parlent.</span>",
    "Une demi-journée de chantier met dans la même camionnette des gens qui ne se croisent "
@@ -1013,9 +1014,9 @@ BANDEAU_ENT = """<section id="rejoindre" class="bandeau">
     <div class="bandeau-in">
       <div>
         <h2>Douze places pour la première saison.</h2>
-        <p>C'est le nombre d'entreprises que nous pouvons accompagner correctement sur une
-          première année. Vous achetez une saison accompagnée de bout en bout, avec cinq
-          critères de démarrage constatés avec vous avant que le solde soit facturé.</p>
+        <p>Nous ouvrons douze entreprises pour la première saison, pas plus. Avant que le
+          solde soit facturé, cinq critères de démarrage prévus au contrat sont vérifiés
+          avec vous.</p>
       </div>
       <div class="bandeau-cta">
         <a class="btn btn-lg" href="/inscription.html"><span class="dot"></span>Réserver une place</a>
@@ -1102,7 +1103,9 @@ FAQ_ENT = faq([
    "<b>sous-déclarer</b>, et c'est l'inverse de ce qu'on cherche. Chacun de ces points est "
    "traité en détail dans "
    "<a href='/reglement.html'>le règlement</a> et dans "
-   "<a href='/engagements.html'>les engagements de service</a>.</p>"),
+   "<a href='/engagements.html'>les engagements de service</a>.</p>"
+   "<p><b>Ce qui reste à votre charge</b>, et qui n'est donc pas compris dans l'abonnement :</p>"
+   "<ul class='qa-l'>" + "".join(f"<li>{x}</li>" for x in TARIFS["exclus"]) + "</ul>"),
   ("Riseva a-t-elle déjà des résultats à montrer ?",
    "<p>Non, et cette page n'en affiche aucun. La première saison démarre en janvier : les "
    "écrans montrés ici viennent d'un jeu de démonstration et servent à montrer la forme des "
@@ -1161,7 +1164,6 @@ def grille_tarifaire():
           <td class="tar-sites">{p['sites']} site{'s' if p['sites'] > 1 else ''} inclus</td>
         </tr>"""
     inclus = "".join(f"<li>{x}</li>" for x in TARIFS["inclus"])
-    exclus = "".join(f"<li>{x}</li>" for x in TARIFS["exclus"])
     return f"""<section id="prix" class="band-moss">
   <div class="layer">
 {entete("Le prix", "Un tarif public,<br><span class='it'>avant de décider.</span>",
@@ -1179,15 +1181,11 @@ def grille_tarifaire():
         Au-delà de deux mille salariés, le tarif est établi sur devis à partir du dernier palier.</p>
     </div>
 
-    <div class="deux-col deux-col--prix">
-      <div class="col col--oui">
-        <h3>Ce qui est compris</h3>
-        <ul class="tar-l">{inclus}</ul>
-      </div>
-      <div class="col col--non">
-        <h3>Ce qui reste à votre charge</h3>
-        <ul class="tar-l tar-l--non">{exclus}</ul>
-      </div>
+    <div class="tar-inclus">
+      <h3>Ce qui est compris</h3>
+      <ul class="tar-l">{inclus}</ul>
+      <p class="tar-n">Ce que Riseva ne fait pas est écrit noir sur blanc, un peu plus bas :
+        <a class="tlink" href="#faq">le périmètre exact de la plateforme</a>.</p>
     </div>
 
     <div class="tar-sim">
@@ -1272,7 +1270,7 @@ HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
   <div class="layer">
     <p class="eyebrow mono">Gratuit pour les associations, sans exclusivité</p>
     <h1 class="h1 h1--doc">Dites ce dont vous avez besoin.<br>
-      <span class="it">Des salariés d'entreprises proches viennent le faire.</span></h1>
+      <span class="it">Des salariés d'entreprises proches peuvent répondre.</span></h1>
 
     <div class="doc-tete">
       <div class="doc-intro">
@@ -1349,7 +1347,8 @@ CHALLENGE_ASSO = f"""<section id="challenge">
 
     <div class="photos3">
       {photo("refuge", "Un chien recueilli, allongé dans un box de refuge", "")}
-      {photo("plantation", "Deux mains tassent la terre autour d'un jeune arbre planté", "")}
+      {photo("maraude", "Une table de maraude dressée devant une camionnette, à la tombée "
+             "du jour", "")}
       {photo("berge-ramassage", "Trois personnes en waders remontent une berge de rivière "
              "avec des sacs de collecte", "")}
     </div>
@@ -1359,8 +1358,9 @@ CHALLENGE_ASSO = f"""<section id="challenge">
         <p>Une mission ne rapporte rien tant que vous n'avez pas dit qu'elle avait eu lieu.
           C'est vous qui tenez le stylo.</p></div>
       <div><h4>Elles cherchent près de chez vous</h4>
-        <p>Chaque entreprise voit les besoins ouverts autour de ses sites. Une association qui
-          publie est une association qu'on trouve.</p></div>
+        <p>Chaque entreprise voit les besoins ouverts dans un rayon de trente kilomètres autour
+          de ses sites. Tant que vous n'avez rien publié, vous n'apparaissez pas dans cette
+          liste.</p></div>
       <div><h4>Vous ne leur devez rien</h4>
         <p>Pas de contrepartie, pas de logo obligatoire, pas de compte à rendre. Vous acceptez
           ou vous refusez une proposition sans avoir à vous justifier.</p></div>
@@ -1385,9 +1385,9 @@ ARGENT_ASSO = f"""<section id="argent" class="band-moss">
       </div>
       <div class="col">
         <h3>Les reçus fiscaux restent les vôtres</h3>
-        <p>C'est vous qui émettez le reçu, comme aujourd'hui. Riseva prépare les informations
-          et vous laisse signer : la responsabilité du reçu appartient à l'association qui
-          l'émet, et elle y reste.</p>
+        <p>Si vous activez cette option sous mandat écrit, Riseva prépare le reçu à partir de
+          vos informations. Votre association l'émet et en reste responsable. Sans mandat, nous
+          ne préparons rien.</p>
         <p><a class="tlink" href="/charte-associations.html">La charte des associations</a></p>
       </div>
     </div>

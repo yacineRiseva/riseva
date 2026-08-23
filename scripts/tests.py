@@ -126,8 +126,18 @@ def main():
         verifie("il donne aussi l'acompte, qui est ce qu'on demande à la commande",
                 f"{grille['devis']['acompte']:,}".replace(",", " ") + " €" in sim, sim)
         prixT = norm(p.inner_text("#prix"))
+        # Les exclusions ne sont plus a cote du prix : quatre objections negatives
+        # a la seconde ou le lecteur evalue le montant faisaient redescendre
+        # l'intention. Elles sont dans la question de la FAQ qui traite deja du
+        # perimetre, ou elles repondent a quelqu'un qui les cherche. Ce qui doit
+        # rester vrai, et que ce test protege : elles sont ECRITES, et le bloc du
+        # prix dit ou les trouver.
+        pageT = norm(p.inner_text("body"))
         verifie("la page dit ce qui n'est pas compris, pas seulement ce qui l'est",
-                "bilan carbone réglementaire" in prixT and "document unique" in prixT)
+                "bilan carbone réglementaire" in pageT and "document unique" in pageT)
+        verifie("le bloc du prix renvoie a ces limites au lieu de les afficher",
+                "le périmètre exact de la plateforme" in prixT
+                and "bilan carbone réglementaire" not in prixT)
         verifie("la remise fondateur est datée et plafonnée",
                 "31 décembre 2026" in prixT and "20 premières" in prixT)
         verifie("aucun tarif n'est promis au-delà de la première saison",
@@ -295,8 +305,8 @@ def main():
         verifie("chacun des trois effets porte un chiffre",
                 len(chiffres3) == 3 and all(chiffres3), str(chiffres3))
         ordre = p.eval_on_selector_all("#change .ret h3", "l=>l.map(e=>e.textContent)")
-        verifie("les allégations viennent avant les équipes qui se parlent",
-                len(ordre) == 3 and "allégations" in ordre[1] and "équipes" in ordre[2],
+        verifie("les échéances réglementaires viennent avant les équipes qui se parlent",
+                len(ordre) == 3 and "reprendre" in ordre[1] and "équipes" in ordre[2],
                 str(ordre))
         # Le champ a remplir se dimensionne sur son propre texte. Quand la
         # mesure est trop courte, le placeholder perd ses dernieres lettres et
