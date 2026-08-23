@@ -102,12 +102,24 @@ svg{display:block;}
 img{max-width:100%;display:block;}
 ::selection{background:var(--lime);color:var(--ink);}
 
-/* grain : une seule couche, en pseudo-element fixe, très léger */
-body::after{
-  content:'';position:fixed;inset:-50%;z-index:2;pointer-events:none;
-  opacity:.028;
+/* Le grain, et l'endroit ou il n'a rien a faire.
+   Il etait pose en couche fixe par-dessus TOUTE la page, images comprises. Sur
+   un aplat de papier c'est une texture ; sur une photographie et sur une capture
+   d'ecran, c'est du bruit ajoute a une image qui n'en demandait pas, et cela se
+   voit surtout sur les petits caracteres d'une interface. Le systeme de design
+   dit d'ailleurs autre chose : ce sont les SURFACES SOMBRES qui portent un
+   grain, pour qu'un aplat de vert profond ne paraisse pas plat. Le grain
+   redescend donc sur les fonds sombres, derriere leur contenu, et nulle part
+   ailleurs. */
+.vd .band-moss::before,.va .band-moss::before,
+.vd .bandeau::before,.va .bandeau::before{
+  content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+  opacity:.05;mix-blend-mode:overlay;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
 }
+.vd .band-moss,.va .band-moss,.vd .bandeau,.va .bandeau{position:relative;}
+.vd .band-moss > .layer,.va .band-moss > .layer,
+.vd .bandeau > .layer,.va .bandeau > .layer{position:relative;z-index:1;}
 
 .sr-only{
   position:absolute;width:1px;height:1px;padding:0;margin:-1px;
@@ -1611,17 +1623,16 @@ section{
   display:flex;align-items:center;gap:14px;
   margin-top:clamp(16px,2vw,22px);
 }
-.bl-prog svg{flex:1;height:22px;width:100%;}
 .bl-track{
-  fill:none;stroke:rgba(19,21,16,.16);stroke-width:2;
-  stroke-linecap:round;vector-effect:non-scaling-stroke;
+  flex:1;display:block;height:6px;border-radius:999px;
+  background:rgba(19,21,16,.12);overflow:hidden;
 }
 .bl-fill{
-  fill:none;stroke:var(--brand);stroke-width:3;stroke-linecap:round;
-  vector-effect:non-scaling-stroke;
-  stroke-dasharray:1;stroke-dashoffset:1;
-  transition:stroke-dashoffset .7s var(--e);
+  display:block;height:100%;width:0;border-radius:999px;
+  background:var(--brand-700);
+  transition:width .45s var(--e);
 }
+@media (prefers-reduced-motion:reduce){ .bl-fill{transition:none;} }
 
 .bl-count{color:var(--faint);font-size:9.5px;}
 .bl-stamp{
@@ -3297,3 +3308,35 @@ body{
    ils dessinaient une grille plus visible que les questions elles-memes. */
 .vd .qa-index li{border-bottom-color:var(--line-soft);}
 .vd .qa-index li:last-child{border-bottom:0;}
+
+/* ── les coins des captures et des photos, enfin lisses ──────────────────── */
+/* Le defaut : sur un ecran a densite simple, les quatre coins arrondis des
+   captures sortaient en escalier, un pixel sur deux, alors que le meme coin
+   etait parfaitement lisse a densite double.
+
+   La cause n'est pas le rayon, c'est la facon de le dessiner. `.shot` et
+   `.photo` arrondissaient leur cadre puis coupaient l'image avec
+   `overflow:hidden`. Or ces blocs vivent dans un element qui a porte un
+   `transform` — la revelation au defilement, et le redressement de la scene —
+   donc dans une couche composee a part. Chromium ne lisse pas le decoupage
+   d'une couche : il l'arrondit au pixel entier, et cela se voit exactement la
+   ou le contraste est le plus fort, un ecran clair sur un fond forêt.
+
+   La correction ne retire pas `overflow:hidden`, qui reste utile pour ce qui
+   deborde ; elle donne son propre rayon a l'image et a la legende. Le coin est
+   alors dessine par la boite arrondie de l'element, qui est lissee, et le
+   decoupage du parent n'a plus rien a couper.
+
+   Le `calc(... - 1px)` tient compte de la bordure de `.shot` : sans lui, un
+   liseré du fond de la carte reste visible entre l'image et le trait. */
+.vd .shot img,.va .shot img{
+  border-radius:calc(var(--r-md) - 1px) calc(var(--r-md) - 1px) 0 0;
+}
+.vd .shot:not(:has(figcaption)) img,
+.va .shot:not(:has(figcaption)) img{ border-radius:calc(var(--r-md) - 1px); }
+.vd .shot figcaption,.va .shot figcaption{
+  border-radius:0 0 calc(var(--r-md) - 1px) calc(var(--r-md) - 1px);
+}
+.vd .photo img,.va .photo img{ border-radius:var(--r-md); }
+/* La legende d'une photo est posee SOUS l'image, pas dessus : l'image garde
+   donc ses quatre coins arrondis dans tous les cas. */

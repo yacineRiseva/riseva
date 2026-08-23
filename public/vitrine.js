@@ -302,7 +302,18 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
         r.querySelector('.bl-v').textContent = inp.value.trim() || 'à compléter';
       });
     });
-    if(bar) bar.style.strokeDashoffset=(1-done/total).toFixed(3);
+    /* La barre etait une courbe ondulee etiree en largeur, remplie par un
+       decalage de pointilles. Deux choses ne marchaient pas. La longueur d'une
+       ondulation n'est pas sa largeur : a deux champs sur quatre, le trait ne
+       tombait pas au milieu. Et `preserveAspectRatio="none"` deformait la
+       courbe differemment a chaque largeur d'ecran, donc l'erreur changeait
+       avec la fenetre. Une barre de progression doit dire une chose et une
+       seule : ou on en est. C'est maintenant une largeur en pourcentage. */
+    if(bar){
+      bar.style.width = Math.round(done/total*100) + '%';
+      var prog = bar.closest('.bl-prog');
+      if(prog) prog.setAttribute('aria-valuenow', done);
+    }
     if(count) count.textContent=done+' / '+total;
     if(stamp) stamp.textContent = done===total ? 'Prêt à envoyer' : 'En cours de rédaction';
     if(bulletin) bulletin.classList.toggle('ready',done===total);
@@ -383,6 +394,23 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
     }
 
     var d=valeurs();
+
+    /* Une association ne demande pas un rendez-vous, elle demande un compte.
+       Le formulaire ouvrait une conversation : « une personne vous rappelle
+       sous deux jours ouvres ». C'etait une promesse a tenir a la main, un
+       delai de plus entre l'envie et l'inscription, et une dependance a
+       quelqu'un qui decroche. Les quatre champs deja saisis suffisent a ouvrir
+       le compte : on les depose, et l'application les reprend pour creer la
+       fiche et emmener directement dans le dossier a completer. */
+    if(asso){
+      try { localStorage.setItem('riseva.nouvelleAsso', JSON.stringify(d)); } catch(e){}
+      msg.className='j-msg ok';
+      msg.textContent='Compte en cours d\u2019ouverture...';
+      if(stamp) stamp.textContent='Compte ouvert';
+      location.href='/app/';
+      return;
+    }
+
     var cfg = window.RISEVA_CONFIG;
     msg.className='j-msg';
     msg.textContent='Envoi...';
@@ -402,9 +430,8 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
     }).then(function(r){
       if(!r.ok) throw new Error('écriture refusée ('+r.status+')');
       msg.className='j-msg ok';
-      msg.textContent = asso
-        ? 'C\u2019est parti. Yacine vous répond sous deux jours ouvrés.'
-        : 'Bulletin enregistré. Une personne vous écrit sous 48 heures ouvrées.';
+      msg.textContent = 'Bulletin enregistré. Une personne de l\u2019équipe vous écrit '
+        + 'sous 48 heures ouvrées.';
       if(stamp) stamp.textContent='Envoyé';
     }).catch(function(err){
       replier(d, 'Nous n\u2019avons pas pu enregistrer votre message ('+err.message+'). '

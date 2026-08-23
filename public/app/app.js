@@ -8623,7 +8623,38 @@ addEventListener("unhandledrejection", (e) => {
   toast(m);
 });
 
+/* Une association qui arrive de la vitrine a deja donne son nom, sa ville, ce
+   qui lui manque et son adresse. Lui redemander les memes quatre champs derriere
+   un ecran de connexion, c'est la perdre : elle a rempli un formulaire, elle
+   attend un compte, pas un accuse de reception.
+
+   La vitrine depose donc ce qu'elle a recueilli, l'application ouvre le compte
+   et la depose directement dans son dossier, a l'endroit ou il reste trois
+   choses a completer : le numero au registre, l'IBAN et une photo. Rien n'est
+   demande deux fois. */
+const CLE_NOUVELLE_ASSO = "riseva.nouvelleAsso";
+function ouvrirCompteDepuisVitrine(){
+  let brut;
+  try { brut = localStorage.getItem(CLE_NOUVELLE_ASSO); } catch (e) { return false; }
+  if (!brut) return false;
+  try { localStorage.removeItem(CLE_NOUVELLE_ASSO); } catch (e) {}
+  let d;
+  try { d = JSON.parse(brut); } catch (e) { return false; }
+  if (!d || !d.asso || !d.mail) return false;
+  try {
+    const r = DB.creerCompteAssociation({
+      association: d.asso, ville: d.ville || "", cause: "",
+      resume: d.mot ? `Ce qui nous manque le plus en ce moment : ${d.mot}.` : "",
+      nom: d.contact || d.asso, email: d.mail });
+    setSession(r.utilisateur.id);
+    location.hash = "#/dossier";
+    setTimeout(() => toast("Compte ouvert. Il reste trois champs pour être visible."), 400);
+    return true;
+  } catch (e) { return false; }
+}
+
 (async () => {
   if (window.RISEVA_CONFIG) { try { await connecterSupabase(window.RISEVA_CONFIG); } catch (e) { console.warn(e); } }
+  ouvrirCompteDepuisVitrine();
   rendre();
 })();

@@ -119,9 +119,17 @@ def main():
             # à 1 118 et paraissait molle. On ne descend donc plus en dessous de
             # 1 920, et les captures cadrées sur un élément gardent leur pleine
             # résolution.
-            large = im.width if im.width <= 1920 else min(1920, im.width)
+            # 1 920 ne suffisait pas. Une capture affichee a 1 238 pixels de
+            # large sur un ecran a densite double en reclame 2 476 : a 1 920 il
+            # manque un tiers de la matiere, et le manque se voit sur les petits
+            # caracteres d'interface et sur les aplats clairs, ou la compression
+            # laisse un halo. On monte donc a 2 560 et la qualite a 88. Le poids
+            # double, et c'est le prix d'une capture qui prouve quelque chose :
+            # une capture illisible ne prouve rien du tout.
+            large = im.width if im.width <= 2560 else 2560
             im = im.resize((large, round(im.height * large / im.width)), Image.LANCZOS)
-            im.save(SORTIE / f"{nom}.jpg", quality=78, optimize=True, progressive=True)
+            im.save(SORTIE / f"{nom}.jpg", quality=88, optimize=True, progressive=True,
+                    subsampling=0)
             brut.unlink()
             ecrites.append((nom, (SORTIE / f'{nom}.jpg').stat().st_size // 1024))
 
@@ -146,9 +154,10 @@ def main():
             brut = SORTIE / "affiche.png"
             a.locator(".a4").screenshot(path=str(brut))
             im = Image.open(brut).convert("RGB")
-            large = min(1400, im.width)
+            large = min(2000, im.width)
             im = im.resize((large, round(im.height * large / im.width)), Image.LANCZOS)
-            im.save(SORTIE / "affiche.jpg", quality=84, optimize=True, progressive=True)
+            im.save(SORTIE / "affiche.jpg", quality=90, optimize=True, progressive=True,
+                    subsampling=0)
             brut.unlink()
             ecrites.append(("affiche", (SORTIE / "affiche.jpg").stat().st_size // 1024))
             a.close()

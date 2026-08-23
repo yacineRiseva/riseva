@@ -1001,21 +1001,59 @@ def main():
                 "Résultats déclarés par Racines Vives" in f)
 
         print("\nLes formulaires publics")
-        # Un formulaire qui dit « envoyé » sans rien envoyer est un mensonge poli.
+        # Une association ne demande pas un rendez-vous, elle demande un compte. Le
+        # formulaire ouvrait une conversation et promettait un rappel sous deux
+        # jours ouvres : un delai de plus entre l'envie et l'inscription, et une
+        # promesse a tenir a la main. Les quatre champs suffisent a ouvrir le
+        # compte, et c'est ce que ce bloc verifie de bout en bout.
         p.goto(f"{BASE}/associations.html#commencer", wait_until="networkidle")
+        p.evaluate("()=>{localStorage.removeItem('riseva.session');"
+                   "localStorage.removeItem('riseva.etat');"
+                   "localStorage.removeItem('riseva.nouvelleAsso')}")
         p.fill("#fa-asso", "Les Amis du Bocage"); p.fill("#fa-ville", "Rennes")
         p.fill("#fa-mot", "des bras un samedi matin")
         p.fill("#fa-mail", "contact@bocage.org")
-        p.click("#formAsso [type=submit]"); p.wait_for_timeout(600)
-        corps = norm(p.inner_text("#commencer")).replace("\u2019", "'")
-        verifie("sans base configurée, le formulaire ne prétend pas avoir envoyé",
-                "n'est pas encore relié" in corps and "enregistré" not in corps)
-        verifie("il propose un envoi réel par courriel",
-                (p.get_attribute("#jMsg a", "href") or "").startswith("mailto:"))
-        # Et le bulletin se remplit pendant la frappe : c'est ce qui donne envie d'aller
+        # Le bulletin se remplit pendant la frappe : c'est ce qui donne envie d'aller
         # au bout d'un formulaire.
         verifie("le bulletin se remplit à mesure",
                 "4 / 4" in norm(p.inner_text("#bulletin")))
+        # Et la barre de progression suit reellement ce qui est saisi. Elle etait
+        # une courbe ondulee etiree en largeur : a deux champs sur quatre le trait
+        # ne tombait pas au milieu, et l'erreur changeait avec la fenetre.
+        # La largeur est animee : on laisse la transition finir avant de mesurer,
+        # sinon on mesure le depart et pas l'arrivee.
+        p.wait_for_timeout(700)
+        barre = p.evaluate("""()=>{const f=document.querySelector('#blBar');
+            return Math.round(f.getBoundingClientRect().width
+                   / f.parentElement.getBoundingClientRect().width * 100);}""")
+        verifie("la barre de progression est pleine quand les quatre champs le sont",
+                barre >= 99, str(barre) + " %")
+        p.fill("#fa-mail", ""); p.wait_for_timeout(650)
+        moitie = p.evaluate("""()=>{const f=document.querySelector('#blBar');
+            return Math.round(f.getBoundingClientRect().width
+                   / f.parentElement.getBoundingClientRect().width * 100);}""")
+        verifie("et elle redescend exactement d'un quart quand un champ se vide",
+                73 <= moitie <= 77, str(moitie) + " %")
+        p.fill("#fa-mail", "contact@bocage.org"); p.wait_for_timeout(400)
+
+        p.click("#formAsso [type=submit]")
+        p.wait_for_url("**/app/**", timeout=8000)
+        p.wait_for_timeout(900)
+        verifie("le formulaire ouvre un compte au lieu de promettre un rappel",
+                "/app/" in p.url and "dossier" in p.url)
+        ecran = norm(p.inner_text("body"))
+        verifie("l'association arrive directement dans son dossier",
+                "Les Amis du Bocage" in ecran)
+        cree = p.evaluate("""async()=>{const m=await import('/app/data.js');
+            const a=m.DB.associations().find(x=>x.nom==='Les Amis du Bocage');
+            return a ? {ville:a.ville, valide:a.valide, resume:a.resume} : null}""")
+        verifie("la fiche existe dans la base avec ce qui a été saisi",
+                cree and cree["ville"] == "Rennes"
+                and "des bras un samedi matin" in (cree["resume"] or ""), str(cree))
+        # Elle existe, et elle n'est pas encore visible : la verification passe
+        # avant la mise en ligne, c'est la decision du 20/08 et elle tient.
+        verifie("mais elle n'est pas visible avant vérification",
+                cree and cree["valide"] is False)
 
         print("\nChacun chez soi")
         connecte(p, "u4")

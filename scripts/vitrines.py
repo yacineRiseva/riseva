@@ -1247,7 +1247,7 @@ CORPS_ENT = "\n\n".join([
 NAV_ASSO = nav(
     [("comment", "Comment ça marche"), ("challenge", "Pourquoi elles viennent"),
      ("argent", "Les dons"), ("faq", "Vos questions")],
-    "Inscrire mon association", "#commencer", "Gratuit, et sans exclusivité")
+    "Ouvrir mon espace", "#commencer", "Gratuit, et sans exclusivité")
 
 PIED_ASSO = pied(
     "Riseva met des entreprises françaises au service des associations qui protègent le "
@@ -1281,12 +1281,12 @@ HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
           Les points ne comptent qu'après votre confirmation : c'est vous qui décidez si la
           mission a eu lieu.</p>
         <div class="hero-cta">
-          <a class="btn btn-lg" href="#commencer"><span class="dot"></span>Inscrire mon association</a>
+          <a class="btn btn-lg" href="#commencer"><span class="dot"></span>Ouvrir mon espace</a>
           <a class="tlink" href="#comment">Voir comment ça marche</a>
         </div>
         <p class="doc-garanties">Gratuit. Sans exclusivité. Sans commission sur vos dons.
           Rien à installer.</p>
-        <p class="doc-micro">Cinq minutes, et une personne de l'équipe vous rappelle.</p>
+        <p class="doc-micro">Trois minutes, et votre première annonce est en ligne.</p>
       </div>
 
       <dl class="fiche">
@@ -1295,8 +1295,8 @@ HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
           vous faites ailleurs</dd></div>
         <div><dt class="mono">Sur vos dons</dt><dd>aucune commission. L'argent va du donateur à
           votre compte, sans passer par nous</dd></div>
-        <div><dt class="mono">Technique</dt><dd>rien à installer. Tout se fait depuis un
-          courriel</dd></div>
+        <div><dt class="mono">Technique</dt><dd>rien à installer. Vous ouvrez votre espace
+          vous-même, et vous confirmez vos missions depuis un courriel</dd></div>
       </dl>
     </div>
 
@@ -1441,18 +1441,19 @@ FAQ_ASSO = faq([
 
 CONTACT_ASSO = f"""<section id="commencer">
   <div class="layer">
-{entete("Nous écrire", "Quatre mots,<br><span class='it'>et on vous rappelle.</span>",
-        "Pas de dossier à monter, pas de pièce à joindre. Une personne de l'équipe vous "
-        "rappelle sous deux jours ouvrés, et écrit votre première annonce avec vous si vous "
-        "le souhaitez.")}
+{entete("S'inscrire", "Quatre lignes,<br><span class='it'>et votre compte est ouvert.</span>",
+        "Pas de dossier à monter, pas de pièce à joindre, personne à attendre. Vous entrez "
+        "quatre informations, votre espace s'ouvre, et vous publiez votre première annonce "
+        "dans la foulée.")}
     <form id="formAsso" class="join-grid" novalidate>
       <div class="rv">
-        <div class="j-step mono">Trois lignes suffisent</div>
-        <p class="j-sentence">Nous sommes <span class="blank"><label class="sr-only" for="fa-asso">Nom de l'association</label><input id="fa-asso" class="bk" type="text" name="asso" data-key="asso" data-label="le nom de votre association" placeholder="votre association" spellcheck="false" required><span class="ghost" aria-hidden="true"></span></span>, à <span class="blank"><label class="sr-only" for="fa-ville">Ville</label><input id="fa-ville" class="bk" type="text" name="ville" data-key="ville" data-label="votre ville" placeholder="votre ville" required><span class="ghost" aria-hidden="true"></span></span>. Ce qui nous manque le plus en ce moment, c'est <span class="blank"><label class="sr-only" for="fa-mot">Ce qui vous manque</label><input id="fa-mot" class="bk" type="text" name="mot" data-key="mot" data-label="ce qui vous manque" placeholder="des bras un samedi matin" required><span class="ghost" aria-hidden="true"></span></span>. Écrivez-nous à <span class="blank"><label class="sr-only" for="fa-mail">Adresse e-mail</label><input id="fa-mail" class="bk" type="email" name="mail" data-key="mail" data-label="votre adresse e-mail" placeholder="nom@association.fr" spellcheck="false" required><span class="ghost" aria-hidden="true"></span></span>.</p>
-        <p class="j-hint" id="jHint">Pas de dossier à monter, pas de pièce à joindre. On vous rappelle et on part de là.</p>
+        <div class="j-step mono">Quatre informations suffisent</div>
+        <p class="j-sentence">Nous sommes <span class="blank"><label class="sr-only" for="fa-asso">Nom de l'association</label><input id="fa-asso" class="bk" type="text" name="asso" data-key="asso" data-label="le nom de votre association" placeholder="votre association" spellcheck="false" required><span class="ghost" aria-hidden="true"></span></span>, à <span class="blank"><label class="sr-only" for="fa-ville">Ville</label><input id="fa-ville" class="bk" type="text" name="ville" data-key="ville" data-label="votre ville" placeholder="votre ville" required><span class="ghost" aria-hidden="true"></span></span>. Ce qui nous manque le plus en ce moment, c'est <span class="blank"><label class="sr-only" for="fa-mot">Ce qui vous manque</label><input id="fa-mot" class="bk" type="text" name="mot" data-key="mot" data-label="ce qui vous manque" placeholder="des bras un samedi matin" required><span class="ghost" aria-hidden="true"></span></span>. Notre adresse est <span class="blank"><label class="sr-only" for="fa-mail">Adresse e-mail</label><input id="fa-mail" class="bk" type="email" name="mail" data-key="mail" data-label="votre adresse e-mail" placeholder="nom@association.fr" spellcheck="false" required><span class="ghost" aria-hidden="true"></span></span>.</p>
+        <p class="j-hint" id="jHint">Votre espace s'ouvre tout de suite. Il restera trois champs
+          à compléter pour être visible : votre numéro au registre, votre IBAN et une photo.</p>
         <div class="j-cta">
-          <button type="submit" class="btn btn-lg"><span class="dot"></span>Envoyer</button>
-          <span class="mono">contact@riseva.fr, une personne, pas un robot</span>
+          <button type="submit" class="btn btn-lg"><span class="dot"></span>Ouvrir mon espace</button>
+          <span class="mono">Gratuit, sans exclusivité, sans commission</span>
         </div>
         <p class="j-msg" id="jMsg" role="status" aria-live="polite"></p>
       </div>
@@ -1461,20 +1462,18 @@ CONTACT_ASSO = f"""<section id="commencer">
         <div class="bulletin" id="bulletin" aria-hidden="true">
           <div class="bl-body">
             <div class="bl-top">
-              <span class="mono">Prise de contact</span>
+              <span class="mono">Votre fiche</span>
               <span class="bl-ref mono" id="blRef">RSV-AS-....</span>
             </div>
             <ul class="bl-rows">
               <li data-key="asso"><i class="bl-tick"></i><span class="bl-k">Association</span><span class="bl-v">à compléter</span></li>
               <li data-key="ville"><i class="bl-tick"></i><span class="bl-k">Ville</span><span class="bl-v">à compléter</span></li>
               <li data-key="mot"><i class="bl-tick"></i><span class="bl-k">Besoin</span><span class="bl-v">à compléter</span></li>
-              <li data-key="mail"><i class="bl-tick"></i><span class="bl-k">Contact</span><span class="bl-v">à compléter</span></li>
+              <li data-key="mail"><i class="bl-tick"></i><span class="bl-k">Adresse</span><span class="bl-v">à compléter</span></li>
             </ul>
-            <div class="bl-prog">
-              <svg viewBox="0 0 300 22" preserveAspectRatio="none" aria-hidden="true">
-                <path class="bl-track" d="M3 15C38 4 66 20 104 12s70-14 106-2 56 14 87 4"></path>
-                <path class="bl-fill" id="blBar" pathLength="1" d="M3 15C38 4 66 20 104 12s70-14 106-2 56 14 87 4"></path>
-              </svg>
+            <div class="bl-prog" role="progressbar" aria-valuemin="0" aria-valuemax="4"
+                 aria-valuenow="0" aria-label="Champs renseignés">
+              <span class="bl-track"><span class="bl-fill" id="blBar"></span></span>
               <span class="bl-count mono" id="blCount">0 / 4</span>
             </div>
             <div class="bl-stamp mono">Gratuit, sans engagement</div>
@@ -1490,14 +1489,14 @@ BANDEAU_ASSO = """<section id="rejoindre" class="bandeau">
   <div class="layer">
     <div class="bandeau-in">
       <div>
-        <h2>Cinq minutes pour vous inscrire.</h2>
-        <p>Vous nous dites ce que fait votre association et ce dont elle a besoin. Nous
-          vérifions votre enregistrement, nous ouvrons votre page, et vous publiez votre
-          première annonce. Il n'y a rien à installer et rien à payer.</p>
+        <h2>Trois minutes, et vous êtes en ligne.</h2>
+        <p>Vous ouvrez votre espace vous-même. Vous décrivez ce que vous faites, vous publiez
+          votre première annonce, et nous vérifions votre enregistrement pendant ce temps.
+          Rien à installer, rien à payer, personne à attendre.</p>
       </div>
       <div class="bandeau-cta">
-        <a class="btn btn-lg" href="#commencer"><span class="dot"></span>Inscrire mon association</a>
-        <span class="mono">Une personne de l'équipe vous rappelle sous deux jours ouvrés.</span>
+        <a class="btn btn-lg" href="#commencer"><span class="dot"></span>Ouvrir mon espace</a>
+        <span class="mono">Gratuit, sans exclusivité, et sans commission sur vos dons.</span>
       </div>
     </div>
   </div>
