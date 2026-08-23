@@ -27,7 +27,7 @@
 
 <script type="module">
 import { DB, BAREME, UNITES } from "/app/data.js";
-import { h, esc, nb, eur, dateFR, toast } from "/app/ui.js";
+import { h, esc, nb, eur, dateFR, toast, couvertureAsso } from "/app/ui.js";
 
 const id = new URLSearchParams(location.search).get("id") || "a1";
 const a = DB.association(id) || DB.associations()[0];
@@ -44,6 +44,9 @@ const hero = h(`<section class="assoHero"><div class="wrap">
   ${a.nom_juridique && a.nom_juridique !== a.nom
     ? `<p class="muted" style="margin-top:var(--s3);font-size:var(--t-sm)">${esc(a.nom_juridique)}${
         a.rna ? `, RNA ${esc(a.rna)}` : ""}</p>` : ""}
+  ${/* La photo de l'association, celle qu'elle a publiee depuis son espace. Une
+        page qui commence par un mur de texte se ferme avant d'etre lue. */""}
+  <figure class="assoHero__photo">${couvertureAsso(a, { hauteur: 320 })}</figure>
   <p class="lede" style="margin-top:var(--s6)">${esc(a.resume)}</p>
   <div class="row" style="gap:var(--s3);flex-wrap:wrap;margin-top:var(--s6)">
     ${a.site ? `<a class="btn btn--ghost btn--sm" href="${esc(a.site)}" target="_blank"
@@ -57,7 +60,7 @@ const hero = h(`<section class="assoHero"><div class="wrap">
   ${a.verifiee_le ? `<p class="hint" style="margin-top:var(--s6);max-width:62ch">
     Riseva a vérifié le ${dateFR(a.verifiee_le)} l'existence juridique de l'association, l'identité
     de son référent, la cohérence de son objet et ses coordonnées.
-    <a href="/charte-associations.html" style="color:var(--forest-800)">Ce que Riseva vérifie</a> ,
+    <a href="/charte-associations.html" style="color:var(--forest-800)">Ce que Riseva vérifie</a>,
     et ce qu'elle ne vérifie pas : l'éligibilité fiscale et l'impact des missions.</p>` : ""}
 </div></section>`);
 root.appendChild(hero);

@@ -3,7 +3,7 @@ import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, DELAI_VALIDA
   demarrerVierge } from "./data.js";
 import { qrSvg } from "./qr.js";
 import { classeur, telecharger } from "./tableur.js";
-import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, ecusson, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
+import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, ecusson, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, couvertureAsso, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
 /* Session                                                             */
@@ -1177,6 +1177,7 @@ function vueAnnuaire(u){
           <h4 style="font-size:var(--t-sm);letter-spacing:var(--track-wide);
             text-transform:uppercase;color:var(--ink-500)">${situe ? "Les plus proches de vous" : "Quelques partenaires"}</h4>
           ${assos.slice(0, 3).map(a => `<a class="proche" href="/asso.html?id=${a.id}" target="_blank">
+            <span class="proche__vig">${couvertureAsso(a, { hauteur: 46 })}</span>
             <span class="proche__nom">${esc(a.nom)}</span>
             <span class="proche__meta">${esc(a.cause || "")}, ${esc(a.ville || "")}</span>
             ${a.distance != null ? `<span class="proche__km tnum">${nb(a.distance)} km</span>` : ""}
@@ -1257,6 +1258,11 @@ function vueAnnuaire(u){
     l.filter(a => !dejaVues.has(a.id)).forEach(a => {
       const n = nbAnn(a);
       const c = h(`<article class="card card--hover stack" style="--gap:var(--s3)">
+        ${/* La photo passe avant le texte. Une grille de cartes sans images se
+              parcourt sans s'arrêter, et un salarié qui ne s'arrête pas ne
+              s'engage sur rien. L'association publie la sienne depuis son
+              espace ; à défaut, celle de sa cause. */""}
+        ${couvertureAsso(a, { hauteur: 132 })}
         <div class="row" style="gap:var(--s3);flex-wrap:wrap">
           <span class="badge badge--brand">${esc(a.cause || "Association")}</span>
           <span class="muted" style="font-size:var(--t-sm)">${esc(a.ville)}</span>
@@ -3423,43 +3429,166 @@ function vueAValider(u){
   return el;
 }
 
+/* Redimensionner une image dans le navigateur avant de l'enregistrer. Une photo
+   de telephone pese quatre megaoctets ; personne ne va la reduire a la main, et
+   une fiche qui met deux secondes a s'ouvrir sur un telephone est une fiche
+   qu'on quitte. Mille deux cents pixels de large suffisent partout ou cette
+   image est montree, y compris sur un ecran a haute densite. */
+function reduireImage(fichier, { large = 1200, qualite = 0.82 } = {}){
+  return new Promise((ok, non) => {
+    const lecteur = new FileReader();
+    lecteur.onerror = () => non(new Error("Ce fichier n'a pas pu être lu."));
+    lecteur.onload = () => {
+      const im = new Image();
+      im.onerror = () => non(new Error("Ce fichier n'est pas une image."));
+      im.onload = () => {
+        const ech = Math.min(1, large / im.width);
+        const c = document.createElement("canvas");
+        c.width = Math.round(im.width * ech);
+        c.height = Math.round(im.height * ech);
+        const ctx = c.getContext("2d");
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(im, 0, 0, c.width, c.height);
+        ok(c.toDataURL("image/jpeg", qualite));
+      };
+      im.src = lecteur.result;
+    };
+    lecteur.readAsDataURL(fichier);
+  });
+}
+
 function vuePageAsso(u){
   const a = DB.association(u.org);
-  return h(`<div class="two">
+  if (!a) return h(`<section class="card"><p class="empty">Aucune association rattachée.</p></section>`);
+  const causes = ["Protection animale", "Reforestation", "Dépollution", "Aide alimentaire",
+                  "Réemploi", "Biodiversité", "Éducation", "Lutte contre l'exclusion"];
+  const el = h(`<div class="two">
     <section class="card" style="padding:var(--s8)">
       <p class="eyebrow">Page publique</p>
       <h2 style="margin-top:var(--s3)">${esc(a.nom)}</h2>
-      <p class="muted" style="margin-top:var(--s4)">${esc(a.resume)}</p>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
+        C'est ce que voit un salarié qui vous découvre dans l'annuaire de son entreprise.
+        Votre dénomination et vos numéros viennent du registre public et ne se corrigent
+        pas ici. Le reste vous appartient.</p>
+
       <hr class="sep">
-      <div class="field"><label>Présentation affichée</label>
-        <textarea class="textarea">${esc(a.resume)}</textarea></div>
-      <div class="row" style="margin-top:var(--s5);gap:var(--s3)">
-        <button class="btn btn--primary btn--sm">Enregistrer</button>
-        <a class="btn btn--ghost btn--sm" href="/asso.html?id=${a.id}">Prévisualiser</a>
+      <h3 style="font-size:var(--t-lg)">Votre photo</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+        Une photo de ce que vous faites, prise chez vous. Elle passe avant votre texte :
+        c'est elle qu'on regarde en premier. Riseva la réduit toute seule, vous pouvez
+        envoyer celle de votre téléphone.</p>
+      <div style="margin-top:var(--s5)" id="apercuPhoto"></div>
+      <div class="row" style="gap:var(--s3);margin-top:var(--s4);flex-wrap:wrap">
+        <input type="file" id="phF" accept="image/png,image/jpeg,image/webp" hidden
+          aria-label="Choisir une photo">
+        <button class="btn btn--quiet btn--sm" type="button" id="phB">Choisir une photo</button>
+        ${a.photo ? `<button class="btn btn--ghost btn--sm" type="button" id="phX">Retirer</button>` : ""}
+      </div>
+
+      <hr class="sep">
+      <div class="stack" style="--gap:var(--s4)">
+        <div class="field"><label for="pa-res">Présentation affichée</label>
+          <textarea class="textarea" id="pa-res" rows="5">${esc(a.resume || "")}</textarea>
+          <p class="hint"><span id="pa-cpt">0</span> caractères sur 600.
+            Dites ce que vous faites et pour qui, pas votre histoire depuis 1994.</p></div>
+        <div class="row" style="gap:var(--s4);align-items:stretch">
+          <div class="field" style="flex:1"><label for="pa-cause">Cause</label>
+            <select class="select" id="pa-cause">
+              ${causes.map(c => `<option ${c === a.cause ? "selected" : ""}>${esc(c)}</option>`).join("")}
+              ${a.cause && !causes.includes(a.cause) ? `<option selected>${esc(a.cause)}</option>` : ""}
+            </select></div>
+          <div class="field" style="flex:1"><label for="pa-ville">Ville</label>
+            <input class="input" id="pa-ville" value="${esc(a.ville || "")}"></div>
+        </div>
+        <div class="field"><label for="pa-site">Votre site, si vous en avez un</label>
+          <input class="input" id="pa-site" value="${esc(a.site || "")}" placeholder="https://"></div>
+      </div>
+      <div class="row" style="margin-top:var(--s6);gap:var(--s3)">
+        <button class="btn btn--primary btn--sm" id="pa-save">Enregistrer</button>
+        <a class="btn btn--ghost btn--sm" href="/asso.html?id=${a.id}" target="_blank">Prévisualiser</a>
       </div>
     </section>
-    <section class="card">
-      <h3>Le don en argent</h3>
-      <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s4)">
-        Les donateurs virent directement sur votre compte, avec une référence que nous émettons.
-        Nous ne touchons jamais aux fonds : ni compte de passage, ni reversement. Vous recevez la
-        totalité du don le jour où votre banque le crédite.</p>
-      <hr class="sep">
-      <div class="stack" style="--gap:var(--s3);font-size:var(--t-sm)">
-        <div class="between"><span class="muted">Circuit</span><span>virement direct, sans intermédiaire</span></div>
-        <div class="between"><span class="muted">Commission Riseva</span><strong>0 %</strong></div>
-        <div class="between"><span class="muted">Votre compte</span>${
-          DB.donsOuverts(u.org)
-            ? `<span class="badge badge--ok">renseigné</span>`
-            : `<span class="badge badge--warn">à renseigner</span>`}</div>
-        <div class="between"><span class="muted">Reçus fiscaux</span>${
-          DB.recusPrets(u.org)
-            ? `<span class="badge badge--ok">préparés sur mandat</span>`
-            : `<span class="badge badge--warn">mandat à donner</span>`}</div>
-      </div>
-      <a class="btn btn--ghost btn--sm" style="margin-top:var(--s4)" href="#/dons">Gérer les dons</a>
-    </section>
+
+    <div class="stack" style="--gap:var(--s5)">
+      <section class="card">
+        <h3>Le don en argent</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s4)">
+          Les donateurs virent directement sur votre compte, avec une référence que nous émettons.
+          Nous ne touchons jamais aux fonds : ni compte de passage, ni reversement. Vous recevez la
+          totalité du don le jour où votre banque le crédite.</p>
+        <hr class="sep">
+        <div class="stack" style="--gap:var(--s3);font-size:var(--t-sm)">
+          <div class="between"><span class="muted">Circuit</span><span>virement direct, sans intermédiaire</span></div>
+          <div class="between"><span class="muted">Commission Riseva</span><strong>0 %</strong></div>
+          <div class="between"><span class="muted">Votre compte</span>${
+            DB.donsOuverts(u.org)
+              ? `<span class="badge badge--ok">renseigné</span>`
+              : `<span class="badge badge--warn">à renseigner</span>`}</div>
+          <div class="between"><span class="muted">Reçus fiscaux</span>${
+            DB.recusPrets(u.org)
+              ? `<span class="badge badge--ok">préparés sur mandat</span>`
+              : `<span class="badge badge--warn">mandat à donner</span>`}</div>
+        </div>
+        <a class="btn btn--ghost btn--sm" style="margin-top:var(--s4)" href="#/dons">Gérer les dons</a>
+      </section>
+
+      <section class="card card--flat" style="background:var(--paper-sunk);border-color:transparent">
+        <h3 style="font-size:var(--t-md)">Ce qui décide un salarié</h3>
+        <ul class="liste" style="margin-top:var(--s3);font-size:var(--t-sm)">
+          <li>Une photo prise chez vous, pas une image d'illustration.</li>
+          <li>Une ville juste : l'annuaire classe par distance depuis son lieu de travail.</li>
+          <li>Deux phrases sur ce qui vous manque en ce moment, pas sur vos statuts.</li>
+          <li>Des besoins ouverts : une fiche sans annonce ne mène nulle part.</li>
+        </ul>
+      </section>
+    </div>
   </div>`);
+
+  const boxPhoto = el.querySelector("#apercuPhoto");
+  const dessinePhoto = (src) => {
+    boxPhoto.innerHTML = "";
+    boxPhoto.appendChild(h(`<div>${couvertureAsso({ ...a, photo: src }, { hauteur: 190 })}</div>`));
+    if (!src) boxPhoto.appendChild(h(`<p class="hint" style="margin-top:6px">
+      Sans photo, c'est une image générique de votre cause qui s'affiche. La vôtre vaut mieux.</p>`));
+  };
+  dessinePhoto(a.photo || null);
+
+  const fPh = el.querySelector("#phF");
+  el.querySelector("#phB").onclick = () => fPh.click();
+  fPh.onchange = async () => {
+    const f = fPh.files && fPh.files[0];
+    if (!f) return;
+    try {
+      const petite = await reduireImage(f);
+      DB.majAssociation(u.org, { photo: petite });
+      dessinePhoto(petite);
+      toast("Photo enregistrée. Elle apparaît dès maintenant dans l'annuaire.");
+    } catch (err){ toast(err.message); }
+    fPh.value = "";
+  };
+  el.querySelector("#phX")?.addEventListener("click", () => {
+    try { DB.majAssociation(u.org, { photo: "" }); dessinePhoto(null);
+          toast("Photo retirée."); }
+    catch (err){ toast(err.message); }
+  });
+
+  const res = el.querySelector("#pa-res"), cpt = el.querySelector("#pa-cpt");
+  const compte = () => { cpt.textContent = nb(res.value.trim().length); };
+  res.addEventListener("input", compte); compte();
+
+  el.querySelector("#pa-save").onclick = () => {
+    try {
+      DB.majAssociation(u.org, {
+        resume: res.value,
+        cause: el.querySelector("#pa-cause").value,
+        ville: el.querySelector("#pa-ville").value,
+        site: el.querySelector("#pa-site").value
+      });
+      toast("Votre page est à jour.");
+      rendre();
+    } catch (err){ toast(err.message); }
+  };
+  return el;
 }
 
 /* ------------------------------------------------------------------ */

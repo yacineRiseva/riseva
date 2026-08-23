@@ -300,6 +300,12 @@ create table association (
   lat       double precision check (lat between -90 and 90),
   lon       double precision check (lon between -180 and 180),
   site      text check (length(site) <= 240),
+  -- La photo que l'association publie sur sa fiche. Une liste d'associations
+  -- sans images se parcourt sans s'arrêter, et un salarié qui ne s'arrête pas
+  -- ne s'engage sur rien. Elle est stockée telle quelle, en data-URI réduite
+  -- par le navigateur avant l'envoi : six cents kilooctets au maximum, ce qui
+  -- laisse largement de quoi faire une image nette de mille deux cents pixels.
+  photo     text check (length(photo) <= 600000),
   valide    boolean not null default false,
   suspendue boolean not null default false,
   verifiee_le      date,

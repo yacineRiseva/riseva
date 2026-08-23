@@ -52,6 +52,13 @@
 
 /* ============ Page publique asso ============ */
 .assoHero{padding-block:var(--s16) var(--s10);border-bottom:var(--line)}
+/* La photo de l'association, en pleine largeur sous son nom. Coins arrondis a
+   l'exterieur de l'image elle-meme : un `border-radius` pose sur le cadre et
+   non sur l'image laisse quatre coins carres derriere le rayon. */
+.assoHero__photo{ margin:var(--s6) 0 0; border-radius:var(--r-md); overflow:hidden;
+  max-width:760px; }
+.assoHero__photo img,.assoHero__photo svg{ display:block; width:100%;
+  border-radius:var(--r-md); }
 .assoGrid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:var(--s10);align-items:start}
 @media(max-width:900px){.assoGrid{grid-template-columns:1fr}}
 .amountRow{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s2)}
@@ -352,17 +359,22 @@
 @media (max-width:900px){ .annuaire__haut{ grid-template-columns:1fr } }
 /* Une ligne cliquable qui ne le montre pas ne se clique pas : chevron, survol,
    et le curseur qui va avec. */
-.proche{ display:grid; grid-template-columns:1fr auto auto; gap:2px var(--s4);
+.proche{ display:grid; grid-template-columns:64px 1fr auto auto; gap:2px var(--s4);
   padding:var(--s3) var(--s4); border-radius:var(--r-sm); background:var(--paper-sunk);
-  transition:background var(--dur) var(--ease); }
+  transition:background var(--dur) var(--ease); align-items:center; }
+/* La vignette occupe la premiere colonne sur les deux lignes : sans elle, trois
+   lignes de texte alignees se ressemblent toutes, et on n'en lit aucune. */
+.proche__vig{ grid-column:1; grid-row:1 / span 2; align-self:center; display:block;
+  width:64px; overflow:hidden; border-radius:var(--r-sm); }
+.proche__vig img,.proche__vig svg{ display:block; width:100%; }
 .proche:hover{ background:var(--forest-050); }
 .proche:hover .proche__go{ transform:translateX(3px); }
-.proche__go{ grid-column:3; grid-row:1 / span 2; align-self:center; width:8px; height:8px;
+.proche__go{ grid-column:4; grid-row:1 / span 2; align-self:center; width:8px; height:8px;
   border-right:2px solid var(--ink-400); border-top:2px solid var(--ink-400);
   transform:rotate(45deg); transition:transform var(--dur) var(--ease); }
-.proche__nom{ grid-column:1; grid-row:1; font-weight:550; }
-.proche__meta{ grid-column:1; grid-row:2; font-size:var(--t-sm); color:var(--ink-500); }
-.proche__km{ grid-column:2; grid-row:1 / span 2; align-self:center; justify-self:end;
+.proche__nom{ grid-column:2; grid-row:1; font-weight:550; }
+.proche__meta{ grid-column:2; grid-row:2; font-size:var(--t-sm); color:var(--ink-500); }
+.proche__km{ grid-column:3; grid-row:1 / span 2; align-self:center; justify-self:end;
   font-family:var(--font-display); font-size:var(--t-lg); color:var(--forest-700); }
 
 /* --- Volet dépliable ------------------------------------------------ */

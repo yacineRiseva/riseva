@@ -462,6 +462,32 @@ const PHOTO_TYPE = {
    le chemin sert alors de repli. */
 export const VIGNETTES = {};
 
+/* La couverture d'une association. Elle en publie une, on montre la sienne ;
+   sinon celle de sa cause, jamais un cadre gris. Une liste d'associations sans
+   images est une liste qu'on parcourt sans s'arrêter, et c'est le contraire de
+   ce qu'on demande à un salarié devant l'annuaire. */
+export function couvertureAsso(asso, { hauteur = 132 } = {}){
+  /* Au-dela de cent soixante pixels de haut, la vignette de secours est etiree
+     et se voit : on prend la photo pleine taille. En dessous, la vignette pese
+     dix fois moins et rend exactement pareil. */
+  const nomPhoto = PHOTO_CAUSE[asso && asso.cause];
+  const src = asso && asso.photo
+    ? asso.photo
+    : (nomPhoto
+        ? (hauteur > 160 ? `/photos/${nomPhoto}.jpg`
+                         : (VIGNETTES[nomPhoto] || `/photos/vignettes/${nomPhoto}.jpg`))
+        : null);
+  if (src)
+    return `<img class="couv" src="${esc(src)}" alt="" loading="lazy" decoding="async"
+      style="height:${hauteur}px;width:100%;object-fit:cover;border-radius:var(--r-sm)">`;
+  const al = graine((asso && asso.id ? asso.id : "") + (asso && asso.nom ? asso.nom : ""));
+  return `<svg class="couv" viewBox="0 0 360 110" preserveAspectRatio="xMidYMid slice"
+    style="height:${hauteur}px;width:100%;border-radius:var(--r-sm)" role="img" aria-hidden="true">
+    <rect width="360" height="110" fill="var(--forest-900)"/>
+    ${dessinFore(al)}
+  </svg>`;
+}
+
 export function vignette(annonce, { hauteur = 78, cause = "" } = {}){
   const cle = (annonce.impact && annonce.impact.unite) || "";
   const nom = PHOTO_UNITE[cle] || PHOTO_CAUSE[cause] || PHOTO_TYPE[annonce.type];

@@ -2260,6 +2260,51 @@ begin
    where e.id = v_ent;
 end $$;
 
+-- La fiche que l'association tient elle-même : ce qu'elle raconte, sa ville, sa
+-- photo. Ce qu'elle ne touche pas ici, et pourquoi : sa dénomination et ses
+-- numéros viennent du registre public et ne se corrigent que par un contrôle,
+-- sa validation reste une décision de Riseva, et son IBAN passe par sa propre
+-- fonction, qui vérifie la clé.
+--
+-- Un paramètre laissé à NULL ne touche pas à la colonne. Effacer une photo est
+-- donc un geste explicite, `p_effacer_photo`, sinon on ne saurait pas
+-- distinguer « je n'y touche pas » de « je la retire ».
+create or replace function public.maj_association(
+  p_resume text default null, p_cause text default null, p_ville text default null,
+  p_site text default null, p_photo text default null,
+  p_effacer_photo boolean default false)
+returns void
+language plpgsql security definer set search_path = '' as $$
+declare v_asso uuid := private.mon_association();
+begin
+  if v_asso is null then
+    raise exception 'Réservé à l''association elle-même' using errcode = '42501';
+  end if;
+  if p_resume is not null and length(btrim(p_resume)) < 40 then
+    raise exception 'Une présentation de moins de quarante caractères ne dit rien'
+      using errcode = '22023';
+  end if;
+  if p_ville is not null and length(btrim(p_ville)) < 1 then
+    raise exception 'La ville est nécessaire' using errcode = '22023';
+  end if;
+  if p_site is not null and btrim(p_site) <> '' and p_site !~* '^https?://' then
+    raise exception 'L''adresse de votre site commence par http ou https' using errcode = '22023';
+  end if;
+  if p_photo is not null and btrim(p_photo) <> ''
+     and p_photo !~* '^(data:image/(png|jpeg|webp);|https://)' then
+    raise exception 'Une photo est un fichier image ou une adresse https' using errcode = '22023';
+  end if;
+
+  update public.association a set
+    resume = coalesce(nullif(btrim(coalesce(p_resume, '')), ''), a.resume),
+    cause  = coalesce(nullif(btrim(coalesce(p_cause, '')), ''), a.cause),
+    ville  = coalesce(nullif(btrim(coalesce(p_ville, '')), ''), a.ville),
+    site   = coalesce(nullif(btrim(coalesce(p_site, '')), ''), a.site),
+    photo  = case when p_effacer_photo then null
+                  else coalesce(nullif(btrim(coalesce(p_photo, '')), ''), a.photo) end
+  where a.id = v_asso;
+end $$;
+
 -- ------------------------------------------------- valorisation d'un don matériel
 -- Ce que fait cette fonction : elle enregistre ce que l'entreprise DÉCLARE.
 -- Ce qu'elle ne fait pas, et ne fera pas : calculer une valeur. La méthode

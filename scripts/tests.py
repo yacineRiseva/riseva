@@ -1097,6 +1097,43 @@ def main():
         verifie("l'annuaire ne se répète pas",
                 p.inner_text(".content").count("Le Panier Solidaire") == 1)
 
+        print("\nLa fiche que l'association tient elle-même")
+        # Cet ecran avait un champ, un bouton, et aucun des deux n'etait branche :
+        # une association qui s'inscrivait seule ne pouvait rien dire d'elle.
+        connecte(p, "u7", "#/page")
+        verifie("la page publique s'édite depuis l'espace de l'association",
+                p.locator("#pa-res").count() == 1 and p.locator("#pa-save").count() == 1)
+        verifie("elle peut publier une photo de ce qu'elle fait",
+                p.locator("#phB").count() == 1)
+        p.evaluate("""()=>{const t=document.querySelector('#pa-res');
+          t.value="Nous ramassons les dechets des berges de la Loire avec des benevoles, "
+                 +"et nous replantons ce qui peut l'etre sur les rives abimees.";
+          t.dispatchEvent(new Event('input'));
+          document.querySelector('#pa-save').click();}""")
+        p.wait_for_timeout(350)
+        verifie("ce qu'elle écrit est enregistré",
+                "berges de la Loire" in p.evaluate(
+                  """async()=>{const m=await import('/app/data.js');
+                     return m.DB.association('a1').resume;}"""))
+        # Une presentation de deux mots ne dit rien a un salarie qui decouvre.
+        refus = p.evaluate("""async()=>{const m=await import('/app/data.js');
+          try{ m.DB.majAssociation('a1',{resume:'Trop court.'}); return 'aucun refus'; }
+          catch(e){ return e.message; }}""")
+        verifie("une présentation de deux mots est refusée, avec la raison",
+                "quarante caractères" in refus, refus[:80])
+        photo = p.evaluate("""async()=>{const m=await import('/app/data.js');
+          try{ m.DB.majAssociation('a1',{photo:'javascript:alert(1)'}); return 'aucun refus'; }
+          catch(e){ return e.message; }}""")
+        verifie("une adresse de photo qui n'est ni un fichier ni https est refusée",
+                "https" in photo, photo[:80])
+
+        connecte(p, "u2", "#/annuaire")
+        p.wait_for_timeout(250)
+        cartes = p.eval_on_selector_all("#liste article", "e=>e.length")
+        avec = p.eval_on_selector_all("#liste article .couv", "e=>e.length")
+        verifie("chaque association de l'annuaire porte une image",
+                cartes > 0 and avec == cartes, f"{avec} / {cartes}")
+
         print("\nRègles de calcul")
         # Le plafond porte sur le total retenu, pas sur le brut : avec (6240, 780, 0)
         # la règle « aucun format au-delà de la moitié » impose 1 560, pas 4 290.

@@ -83,7 +83,7 @@ create policy entreprise_privee on public.entreprise for select to authenticated
 -- mandant et l'état du mandat. Ce sont des personnes physiques, sans nécessité
 -- publique. Elles passent maintenant par la vue `association_reglages`.
 grant select (id, nom, nom_juridique, rna, siren, cause, ville, resume, adresse,
-              lat, lon, site, valide, suspendue, verifiee_le, a_reverifier_le,
+              lat, lon, site, photo, valide, suspendue, verifiee_le, a_reverifier_le,
               eligible_mecenat, helloasso, iban, bic, titulaire_compte, cree_le)
   on public.association to anon, authenticated;
 create policy association_lecture on public.association for select to anon, authenticated
@@ -369,6 +369,7 @@ grant execute on function
                          boolean, public.unite_realisation, numeric),
   public.fermer_annonce(uuid),
   public.regler_logo(text),
+  public.maj_association(text, text, text, text, text, boolean),
   public.offre_locale(uuid),
   public.offre_par_site(uuid),
   public.signaler_zone(uuid, text),

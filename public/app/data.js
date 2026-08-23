@@ -4266,6 +4266,61 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
        « javascript: » ou un « data:text/html » dans un attribut src qu'on affiche
        sur l'écran de tous les autres clients, c'est une porte ouverte, et elle
        s'ouvrirait sur le classement, l'écran le plus partagé du produit. */
+    /* La fiche que l'association tient elle-meme. Elle ecrivait dans le vide :
+       l'ecran « Ma page publique » avait un champ, un bouton, et aucun des deux
+       n'etait branche. Une association qui s'inscrit seule depuis le site doit
+       pouvoir dire qui elle est sans nous ecrire.
+
+       Ce qu'elle ne touche pas, et pourquoi : sa denomination et ses numeros
+       viennent du registre public et ne se corrigent que par un controle ; sa
+       validation reste une decision de Riseva. Le reste lui appartient. */
+    majAssociation(aid, { resume, cause, ville, site, photo } = {}){
+      const a = api.association(aid);
+      if (!a) throw new Error("Association inconnue");
+      if (resume !== undefined){
+        const r = String(resume).trim();
+        if (r.length < 40)
+          throw new Error("Une présentation de moins de quarante caractères ne dit rien "
+            + "à un salarié qui vous découvre. Deux phrases suffisent.");
+        if (r.length > 600)
+          throw new Error("Six cents caractères au maximum : au-delà, personne ne lit "
+            + "jusqu'au bout, et votre première phrase se perd.");
+        a.resume = r;
+      }
+      if (cause !== undefined) a.cause = String(cause).trim().slice(0, 60);
+      if (ville !== undefined){
+        const v = String(ville).trim();
+        if (!v) throw new Error("La ville est nécessaire : c'est elle qui vous met "
+          + "devant les salariés qui travaillent près de chez vous.");
+        a.ville = v.slice(0, 80);
+      }
+      if (site !== undefined){
+        const u = String(site).trim();
+        if (u && !/^https?:\/\//i.test(u))
+          throw new Error("L'adresse de votre site commence par http ou https.");
+        a.site = u.slice(0, 240);
+      }
+      if (photo !== undefined){
+        const v = String(photo || "").trim();
+        if (!v) a.photo = null;
+        else {
+          const image = /^data:image\/(png|jpeg|webp);/i.test(v);
+          const distant = /^https:\/\//i.test(v);
+          if (!image && !distant)
+            throw new Error("Une photo est soit un fichier image, soit une adresse "
+              + "commençant par https.");
+          /* Six cents kilooctets : au-dela, la fiche met une seconde a s'ouvrir
+             sur un telephone, et c'est la premiere impression qu'on donne. Le
+             navigateur redimensionne avant d'arriver ici. */
+          if (v.length > 600_000)
+            throw new Error("Cette photo est trop lourde. Riseva la réduit toute seule : "
+              + "réessayez, ou choisissez une image plus petite.");
+          a.photo = v;
+        }
+      }
+      return a;
+    },
+
     reglerLogo(eid, valeur){
       const e = api.entreprise(eid); if (!e) return null;
       const v = String(valeur || "").trim();
@@ -5913,7 +5968,7 @@ const versEtat = {
     helloasso: r.helloasso,
     cause: r.cause, ville: r.ville,
     resume: r.resume, adresse: r.adresse, lat: r.lat, lon: r.lon,
-    valide: r.valide, suspendue: r.suspendue, site: r.site,
+    valide: r.valide, suspendue: r.suspendue, site: r.site, photo: r.photo,
     verifiee_le: r.verifiee_le, verifiee_jusqua: r.verifiee_jusqua,
     iban: r.iban, bic: r.bic, titulaire_compte: r.titulaire_compte,
     mandat_recus: r.mandat_recus_le
@@ -6215,6 +6270,11 @@ function creerSupabase(client){
     accepterInvitationReferent: (code) => ecrire(() => rpc("rejoindre_comme_referent", { p_code: code })),
     creerInvitation: (eid, places, etablissement) => ecrire(() =>
       rpc("creer_invitation", { p_places: places, p_jours: 60 })),
+    reglerLogo: (eid, valeur) => ecrire(() => rpc("regler_logo", { p_logo: valeur || null })),
+    majAssociation: (aid, ch) => ecrire(() => rpc("maj_association", {
+      p_resume: ch.resume ?? null, p_cause: ch.cause ?? null, p_ville: ch.ville ?? null,
+      p_site: ch.site ?? null, p_photo: ch.photo === undefined ? null : (ch.photo || ""),
+      p_effacer_photo: ch.photo !== undefined && !ch.photo })),
     creerInvitationReferent: (etid, nom, email) => ecrire(() =>
       rpc("creer_invitation_referent", { p_etablissement: etid, p_nom: nom, p_mail: email })),
     allouerQuota: (etid, places) => ecrire(() =>
