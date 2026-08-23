@@ -116,3 +116,13 @@
 .hero__faits dt{font-size:var(--t-sm);color:var(--ink-500);margin:0 0 3px}
 .hero__faits dd{margin:0;font-size:var(--t-read);color:var(--ink);font-weight:500;max-width:22ch}
 .hero__note a{color:var(--forest-800);text-decoration:underline;text-underline-offset:2px}
+
+/* ── la longueur de ligne des pages de texte ─────────────────────────────── */
+/* Le reglement, les CGV et les engagements sont des pages qu'un acheteur lit
+   vraiment, souvent avant de signer. Elles s'etiraient jusqu'a cent quarante
+   signes par ligne : a cette largeur l'oeil rate le retour a la ligne et relit
+   la meme, et un texte qu'on relit deux fois passe pour un texte obscur.
+   La borne est en `ch`, donc elle suit la taille du texte. Les tableaux et les
+   grilles gardent leur largeur : bornes, ils couperaient leurs colonnes. */
+.doc__corps p, .doc__corps li, .doc__corps dd, .doc__corps .lede{max-width:64ch;}
+.doc__corps table p, .doc__corps table li, .doc__corps table td{max-width:none;}

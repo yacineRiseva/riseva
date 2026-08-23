@@ -312,6 +312,36 @@ def main():
         verifie("aucun placeholder n'est coupé dans la phrase à remplir",
                 not coupes, str(coupes))
 
+        # ── la longueur de ligne ────────────────────────────────────────────
+        # Au-dela de quatre-vingts signes par ligne, l'oeil rate le retour a la
+        # ligne suivante et relit la meme. Un texte qu'on relit deux fois passe
+        # pour un texte obscur, et c'est la page qui en paie le prix.
+        # La mesure se fait avec la police REELLEMENT dessinee : le raccourci
+        # `font` de `getComputedStyle` revient parfois vide, et le canevas
+        # retombe alors sur 10 px sans que rien ne le dise. On reconstruit donc
+        # la declaration a partir de ses morceaux.
+        MESURE_LIGNE = """()=>{
+          const c = document.createElement('canvas').getContext('2d'), out = [];
+          document.querySelectorAll('p,li,dd').forEach(el => {
+            const propre = [...el.childNodes].filter(n => n.nodeType === 3)
+              .map(n => n.textContent.trim()).join(' ').trim();
+            if (propre.length < 90) return;
+            const s = getComputedStyle(el), w = el.getBoundingClientRect().width;
+            if (!w) return;
+            c.font = s.fontStyle + ' ' + s.fontWeight + ' ' + s.fontSize + ' ' + s.fontFamily;
+            const moy = c.measureText('abcdefghijklmnopqrstuvwxyz eaiou').width / 32;
+            const signes = Math.round(w / moy);
+            if (signes > 82) out.push({ ou: el.className || el.tagName, signes });
+          });
+          return out;
+        }"""
+        for page in ("/", "/associations.html", "/reglement.html", "/cgv.html",
+                     "/inscription.html", "/asso.html?id=a2"):
+            p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(350)
+            longues = p.evaluate(MESURE_LIGNE)
+            verifie(f"aucune ligne au-dela de quatre-vingts signes sur {page}",
+                    not longues, str(longues[:3]))
+
         # ── plus de prénom nulle part ───────────────────────────────────────
         # Les pages parlent au nom d'une équipe. Une vitrine qui met en avant une
         # personne seule vend une dépendance, pas un service.

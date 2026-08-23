@@ -3237,5 +3237,37 @@ body{
 .vd #outil .shot--seule{margin:clamp(28px,3.4vw,52px) auto 0;}
 .vd #outil .faits4{margin-top:clamp(26px,3vw,44px);}
 .vd #outil > .layer > .s-note{
-  margin-top:clamp(18px,2.2vw,30px);max-width:78ch;
+  margin-top:clamp(18px,2.2vw,30px);max-width:62ch;
 }
+
+/* Les quatre garanties, juste sous le premier bouton de la page associations.
+   Elles vivaient dans le tableau de droite, que personne ne lit avant d'avoir
+   decide. Un president demarche a froid pose quatre questions dans cet ordre :
+   est-ce que ca coute, est-ce que ca m'enferme, est-ce que vous prenez une
+   commission, est-ce qu'il faut installer quelque chose. Les quatre reponses
+   tiennent sur une ligne, et elles se lisent avant le clic. */
+.doc-garanties{
+  margin-top:14px;
+  font-size:clamp(14px,1.02vw,15.5px);line-height:1.5;
+  font-weight:600;color:var(--ink);
+  max-width:44ch;
+}
+
+/* ── la longueur de ligne, mesuree et bornee ─────────────────────────────── */
+/* Une ligne de plus de quatre-vingts signes fatigue : l'oeil rate le retour a
+   la ligne suivante et relit la meme. La page portait des blocs a 90, 97, et
+   jusqu'a 149 signes sous la grille tarifaire, c'est-a-dire exactement la ou le
+   lecteur doit rester attentif.
+
+   La borne est en `ch`, pas en pixels : elle suit la taille du texte, donc elle
+   tient aussi quand la police change. Elle ne s'applique qu'aux blocs qui
+   portent de la prose ; les tableaux et les grilles gardent leur largeur, un
+   tableau borne a soixante-dix signes se met a couper ses colonnes. */
+/* La borne est en `ch`, qui vaut la largeur du zero : un chiffre est plus large
+   qu'une lettre moyenne, donc 62ch dessinent environ 70 signes reels. C'est la
+   valeur qu'on veut, et c'est celle qu'on mesure a la recette. */
+.vd .obj .obj-r{max-width:62ch;}
+.vd .fmt-bloc .fmt-bareme{max-width:64ch;}
+.vd .layer > p.s-note{max-width:62ch;}
+.vd .tar .tar-n,
+.vd .tar-sim-notes .tar-n{max-width:66ch;}

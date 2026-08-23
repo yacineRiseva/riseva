@@ -574,8 +574,8 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
         a répondu le <b>rapport est déjà fait</b> : à l'écran, en classeur, en CSV. Vous ne
         relancez personne, <b>et sans module en supplément</b>.</p>
       <div class="hero-cta">
-        <a class="btn btn-lg" href="/app/"><span class="dot"></span>Explorer la plateforme</a>
-        <a class="tlink" href="#outil">Voir l'outil RSE</a>
+        <a class="btn btn-lg" href="#prix"><span class="dot"></span>Calculer mon tarif</a>
+        <a class="tlink" href="/app/">Explorer la plateforme</a>
       </div>
       <p class="doc-micro mono">Démonstration libre. Aucun rendez-vous, aucune carte
         bancaire.</p>
@@ -585,9 +585,11 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
       <div><dt class="mono">Saison</dt><dd>12 mois, sans reconduction tacite</dd></div>
       <div><dt class="mono">Déploiement</dt><dd>un lien à diffuser, rien à installer</dd></div>
       <div><dt class="mono">Périmètre</dt><dd>une entreprise, ou un groupe multi-sites</dd></div>
-      <div><dt class="mono">Tarif</dt><dd>de <b>{EUR(TARIFS['paliers'][0]['prix'])[:-2]} à
-        {EUR(TARIFS['paliers'][-1]['prix'])} HT</b> l'an selon l'effectif, un à douze sites
-        compris. Pas de facturation par salarié, pas de commission sur les dons.</dd></div>
+      <div><dt class="mono">Tarif</dt><dd>de <b>{EUR(TARIFS['paliers'][0]['prix'])} à
+        {EUR(TARIFS['paliers'][-2]['prix'])} HT</b> l'an selon l'effectif, un à huit sites
+        compris. Au-delà de deux mille salariés, sur devis à partir de
+        {EUR(TARIFS['paliers'][-1]['prix'])}. Pas de facturation par salarié, pas de commission
+        sur les dons.</dd></div>
       <div><dt class="mono">Lancement</dt><dd>-10 % pour les 20 premières entreprises,
         sur leur première saison</dd></div>
       <div><dt class="mono">Le dossier</dt><dd><a href="/reglement.html">le règlement de la
@@ -610,10 +612,10 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
        "Effectifs, sécurité, formation, diversité, énergie et eau, déchets, mobilité, achats. "
        "Collectés site par site, calculés avec leur formule à côté du chiffre, rendus en "
        "classeur et en CSV. Registre de sécurité, fiche VSME et accès CSE compris.", "outil"),
-      ("La preuve", "Rien n'est<br><span class='it'>déclaratif.</span>",
-       "Le chiffre final vient de la structure qui était sur place, et chaque valeur porte sa "
-       "date, sa source et sa méthode. C'est la pièce qu'on vous demande en appel d'offres.",
-       "pilotage"),
+      ("La preuve", "Chaque chiffre<br><span class='it'>garde sa source.</span>",
+       "Les sites saisissent leurs valeurs, les associations confirment les missions, Riseva "
+       "additionne et restitue. Chaque ligne porte sa date, son auteur et sa méthode : c'est "
+       "la pièce qu'on vous demande en appel d'offres.", "pilotage"),
     ])}
 
     {chiffres([
@@ -656,7 +658,7 @@ SAISON_ENT = f"""<section id="saison" class="band">
   ("Janvier", "Le <span class='it'>départ.</span>",
    "La saison s'ouvre. Vous diffusez un lien, chacun crée son compte. Vos équipes voient "
    "les besoins publiés par les associations proches de vos sites."),
-  ("Février à octobre", "Le <span class='it'>courant.</span>",
+  ("Février à octobre", "Les <span class='it'>missions.</span>",
    "Les missions se font, une par une. Un salarié se propose, l'association l'accueille, "
    "puis confirme que c'est arrivé. C'est cette confirmation qui compte."),
   ("Chaque trimestre", "Le <span class='it'>point.</span>",
@@ -911,18 +913,18 @@ CHANGE_ENT = f"""<section id="change" class="band">
         "tous les jours.")}
 
 {retombees([
-  ("Un dossier d'appel d'offres qui <span class='it'>tient.</span>",
+  ("Des chiffres datés pour vos <span class='it'>appels d'offres.</span>",
    "Depuis le 21 août 2026, toute nouvelle consultation de marché public comporte un critère "
    "environnemental, sans seuil de montant ni condition de secteur. Ce qu'on vous demande "
    "alors n'est pas une intention : ce sont des chiffres datés, avec leur méthode. C'est "
    "exactement ce que produit le rapport.",
-   "233 Md€", "de commande publique par an, dont environ 60 % vers des PME. Code de la "
-   "commande publique, art. L. 2152-7, entrée en vigueur fixée par le décret n° 2022-767 "
-   "du 2 mai 2022."),
+   "21.08.26", "Entrée en vigueur du critère environnemental pour toute nouvelle "
+   "consultation. Code de la commande publique, art. L. 2152-7, date fixée par le décret "
+   "n° 2022-767 du 2 mai 2022."),
   ("Des allégations que vous pouvez <span class='it'>écrire.</span>",
    "À partir du 27 septembre 2026, les allégations environnementales vagues sont encadrées "
    "dans toute l'Union. « Engagés pour la planète » devient difficile à tenir ; "
-   "« 42 demi-journées confirmées par 7 associations en 2027 » se défend tout seul.",
+   "« 42 demi-journées confirmées par 7 associations en 2027 » tient devant un contrôle.",
    "27.09.26", "Entrée en application de la directive (UE) 2024/825."),
   ("Des équipes qui se <span class='it'>parlent.</span>",
    "Une demi-journée de chantier met dans la même camionnette des gens qui ne se croisent "
@@ -1270,19 +1272,22 @@ HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
   <div class="layer">
     <p class="eyebrow mono">Gratuit pour les associations, sans exclusivité</p>
     <h1 class="h1 h1--doc">Dites ce dont vous avez besoin.<br>
-      <span class="it">Des entreprises se disputent le droit de vous aider.</span></h1>
+      <span class="it">Des salariés d'entreprises proches viennent le faire.</span></h1>
 
     <div class="doc-tete">
       <div class="doc-intro">
         <p>Vous publiez une annonce : des bras pour un samedi, du matériel, un coup de main
           financier. Des salariés d'entreprises abonnées se proposent. Quand c'est fait, vous
           confirmez en un clic depuis un courriel.</p>
-        <p>Les entreprises, elles, jouent une saison et un classement. Aider une association
-          est ce qui les fait monter. Vous êtes la raison pour laquelle elles sont là.</p>
+        <p>Les entreprises suivent une saison d'engagement, avec un classement entre elles.
+          Les points ne comptent qu'après votre confirmation : c'est vous qui décidez si la
+          mission a eu lieu.</p>
         <div class="hero-cta">
           <a class="btn btn-lg" href="#commencer"><span class="dot"></span>Inscrire mon association</a>
           <a class="tlink" href="#comment">Voir comment ça marche</a>
         </div>
+        <p class="doc-garanties">Gratuit. Sans exclusivité. Sans commission sur vos dons.
+          Rien à installer.</p>
         <p class="doc-micro">Cinq minutes, et une personne de l'équipe vous rappelle.</p>
       </div>
 
@@ -1310,7 +1315,8 @@ HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
 
     {capture("asso-tableau",
              "Le tableau de bord d'une association dans Riseva",
-             "Votre tableau de bord", " shot--large")}
+             "Le tableau de bord d'une association, avec des chiffres de démonstration",
+             " shot--large")}
   </div>
 </header>"""
 
@@ -1318,12 +1324,12 @@ HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
 COMMENT_ASSO = f"""<section id="comment" class="band">
   <div class="layer">
 {entete("Comment ça marche", "Trois gestes,<br><span class='it'>et c'est tout.</span>",
-        "Le reste est de notre côté.")}
+        "Riseva se charge du reste : les invitations, les rappels, et le suivi des missions.")}
 
 {etapes([
   ("Vous publiez", "Une <span class='it'>annonce.</span>",
-   "Ce dont vous avez besoin, pour quelle date, combien de personnes. Cinq minutes. Si écrire "
-   "vous rebute, appelez-nous et nous la rédigeons avec vous."),
+   "Ce dont vous avez besoin, pour quelle date, combien de personnes. Cinq minutes. Si vous "
+   "préférez, appelez-nous : nous la rédigeons avec vous."),
   ("Des salariés répondent", "Ils <span class='it'>viennent.</span>",
    "Les salariés des entreprises abonnées proches de chez vous voient l'annonce et se "
    "proposent. Vous voyez qui vient et pour quelle date."),
@@ -1338,8 +1344,8 @@ COMMENT_ASSO = f"""<section id="comment" class="band">
 CHALLENGE_ASSO = f"""<section id="challenge">
   <div class="layer">
 {entete("Pourquoi elles viennent", "Les entreprises jouent<br><span class='it'>une saison.</span>",
-        "Chacune veut monter au classement, et le seul moyen de monter est de vous aider "
-        "pour de vrai.")}
+        "Les points ne comptent qu'après votre confirmation. Une mission que vous ne "
+        "confirmez pas ne rapporte rien à personne.")}
 
     <div class="photos3">
       {photo("refuge", "Un chien recueilli, allongé dans un box de refuge", "")}
@@ -1349,7 +1355,7 @@ CHALLENGE_ASSO = f"""<section id="challenge">
     </div>
 
     <div class="trois3">
-      <div><h4>Elles marquent quand vous confirmez</h4>
+      <div><h4>Les points comptent quand vous confirmez</h4>
         <p>Une mission ne rapporte rien tant que vous n'avez pas dit qu'elle avait eu lieu.
           C'est vous qui tenez le stylo.</p></div>
       <div><h4>Elles cherchent près de chez vous</h4>
@@ -1381,7 +1387,7 @@ ARGENT_ASSO = f"""<section id="argent" class="band-moss">
         <h3>Les reçus fiscaux restent les vôtres</h3>
         <p>C'est vous qui émettez le reçu, comme aujourd'hui. Riseva prépare les informations
           et vous laisse signer : la responsabilité du reçu appartient à l'association qui
-          l'émet, et il n'y a pas de raison que ça change.</p>
+          l'émet, et elle y reste.</p>
         <p><a class="tlink" href="/charte-associations.html">La charte des associations</a></p>
       </div>
     </div>

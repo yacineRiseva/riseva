@@ -83,7 +83,7 @@ if (rea.liste.length){
           <span class="realis__n">${nb(Math.round(x.quantite))}</span>
           <span class="realis__l">${esc(x.pl)}</span></div>`).join("")}
       </div>
-      <p class="hint" style="margin-top:var(--s8)">
+      <p class="hint" style="margin-top:var(--s8);max-width:64ch">
         Réalisés par ${esc(a.nom)} avec le concours de salariés d'entreprises abonnées, sur
         ${rea.missions} mission${rea.missions > 1 ? "s" : ""} confirmée${rea.missions > 1 ? "s" : ""}
         par l'association elle-même.</p>
