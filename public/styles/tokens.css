@@ -34,6 +34,12 @@
      Réservé aux états réellement validés et à la marque sur fond forêt. */
   --lime:#C9F24B;
   --lime-600:#A9D22B;
+  /* La teinte claire du lime. Elle existe pour une raison precise : le lime ne
+     peut pas ecrire sur du papier (1,1:1), donc les ecrans sans surface sombre
+     n'avaient pas un pixel de la couleur de la marque. Sur ce fond-la, l'encre
+     rend 15,8:1 et le gris de second plan 7,2:1 : c'est une surface de reussite
+     lisible, pas un aplat decoratif. */
+  --lime-100:#E4F5B3;
   --brand:#6DBE45;          /* le vert du logo, pont entre forêt et lime */
   --brand-700:#4F9A2E;
   --brand-800:#3B6D11;      /* seul vert lisible en texte sur papier */

@@ -1622,7 +1622,10 @@ function vueClassement(u){
 
     cl.forEach(e => {
       const moiOrg = e.id === u.org;
-      tb.appendChild(h(`<tr style="${moiOrg ? "background:var(--forest-050)" : ""}">
+      /* Votre ligne dans le classement porte la couleur de la marque plutot
+         qu'un gris vert de plus : c'est la seule ligne que le lecteur cherche,
+         et l'encre y rend quinze pour un. */
+      tb.appendChild(h(`<tr${moiOrg ? ` class="est-moi"` : ""}>
         <td class="tnum" style="font-family:var(--font-display);font-size:var(--t-lg);
           color:${moiOrg ? "var(--forest-800)" : "var(--ink-500)"};width:52px">${e.rang}</td>
         <td>
@@ -9087,8 +9090,31 @@ const ROUTES = {
   },
   association: {
     tableau:    [tableauAsso,  "Tableau de bord"],
-    mesannonces:[(u) => { const d = h(`<section class="card"></section>`);
-                          d.appendChild(tableAnnoncesAsso(DB.annonces({ asso: u.org }), u)); return d; }, "Mes annonces"],
+    /* Une table grise dans une carte, et rien d'autre : c'etait l'ecran le plus
+       administratif du produit, et c'est celui qu'une association ouvre le plus
+       souvent. Une carte de tete lui donne son chiffre, celui qu'elle vient
+       verifier : combien de places restent a prendre. */
+    mesannonces:[(u) => {
+      const anns = DB.annonces({ asso: u.org });
+      const ouvertes = anns.filter(a => a.etat === "ouverte");
+      const places = ouvertes.filter(a => !estArgent(a.type))
+                             .reduce((n, a) => n + (a.restant || 0), 0);
+      const d = h(`<div class="stack" style="--gap:var(--s5)">
+        <section class="card card--dark grain">
+          <span class="kpi__label" style="color:var(--forest-100);opacity:.75">Ce qui vous attend</span>
+          <span class="kpi__value" style="color:var(--lime)">${nb(places)}</span>
+          <span class="kpi__delta" style="color:var(--forest-100);opacity:.75">${
+            ouvertes.length
+              ? `place${places > 1 ? "s" : ""} encore libre${places > 1 ? "s" : ""} sur
+                 ${nb(ouvertes.length)} annonce${ouvertes.length > 1 ? "s" : ""} ouverte${
+                 ouvertes.length > 1 ? "s" : ""}`
+              : `aucune annonce ouverte pour l'instant : personne ne peut se positionner`}</span>
+        </section>
+        <section class="card" id="tableAnn"></section>
+      </div>`);
+      d.querySelector("#tableAnn").appendChild(tableAnnoncesAsso(anns, u));
+      return d;
+    }, "Mes annonces"],
     avalider:   [vueAValider,  "Missions à valider"],
     page:       [vuePageAsso,  "Ma page publique"],
     dossier:    [vueDossierAsso, "Mon dossier"],
@@ -9147,6 +9173,15 @@ function rendre(){
   const el = coquille(u, fn(u), titre, actions,
     nom === "ensemble" ? "Depuis le lancement" : DB.saison().nom);
   root.appendChild(el);
+  /* Les barres partent de zero et se remplissent une fois l'ecran pose. La
+     transition CSS existait depuis le debut et ne jouait jamais : une largeur
+     ecrite dans l'attribut `style` au moment du rendu n'a pas d'etat de depart
+     a quitter. Deux images suffisent a lui en donner un. */
+  const barres = [...el.querySelectorAll(".bar > i")].map(i => {
+    const w = i.style.width; i.style.width = "0"; return [i, w];
+  });
+  requestAnimationFrame(() => requestAnimationFrame(() =>
+    barres.forEach(([i, w]) => { i.style.width = w; })));
   el.querySelector("#np")?.addEventListener("click", () => formAnnonce(u));
 }
 

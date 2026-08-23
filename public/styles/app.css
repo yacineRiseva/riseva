@@ -564,3 +564,32 @@
 /* Une table large defile dans son cadre au lieu de deborder par-dessus la
    carte voisine, ce qu'elle faisait sur l'ecran Equipe a 1440 pixels. */
 .tableau{ overflow-x:auto; }
+
+/* ============ Un peu de vie, et rien de plus ============ */
+/* Trois gestes, pas un de plus. Le produit ne doit pas avoir l'air d'une
+   demonstration technique : le mouvement sert a montrer qu'un chiffre vient
+   d'arriver, jamais a occuper l'oeil. Tout est annule par le reset
+   `prefers-reduced-motion` de base.css. */
+
+/* 1. L'arrivee d'un ecran. Chaque navigation se posait d'un coup, comme un
+      rechargement de page en 2004. */
+@keyframes arrivee{ from{ opacity:0; transform:translateY(8px) } }
+.content > *{ animation:arrivee 240ms var(--ease) backwards; }
+.content > *:nth-child(2){ animation-delay:40ms; }
+.content > *:nth-child(3){ animation-delay:80ms; }
+.content > *:nth-child(4){ animation-delay:120ms; }
+.content > *:nth-child(n+5){ animation-delay:160ms; }
+
+/* 2. Les barres se remplissent. La transition etait declaree depuis le debut et
+      ne jouait jamais : la largeur est posee en style au moment du rendu, donc
+      il n'y a pas d'etat de depart a quitter. On part de zero et on laisse le
+      navigateur peindre une image avant de poser la vraie largeur. */
+.bar > i{ transition:width 600ms var(--ease); }
+
+/* 3. La surface de reussite en lime clair. Le lime ne peut pas ecrire sur du
+      papier ; il peut servir de fond. C'est la seule facon d'avoir la couleur
+      de la marque sur un ecran sans carte sombre. */
+.rappel:hover{ background:var(--lime-100); color:var(--ink); }
+.mini:hover{ background:var(--lime-100); }
+tr.est-moi > td{ background:var(--lime-100); }
+.badge--lime-clair{ background:var(--lime-100); color:var(--ink); }
