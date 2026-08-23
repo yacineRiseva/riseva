@@ -72,7 +72,7 @@ def lire_tarifs():
     }
 
 TARIFS = lire_tarifs()
-EUR = lambda n: f"{n:,}".replace(",", "\u202f") + " €"
+EUR = lambda n: f"{n:,}".replace(",", "&nbsp;") + "&nbsp;€"
 
 
 FEUILLE = "riseva-mark"   # favicon
@@ -136,7 +136,7 @@ def pied(pitch, colonnes, barre):
     </div>{cols}
   </div>
   <div class="foot-bar">
-    <span>© 2026 Riseva</span>
+    <span>&copy; 2026 Riseva</span>
     <span>{barre}</span>
   </div>
 </footer>"""
@@ -229,7 +229,7 @@ def etapes(items):
         d = f" d{n}" if n else ""
         out += f"""
         <li class="rv{d}">
-          <b class="mono">{n + 1:02d} · {quand}</b>
+          <b class="mono">{n + 1:02d} - {quand}</b>
           <h3>{titre}</h3>
           <p>{corps}</p>
         </li>"""
@@ -369,17 +369,17 @@ def faq(items):
 
 NAV_ENT = nav(
     [("saison", "Le déroulé"), ("equipes", "Côté salariés"),
-     ("associations", "Côté associations"), ("pilotage", "Ce que vous pilotez"),
-     ("affiches", "Les affiches"), ("prix", "Le prix"), ("faq", "Questions")],
+     ("associations", "Côté associations"), ("outil", "L'outil RSE"),
+     ("pilotage", "Ce que vous pilotez"), ("prix", "Le prix"), ("faq", "Questions")],
     "Explorer la plateforme", "/app/", "Démonstration libre, sans rendez-vous")
 
 PIED_ENT = pied(
     "Riseva met des entreprises françaises au service des associations qui protègent "
     "le vivant, partout en France. Une saison, un barème public, un rapport qui tient debout.",
     [("La saison", [("#saison", "Le déroulé"), ("#equipes", "Côté salariés"),
-                    ("#associations", "Côté associations"),
+                    ("#associations", "Côté associations"), ("#outil", "L'outil RSE"),
                     ("#pilotage", "Ce que vous pilotez"), ("#affiches", "Les affiches"),
-                    ("#perimetres", "Groupes et services RSE"),
+                    ("#perimetres", "Groupes et périmètres"),
                     ("#prix", "Le prix")]),
      ("Les règles", [("/reglement.html", "Le règlement du barème"),
                      ("/engagements.html", "Engagements de service"),
@@ -389,7 +389,7 @@ PIED_ENT = pied(
                           ("/inscription.html", "Réserver une place"),
                           ("mailto:contact@riseva.fr", "contact@riseva.fr"),
                           ("/mentions.html", "Mentions légales")])],
-    "Saison 2027 · préinscriptions ouvertes")
+    "Saison 2027, préinscriptions ouvertes")
 
 
 # ── briques de preuve ───────────────────────────────────────────────────────
@@ -513,6 +513,30 @@ def chiffres(items):
     return f'<div class="chiffres">{lis}\n      </div>'
 
 
+def piliers(items):
+    """Les quatre dimensions du produit, en haut de page.
+
+    Ce que ce bloc corrige : la page annonçait les quatre choses que Riseva fait
+    — le terrain, le collectif, l'outil, la preuve — mais elles étaient dissoutes
+    dans deux paragraphes d'introduction. Un visiteur qui lit en diagonale, et
+    c'est tout le monde, en retenait une sur quatre, et rarement la même.
+
+    Ce ne sont pas des arguments : chaque case porte un fait vérifiable et mène à
+    la section qui le développe. Une case sans chiffre serait une promesse, et
+    quatre promesses côte à côte se lisent comme une plaquette."""
+    out = ""
+    for n, (cle, titre, corps, ancre) in enumerate(items):
+        d = f" d{n}" if n else ""
+        out += f"""
+        <a class="pil rv{d}" href="#{ancre}">
+          <span class="pil-n mono">{n + 1:02d}</span>
+          <span class="pil-k mono">{cle}</span>
+          <span class="pil-h">{titre}</span>
+          <span class="pil-p">{corps}</span>
+        </a>"""
+    return f'    <div class="piliers">{out}\n    </div>'
+
+
 def objection(question, reponse):
     """Une question fréquente, et sa réponse en une phrase.
 
@@ -535,23 +559,23 @@ def objection(question, reponse):
 
 HERO_ENT = f"""<header class="hero hero--doc" id="hero">
   <div class="layer">
-    <p class="eyebrow mono">Plateforme RSE · entreprises et groupes multi-sites</p>
-    <h1 class="h1 h1--doc">Des actions locales pour vos équipes.<br>
-      <span class="it">Des résultats documentés pour l'entreprise.</span></h1>
+    <p class="eyebrow mono">Plateforme RSE, challenge de saison, associations du vivant</p>
+    <h1 class="h1 h1--doc">Vos équipes sur le terrain.<br>
+      <span class="it">Vos chiffres RSE, sans courir après personne.</span></h1>
 
     <div class="doc-tete">
     <div class="doc-intro">
       <p>Riseva organise une <b>saison d'engagement</b> d'un an autour d'<b>associations
-        vérifiées</b> proches de vos sites. Vos salariés choisissent une action, l'association
-        confirme ce qui a été réalisé, et vos rapports se construisent au fil de l'année.</p>
-      <p>Avec, dans le même abonnement, la <b>gestion RSE</b> qui va avec : indicateurs sociaux
-        et sécurité collectés site par site, registre des événements, plan d'actions, accès en
-        lecture pour le CSE, rapports trimestriels et rapport annuel, <b>sans module en
-        supplément</b>. Un classement situe les entreprises entre elles et donne un rendez-vous
-        commun à vos équipes, <b>sans nommer la moitié basse</b>.</p>
+        vérifiées</b> proches de vos sites : berges de rivière, forêts, refuges. Vos salariés
+        choisissent une action, y vont ensemble, et c'est <b>l'association qui confirme</b> ce
+        qui a été fait.</p>
+      <p>Dans le même abonnement, l'<b>outil RSE</b> qui va avec. Vous choisissez les rubriques
+        que vous demandez, chaque site les voit apparaître sur son écran, et quand tout le monde
+        a répondu le <b>rapport est déjà fait</b> : à l'écran, en classeur, en CSV. Vous ne
+        relancez personne, <b>et sans module en supplément</b>.</p>
       <div class="hero-cta">
         <a class="btn btn-lg" href="/app/"><span class="dot"></span>Explorer la plateforme</a>
-        <a class="tlink" href="#pilotage">Voir un rapport exemple</a>
+        <a class="tlink" href="#outil">Voir l'outil RSE</a>
       </div>
       <p class="doc-micro mono">Démonstration libre. Aucun rendez-vous, aucune carte
         bancaire.</p>
@@ -564,7 +588,7 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
       <div><dt class="mono">Tarif</dt><dd>de <b>{EUR(TARIFS['paliers'][0]['prix'])[:-2]} à
         {EUR(TARIFS['paliers'][-1]['prix'])} HT</b> l'an selon l'effectif, un à douze sites
         compris. Pas de facturation par salarié, pas de commission sur les dons.</dd></div>
-      <div><dt class="mono">Lancement</dt><dd>&minus;10 % pour les 20 premières entreprises,
+      <div><dt class="mono">Lancement</dt><dd>-10 % pour les 20 premières entreprises,
         sur leur première saison</dd></div>
       <div><dt class="mono">Le dossier</dt><dd><a href="/reglement.html">le règlement de la
         saison</a>, <a href="/cgv.html">les conditions de vente</a> et
@@ -573,13 +597,32 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
     </dl>
     </div>
 
+    {piliers([
+      ("Le terrain", "Des associations vérifiées<br><span class='it'>près de chaque site.</span>",
+       "Berges, forêts, refuges, maraudes. Des demi-journées réelles, pour quelqu'un d'autre, "
+       "avec un résultat visible le soir même. Riseva vérifie chaque structure avant de la "
+       "rendre visible.", "associations"),
+      ("Le collectif", "Un challenge d'un an<br><span class='it'>qui fédère les équipes.</span>",
+       "Un objectif compté en personnes et non en points : il ne s'atteint qu'en allant "
+       "chercher quelqu'un qui n'est pas encore venu. Le classement situe les entreprises "
+       "entre elles sans nommer la moitié basse.", "equipes"),
+      ("L'outil RSE", "Huit rubriques,<br><span class='it'>vingt-sept valeurs, dix taux.</span>",
+       "Effectifs, sécurité, formation, diversité, énergie et eau, déchets, mobilité, achats. "
+       "Collectés site par site, calculés avec leur formule à côté du chiffre, rendus en "
+       "classeur et en CSV. Registre de sécurité, fiche VSME et accès CSE compris.", "outil"),
+      ("La preuve", "Rien n'est<br><span class='it'>déclaratif.</span>",
+       "Le chiffre final vient de la structure qui était sur place, et chaque valeur porte sa "
+       "date, sa source et sa méthode. C'est la pièce qu'on vous demande en appel d'offres.",
+       "pilotage"),
+    ])}
+
     {chiffres([
       ("233 Md€", "de commande publique par an en France, dont environ 60 % vers des PME. "
         "Depuis le 21 août 2026, toute nouvelle consultation comporte un critère "
         "environnemental.",
-        "Loi Climat et résilience, art. 35 · code de la commande publique, art. L. 2152-7"),
+        "Loi Climat et résilience, art. 35, code de la commande publique, art. L. 2152-7"),
       ("60 %", "de réduction d'impôt sur le mécénat, jusqu'à 2 M€ de dons sur l'exercice, "
-        "dans la limite de 20 000 € ou 5 ‰ du chiffre d'affaires.",
+        "dans la limite de 20 000 € ou 5 pour mille du chiffre d'affaires.",
         "Article 238 bis du CGI"),
       ("14 j", "le délai au bout duquel une mission sans réponse est clôturée, avec son "
         "résultat marqué comme estimé partout où il apparaît. C'est notre engagement, et il "
@@ -600,7 +643,7 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
 
 SAISON_ENT = f"""<section id="saison" class="band">
   <div class="layer">
-{entete("Le déroulé", "Une saison,<br><span class='it'>quatre rendez‑vous.</span>",
+{entete("Le déroulé", "Une saison,<br><span class='it'>quatre rendez-vous.</span>",
         "Le rythme est le même pour tout le monde : un début, un courant, des points d'étape, "
         "une fin. Et une date à laquelle on regarde ce qui a réellement été fait.")}
 
@@ -731,7 +774,7 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
     </div>
 
     <p class="s-note"><a class="tlink" href="/asso.html?id=a1">Voir une fiche d'association</a>
-      &nbsp;·&nbsp; <a class="tlink" href="/associations.html">La page destinée aux associations</a></p>
+      &nbsp;-&nbsp; <a class="tlink" href="/associations.html">La page destinée aux associations</a></p>
   </div>
 </section>"""
 
@@ -784,6 +827,75 @@ PILOTAGE_ENT = f"""<section id="pilotage">
       <div><dt class="mono">Résultats déclarés</dt><dd>arbres, kilos, repas, animaux</dd></div>
       <div><dt class="mono">Méthode et sources</dt><dd>exportables, datées, versionnées</dd></div>
     </dl>
+  </div>
+</section>"""
+
+
+# ── l'outil RSE ─────────────────────────────────────────────────────────────
+# La section que la page n'avait pas, et qui est pourtant la moitié de ce qu'on
+# vend. Un responsable RSE n'achète pas un challenge : il achète de ne plus
+# passer trois semaines par an à réclamer des chiffres à quatorze sites. Le
+# challenge est ce qui fait venir les salariés ; l'outil est ce qui fait signer
+# le budget.
+#
+# Elle est écrite en quatre temps parce que c'est un enchaînement, pas une liste
+# de fonctionnalités : on demande, les sites répondent, personne ne relance, le
+# rapport existe. Chaque temps dit ce qu'il remplace dans la vie réelle de celui
+# qui lit.
+OUTIL_ENT = f"""<section id="outil" class="band">
+  <div class="layer">
+{entete("L'outil RSE", "Ce que vous ne referez plus<br><span class='it'>à la main.</span>",
+        "Ce qui coûte cher dans un programme RSE, ce n'est pas le calcul. C'est d'obtenir "
+        "les chiffres de chaque site, et de relancer jusqu'à ce que le dernier réponde.")}
+
+    {objection("On a déjà un tableur pour tout ça.",
+               "Riseva ne fait rien qu'un tableur ne sache faire. Elle fait ce qu'un tableur "
+               "ne fait pas : demander, prévenir à votre place, et vous dire qui manque "
+               "encore.")}
+
+{formats([
+  ("Vous demandez", "Les rubriques que vous voulez,<br><span class='it'>et rien d'autre.</span>",
+   "Effectifs, sécurité, formation, diversité, énergie et eau, déchets, mobilité, achats. "
+   "Vous cochez ce que vous demandez pour cette période, et l'écran vous dit combien de "
+   "valeurs chaque site devra trouver <b>avant</b> que la collecte parte. C'est le seul "
+   "chiffre qui prédit le taux de réponse : vingt-sept champs reviennent à moitié remplis, "
+   "six reviennent entiers."),
+  ("Les sites répondent", "Sur leur écran,<br><span class='it'>pas dans votre boîte.</span>",
+   "Chaque référent de site voit ce qu'on attend de lui, rangé par source : la paie pour les "
+   "effectifs, le registre pour la sécurité, les factures pour l'énergie. Chaque champ dit ce "
+   "qu'on compte et ce qu'on ne compte pas, pour que deux sites ne divergent pas en silence. "
+   "Celui qui saisit ne peut pas approuver sa propre saisie."),
+  ("Personne ne relance", "Le rappel part tout seul,<br><span class='it'>et il ne vient pas de vous.</span>",
+   "Tant qu'un site n'a pas répondu, il le voit sur son tableau de bord, avec le nombre de "
+   "jours qui restent. Vous, vous voyez qui manque, nommément. Aucun courriel à écrire, "
+   "aucune liste à tenir. Et si personne ne répond, la période se clôt <b>sans réponse</b> "
+   "plutôt que d'être comblée avec celle d'avant."),
+  ("Le rapport existe déjà", "À l'écran, en classeur,<br><span class='it'>en CSV.</span>",
+   "Quand tout le monde a répondu, il n'y a rien à consolider : totaux par rubrique avec le "
+   "nombre de sites sur lequel chaque somme porte, taux calculés sur les sommes et jamais en "
+   "moyenne de taux, valeurs manquantes listées site par site. Le classeur a un onglet par "
+   "rubrique et un onglet de définitions. Tout est fabriqué dans votre navigateur."),
+])}
+
+    {capture("indicateurs",
+             "L'écran de collecte des indicateurs dans Riseva : l'état de chaque site, les "
+             "totaux par rubrique et les taux calculés",
+             "La collecte, et le rapport qui en sort", " shot--seule")}
+
+    <dl class="faits4 faits4--serre">
+      <div><dt class="mono">Le dictionnaire</dt><dd>pour chaque clé, ce qu'on compte et ce
+        qu'on ne compte pas, daté avec la période</dd></div>
+      <div><dt class="mono">Le registre de sécurité</dt><dd>événements, circonstances, plan
+        d'actions avec ses échéances</dd></div>
+      <div><dt class="mono">La fiche VSME</dt><dd>les onze rubriques de la norme européenne
+        volontaire, et ce qui reste vide</dd></div>
+      <div><dt class="mono">L'accès CSE</dt><dd>en lecture, sans nominatif, et rien qui porte
+        sur moins de cinq personnes</dd></div>
+    </dl>
+
+    <p class="s-note">Riseva tient le classeur ; c'est vous qui signez. Les valeurs sont celles
+      que vos sites ont écrites, elles restent les vôtres, et la plateforme ne les interprète
+      pas. <a class="tlink" href="/app/">Ouvrir l'écran de collecte</a></p>
   </div>
 </section>"""
 
@@ -861,8 +973,8 @@ AFFICHES_ENT = f"""<section id="affiches">
 
 PERIMETRES_ENT = f"""<section id="perimetres" class="band">
   <div class="layer">
-{entete("Groupes et services RSE", "Un même cadre,<br><span class='it'>plusieurs périmètres.</span>",
-        "Deux portes d'entrée, et un écran pour les montrer.")}
+{entete("Groupes et périmètres", "Un même cadre,<br><span class='it'>plusieurs périmètres.</span>",
+        "Une société seule, ou un groupe et ses filiales. Un écran pour les montrer.")}
 
     {capture("groupe",
              "La vue consolidée d'un groupe : sociétés, sites et indicateurs réunis",
@@ -881,13 +993,13 @@ PERIMETRES_ENT = f"""<section id="perimetres" class="band">
         <p><a class="tlink" href="#prix">L'offre groupe est sur devis</a></p>
       </div>
       <div class="col">
-        <h3>Les services RSE, compris</h3>
-        <p>Douze valeurs sociales et de sécurité saisies par établissement, six indicateurs
-          calculés avec leur formule à côté du chiffre, et celui qui saisit ne peut pas
-          approuver sa propre saisie. Un registre des événements de sécurité et un registre
-          des dons de matériel au titre de la loi anti-gaspillage. Et un accès en lecture pour
-          le CSE, sans rien de nominatif ni d'agrégat sous cinq personnes.</p>
-        <p><a class="tlink" href="/reglement.html">Le règlement et les définitions</a></p>
+        <h3>Pour une société seule</h3>
+        <p>Le même produit, sans le niveau du dessus : un contrat, un plafond de mécénat, et
+          autant d'<b>établissements</b> que vous en avez. La collecte des indicateurs
+          fonctionne à l'identique, site par site, et le rapport porte alors sur la société.
+          Une société qui rejoint un groupe plus tard ne recommence rien : ses périodes
+          passées restent lisibles telles qu'elles ont été arrêtées.</p>
+        <p><a class="tlink" href="#outil">L'outil RSE, dans le détail</a></p>
       </div>
     </div>
   </div>
@@ -958,7 +1070,7 @@ FAQ_ENT = faq([
    "<p>Deux lignes, deux régimes. L'abonnement Riseva est une prestation de services : il "
    "entre dans vos charges, TVA récupérable. Le mécénat suit l'article 238 bis du CGI et "
    "donne droit à 60 % de réduction d'impôt jusqu'à <b>2 millions d'euros de dons sur "
-   "l'exercice</b>, puis 40 % au-delà, dans la limite de 20 000 € ou 5 ‰ du chiffre "
+   "l'exercice</b>, puis 40 % au-delà, dans la limite de 20 000 € ou 5 pour mille du chiffre "
    "d'affaires, le plus élevé des deux.</p>"
    "<p>Riseva calcule une estimation à partir de ce qu'elle connaît, et attend votre chiffre "
    "d'affaires, vos dons faits ailleurs et vos reports antérieurs avant d'afficher un "
@@ -1090,14 +1202,14 @@ def grille_tarifaire():
       <p class="tar-sim-cta"><a class="btn" href="/inscription.html">Recevoir un devis daté</a>
         <span class="mono">Le devis reprend exactement ce calcul.</span></p>
       <div class="tar-sim-notes">
-        <p class="tar-n"><b>Tarif fondateur : &minus;{int(TARIFS['fondateur_taux'] * 100)} %</b>
+        <p class="tar-n"><b>Tarif fondateur : -{int(TARIFS['fondateur_taux'] * 100)} %</b>
           pour les {TARIFS['fondateur_places']} premières entreprises qui signent, jusqu'au
           31 décembre 2026. Il porte sur votre <b>première saison, et sur elle seule</b> :
           nous ne garantissons le prix d'aucune saison que nous n'avons pas encore vécue.
           Passé ces places, la grille s'applique telle quelle.</p>
         <p class="tar-n"><b>Règlement :</b> {int(TARIFS['acompte_taux'] * 100)} % à la commande,
           le solde à trente jours après l'ouverture de votre saison ; règlement intégral à la
-          commande, &minus;{int(TARIFS['remise_comptant'] * 100)} %. L'acompte paie le premier
+          commande, -{int(TARIFS['remise_comptant'] * 100)} %. L'acompte paie le premier
           envoi d'affiches et l'ouverture de vos comptes, qui partent avant la première
           mission. Il y a {TARIFS['affiches']} envois dans la saison.</p>
       </div>
@@ -1115,11 +1227,12 @@ CORPS_ENT = "\n\n".join([
     EQUIPES_ENT,        # 3. « est-ce que mes équipes vont y aller ? »
     ASSOCIATIONS_ENT,   # 4. « et s'il n'y a rien autour de mon site ? »
     PILOTAGE_ENT,       # 5. « qu'est-ce que j'y gagne ? »
-    CHANGE_ENT,         # 6. trois effets, et leur date
-    AFFICHES_ENT,       # 7. le seul objet Riseva qu'un salarié voit sans écran
-    PERIMETRES_ENT,     # 8. groupes et services RSE, en porte d'entrée
-    PRIX_ENT,           # 9. la grille, et le devis à côté
-    FAQ_ENT,            # 10. les questions qui décident vraiment
+    OUTIL_ENT,          # 6. « et le travail que ça m'épargne ? »
+    CHANGE_ENT,         # 7. trois effets, et leur date
+    AFFICHES_ENT,       # 8. le seul objet Riseva qu'un salarié voit sans écran
+    PERIMETRES_ENT,     # 9. groupes et services RSE, en porte d'entrée
+    PRIX_ENT,           # 10. la grille, et le devis à côté
+    FAQ_ENT,            # 11. les questions qui décident vraiment
     BANDEAU_ENT,
 ])
 
@@ -1150,7 +1263,7 @@ PIED_ASSO = pied(
                           ("/asso.html?id=a1", "Voir une page d'association"),
                           ("mailto:contact@riseva.fr", "contact@riseva.fr"),
                           ("/mentions.html", "Mentions légales")])],
-    "Gratuit pour les associations · toujours")
+    "Gratuit pour les associations, toujours")
 
 
 HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
@@ -1333,7 +1446,7 @@ CONTACT_ASSO = f"""<section id="commencer">
         <p class="j-hint" id="jHint">Pas de dossier à monter, pas de pièce à joindre. On vous rappelle et on part de là.</p>
         <div class="j-cta">
           <button type="submit" class="btn btn-lg"><span class="dot"></span>Envoyer</button>
-          <span class="mono">contact@riseva.fr · une personne, pas un robot</span>
+          <span class="mono">contact@riseva.fr, une personne, pas un robot</span>
         </div>
         <p class="j-msg" id="jMsg" role="status" aria-live="polite"></p>
       </div>
@@ -1343,7 +1456,7 @@ CONTACT_ASSO = f"""<section id="commencer">
           <div class="bl-body">
             <div class="bl-top">
               <span class="mono">Prise de contact</span>
-              <span class="bl-ref mono" id="blRef">RSV-AS-••••</span>
+              <span class="bl-ref mono" id="blRef">RSV-AS-....</span>
             </div>
             <ul class="bl-rows">
               <li data-key="asso"><i class="bl-tick"></i><span class="bl-k">Association</span><span class="bl-v">à compléter</span></li>
@@ -1358,7 +1471,7 @@ CONTACT_ASSO = f"""<section id="commencer">
               </svg>
               <span class="bl-count mono" id="blCount">0 / 4</span>
             </div>
-            <div class="bl-stamp mono">Gratuit · sans engagement</div>
+            <div class="bl-stamp mono">Gratuit, sans engagement</div>
           </div>
         </div>
       </div>
@@ -1398,7 +1511,7 @@ CORPS_ASSO = "\n\n".join([
 
 def main():
     a = page(fichier="index.html", canonique="/",
-             titre="Riseva · la plateforme RSE qui commence par les associations",
+             titre="Riseva, la plateforme RSE qui commence par les associations",
              description="Des associations vérifiées publient des besoins concrets près de vos "
                          "sites, vos équipes y répondent autour d'un même objectif, et la gestion "
                          "RSE suit : indicateurs sociaux, registre de sécurité multi-sites, accès "
@@ -1406,7 +1519,7 @@ def main():
              corps=CORPS_ENT, nav_html=NAV_ENT, pied_html=PIED_ENT,
              classe_corps="vd", rubans=False)
     b = page(fichier="associations.html", canonique="/associations.html",
-             titre="Riseva · pour les associations",
+             titre="Riseva, pour les associations",
              description="Publiez un besoin concret, des salariés d'entreprises abonnées peuvent "
                          "y répondre. Gratuit, sans intégration technique, sans exclusivité et "
                          "sans commission sur vos dons.",

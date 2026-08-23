@@ -68,7 +68,7 @@ GABARIT = """<!DOCTYPE html>
 <footer class="foot"><div class="wrap">
   <div class="between">
     <a href="/" class="logo"><img src="/brand/riseva-full.png" alt="Riseva" style="height:20px"></a>
-    <span style="font-size:var(--t-xs);color:var(--ink-400)">© 2026 Riseva · contact@riseva.fr</span>
+    <span style="font-size:var(--t-xs);color:var(--ink-400)">© 2026 Riseva, contact@riseva.fr</span>
   </div>
 </div></footer>
 </body>
@@ -150,13 +150,13 @@ Le calcul est refait chaque lundi matin.</p>
 <h3>Un exemple qui se vérifie à la main</h3>
 <div class="calcul">
   <div class="calcul__ligne"><span>Entreprise de 210 salariés</span><span></span></div>
-  <div class="calcul__ligne"><span>Bénévolat : 84 demi-journées × 150</span><span>12 600 pts</span></div>
-  <div class="calcul__ligne"><span>Don financier : 7 800 € ÷ 10 × 1</span><span>780 pts</span></div>
+  <div class="calcul__ligne"><span>Bénévolat : 84 demi-journées x 150</span><span>12 600 pts</span></div>
+  <div class="calcul__ligne"><span>Don financier : 7 800 € / 10 x 1</span><span>780 pts</span></div>
   <div class="calcul__ligne"><span>Total brut</span><span>13 380 pts</span></div>
   <div class="calcul__ligne"><span>Plafond par format : 50 % de 13 380</span><span>6 690 pts</span></div>
-  <div class="calcul__ligne"><span>Bénévolat écrêté à 6 690, don retenu en entier</span><span>− 5 910 pts</span></div>
+  <div class="calcul__ligne"><span>Bénévolat écrêté à 6 690, don retenu en entier</span><span>- 5 910 pts</span></div>
   <div class="calcul__ligne calcul__ligne--total"><span>Points retenus</span><span>7 470 pts</span></div>
-  <div class="calcul__ligne calcul__ligne--total"><span>Score : 7 470 ÷ 210</span><span>35,6 pts / salarié</span></div>
+  <div class="calcul__ligne calcul__ligne--total"><span>Score : 7 470 / 210</span><span>35,6 pts / salarié</span></div>
 </div>
 <p>Chaque entreprise peut télécharger le détail de ses missions au format CSV et refaire ce calcul.
 Si les deux ne concordent pas, écrivez-nous : c'est nous qui avons tort.</p>
@@ -1055,7 +1055,7 @@ Réponse sous deux jours ouvrés.</p>
 # ---------------------------------------------------------------- mentions légales
 # La base légale a changé et beaucoup de modèles en ligne ne l'ont pas vu : depuis
 # la loi SREN du 21 mai 2024, l'obligation ne vit plus à l'article 6 III de la LCEN
-# — qui n'existe plus — mais à l'**article 1-1**, avec les sanctions à l'article
+# - qui n'existe plus - mais à l'**article 1-1**, avec les sanctions à l'article
 # 1-2. Le SREN a aussi ajouté une mention que personne n'avait avant : les
 # sous-traitants qui stockent les données (art. 1-1, I, 5°).
 # Trois mentions dépendent d'une immatriculation qui n'est pas encore délivrée. On

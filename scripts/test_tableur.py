@@ -93,7 +93,7 @@ def main():
     dit("le dictionnaire dit ce qu'on compte et ce qu'on ne compte pas",
         [c.value for c in d[1]][:4] == ["Clé", "Rubrique", "Indicateur", "Unité"])
 
-    print(f"\n  {meta['campagne']} — {len(meta['onglets'])} onglets, "
+    print(f"\n  {meta['campagne']}, {len(meta['onglets'])} onglets, "
           f"{sum(meta['lignes'])} lignes")
     shutil.rmtree(tmp, ignore_errors=True)
     return 1 if rates else 0

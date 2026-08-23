@@ -95,8 +95,8 @@ def main():
         # acheter, et « il vous faut des bras » réduisait la relation associative à
         # une fourniture de main-d'œuvre. Le titre dit maintenant ce qu'on vend.
         verifie("l'accueil affiche le titre",
-                "Des actions locales pour vos équipes" in p.inner_text("h1")
-                and "résultats documentés" in p.inner_text("h1"))
+                "Vos équipes sur le terrain" in p.inner_text("h1")
+                and "sans courir après personne" in p.inner_text("h1"))
         t = norm(p.inner_text(".hero"))
         verifie("le prix est visible dès l'accueil", "2 400" in t and "18 500 €" in t)
         verifie("la remise de lancement est plafonnée en nombre",
@@ -137,7 +137,21 @@ def main():
                 "premier envoi d'affiches" in prixT)
 
         verifie("l'accueil positionne la plateforme RSE sans lâcher l'axe associatif",
-                "gestion RSE" in t and "associations vérifiées" in t)
+                "outil RSE" in t and "associations vérifiées" in t)
+        # Les quatre dimensions du produit doivent se lire sans défiler : le
+        # terrain, le collectif, l'outil, la preuve. Dissoutes dans un
+        # paragraphe, un visiteur en retenait une sur quatre.
+        # Les clés sont capitalisées par la feuille de style : on compare donc
+        # sans la casse, sinon le test mesure `text-transform` et pas le texte.
+        verifie("les quatre dimensions se lisent dès le haut de page",
+                all(x in t.lower() for x in ["le terrain", "le collectif",
+                                             "l'outil rse", "la preuve"]))
+        verifie("le challenge est annoncé comme ce qui fédère les équipes",
+                "qui fédère les équipes" in t)
+        verifie("la dimension environnementale est nommée, pas suggérée",
+                "Berges, forêts, refuges" in t)
+        verifie("l'étendue de l'outil est chiffrée, pas promise",
+                "Huit rubriques" in t and "vingt-sept valeurs" in t)
         verifie("il annonce que la moitié basse du classement n'est pas nommée",
                 "sans nommer la moitié basse" in t)
         verifie("les services RSE sont annoncés comme compris",
@@ -1348,7 +1362,7 @@ def main():
         verifie("la vue de groupe agrège les sociétés et les sites",
                 "Vaudrey Ciments" in g and "Vaudrey Négoce" in g and "Marseille" in g)
         verifie("le consolidé est un rapport de sommes, et le dit",
-                "somme des points ÷ somme des effectifs" in g)
+                "somme des points / somme des effectifs" in g)
         verifie("la réduction d'impôt n'est pas un chiffre de groupe",
                 "société par société" in g and "calcul fiscal complet" in g)
         verifie("le classement entre sites est désactivé par défaut",
@@ -1436,7 +1450,7 @@ def main():
         verifie("le taux d'emploi OETH n'est pas calculé au niveau du site",
                 "ne calcule pas le taux d'emploi" in i)
         verifie("les formules sont écrites à côté des taux",
-                "× 1 000 000 ÷ heures travaillées" in i)
+                "x 1 000 000 / heures travaillées" in i)
         verifie("le consolidé n'est pas une moyenne de taux",
                 "rapport de sommes" in i)
         verifie("aucun classement entre sites sur la sécurité",
@@ -1782,7 +1796,7 @@ def main():
                 "2025/1710" in vt and "réserve" not in vt.lower()[:200])
         verifie("elle prévient que le texte est en cours de reprise",
                 "acte délégué" in vt)
-        verifie("les onze rubriques sont là", all(f"B{n} ·" in vt for n in range(1, 12)))
+        verifie("les onze rubriques sont là", all(f"B{n}," in vt for n in range(1, 12)))
         verifie("ce que Riseva sait est rempli",
                 "Renseignée par Riseva" in vt and "Missions confirmées par les associations" in vt)
         verifie("les résultats retenus sont les confirmés, pas les estimations",
@@ -1790,8 +1804,15 @@ def main():
         verifie("ce qu'elle ne sait pas est dit, pas laissé vide",
                 "Non couverte" in vt and "Ce que Riseva n'a pas" in vt)
         verifie("une rubrique non couverte n'est jamais montrée à zéro",
-                "Consommations d'énergie et émissions des scopes 1, 2 et 3" in vt
-                and "ne l'estimera pas à votre place" in vt)
+                "Rejets et polluants déclarés" in vt
+                and "Non couverte" in vt)
+        # La distinction qui protège : Riseva rend des kilowattheures, elle ne
+        # les convertit pas en tonnes de CO2. Passer de l'un à l'autre demande
+        # un facteur d'émission, donc un choix de méthode qui appartient au
+        # client. Si cette phrase disparaissait, la fiche laisserait croire à un
+        # bilan carbone.
+        verifie("une consommation n'est pas présentée comme une émission",
+                "elle ne les convertit pas en tonnes de CO2" in vt)
         verifie("la sécurité y remonte avec ses taux calculés",
                 "Accidents du travail avec arrêt" in vt and "(calculé)" in vt)
         verifie("les décès et maladies professionnelles sont explicitement hors périmètre",
@@ -1814,8 +1835,8 @@ def main():
         }""")
         verifie("la couverture annoncée correspond aux rubriques réellement remplies",
                 vf["couvertes"] == vf["total"] - len(vf["vides"]), str(vf["vides"]))
-        verifie("les quatre rubriques environnementales pures restent vides",
-                set(["B3", "B4", "B5", "B6"]).issubset(set(vf["vides"])), str(vf["vides"]))
+        verifie("les rubriques que Riseva ne collecte pas restent vides",
+                set(["B4", "B5", "B11"]).issubset(set(vf["vides"])), str(vf["vides"]))
         verifie("la sécurité ne sort pas des valeurs nulles",
                 all(v is not None for _, v in vf["b9"]), str(vf["b9"]))
 
@@ -1891,7 +1912,7 @@ def main():
         verifie("une partie du classement est anonymisée",
                 0 < cl["anonymes"] < cl["total"], str(cl["anonymes"]) + "/" + str(cl["total"]))
         verifie("aucune entreprise anonymisée ne laisse voir son nom",
-                all(not x["anonyme"] or x["nom"].startswith("Entreprise ·") for x in cl["noms"]),
+                all(not x["anonyme"] or x["nom"].startswith("Entreprise,") for x in cl["noms"]),
                 str(cl["noms"]))
         verifie("l'entreprise se voit toujours elle-même, même sous la médiane",
                 cl["moi"]["anonyme"] is False and cl["moi"]["rang"] > cl["mediane"],
@@ -1900,7 +1921,7 @@ def main():
         p.select_option("#cat", ""); p.wait_for_timeout(400)
         tab = norm(p.inner_text(".content"))
         verifie("le tableau affiche le libellé anonymisé, pas le nom",
-                "Entreprise ·" in tab)
+                "Entreprise," in tab)
         verifie("et il dit pourquoi", "moitié basse du classement" in tab)
 
         rg = p.evaluate("""async () => {
@@ -1963,8 +1984,8 @@ def main():
         p.click("#dicoI"); p.wait_for_timeout(400)
         dc = norm(p.inner_text(".modal"))
         verifie("le dictionnaire donne la formule et les deux termes du rapport",
-                "accidents avec arrêt × 1 000 000 ÷ heures travaillées" in dc
-                and "at_avec_arret ÷ heures_travaillees" in dc)
+                "accidents avec arrêt x 1 000 000 / heures travaillées" in dc
+                and "at_avec_arret / heures_travaillees" in dc)
         verifie("il dit qu'un taux de périmètre est un rapport de sommes",
                 "jamais une moyenne de taux" in dc)
         verifie("il porte les inclusions et les exclusions de chaque indicateur",

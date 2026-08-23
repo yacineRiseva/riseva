@@ -41,9 +41,17 @@ export const h = (html) => {
 export const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
   c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 
-export const nb  = (n) => new Intl.NumberFormat("fr-FR").format(Math.round(n));
-export const eur = (n) => new Intl.NumberFormat("fr-FR",{ style:"currency", currency:"EUR",
-  maximumFractionDigits:0 }).format(n);
+/* Les séparateurs de milliers, en espace ordinaire.
+   `Intl` produit une espace fine insécable (U+202F). Elle est typographiquement
+   juste et pratiquement nuisible : aucun clavier ne la produit, elle devient un
+   losange dans un courriel ou un tableur mal configuré, et elle empêche de
+   retrouver « 1 500 » dans une page qui l'affiche. On la ramène donc à l'espace
+   qu'on tape, ici et une seule fois, pour que tout ce qui est affiché puisse
+   être recopié tel quel. */
+const espacer = (s) => s.replace(/[\u202f\u00a0]/g, " ");
+export const nb  = (n) => espacer(new Intl.NumberFormat("fr-FR").format(Math.round(n)));
+export const eur = (n) => espacer(new Intl.NumberFormat("fr-FR",{ style:"currency",
+  currency:"EUR", maximumFractionDigits:0 }).format(n));
 export const dateFR = (s) => new Date(s).toLocaleDateString("fr-FR",
   { day:"numeric", month:"long", year:"numeric" });
 export const dateCourte = (s) => new Date(s).toLocaleDateString("fr-FR",
@@ -69,7 +77,7 @@ export function ecusson(nom, { logo = null, anonyme = false, taille = 30 } = {})
   if (anonyme)
     return `<span aria-hidden="true" style="${t};display:inline-flex;align-items:center;
       justify-content:center;background:var(--ink-050);color:var(--ink-400);
-      font-size:${Math.round(taille * 0.42)}px">•••</span>`;
+      font-size:${Math.round(taille * 0.42)}px">...</span>`;
   if (logo)
     return `<img src="${esc(logo)}" alt="" style="${t};object-fit:contain;
       background:var(--paper-high);border:1px solid var(--ink-100)">`;
@@ -311,7 +319,7 @@ export function jauge({ brut, ecrete, retenu, diviseur, cohorte, cause, unite = 
       représenter au maximum ${Math.round(PLAFOND * 100)} % du score retenu. Pour faire remonter
       votre score, diversifiez les formats d'engagement.</p>` : ""}
     ${parTete !== null ? `<div class="jauge__calcul">
-      <span>${nb(retenu)} points retenus ÷ ${nb(diviseur)} salariés</span>
+      <span>${nb(retenu)} points retenus / ${nb(diviseur)} salariés</span>
       <strong>${pct(parTete)} point${parTete > 1 ? "s" : ""} par salarié</strong>
     </div>` : ""}
     ${/* La cohorte est expliquée une fois, dans « Où vous en êtes ». La répéter

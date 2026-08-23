@@ -39,11 +39,11 @@ const root = document.getElementById("root");
    envie de mettre dans sa lettre d'information. Riseva n'apparaît que comme tiers
    organisateur, et ce qu'elle a vérifié est écrit exactement, avec sa date. */
 const hero = h(`<section class="assoHero"><div class="wrap">
-  <p class="eyebrow">${esc(a.cause)} · ${esc(a.ville)}</p>
+  <p class="eyebrow">${esc(a.cause)}, ${esc(a.ville)}</p>
   <h1 class="display" style="margin-top:var(--s5);max-width:18ch">${esc(a.nom)}</h1>
   ${a.nom_juridique && a.nom_juridique !== a.nom
     ? `<p class="muted" style="margin-top:var(--s3);font-size:var(--t-sm)">${esc(a.nom_juridique)}${
-        a.rna ? ` · RNA ${esc(a.rna)}` : ""}</p>` : ""}
+        a.rna ? `, RNA ${esc(a.rna)}` : ""}</p>` : ""}
   <p class="lede" style="margin-top:var(--s6)">${esc(a.resume)}</p>
   <div class="row" style="gap:var(--s3);flex-wrap:wrap;margin-top:var(--s6)">
     ${a.site ? `<a class="btn btn--ghost btn--sm" href="${esc(a.site)}" target="_blank"
@@ -166,7 +166,7 @@ annonces.forEach(an => {
       </div>
       <h4 style="margin-top:var(--s3)">${esc(an.titre)}</h4>
       <p>${esc(an.description)}</p>
-      <div class="offer__meta"><span>${esc(an.lieu)}</span><span>·</span>
+      <div class="offer__meta"><span>${esc(an.lieu)}</span><span>-</span>
         <span>${an.type === "don_financier" ? eur(an.restant) + " restants" : an.restant + (an.restant > 1 ? " places" : " place")}</span></div>
     </div>
     <div class="offer__side">

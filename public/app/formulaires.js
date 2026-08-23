@@ -57,7 +57,7 @@ export function brancher(form, { table, sujet, ligne, resume, merci }){
     e.preventDefault();
     const d = Object.fromEntries(new FormData(form).entries());
     const bouton = form.querySelector("[type=submit]");
-    if (bouton){ bouton.disabled = true; bouton.textContent = "Envoi…"; }
+    if (bouton){ bouton.disabled = true; bouton.textContent = "Envoi..."; }
     try {
       const parti = await versSupabase(table, ligne(d));
       if (parti) return conclure(form, merci(d));

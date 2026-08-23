@@ -168,7 +168,7 @@ export const ibanLisible = (v) => ibanNormalise(v).replace(/(.{4})/g, "$1 ").tri
 /* Version tronquée, pour les écrans où l'IBAN n'a pas à être lu en entier. */
 export const ibanCourt = (v) => {
   const s = ibanNormalise(v);
-  return s.length < 10 ? s : `${s.slice(0, 4)} …… ${s.slice(-4)}`;
+  return s.length < 10 ? s : `${s.slice(0, 4)} ...... ${s.slice(-4)}`;
 };
 
 /* Le reçu fiscal est émis par l'association, et par elle seule : c'est elle qui
@@ -877,63 +877,63 @@ export const INDICATEURS = {
     { cle:"tf1", rubrique:"securite", libelle:"Fréquence interne des accidents avec arrêt",
       unite:"", niveau:"tout périmètre", reglementaire:false,
       num:"at_avec_arret", den:"heures_travaillees",
-      formule:"accidents avec arrêt × 1 000 000 ÷ heures travaillées",
+      formule:"accidents avec arrêt x 1 000 000 / heures travaillées",
       note:"Indicateur interne. Le taux de fréquence de l'assurance maladie repose sur les accidents en premier règlement : ces deux chiffres ne se comparent pas.",
       calcul: (v) => v.heures_travaillees ? (v.at_avec_arret * 1e6) / v.heures_travaillees : null },
     { cle:"tf2", rubrique:"securite", libelle:"Fréquence interne, avec et sans arrêt",
       unite:"", niveau:"tout périmètre", reglementaire:false,
       num:"at_avec_arret + at_sans_arret", den:"heures_travaillees",
-      formule:"(accidents avec arrêt + sans arrêt) × 1 000 000 ÷ heures travaillées",
+      formule:"(accidents avec arrêt + sans arrêt) x 1 000 000 / heures travaillées",
       note:"Indicateur interne, utile pour suivre les presqu'accidents soignés sans arrêt.",
       calcul: (v) => v.heures_travaillees
         ? ((v.at_avec_arret + v.at_sans_arret) * 1e6) / v.heures_travaillees : null },
     { cle:"tg", rubrique:"securite", libelle:"Gravité interne",
       unite:"", niveau:"tout périmètre", reglementaire:false,
       num:"jours_arret", den:"heures_travaillees",
-      formule:"journées perdues × 1 000 ÷ heures travaillées",
+      formule:"journées perdues x 1 000 / heures travaillées",
       note:"Indicateur interne. Les journées perdues déclarées ici ne suivent pas forcément les règles d'imputation de l'assurance maladie.",
       calcul: (v) => v.heures_travaillees ? (v.jours_arret * 1e3) / v.heures_travaillees : null },
     { cle:"if_", rubrique:"securite", libelle:"Indice interne de fréquence",
       unite:"", niveau:"tout périmètre", reglementaire:false,
       num:"at_avec_arret", den:"effectif_fin",
-      formule:"accidents avec arrêt × 1 000 ÷ effectif",
+      formule:"accidents avec arrêt x 1 000 / effectif",
       note:"Indicateur interne.",
       calcul: (v) => v.effectif_fin ? (v.at_avec_arret * 1e3) / v.effectif_fin : null },
     { cle:"turnover", rubrique:"social", libelle:"Rotation du personnel",
       unite:"%", niveau:"tout périmètre", reglementaire:false,
       num:"(entrees + sorties) / 2", den:"effectif_fin",
-      formule:"(entrées + sorties) ÷ 2 ÷ effectif × 100",
+      formule:"(entrées + sorties) / 2 / effectif x 100",
       note:"Définition interne : il en existe plusieurs, celle-ci est écrite pour être refaite à la main.",
       calcul: (v) => v.effectif_fin ? ((v.entrees + v.sorties) / 2) / v.effectif_fin * 100 : null },
     { cle:"part_femmes", rubrique:"diversite", libelle:"Part des femmes dans l'effectif",
       unite:"%", niveau:"tout périmètre", reglementaire:false,
       num:"femmes", den:"effectif_fin",
-      formule:"femmes ÷ effectif × 100",
+      formule:"femmes / effectif x 100",
       note:"Ne préjuge en rien de l'index d'égalité professionnelle, qui obéit à d'autres règles et se calcule au niveau de l'entreprise.",
       calcul: (v) => v.effectif_fin ? (v.femmes / v.effectif_fin) * 100 : null },
     { cle:"part_valorise", rubrique:"dechets", libelle:"Part des déchets valorisés",
       unite:"%", niveau:"tout périmètre", reglementaire:false,
       num:"dechets_valorises_kg", den:"dechets_kg",
-      formule:"déchets valorisés ÷ déchets produits × 100",
+      formule:"déchets valorisés / déchets produits x 100",
       note:"Reprend la qualification du prestataire d'enlèvement, sans la vérifier.",
       calcul: (v) => v.dechets_kg ? (v.dechets_valorises_kg / v.dechets_kg) * 100 : null },
     { cle:"part_flotte_elec", rubrique:"mobilite", libelle:"Part électrique de la flotte",
       unite:"%", niveau:"tout périmètre", reglementaire:false,
       num:"flotte_electrique", den:"flotte",
-      formule:"véhicules électriques ou hybrides rechargeables ÷ flotte × 100",
+      formule:"véhicules électriques ou hybrides rechargeables / flotte x 100",
       note:"Comptage de véhicules, pas de kilomètres parcourus.",
       calcul: (v) => v.flotte ? (v.flotte_electrique / v.flotte) * 100 : null },
     { cle:"part_achats_locaux", rubrique:"achats", libelle:"Part des achats de proximité",
       unite:"%", niveau:"tout périmètre", reglementaire:false,
       num:"achats_locaux", den:"achats_montant",
-      formule:"achats de proximité ÷ achats du site × 100",
+      formule:"achats de proximité / achats du site x 100",
       note:"Dépend entièrement de la définition de proximité retenue par l'entreprise, "
         + "qui est reprise à côté du chiffre dans le rapport.",
       calcul: (v) => v.achats_montant ? (v.achats_locaux / v.achats_montant) * 100 : null },
     { cle:"elec_par_salarie", rubrique:"energie", libelle:"Électricité par salarié",
       unite:"kWh", niveau:"tout périmètre", reglementaire:false,
       num:"elec_kwh", den:"effectif_fin",
-      formule:"électricité consommée ÷ effectif",
+      formule:"électricité consommée / effectif",
       note:"Rapporter à l'effectif permet de comparer deux sites de tailles différentes. "
         + "Ce ratio n'a aucun sens entre un entrepôt et un bureau.",
       calcul: (v) => v.effectif_fin ? v.elec_kwh / v.effectif_fin : null }
@@ -1138,13 +1138,19 @@ export const UNITES = {
    entreprises non cotées.
 
    Ce que Riseva en fait, et surtout ce qu'elle n'en fait pas. Elle NE PRODUIT
-   PAS un rapport VSME : elle n'a ni les consommations d'énergie, ni les
-   émissions, ni l'eau, ni les écarts de rémunération, et un rapport à moitié
-   rempli présenté comme complet serait pire qu'aucun rapport. Elle fait une
-   chose utile et bornée : ranger ce qu'elle sait déjà dans les rubriques de la
-   norme, et dire noir sur blanc lesquelles restent vides et où aller les
-   chercher. Le client arrive au rendez-vous avec la moitié du questionnaire
-   déjà remplie et la liste exacte de ce qui manque.
+   PAS un rapport VSME. Depuis que la collecte se fait par rubriques, elle a les
+   consommations — électricité, gaz, carburant, eau — et les tonnages de déchets
+   quand l'entreprise a demandé ces rubriques à ses sites ; elle n'a toujours ni
+   les ÉMISSIONS, ni les rejets polluants, ni les écarts de rémunération. La
+   distinction entre une consommation et une émission n'est pas un détail : passer
+   de l'une à l'autre demande un facteur d'émission, donc un choix de méthode que
+   Riseva n'a pas à faire à la place de son client. Un rapport à moitié rempli
+   présenté comme complet serait pire qu'aucun rapport.
+
+   Elle fait donc une chose utile et bornée : ranger ce qu'elle sait déjà dans les
+   rubriques de la norme, et dire noir sur blanc lesquelles restent vides et où
+   aller les chercher. Le client arrive au rendez-vous avec la moitié du
+   questionnaire déjà remplie et la liste exacte de ce qui manque.
 
    Statut du texte, parce qu'il bouge : la norme est publiée comme recommandation
    (UE) 2025/1710 du 30 juillet 2025, et la Commission a mis en consultation en
@@ -1175,10 +1181,19 @@ export const VSME = {
       manque:"Rien pour cette rubrique, hors politiques formalisées que l'entreprise "
         + "seule peut décrire." },
     { cle:"B3", pilier:"environnement", titre:"Énergie et émissions de gaz à effet de serre",
-      couvert:"non",
-      manque:"Consommations d'énergie et émissions des scopes 1, 2 et 3.",
-      ailleurs:"Un outil de bilan carbone, ou la méthode Bilan Carbone® de l'ADEME. "
-        + "Riseva ne collecte pas cette donnée et ne l'estimera pas à votre place." },
+      couvert:"partiel",
+      indicateurs:["elec_kwh", "gaz_kwh", "carburant_l", "flotte", "flotte_electrique"],
+      calcules:["elec_par_salarie", "part_flotte_elec"],
+      apporte:"Les consommations relevées site par site sur la période, électricité, gaz, "
+        + "carburant, et la composition de la flotte. Ce sont les chiffres de vos factures, "
+        + "réunis, additionnés, et rendus avec le nombre de sites sur lequel chaque somme "
+        + "porte.",
+      manque:"Les ÉMISSIONS des scopes 1, 2 et 3. Une consommation n'est pas une émission : "
+        + "passer de l'une à l'autre demande un facteur d'émission, donc un choix de méthode. "
+        + "Riseva vous rend les kilowattheures ; elle ne les convertit pas en tonnes de CO2 à "
+        + "votre place.",
+      ailleurs:"Un outil de bilan carbone, ou la méthode Bilan Carbone® de l'ADEME, à qui "
+        + "vous donnerez les consommations ci-dessus." },
     { cle:"B4", pilier:"environnement", titre:"Pollution de l'air, de l'eau et des sols",
       couvert:"non",
       manque:"Rejets et polluants déclarés.",
@@ -1190,19 +1205,28 @@ export const VSME = {
         + "ont été mis en terre. C'est une action, pas un indicateur d'impact sur la "
         + "biodiversité : les deux ne se remplacent pas et nous ne les confondrons pas." },
     { cle:"B6", pilier:"environnement", titre:"Eau",
-      couvert:"non",
-      manque:"Prélèvements et consommation.",
-      ailleurs:"Vos factures d'eau, relevé par site." },
+      couvert:"partiel",
+      indicateurs:["eau_m3"],
+      apporte:"La consommation relevée par établissement sur la période, telle qu'elle "
+        + "figure sur vos factures.",
+      manque:"La répartition par source de prélèvement, et l'exposition de vos sites au "
+        + "stress hydrique.",
+      ailleurs:"Vos factures pour le détail par source, et l'outil Aqueduct du World "
+        + "Resources Institute pour situer vos sites." },
     { cle:"B7", pilier:"environnement",
       titre:"Utilisation des ressources, économie circulaire et déchets",
       couvert:"partiel",
-      apporte:"Les dons de matériel réemployé passés par Riseva : nature, quantité, "
+      indicateurs:["dechets_kg", "dechets_valorises_kg", "biodechets_kg"],
+      calcules:["part_valorise"],
+      apporte:"Les tonnages relevés sur vos bordereaux d'enlèvement, site par site, avec la "
+        + "part valorisée. Et les dons de matériel réemployé passés par Riseva : nature, quantité, "
         + "catégorie comptable et valeur déclarée par l'entreprise, avec l'association "
         + "qui les a reçus. C'est du réemploi documenté, opposable, et daté. La valeur "
         + "reste celle que vous déclarez : Riseva rappelle la méthode qui s'applique à "
         + "la catégorie choisie, elle ne valorise pas à la place de votre comptable.",
-      manque:"Les tonnages de déchets produits et traités, et les flux entrants.",
-      ailleurs:"Vos bordereaux de suivi de déchets et le registre de votre prestataire." },
+      manque:"Les flux de matières entrants, et la part de matière recyclée dans ce que "
+        + "vous achetez.",
+      ailleurs:"Vos achats et vos fiches produits pour les flux entrants." },
     { cle:"B8", pilier:"social", titre:"Effectifs, caractéristiques générales",
       couvert:"partiel",
       indicateurs:["effectif_fin", "entrees", "sorties", "femmes", "boeth"],
@@ -2057,7 +2081,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
              quatre ne masque personne, ça désigne. Deux attributs suffisent à
              réidentifier là où un seul ne suffit pas. */
           nomAffiche: anonyme
-            ? `Entreprise · ${e.categorie.label.toLowerCase()}`
+            ? `Entreprise, ${e.categorie.label.toLowerCase()}`
             : e.nom };
       });
     },
@@ -3095,7 +3119,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         expire_le:new Date(Date.now() + 120 * 864e5).toISOString().slice(0,10) };
       s.invitations.unshift(inv);
       api.tracer(eid, null, "creation_lien",
-        inv.code + (et ? ` · ${et.nom} ${et.ville}` : "") + ` · ${dispo} places libres`);
+        inv.code + (et ? `, ${et.nom} ${et.ville}` : "") + `, ${dispo} places libres`);
       return inv;
     },
 
@@ -3115,7 +3139,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         cree_le:new Date().toISOString().slice(0,10),
         expire_le:new Date(Date.now() + 30 * 864e5).toISOString().slice(0,10) };
       s.invitations.unshift(inv);
-      api.tracer(et.societe, null, "lien_referent", `${nom} · ${et.nom} ${et.ville}`);
+      api.tracer(et.societe, null, "lien_referent", `${nom}, ${et.nom} ${et.ville}`);
       return inv;
     },
 
@@ -3160,7 +3184,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         cree_le:new Date().toISOString().slice(0,10),
         expire_le:new Date(Date.now() + 30 * 864e5).toISOString().slice(0,10) };
       s.invitations.unshift(inv);
-      api.tracer(eid, null, "lien_cse", `${nom} · ${e.nom}`);
+      api.tracer(eid, null, "lien_cse", `${nom}, ${e.nom}`);
       return inv;
     },
     accepterInvitationCSE(code){
@@ -5350,7 +5374,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
                         valeur: reel.missions });
           lignes.push({ cle:"resultats",
                         libelle:"Résultats constatés sur le terrain, hors estimations",
-                        unite:"", texte: unites.length ? unites.join(" · ")
+                        unite:"", texte: unites.length ? unites.join(", ")
                                                        : "aucun résultat confirmé" });
           lignes.push({ cle:"mecenat", libelle:"Mécénat de compétences valorisé",
                         unite:"€", valeur: mecenat.competencesRetenu });
@@ -5379,7 +5403,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
                         libelle:"Valeur déclarée par l'entreprise, matériel réemployé",
                         unite:"€", valeur: valeurDeclaree || null });
           lignes.push({ cle:"reemploi_nature", libelle:"Nature du matériel", unite:"",
-                        texte: materiel.map(m => m.nature).filter(Boolean).join(" · ")
+                        texte: materiel.map(m => m.nature).filter(Boolean).join(", ")
                                || "non détaillée" });
         }
         if (sec.cle === "B9"){
@@ -5472,7 +5496,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         conversion:   { valeur: pct(A, R90), num: A, den: R90,
           definition: "A divisé par R90. Part des inscrits devenus acteurs." },
         actions100:   { valeur: I0 ? Math.round((100 * X / I0) * 10) / 10 : null, num: X, den: I0,
-          definition: "100 × X divisé par I0. Nombre d'actions validées pour cent salariés invités." },
+          definition: "100 x X divisé par I0. Nombre d'actions validées pour cent salariés invités." },
         concentration:{ valeur: concentration === null ? null : Math.round(concentration * 1000) / 10,
           num: tries.slice(0, tete).reduce((n, v) => n + v, 0), den: X,
           definition: "Actions réalisées par les 10 % de salariés les plus actifs, divisées par X. Une valeur élevée révèle un pilote porté par quelques ambassadeurs." },

@@ -159,7 +159,7 @@ function vueConnexion(){
           <div><b>${nb(r.heures || 0)}</b><span>heures de bénévolat</span></div>
         </div>
         <p style="font-size:var(--t-xs);color:rgba(223,230,208,.62);margin-top:var(--s5)">
-          © 2026 Riseva · données de démonstration</p>
+          © 2026 Riseva, données de démonstration</p>
       </div>
     </aside>
     <div class="login__form"><div class="login__box">
@@ -480,7 +480,7 @@ function tableauEntreprise(u){
           ${aAgir.map(x => `<a class="rappel rappel--dense" href="${x.vers}">
             <span class="notif__point notif__point--${x.ton}"></span>
             <span>${esc(x.texte)}</span>
-            <span class="rappel__go">${ICONS.arrow || "→"}</span></a>`).join("")}
+            <span class="rappel__go">${ICONS.arrow || "->"}</span></a>`).join("")}
         </div></div>` : ""}
       ${aAttendre.length ? `<div class="aFaire__col">
         <span class="aFaire__titre">En attente d'un tiers</span>
@@ -488,7 +488,7 @@ function tableauEntreprise(u){
           ${aAttendre.map(x => `<a class="rappel rappel--dense" href="${x.vers}">
             <span class="notif__point notif__point--info"></span>
             <span>${esc(x.texte)}</span>
-            <span class="rappel__go">${ICONS.arrow || "→"}</span></a>`).join("")}
+            <span class="rappel__go">${ICONS.arrow || "->"}</span></a>`).join("")}
         </div></div>` : ""}
     </section>` : ""}
 
@@ -538,8 +538,8 @@ function tableauEntreprise(u){
                 : x.statut.cle === "actif" ? "badge--info"
                 : x.statut.cle === "lancement" ? "badge--warn" : "badge--neutre"}"
                 style="margin-left:6px">${esc(x.statut.label)}</span></span>
-            <span class="tnum muted">${nb(x.mobilises)} mobilisé${x.mobilises > 1 ? "s" : ""} ·
-              ${nb(x.points)} pts · ${pct(x.parSalarie, 2)} / salarié</span></div>
+            <span class="tnum muted">${nb(x.mobilises)} mobilisé${x.mobilises > 1 ? "s" : ""} -
+              ${nb(x.points)} pts, ${pct(x.parSalarie, 2)} / salarié</span></div>
           <div class="bar"><i style="width:${Math.max(2, (x.parSalarie / maxSite) * 100)}%"></i></div>
         </div>`).join("")}
       </div>
@@ -563,7 +563,7 @@ function tableauEntreprise(u){
         ${prefs.map(p => `<article class="pref__c">
           <span class="pref__rang">${p.derniere ? "Dernière mission le " + dateCourte(p.derniere) : ""}</span>
           <span class="pref__nom">${esc(p.asso.nom)}</span>
-          <span class="muted" style="font-size:var(--t-sm)">${esc(p.asso.cause || "")} · ${esc(p.asso.ville || "")}</span>
+          <span class="muted" style="font-size:var(--t-sm)">${esc(p.asso.cause || "")}, ${esc(p.asso.ville || "")}</span>
           <div class="pref__l"><span>Missions</span><b class="tnum">${nb(p.missions)}</b></div>
           <div class="pref__l"><span>Salariés impliqués</span><b class="tnum">${nb(p.salaries)}</b></div>
           ${/* « Points rapportés » entretenait un palmarès implicite des
@@ -622,7 +622,7 @@ function tableauEntreprise(u){
             return `<span class="badge">Stable</span>`;
           })()}
         </div>
-        ${riviere(DB.semaines(eid), { hauteur: 120, legendes: ["il y a 12 semaines", "aujourd\u2019hui"] })}
+        ${riviere(DB.semaines(eid), { hauteur: 120, legendes: ["il y a 12 semaines", "aujourd'hui"] })}
         ` : ""}
         <hr class="sep">
         <div class="three">
@@ -871,7 +871,7 @@ function listeAnnonces(annonces, u){
         <p class="muted" style="font-size:var(--t-sm)">${esc(a.description)}</p>
         <div class="annonce__meta">
           <span>${ICONS.pin || ""} <b>${esc(a.lieu || asso.ville || "")}</b>${
-            distance != null ? ` · ${distance} km` : ""}</span>
+            distance != null ? `, ${distance} km` : ""}</span>
           <span><b>${dateFR(a.date)}</b></span>
           <span>${esc(restant)}</span>
         </div>
@@ -1127,7 +1127,7 @@ function vueAnnuaire(u){
             text-transform:uppercase;color:var(--ink-500)">${situe ? "Les plus proches de vous" : "Quelques partenaires"}</h4>
           ${assos.slice(0, 3).map(a => `<a class="proche" href="/asso.html?id=${a.id}" target="_blank">
             <span class="proche__nom">${esc(a.nom)}</span>
-            <span class="proche__meta">${esc(a.cause || "")} · ${esc(a.ville || "")}</span>
+            <span class="proche__meta">${esc(a.cause || "")}, ${esc(a.ville || "")}</span>
             ${a.distance != null ? `<span class="proche__km tnum">${nb(a.distance)} km</span>` : ""}
             <span class="proche__go" aria-hidden="true"></span>
           </a>`).join("")}
@@ -1407,7 +1407,7 @@ function vueClassement(u){
     el.querySelector("#sousTitre").textContent = (mode === "brut"
       ? "Total des points retenus, toutes tailles confondues si aucun filtre"
       : "Points retenus rapportés à l'effectif, recalculé chaque lundi")
-      + (decile ? "" : ` · cohorte de ${cl.length}, trop petite pour parler de décile`);
+      + (decile ? "" : `, cohorte de ${cl.length}, trop petite pour parler de décile`);
     const av = el.querySelector("#avertCohorte");
     av.innerHTML = "";
     const tb = el.querySelector("tbody");
@@ -1445,7 +1445,7 @@ function vueClassement(u){
           </div>
           <div class="bar"><i style="width:${Math.min(100, (cl.length / RANG_MIN) * 100)}%"></i></div>
           <p class="hint">À deux, il n'y a pas de classement, il y a un duel. Le classement
-            s'ouvre à ${RANG_MIN} entreprises dans votre catégorie de taille — et vous pouvez
+            s'ouvre à ${RANG_MIN} entreprises dans votre catégorie de taille, et vous pouvez
             déjà comparer vos sites entre eux, ce qui ne dépend de personne d'autre.</p>
         </div>
       </div>`));
@@ -1475,7 +1475,7 @@ function vueClassement(u){
             ${rangFR(mien.rang)} <span style="font-size:var(--t-md);color:#C5CDBB">
               sur ${cl.length}</span></div>
           <p class="muted" style="font-size:var(--t-sm);margin-top:2px;color:#C5CDBB">
-            ${esc(mien.nom)} · ${esc(mien.categorie.label)}</p>
+            ${esc(mien.nom)}, ${esc(mien.categorie.label)}</p>
         </div>
         <div style="text-align:right">
           <div style="font-family:var(--font-display);font-size:1.7rem;line-height:1.05;
@@ -1507,16 +1507,16 @@ function vueClassement(u){
                 decile && e.rang <= seuil ? ` <span class="badge badge--brand" style="height:20px;margin-left:6px">top 10 %</span>` : ""}
               <br><span class="muted" style="font-size:var(--t-xs)">${e.anonyme
                 ? `non nommée : moitié basse du classement`
-                : `${esc(e.categorie.label)} · ${e.engages}/${e.effectif} de l'effectif${
-                    e.ecrete ? ` · ${nb(e.ecrete)} points écrêtés` : ""}`}</span>
+                : `${esc(e.categorie.label)}, ${e.engages}/${e.effectif} de l'effectif${
+                    e.ecrete ? `, ${nb(e.ecrete)} points écrêtés` : ""}`}</span>
             </div>
           </div>
         </td>
         <td style="width:26%"><div class="bar"><i style="width:${(e[cle] / max) * 100}%"></i></div></td>
         <td class="tnum" style="text-align:right"><strong>${mode === "brut" ? nb(e.points) : pct(e.parSalarie)}</strong>
           <br><span class="muted" style="font-size:var(--t-xs)">${mode === "brut"
-            ? `points · ${pct(e.parSalarie)} / salarié`
-            : `pts / salarié · ${nb(e.points)} au total`}</span></td>
+            ? `points, ${pct(e.parSalarie)} / salarié`
+            : `pts / salarié, ${nb(e.points)} au total`}</span></td>
       </tr>`));
     });
   };
@@ -1546,12 +1546,12 @@ function vueClassement(u){
         <div class="calculBox__l"><span class="muted">Plafond par format, 50 % de ${nb(pts.brut)}</span>
           <span class="tnum muted">${nb(pts.plafond)} pts</span></div>
         ${pts.ecrete ? `<div class="calculBox__l"><span class="muted">Écrêtage</span>
-          <span class="tnum muted">− ${nb(pts.ecrete)} pts</span></div>` : ""}
+          <span class="tnum muted">- ${nb(pts.ecrete)} pts</span></div>` : ""}
         <div class="calculBox__l calculBox__l--t"><span>Points retenus</span>
           <span class="tnum">${nb(pts.retenu)} pts</span></div>
         <div class="calculBox__l"><span class="muted">Effectif déclaré</span>
           <span class="tnum muted">${nb(base)}</span></div>
-        <div class="calculBox__l calculBox__l--t"><span>Score, ${nb(pts.retenu)} ÷ ${nb(base)}</span>
+        <div class="calculBox__l calculBox__l--t"><span>Score, ${nb(pts.retenu)} / ${nb(base)}</span>
           <span class="tnum">${pct(Math.round((pts.retenu / base) * 10) / 10)} pts / salarié</span></div>
       </div>
       <p class="hint">${ms.length} mission${ms.length > 1 ? "s" : ""} validée${ms.length > 1 ? "s" : ""}
@@ -1608,7 +1608,7 @@ function vueEquipe(u){
         <div><h3>Salariés</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
           ${actifs.length} place${actifs.length > 1 ? "s" : ""} occupée${actifs.length > 1 ? "s" : ""}${
-            partis.length ? ` · ${partis.length} départ${partis.length > 1 ? "s" : ""}` : ""}</p></div>
+            partis.length ? `, ${partis.length} départ${partis.length > 1 ? "s" : ""}` : ""}</p></div>
         <div class="row" style="gap:var(--s2)">
           <button class="btn btn--ghost btn--sm" id="csvEq">Exporter</button>
           <button class="btn btn--ghost btn--sm" id="add">${ICONS.plus} Ajouter</button>
@@ -1962,7 +1962,7 @@ function vueRapports(u){
       <div class="between" style="align-items:flex-start">
         <div>
           <p class="eyebrow">Aperçu du rapport annuel</p>
-          <h2 style="margin-top:var(--s3)">${esc(r.entreprise.nom)} — ${esc(r.saison.nom)}</h2>
+          <h2 style="margin-top:var(--s3)">${esc(r.entreprise.nom)}, ${esc(r.saison.nom)}</h2>
           <p class="muted" style="margin-top:var(--s3);font-size:var(--t-sm)">
             Construit à partir des missions validées. Ce que vous voyez ici est ce que
             contiendra le document final.</p>
@@ -2072,13 +2072,13 @@ function vueRapports(u){
       <td><strong>${esc(x.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${
         x.portee === "annuel" ? "Bilan complet de la saison" : "Version courte, remise avec les trophées"}</span></td>
       <td class="muted">${dateCourte(x.periode.debut)}, ${dateCourte(x.periode.fin)}</td>
-      <td class="tnum">${x.etat === "genere" ? nb(x.points) : "—"}</td>
+      <td class="tnum">${x.etat === "genere" ? nb(x.points) : "-"}</td>
       <td><span class="badge ${x.etat === "genere" ? "badge--ok" : ""}">${
         x.etat === "genere" ? "Généré le " + dateCourte(x.genere_le) : "À la clôture"}</span></td>
       <td class="muted" style="font-size:var(--t-xs)">${(() => {
         const en = envois.find(e => e.cle === `rapport:${u.org}:${x.id}`);
-        return en ? `Envoyé le ${dateCourte(en.date)}<br>à ${esc(en.destinataire || "—")}`
-                  : (x.etat === "genere" ? "Envoi au prochain passage" : "—");
+        return en ? `Envoyé le ${dateCourte(en.date)}<br>à ${esc(en.destinataire || "-")}`
+                  : (x.etat === "genere" ? "Envoi au prochain passage" : "-");
       })()}</td>
       <td style="text-align:right"></td></tr>`);
     if (x.etat === "genere"){
@@ -2099,7 +2099,7 @@ function vueRapports(u){
       ["Mission", "Association", "Format", "Sur le temps de travail", "Salarié", "Date", "Quantité", "Points"],
       ms.map(m => { const a = DB.annonceDe(m), sal = DB.utilisateur(m.salarie);
         return [a.titre, (DB.association(a.asso) || {}).nom, BAREME[a.type].label,
-                a.temps_travail ? "oui" : "non", sal ? sal.nom : "—", m.date, m.quantite, m.points]; }));
+                a.temps_travail ? "oui" : "non", sal ? sal.nom : "-", m.date, m.quantite, m.points]; }));
     toast("Export téléchargé.");
   };
   return el;
@@ -2179,9 +2179,9 @@ function vueAbonnement(u){
               <span class="tnum">${eur(dev.palier.prix)} HT</span></div>
             <div class="between"><span class="muted">Sites</span>
               <span class="tnum">${dev.sites} dont ${dev.sites_inclus} compris${
-                dev.sites_factures ? `, ${dev.sites_factures} × ${eur(TARIFS.site_supplementaire)}` : ""}</span></div>
+                dev.sites_factures ? `, ${dev.sites_factures} x ${eur(TARIFS.site_supplementaire)}` : ""}</span></div>
             ${dev.remiseFondateur ? `<div class="between"><span class="muted">Tarif fondateur</span>
-              <span class="tnum">− ${eur(dev.remiseFondateur)}</span></div>` : ""}
+              <span class="tnum">- ${eur(dev.remiseFondateur)}</span></div>` : ""}
             <div class="between"><strong>Total saison</strong>
               <span class="tnum">${eur(dev.ht)} HT</span></div>
             <p class="hint" style="margin:0">Soit ${nb2(dev.par_salarie)} € par salarié et par an.
@@ -2398,10 +2398,10 @@ function ouvrirPreuve(u){
   <table>
     <thead><tr><th>Indicateur</th><th>Valeur</th><th>Méthode</th></tr></thead>
     <tbody>
-      ${l("Participation dans l'effectif", ind.participation.valeur == null ? "—" : pct(ind.participation.valeur) + " %",
+      ${l("Participation dans l'effectif", ind.participation.valeur == null ? "-" : pct(ind.participation.valeur) + " %",
           `${ind.participation.num} salariés ayant au moins une action validée, divisés par ${ind.participation.den} de l'effectif de référence. Une inscription seule ne compte pas.`)}
       ${l("Actions validées", nb(ind.reperes.X),
-          "Combinaisons uniques salarié × association × format × date. Deux versements au même organisme le même jour ne font qu'une action.")}
+          "Combinaisons uniques salarié x association x format x date. Deux versements au même organisme le même jour ne font qu'une action.")}
       ${l("Concentration", (ind.concentration.valeur ?? ",") + " %",
           "Part des actions portée par les 10 % de salariés les plus actifs. Une valeur élevée signale un dispositif tenu par quelques personnes.")}
     </tbody>
@@ -2682,7 +2682,7 @@ function vueParametres(u){
       </div>
       <p class="hint" style="margin-top:var(--s4)">Ce n'est pas de l'anonymat, et il ne faut pas
         le vendre comme tel : si vous communiquez vous-même sur votre participation, vous vous
-        désignez. Riseva, de son côté, ne publie pas la liste de ses clients — sans quoi
+        désignez. Riseva, de son côté, ne publie pas la liste de ses clients, sans quoi
         « absent de la moitié haute » se lirait comme « dans la moitié basse ».</p>
     </section>
 
@@ -2698,7 +2698,7 @@ function vueParametres(u){
         <div class="stack" style="--gap:var(--s4);margin-top:var(--s5)">
           <div class="field"><label>Chiffre d'affaires HT du dernier exercice</label>
             <input class="input" id="ca" type="number" min="0" value="${e.ca || 0}">
-            <p class="hint">Sert à calculer le plafond de 5 ‰. En dessous de 4 M€, c'est le
+            <p class="hint">Sert à calculer le plafond de 5  pour mille. En dessous de 4 M€, c'est le
               plancher de 20 000 € qui s'applique de toute façon.</p></div>
           <div class="row" style="gap:var(--s4)">
             <div class="field" style="flex:1"><label>Début de l'exercice fiscal</label>
@@ -2894,7 +2894,7 @@ function tableauAsso(u){
 
   const rappels = [];
   if (aValider.length) rappels.push({ ton:"alerte", vers:"#/avalider", texte:
-    `${aValider.length} mission${aValider.length > 1 ? "s" : ""} à confirmer — sans réponse sous quatorze jours, elle${aValider.length > 1 ? "s seront clôturées automatiquement sans confirmation" : " sera clôturée automatiquement sans confirmation"}` });
+    `${aValider.length} mission${aValider.length > 1 ? "s" : ""} à confirmer, sans réponse sous quatorze jours, elle${aValider.length > 1 ? "s seront clôturées automatiquement sans confirmation" : " sera clôturée automatiquement sans confirmation"}` });
   if (asso.a_reverifier_le && asso.a_reverifier_le <= new Date(2026, 7, 20).toISOString().slice(0, 10))
     rappels.push({ ton:"alerte", vers:"#/page", texte:
       "Votre vérification annuelle est échue : Riseva va vous recontacter" });
@@ -2928,7 +2928,7 @@ function tableauAsso(u){
           ${rappels.map(x => `<a class="rappel rappel--dense" href="${x.vers}">
             <span class="notif__point notif__point--${x.ton}"></span>
             <span>${esc(x.texte)}</span>
-            <span class="rappel__go">${ICONS.arrow || "→"}</span></a>`).join("")}
+            <span class="rappel__go">${ICONS.arrow || "->"}</span></a>`).join("")}
         </div></div>
     </section>` : ""}
 
@@ -2987,7 +2987,7 @@ function tableauAsso(u){
     qui.appendChild(h(`<div class="between" style="font-size:var(--t-sm);gap:var(--s4)">
       <span style="min-width:0">
         <strong>${esc(sal ? sal.nom : "Un salarié")}</strong>
-        <span class="muted"> · ${esc(e ? e.nom : "")}</span><br>
+        <span class="muted">, ${esc(e ? e.nom : "")}</span><br>
         <span class="muted" style="font-size:var(--t-xs);overflow:hidden;text-overflow:ellipsis;
           white-space:nowrap;display:block">${esc(a ? a.titre : "")}</span>
       </span>
@@ -3039,8 +3039,8 @@ function tableAnnoncesAsso(annonces, u){
     /* « Participants » ne veut rien dire sur un don de matériel ou une collecte
        financière : chaque format a son mot. */
     const tr = h(`<tr>
-      <td><strong>${esc(a.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${dateFR(a.date)} · ${esc(a.lieu || "")}${
-        engagees ? ` · ${engagees} ${estTemps(a.type)
+      <td><strong>${esc(a.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${dateFR(a.date)}, ${esc(a.lieu || "")}${
+        engagees ? `, ${engagees} ${estTemps(a.type)
           ? "participant" + (engagees > 1 ? "s inscrits" : " inscrit")
           : a.type === "don_materiel"
             ? "don" + (engagees > 1 ? "s proposés" : " proposé")
@@ -3101,7 +3101,7 @@ function formAnnonce(u, existante = null){
     <div class="field"><label>Format</label>
       <select class="select" id="type">
         ${Object.entries(BAREME).map(([k, b]) =>
-          `<option value="${k}">${esc(b.label)} — ${b.points} pt${b.points>1?"s":""} par ${esc(b.unite)}</option>`).join("")}
+          `<option value="${k}">${esc(b.label)}, ${b.points} pt${b.points>1?"s":""} par ${esc(b.unite)}</option>`).join("")}
       </select>
       <p class="hint">Le nombre de points est fixé par Riseva, il ne se modifie pas.</p></div>
     <div class="field"><label>Titre</label><input class="input" id="titre" placeholder="Plantation de 400 arbres"></div>
@@ -3287,7 +3287,7 @@ function vueAValider(u){
     const jours = DB.joursAvantAuto(m);
     const tr = h(`<tr>
       <td>${m.etat === "a_valider" ? `<input type="checkbox" aria-label="Sélectionner la mission « ${esc(a.titre)} » de ${esc(sal ? sal.nom : 'un salarié')}" style="accent-color:var(--forest-700);width:16px;height:16px">` : ""}</td>
-      <td><strong>${esc(a.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(BAREME[a.type].label)} · ${nb(m.points)} pts</span></td>
+      <td><strong>${esc(a.titre)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(BAREME[a.type].label)}, ${nb(m.points)} pts</span></td>
       <td class="muted">${esc(e ? e.nom : ",")}</td>
       <td class="muted">${esc(sal ? sal.nom : ",")}</td>
       <td class="muted tnum">${dateCourte(m.date)}</td>
@@ -3417,7 +3417,7 @@ function tableauAdmin(){
     <div class="two">
       <section class="card">
         <h3>Activité du réseau</h3>
-        <div style="margin-top:var(--s6)">${riviere(DB.semaines(), { hauteur: 150, legendes: ["il y a 12 semaines", "aujourd\u2019hui"] })}</div>
+        <div style="margin-top:var(--s6)">${riviere(DB.semaines(), { hauteur: 150, legendes: ["il y a 12 semaines", "aujourd'hui"] })}</div>
       </section>
       <section class="card">
         <h3>À traiter</h3>
@@ -3433,7 +3433,7 @@ function tableauAdmin(){
         <h3 style="font-size:var(--t-lg)">Dernier passage du moteur</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:var(--s3)">
           ${(() => { const j = DB.journalMoteur()[0];
-            return j ? `${dateFR(j.le)} · ${j.validations_auto} validation(s) automatique(s),
+            return j ? `${dateFR(j.le)}, ${j.validations_auto} validation(s) automatique(s),
                         ${j.annonces_fermees} fermeture(s), ${j.rapports} rapport(s).`
                      : "Le moteur n'a pas encore tourné."; })()}</p>
         <a class="btn btn--ghost btn--sm" style="margin-top:var(--s4)" href="#/moteur">Voir les automatismes</a>
@@ -3456,7 +3456,7 @@ function vueAdminEntreprises(){
   DB.classement().forEach(e => {
     const si = DB.sieges(e.id);
     tb.appendChild(h(`<tr>
-      <td><strong>${esc(e.nom)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(e.ville)} · ${nb(e.effectif)} salariés</span></td>
+      <td><strong>${esc(e.nom)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(e.ville)}, ${nb(e.effectif)} salariés</span></td>
       <td class="muted">${esc(e.secteur)}</td>
       <td style="width:22%"><div class="between" style="font-size:var(--t-xs);margin-bottom:5px">
           <span class="muted tnum">${si.pris} / ${si.total}</span></div>
@@ -3491,7 +3491,7 @@ function vueAdminAssos(){
                : retard      ? ["À revérifier", "badge--warn"]
                :               ["Validée", "badge--ok"];
     const tr = h(`<tr>
-      <td><strong>${esc(a.nom)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(a.ville || "")} · ${esc(a.resume || "")}</span></td>
+      <td><strong>${esc(a.nom)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(a.ville || "")}, ${esc(a.resume || "")}</span></td>
       <td class="muted">${esc(a.cause || ",")}</td>
       <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(a.siren || a.rna || ",")}</td>
       <td>${badgeControle(a.id)}</td>
@@ -3608,15 +3608,15 @@ function vuePilotes(){
           `<span><strong style="font-family:var(--font-mono)">${k}</strong>
            <span class="muted"> = ${nb(v)}</span></span>`).join("")}
       </div>
-      <p class="hint">Une action validée est une combinaison unique salarié × association ×
-        format × date, réalisée dans la période et acceptée avant la clôture. Deux versements
+      <p class="hint">Une action validée est une combinaison unique salarié x association x
+        format x date, réalisée dans la période et acceptée avant la clôture. Deux versements
         au même organisme le même jour ne font qu'une action.</p>
     </section>
 
     <div class="kpis">
       ${lignes.slice(0, 4).map(([cle, titre, unite], i) => {
         const x = global[cle];
-        return kpi(titre, x.valeur === null ? "—" : x.valeur + (unite ? " " + unite : ""),
+        return kpi(titre, x.valeur === null ? "-" : x.valeur + (unite ? " " + unite : ""),
           x.den ? `${nb(x.num)} sur ${nb(x.den)}` : "", "", i === 0 ? "kpi--tete grain" : "");
       }).join("")}
     </div>
@@ -3630,7 +3630,7 @@ function vuePilotes(){
             return `<tr>
               <td style="width:34%"><strong>${esc(titre)}</strong><br>
                 <span class="tnum" style="color:var(--forest-800);font-weight:600">${
-                  x.valeur === null ? "—" : x.valeur + (unite ? " " + unite : "")}</span></td>
+                  x.valeur === null ? "-" : x.valeur + (unite ? " " + unite : "")}</span></td>
               <td class="muted">${esc(x.definition)}</td></tr>`;
           }).join("")}
         </tbody></table>
@@ -3652,9 +3652,9 @@ function vuePilotes(){
     const x = DB.indicateurs(e.id);
     pe.appendChild(h(`<tr>
       <td><strong>${esc(e.nom)}</strong></td>
-      <td class="tnum">${x.inscriptionI0.valeur === null ? "—" : x.inscriptionI0.valeur + " %"}</td>
-      <td class="tnum">${x.participation.valeur === null ? "—" : pct(x.participation.valeur) + " %"}</td>
-      <td class="tnum">${x.realisation.valeur === null ? "—" : x.realisation.valeur + " %"}</td>
+      <td class="tnum">${x.inscriptionI0.valeur === null ? "-" : x.inscriptionI0.valeur + " %"}</td>
+      <td class="tnum">${x.participation.valeur === null ? "-" : pct(x.participation.valeur) + " %"}</td>
+      <td class="tnum">${x.realisation.valeur === null ? "-" : x.realisation.valeur + " %"}</td>
     </tr>`));
   });
   el.querySelector("#csvI").onclick = () => {
@@ -3717,7 +3717,7 @@ function vueAdminSaison(){
         <div class="between"><span class="muted">Acompte</span>
           <span class="tnum">${Math.round(TARIFS.acompte_taux * 100)} %, minimum ${eur(TARIFS.acompte_minimum)}</span></div>
         <div class="between"><span class="muted">Règlement comptant</span>
-          <span class="tnum">− ${Math.round(TARIFS.remise_comptant * 100)} %</span></div>
+          <span class="tnum">- ${Math.round(TARIFS.remise_comptant * 100)} %</span></div>
         <div class="between"><span class="muted">Places fondateur</span>
           <span class="tnum">${fond.pris} prise${fond.pris > 1 ? "s" : ""} sur ${fond.places}, ${
             fond.ouvert ? `${fond.reste} restante${fond.reste > 1 ? "s" : ""} jusqu'au ${dateFR(fond.jusquau)}`
@@ -3788,7 +3788,7 @@ function tableauSalarie(u){
               aDeclarer.length > 1 ? "s" : ""} que vous n'avez pas encore déclarée${
               aDeclarer.length > 1 ? "s" : ""}, sans déclaration, elle${
               aDeclarer.length > 1 ? "s ne comptent" : " ne compte"} pas</span>
-            <span class="rappel__go">${ICONS.arrow || "→"}</span></a>
+            <span class="rappel__go">${ICONS.arrow || "->"}</span></a>
         </div></div>
       ${enAttente.length ? `<div class="aFaire__col">
         <span class="aFaire__titre">En attente d'un tiers</span>
@@ -3797,7 +3797,7 @@ function tableauSalarie(u){
             <span class="notif__point notif__point--info"></span>
             <span>${enAttente.length} mission${enAttente.length > 1 ? "s" : ""} en attente
               de confirmation par l'association</span>
-            <span class="rappel__go">${ICONS.arrow || "→"}</span></a>
+            <span class="rappel__go">${ICONS.arrow || "->"}</span></a>
         </div></div>` : ""}
     </section>` : ""}
 
@@ -4064,7 +4064,7 @@ function vueModeration(){
     const tr = h(`<tr>
       <td><strong>${esc(a ? a.titre : "annonce supprimée")}</strong><br>
         <span class="muted" style="font-size:var(--t-xs)">${esc(asso ? asso.nom : "")}${
-          par ? ` · signalé par ${esc(par.nom)}` : ""}</span>
+          par ? `, signalé par ${esc(par.nom)}` : ""}</span>
         ${sg.precisions ? `<br><span class="muted" style="font-size:var(--t-xs)">« ${esc(sg.precisions)} »</span>` : ""}</td>
       <td class="muted">${esc(motifs[sg.motif] || sg.motif)}</td>
       <td class="muted tnum">${dateCourte(sg.recu_le)}</td>
@@ -4123,7 +4123,7 @@ function vueMoteur(){
         <div>
           <h3>Dernier passage</h3>
           <p class="muted" style="margin-top:6px;font-size:var(--t-sm)">
-            ${dernier.le ? dateFR(dernier.le) : "jamais"} · ${nb(dernier.validations_auto || 0)} validation${(dernier.validations_auto || 0) > 1 ? "s" : ""} automatique${(dernier.validations_auto || 0) > 1 ? "s" : ""},
+            ${dernier.le ? dateFR(dernier.le) : "jamais"}, ${nb(dernier.validations_auto || 0)} validation${(dernier.validations_auto || 0) > 1 ? "s" : ""} automatique${(dernier.validations_auto || 0) > 1 ? "s" : ""},
             ${nb(dernier.annonces_fermees || 0)} annonce${(dernier.annonces_fermees || 0) > 1 ? "s" : ""} fermée${(dernier.annonces_fermees || 0) > 1 ? "s" : ""},
             ${nb(dernier.rapports || 0)} rapport${(dernier.rapports || 0) > 1 ? "s" : ""} généré${(dernier.rapports || 0) > 1 ? "s" : ""}.</p>
         </div>
@@ -4354,7 +4354,7 @@ function vueMecenat(u){
               la demi-journée)` : `au coût horaire chargé de ${eur(v.coutHeure)}`}</span></td>
               <td class="tnum" style="text-align:right">${eur(v.competencesBrut)}</td></tr>
           ${v.ecreteParSalarie ? `<tr><td class="muted">Au-delà du plafond de ${eur(v.plafondSalarie)} par salarié</td>
-              <td class="tnum" style="text-align:right;color:var(--ink-400)">− ${eur(v.ecreteParSalarie)}</td></tr>` : ""}
+              <td class="tnum" style="text-align:right;color:var(--ink-400)">- ${eur(v.ecreteParSalarie)}</td></tr>` : ""}
           <tr><td><strong>Assiette</strong></td>
               <td class="tnum" style="text-align:right"><strong>${eur(v.assiette)}</strong></td></tr>
           <tr><td class="muted">Plafond de l'entreprise<br>
@@ -4510,7 +4510,7 @@ function vueMecenat(u){
       <div class="field" style="margin-top:var(--s5)"><label>Mission</label>
         <select class="select" id="mi">
           ${ms.map(m => { const a = DB.annonceDe(m), sal = DB.utilisateur(m.salarie);
-            return `<option value="${m.id}">${esc(a.titre)} — ${esc(sal ? sal.nom : "?")} — ${dateFR(m.date)}</option>`;
+            return `<option value="${m.id}">${esc(a.titre)}, ${esc(sal ? sal.nom : "?")}, ${dateFR(m.date)}</option>`;
           }).join("")}
         </select></div>
       <div class="encadreMini">
@@ -5091,7 +5091,7 @@ function vueEnsemble(u){
         <span class="ensemble__estimeT">Résultats estimés, non confirmés</span>
         <span class="ensemble__estimeL">${Object.entries(r.realisations.estimeParUnite)
           .sort((a, b) => b[1] - a[1]).slice(0, 4)
-          .map(([k, v]) => `${nb(v)} ${esc((UNITES[k] || {}).pl || k)}`).join(" · ")}</span>
+          .map(([k, v]) => `${nb(v)} ${esc((UNITES[k] || {}).pl || k)}`).join(", ")}</span>
         <span class="ensemble__estimeN">${nb(r.realisations.sansReponse)} mission${
           r.realisations.sansReponse > 1 ? "s" : ""} auto-validée${
           r.realisations.sansReponse > 1 ? "s" : ""} après quatorze jours sans réponse.
@@ -5142,7 +5142,7 @@ function vueGroupe(u){
       ${kpi("Missions validées", nb(c.missions),
             `dont ${nb(c.confirmees)} confirmées par une association`)}
       ${kpi("Points du groupe", nb(c.points),
-            `${pct(c.parSalarie, 2)} par salarié — somme des points ÷ somme des effectifs`)}
+            `${pct(c.parSalarie, 2)} par salarié, somme des points / somme des effectifs`)}
       ${/* La réduction d'impôt n'existe fiscalement que par société donatrice. En
             faire un chiffre de groupe, même exact, invite à le reprendre tel quel
             dans une liasse. On renvoie donc au détail, société par société. */
@@ -5251,8 +5251,8 @@ function vueGroupe(u){
     <div class="between" style="font-size:var(--t-sm);margin-bottom:6px;gap:var(--s3);flex-wrap:wrap">
       <span>${x.rang ? `<b>${x.rang}.</b> ` : ""}${esc(x.nom)}, ${esc(x.ville)}
         <span class="badge ${TON[x.statut.cle]}" style="margin-left:6px">${esc(x.statut.label)}</span></span>
-      <span class="tnum muted">${nb(x.mobilises)} mobilisé${x.mobilises > 1 ? "s" : ""} ·
-        ${nb(x.missions)} mission${x.missions > 1 ? "s" : ""} ·
+      <span class="tnum muted">${nb(x.mobilises)} mobilisé${x.mobilises > 1 ? "s" : ""} -
+        ${nb(x.missions)} mission${x.missions > 1 ? "s" : ""} -
         ${pct(x.parSalarie, 2)} pts / salarié</span></div>
     <div class="bar"><i style="width:${Math.max(2, (x.parSalarie / max) * 100)}%"></i></div>
     ${x.statut.cle === "lancement" || x.statut.cle === "demarrage"
@@ -5357,7 +5357,7 @@ function ouvrirRapportGroupe(u){
   <h2>1. Périmètre</h2>
   <table><tbody>
     ${l("Sociétés consolidées", nb(c.societes.length),
-        c.societes.map(x => x.nom + (x.siren ? ` (SIREN ${x.siren})` : "")).join(" · "))}
+        c.societes.map(x => x.nom + (x.siren ? ` (SIREN ${x.siren})` : "")).join(", "))}
     ${l("Établissements", nb(c.sites.length), "Sites opérationnels raccordés à la plateforme.")}
     ${l("Effectif du périmètre", nb(c.effectif),
         "Somme des effectifs déclarés par société. Sert de dénominateur, jamais de résultat.")}
@@ -5415,7 +5415,7 @@ function ouvrirRapportGroupe(u){
     ${c.reduction === null
       ? `Aucun total n'est donné ici : au moins une société n'a pas renseigné son chiffre
          d'affaires, ses dons faits hors Riseva ou ses reports antérieurs. Le plafond de
-         20 000 € ou 5 ‰ porte sur <strong>tous</strong> les versements de l'exercice, pas
+         20 000 € ou 5  pour mille porte sur <strong>tous</strong> les versements de l'exercice, pas
          seulement sur ceux que Riseva connaît. Additionner des estimations non plafonnées
          produirait un chiffre faux, et c'est celui qui finirait dans une liasse.`
       : `Le total de ${eur(c.reduction)} n'est donné qu'à titre <strong>informatif</strong> :
@@ -5746,7 +5746,7 @@ function vueIndicateurs(u){
       <hr class="sep">
       <div class="kpis">
         ${kpi("Sites qui ont répondu", `${e.declares + e.approuves} / ${e.sites.length}`,
-              `soit ${nb(brouillon.effectifCouvert)} salariés sur ${nb(brouillon.effectifTotal)} — `
+              `soit ${nb(brouillon.effectifCouvert)} salariés sur ${nb(brouillon.effectifTotal)}, `
               + `deux sites sur quatre, ce n'est pas la moitié du groupe`, "", "kpi--tete grain")}
         ${kpi("Approuvés", `${nb(e.approuves)} / ${nb(e.sites.length)}`,
               ind.effectifTotal ? `${pct(ind.partEffectif * 100)} % de l'effectif du périmètre` : "")}
@@ -5754,7 +5754,7 @@ function vueIndicateurs(u){
         ${kpi(e.campagne.etat === "ouverte" ? "Échéance" : "Close le",
               dateCourte(e.campagne.echeance),
               e.campagne.etat === "ouverte"
-                ? `${e.joursRestants} jour${e.joursRestants > 1 ? "s" : ""} — période du ${dateCourte(e.campagne.debut)} au ${dateCourte(e.campagne.fin)}`
+                ? `${e.joursRestants} jour${e.joursRestants > 1 ? "s" : ""}, période du ${dateCourte(e.campagne.debut)} au ${dateCourte(e.campagne.fin)}`
                 : `${nb(e.clos)} site${e.clos > 1 ? "s" : ""} clos sans réponse`)}
       </div>
     </section>
@@ -5961,7 +5961,7 @@ function ouvrirRapportCollecte(r){
       dans le tableur que ce rapport remplace.<br>
       ${r.limites.map(x => esc(x)).join("<br>")}
     </div>`;
-  ouvrirDoc(`${r.campagne.libelle} — rapport de collecte`, corps);
+  ouvrirDoc(`${r.campagne.libelle}, rapport de collecte`, corps);
 }
 
 /* ------------------------------------------------------------------ */
@@ -6035,7 +6035,7 @@ function ouvrirAffiche(u){
   <div class="in">
     <div class="marque">
       <img src="/brand/riseva-full.png" alt="Riseva">
-      <span>${esc(e.nom || "")} · ${esc(sa.nom)}</span>
+      <span>${esc(e.nom || "")}, ${esc(sa.nom)}</span>
     </div>
     <h1>Une demi-journée. <em>Une association.</em> Près d'ici.</h1>
     <p class="lede">Des associations près de nos sites publient ce dont elles ont besoin :
@@ -6061,8 +6061,8 @@ function ouvrirAffiche(u){
     </div>
   </div>
   <div class="in pied">
-    <span>Riseva · ${nb(rea.associations || 0)} associations vérifiées${
-      rea.missions ? ` · ${nb(rea.missions)} missions confirmées à ce jour` : ""}</span>
+    <span>Riseva, ${nb(rea.associations || 0)} associations vérifiées${
+      rea.missions ? `, ${nb(rea.missions)} missions confirmées à ce jour` : ""}</span>
     <span>riseva.fr</span>
   </div>
 </div></body></html>`);
@@ -6271,7 +6271,7 @@ function vueSecurite(u){
         <p style="font-size:var(--t-sm);color:var(--ink-600)">
           <strong style="color:var(--ink)">${sy.sites_sans_registre.length} site${
             sy.sites_sans_registre.length > 1 ? "s ne tiennent" : " ne tient"} pas encore le registre</strong>
-          — ${esc(sy.sites_sans_registre.join(", "))}. Ces sites n'ont pas « zéro accident » : ils
+         , ${esc(sy.sites_sans_registre.join(", "))}. Ces sites n'ont pas « zéro accident » : ils
           n'ont rien déclaré ici, et leurs chiffres continuent d'être saisis à la main dans la
           campagne. La différence est tout ce qui compte.</p>
       </div>` : ""}
@@ -6353,7 +6353,7 @@ function vueSecurite(u){
     sy.pareto.forEach(x => par.appendChild(h(`<div style="margin-bottom:var(--s4)">
       <div class="between" style="font-size:var(--t-sm)">
         <span>${esc(x.label)}</span>
-        <span class="tnum muted">${nb(x.nombre)} · ${pct(x.part)} % · cumul ${pct(x.cumul)} %</span>
+        <span class="tnum muted">${nb(x.nombre)}, ${pct(x.part)} %, cumul ${pct(x.cumul)} %</span>
       </div>
       <div class="bar" style="margin-top:4px"><i style="width:${(x.nombre / max) * 100}%"></i></div>
     </div>`)));
@@ -6452,7 +6452,7 @@ function vueSecurite(u){
           pourquoi. Une déclaration qui disparaît sans trace est exactement ce qu'un inspecteur
           cherche.</p>
           <div class="field" style="margin-top:var(--s5)"><label for="mo">Motif</label>
-            <input class="input" id="mo" placeholder="Doublon, erreur de site, requalifié…"></div>
+            <input class="input" id="mo" placeholder="Doublon, erreur de site, requalifié..."></div>
         </div>`);
         modal("Annuler cette déclaration", corps, [
           { label:"Fermer" },
@@ -6518,14 +6518,14 @@ function formEvenement(u, sites, monSite){
         <input class="input" type="number" id="ev-jours" min="0" value="0"></div>
     </div>
     <div class="field"><label for="ev-zone">Zone ou poste</label>
-      <input class="input" id="ev-zone" placeholder="Quai de chargement, ligne 2, atelier…"></div>
+      <input class="input" id="ev-zone" placeholder="Quai de chargement, ligne 2, atelier..."></div>
     <div class="field"><label for="ev-circ">Circonstances</label>
       <textarea class="textarea" id="ev-circ" rows="2" maxlength="${MAX_CIRCONSTANCES}"
         placeholder="Ce qui s'est passé, factuellement."></textarea>
       <p class="hint"><strong>Aucun nom, aucune donnée de santé</strong> : ni identité, ni siège
         de la lésion, ni diagnostic. Ce sont des données de santé au sens de l'article 9 du RGPD,
-        et Riseva n'a aucune raison de les héberger. Ce qui sert à agir — la circonstance, la
-        zone, le type — n'en fait pas partie.</p></div>
+        et Riseva n'a aucune raison de les héberger. Ce qui sert à agir, la circonstance, la
+        zone, le type, n'en fait pas partie.</p></div>
   </div>`);
   const aide = () => {
     corps.querySelector("#ev-natureAide").textContent =
@@ -6557,7 +6557,7 @@ function formAction(ev){
   const et = DB.etablissement(ev.etablissement) || {};
   const corps = h(`<div class="stack" style="--gap:var(--s4)">
     <p class="muted" style="font-size:var(--t-sm)">Suite à l'événement du ${dateFR(ev.date)}
-      — ${esc(TYPES_EVENEMENT[ev.type] || ev.type)}, ${esc(et.nom || "")}.</p>
+     , ${esc(TYPES_EVENEMENT[ev.type] || ev.type)}, ${esc(et.nom || "")}.</p>
     <div class="field"><label for="ac-quoi">Ce qui va être fait</label>
       <input class="input" id="ac-quoi" placeholder="Une phrase, à l'infinitif."></div>
     <div class="row" style="--gap:var(--s4);align-items:stretch">
@@ -6598,7 +6598,7 @@ function apercuRapportCSE(eid, meta){
   const rea = DB.realisations({ entreprise: eid });
   const corps = h(`<div class="stack" style="--gap:var(--s5)">
     <p class="muted" style="font-size:var(--t-sm)">
-      ${esc(meta.titre)} · période du ${dateFR(meta.periode.debut)} au ${dateFR(meta.periode.fin)}${
+      ${esc(meta.titre)}, période du ${dateFR(meta.periode.debut)} au ${dateFR(meta.periode.fin)}${
         meta.genere_le ? `, arrêté le ${dateFR(meta.genere_le)}` : ""}.</p>
     <div class="kpis">
       ${kpi("Points retenus", nb(r.points), "après écrêtage par format")}
@@ -6629,7 +6629,7 @@ function vueCSE(u){
       <div class="between" style="flex-wrap:wrap;gap:var(--s4)">
         <div>
           <p class="eyebrow" style="color:var(--lime)">Accès CSE, lecture seule</p>
-          <h3 style="margin-top:var(--s2)">${esc(d.entreprise.nom)} · ${esc(d.saison.nom)}</h3>
+          <h3 style="margin-top:var(--s2)">${esc(d.entreprise.nom)}, ${esc(d.saison.nom)}</h3>
           <p class="muted" style="margin-top:6px;font-size:var(--t-sm);color:#C5CDBB">
             Ce que Riseva détient déjà sur la situation sociale et la sécurité, sous forme
             agrégée. L'employeur n'a rien à recopier, vous n'avez rien à demander.</p>
@@ -6648,7 +6648,7 @@ function vueCSE(u){
 
     <div class="kpis">
       ${kpi("Sites suivis", nb(d.sites.length),
-            d.sites.map(x => x.nom).join(" · "), "", "kpi--tete grain")}
+            d.sites.map(x => x.nom).join(", "), "", "kpi--tete grain")}
       ${kpi("Participation",
             d.participation ? pct(d.participation.taux) + " %" : ",",
             d.participation
@@ -6691,14 +6691,14 @@ function vueCSE(u){
             ? nb2(ind.calcules[x.cle]) + (x.unite ? " " + x.unite : "")
             : `<span class="muted">non disponible</span>`}</td>
           <td class="muted" style="font-size:var(--t-xs)">${esc(x.formule)}${
-            x.reglementaire ? "" : " · indicateur interne, non réglementaire"}</td>
+            x.reglementaire ? "" : ", indicateur interne, non réglementaire"}</td>
         </tr>`).join("")}
         ${INDICATEURS.saisis.map(x => `<tr>
           <td>${esc(x.libelle)}</td>
           <td class="tnum" style="text-align:right">${ind.sommes[x.cle] != null
             ? nb(ind.sommes[x.cle]) + (x.unite ? " " + esc(x.unite) : "")
             : `<span class="muted">non disponible</span>`}</td>
-          <td class="muted" style="font-size:var(--t-xs)">déclaré par les sites · ${esc(x.source || "")}</td>
+          <td class="muted" style="font-size:var(--t-xs)">déclaré par les sites, ${esc(x.source || "")}</td>
         </tr>`).join("")}
       </tbody></table>`}
     </section>
@@ -6717,14 +6717,14 @@ function vueCSE(u){
         Les types d'événements déclarés par les sites, du plus fréquent au moins fréquent.
         Aucun nom, aucune donnée de santé : ni identité, ni siège de la lésion, ni diagnostic.
         ${secu.sites_sans_registre.length ? `${secu.sites_sans_registre.length} site${
-          secu.sites_sans_registre.length > 1 ? "s ne tiennent" : " ne tient"} pas le registre —
+          secu.sites_sans_registre.length > 1 ? "s ne tiennent" : " ne tient"} pas le registre -
           ${esc(secu.sites_sans_registre.join(", "))} : ces sites n'ont pas « zéro accident »,
           ils n'ont rien déclaré ici.` : ""}</p>
       <div style="margin-top:var(--s5)">${secu.pareto.map(x => `
         <div style="margin-bottom:var(--s4)">
           <div class="between" style="font-size:var(--t-sm)">
             <span>${esc(x.label)}</span>
-            <span class="tnum muted">${nb(x.nombre)} · ${pct(x.part)} %</span></div>
+            <span class="tnum muted">${nb(x.nombre)}, ${pct(x.part)} %</span></div>
           <div class="bar" style="margin-top:4px"><i style="width:${
             (x.nombre / secu.pareto[0].nombre) * 100}%"></i></div>
         </div>`).join("")}</div>
@@ -6787,7 +6787,7 @@ function ouvrirDictionnaire(cid){
   const corps = h(`<div class="stack" style="--gap:var(--s6)">
     <div>
       <p class="muted" style="font-size:var(--t-sm)">
-        Version ${esc(d.version)}${d.campagne ? ` · ${esc(d.campagne.libelle)},
+        Version ${esc(d.version)}${d.campagne ? `, ${esc(d.campagne.libelle)},
         du ${dateCourte(d.campagne.debut)} au ${dateCourte(d.campagne.fin)}` : ""}.
         Le dictionnaire est daté avec la campagne : une définition qui change plus tard ne
         réécrit pas les rapports déjà arrêtés.</p>
@@ -6804,7 +6804,7 @@ function ouvrirDictionnaire(cid){
         <th>Indicateur</th><th>Source</th><th>On compte</th><th>On ne compte pas</th>
       </tr></thead><tbody>
         ${d.saisis.map(x => `<tr>
-          <td><strong>${esc(x.libelle)}</strong>${x.unite ? `<br><span class="muted" style="font-size:var(--t-xs)">${esc(x.unite)} · ${esc(x.niveau)}</span>` : ""}</td>
+          <td><strong>${esc(x.libelle)}</strong>${x.unite ? `<br><span class="muted" style="font-size:var(--t-xs)">${esc(x.unite)}, ${esc(x.niveau)}</span>` : ""}</td>
           <td class="muted" style="font-size:var(--t-xs)">${esc(x.source || ",")}</td>
           <td class="muted" style="font-size:var(--t-xs)">${esc(x.inclut || ",")}</td>
           <td class="muted" style="font-size:var(--t-xs)">${esc(x.exclut || ",")}</td>
@@ -6820,7 +6820,7 @@ function ouvrirDictionnaire(cid){
         ${d.calcules.map(x => `<tr>
           <td><strong>${esc(x.libelle)}</strong>${x.note ? `<br><span class="muted" style="font-size:var(--t-xs)">${esc(x.note)}</span>` : ""}</td>
           <td class="muted" style="font-size:var(--t-xs)">${esc(x.formule)}<br>
-            <span style="font-family:var(--font-mono)">${esc(x.numerateur)} ÷ ${esc(x.denominateur)}</span></td>
+            <span style="font-family:var(--font-mono)">${esc(x.numerateur)} / ${esc(x.denominateur)}</span></td>
           <td class="muted" style="font-size:var(--t-xs)">${esc(x.agregation)}</td>
           <td>${x.reglementaire ? `<span class="badge badge--ok">oui</span>`
                                 : `<span class="badge badge--attente">non</span>`}</td>
@@ -6901,7 +6901,7 @@ function formCampagne(u, gid, derniere){
     <div class="field"><label for="c-ech">Date limite de réponse</label>
       <input class="input" id="c-ech" type="date">
       <p class="hint">Passée cette date, la collecte peut être close. Les sites qui
-        n'ont rien dit sont marqués « sans réponse » — leur période précédente n'est
+        n'ont rien dit sont marqués « sans réponse », leur période précédente n'est
         jamais recopiée à leur place.</p></div>
     <div>
       <label style="display:block;font-size:var(--t-sm);font-weight:600">Ce que vous demandez</label>
@@ -6965,7 +6965,7 @@ function formIndicateurs(u, cid, et){
     <div class="field">
       <label for="i-com">Ce qui explique une variation, s'il y en a une</label>
       <textarea class="textarea" id="i-com" rows="2"
-        placeholder="Un événement, un changement de périmètre, une correction…">${esc((o && o.commentaire) || "")}</textarea>
+        placeholder="Un événement, un changement de périmètre, une correction...">${esc((o && o.commentaire) || "")}</textarea>
       <p class="hint">Au-delà de ${Math.round(SEUIL_ECART * 100)} % de variation sur un
       indicateur calculé, une phrase est demandée. Elle suit la valeur jusque dans le
       rapport : c'est elle qui répondra, dans un an, devant une courbe qui saute.</p>
@@ -7042,7 +7042,7 @@ function formIndicateurs(u, cid, et){
         <p style="font-size:var(--t-sm);font-weight:600">Variation notable par rapport à ${esc(l[0].periode_avant)}</p>
         <ul class="liste-ecarts" style="margin-top:var(--s2)">${l.map(x =>
           `<li>${esc(x.libelle)} : ${x.variation > 0 ? "+" : ""}${Math.round(x.variation * 100)} %
-           (${nb(Math.round(x.avant))} → ${nb(Math.round(x.apres))})</li>`).join("")}</ul>
+           (${nb(Math.round(x.avant))} -> ${nb(Math.round(x.apres))})</li>`).join("")}</ul>
       </div>`;
   };
   box.querySelectorAll("input").forEach(i => i.addEventListener("input", majEcarts));
@@ -7072,7 +7072,7 @@ function reaffecter(u, g){
       elles, restent où elles ont été faites.</p>
     <div class="field"><label for="ra-et">Établissement</label>
       <select class="select" id="ra-et">
-        ${etabs.map(x => `<option value="${x.id}" ${x.id === g.etablissement ? "selected" : ""}>${esc(x.nom)} — ${esc(x.ville)} (${nb(DB.sieges(u.org, { etablissement: x.id }).restants)} places libres)</option>`).join("")}
+        ${etabs.map(x => `<option value="${x.id}" ${x.id === g.etablissement ? "selected" : ""}>${esc(x.nom)}, ${esc(x.ville)} (${nb(DB.sieges(u.org, { etablissement: x.id }).restants)} places libres)</option>`).join("")}
       </select></div>
   </div>`);
   modal("Rattacher à un autre site", corps, [
@@ -7172,7 +7172,7 @@ function tableauSite(u){
         <input class="input" id="lienSite" readonly aria-label="Lien d'inscription de votre site"
           value="${esc(lienPublic("/rejoindre.html?code=" + inv.code))}">
         <button class="btn btn--primary btn--sm" id="copySite" style="flex:none">Copier</button></div>
-        <p class="hint" style="margin-top:6px">${inv.utilisees} compte${inv.utilisees > 1 ? "s" : ""} créé${inv.utilisees > 1 ? "s" : ""} par ce lien · expire le ${dateFR(inv.expire_le)}</p>`
+        <p class="hint" style="margin-top:6px">${inv.utilisees} compte${inv.utilisees > 1 ? "s" : ""} créé${inv.utilisees > 1 ? "s" : ""} par ce lien, expire le ${dateFR(inv.expire_le)}</p>`
       : `<button class="btn btn--primary" style="margin-top:var(--s5)" id="newLien">Créer le lien de mon site</button>`}
     </section>
   </div>`);
@@ -7288,7 +7288,7 @@ function vueMateriel(u){
       <td class="muted">${esc(x.association)}${x.ville ? `<br><span style="font-size:var(--t-xs)">${esc(x.ville)}</span>` : ""}
         ${x.eligible ? "" : `<br><span class="badge badge--warn" style="margin-top:4px">éligibilité non déclarée</span>`}</td>
       <td class="muted">${esc(x.etablissement)}<br>
-        <span style="font-size:var(--t-xs)">${esc(x.societe)}${x.siren ? ` · ${esc(x.siren)}` : ""}</span></td>
+        <span style="font-size:var(--t-xs)">${esc(x.societe)}${x.siren ? `, ${esc(x.siren)}` : ""}</span></td>
       <td class="muted" style="font-size:var(--t-xs)">${cat
         ? esc(cat) : `<span class="badge badge--warn">à préciser</span>`}</td>
       <td class="tnum" style="text-align:right">${x.valeurDeclaree === null
@@ -7801,7 +7801,7 @@ function vueDonsAsso(u){
   el.querySelector("#majIban").onclick = () => {
     const corps = h(`<div class="stack" style="--gap:var(--s4)">
       <p class="muted">Recopiez l'IBAN depuis un relevé. Riseva en vérifie la clé de contrôle,
-      ce qui écarte l'erreur de saisie — mais ne garantit pas que le compte est le vôtre.</p>
+      ce qui écarte l'erreur de saisie, mais ne garantit pas que le compte est le vôtre.</p>
       <div class="field"><label for="ib">IBAN</label>
         <input class="input" id="ib" value="${esc(asso.iban ? ibanLisible(asso.iban) : "")}"
                placeholder="FR76 3000 6000 0112 3456 7890 189"></div>
@@ -7836,7 +7836,7 @@ function vueDonsAsso(u){
         compte.</p>
       <p class="hint">Un jour où Riseva aura obtenu un accès partenaire chez HelloAsso, la
         confirmation des dons se fera toute seule. En attendant, vous confirmez la réception
-        comme pour un virement — et rien n'attend une réponse de qui que ce soit pour
+        comme pour un virement, et rien n'attend une réponse de qui que ce soit pour
         fonctionner.</p>
     </div>`);
     modal("Formulaire HelloAsso", corps, [
@@ -7866,7 +7866,7 @@ function vueDonsAsso(u){
         <div class="field"><label for="n">Nom de la personne qui donne mandat</label>
           <input class="input" id="n" value="${esc(r.signataire || "")}"></div>
         <div class="field"><label for="qa">Sa qualité</label>
-          <input class="input" id="qa" value="${esc(r.qualite || "")}" placeholder="Présidente, trésorier…"></div>
+          <input class="input" id="qa" value="${esc(r.qualite || "")}" placeholder="Présidente, trésorier..."></div>
       </div>
       <p class="hint">Version ${esc(MANDAT_RECUS.version)}. Le mandat est daté, nominatif,
       et révocable à tout moment sans motif.</p></div>`);
@@ -7920,13 +7920,13 @@ function blocRegistre(asso, { admin = false, apres = null } = {}){
         <div>
           <strong>${esc(f.nom || ",")}</strong>
           <div class="muted" style="font-size:var(--t-xs);margin-top:2px">
-            ${esc(f.siren || "")}${f.rna ? " · " + esc(f.rna) : ""}
-            ${f.adresse ? " · " + esc(f.adresse) : ""}</div>
+            ${esc(f.siren || "")}${f.rna ? ", " + esc(f.rna) : ""}
+            ${f.adresse ? ", " + esc(f.adresse) : ""}</div>
           <div class="muted" style="font-size:var(--t-xs);margin-top:2px">
             ${f.est_association ? "Association" : "Structure non signalée comme association"}
-            ${f.est_ess ? " · économie sociale et solidaire" : ""}
-            ${f.date_creation ? " · immatriculée le " + dateCourte(f.date_creation) : ""}
-            ${f.etablissements != null ? " · " + nb(f.etablissements) + " établissement" + (f.etablissements > 1 ? "s" : "") + " au registre" : ""}</div>
+            ${f.est_ess ? ", économie sociale et solidaire" : ""}
+            ${f.date_creation ? ", immatriculée le " + dateCourte(f.date_creation) : ""}
+            ${f.etablissements != null ? ", " + nb(f.etablissements) + " établissement" + (f.etablissements > 1 ? "s" : "") + " au registre" : ""}</div>
         </div>
         <span class="badge ${et.badge}">${esc(et.label)}</span>
       </div>
@@ -7952,7 +7952,7 @@ function blocRegistre(asso, { admin = false, apres = null } = {}){
 
   const chercher = async () => {
     const q = champ.value.trim();
-    res.innerHTML = `<p class="muted">Interrogation du registre…</p>`;
+    res.innerHTML = `<p class="muted">Interrogation du registre...</p>`;
     bouton.disabled = true;
     if (encours) encours.abort();
     encours = new AbortController();
@@ -8107,7 +8107,7 @@ function vueVSME(u){
     <section class="card" style="margin-top:var(--s5)">
       <div class="between" style="flex-wrap:wrap;gap:var(--s3);align-items:flex-start">
         <div>
-          <h3 style="font-size:var(--t-lg)">${esc(r.cle)} · ${esc(r.titre)}</h3>
+          <h3 style="font-size:var(--t-lg)">${esc(r.cle)}, ${esc(r.titre)}</h3>
           <p class="muted" style="font-size:var(--t-xs);margin-top:2px">${esc(r.pilier)}</p>
         </div>
         ${pastille(r.renseignee ? r.couvert : "non")}
@@ -8276,7 +8276,7 @@ function offreLocaleBloc(u, sites){
             o.aRelancerTotal > 1 ? "s vérifiées" : " vérifiée"} à moins de ${nb(o.rayon)} km
           ${o.aRelancerTotal > 1 ? "ne publient" : "ne publie"} rien en ce moment</strong> :
           ${o.aRelancer.map(x => esc(x.nom)).join(", ")}. Une association qui ne publie pas
-          n'a presque jamais dit non — elle n'a pas eu le temps d'écrire l'annonce. C'est à
+          n'a presque jamais dit non, elle n'a pas eu le temps d'écrire l'annonce. C'est à
           nous de l'appeler.</p>` : ""}
         ` : `<p class="hint" style="margin-top:var(--s3)">L'adresse de ce site n'est pas
           localisée : sans elle, aucune distance ne peut être calculée. Renseignez-la dans
@@ -8289,7 +8289,7 @@ function offreLocaleBloc(u, sites){
     <h3>L'offre autour de vos sites</h3>
     <p class="muted" style="font-size:var(--t-sm);margin-top:4px;max-width:70ch">
       Ce qu'un salarié de chaque site peut réellement faire aujourd'hui, à moins de
-      ${nb(DB.RAYON_OFFRE_KM)} km. Du site le plus mal servi au mieux servi — c'est dans cet
+      ${nb(DB.RAYON_OFFRE_KM)} km. Du site le plus mal servi au mieux servi, c'est dans cet
       ordre que nous nous en occupons.</p>
     <div class="stack" style="--gap:var(--s5);margin-top:var(--s6)">${lignes}</div>
     ${nonSituees ? `<p class="hint" style="margin-top:var(--s5)">${nb(nonSituees)} annonce${
@@ -8374,7 +8374,7 @@ function vueAdoption(u){
             <select class="select" id="ads">
               <option value="">Toute la société</option>
               ${a.sites.map(x => `<option value="${x.id}"${x.id === site ? " selected" : ""}
-                >${esc(x.nom)} — ${esc(x.ville)}</option>`).join("")}
+                >${esc(x.nom)}, ${esc(x.ville)}</option>`).join("")}
             </select>
           </div>
         </div>
@@ -8382,7 +8382,7 @@ function vueAdoption(u){
         ${a.lisible ? "" : `<p class="empty" style="margin-top:var(--s6)">
           Moins de ${nb(a.plancher)} comptes ouverts sur ce périmètre : l'entonnoir n'est pas
           affiché. Sur un si petit groupe, dire « un seul s'est engagé » revient à désigner
-          quelqu'un, même sans le nommer — et cet écran promet le contraire. Choisissez un
+          quelqu'un, même sans le nommer, et cet écran promet le contraire. Choisissez un
           périmètre plus large.</p>`}
         <div class="stack" style="--gap:var(--s4);margin-top:var(--s6)"${
           a.lisible ? "" : ' hidden'}>
@@ -8412,8 +8412,8 @@ function vueAdoption(u){
         <h3 style="font-size:var(--t-lg)">Et ceux qui reviennent</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:4px;max-width:70ch">
           Ce chiffre était la sixième marche de l'entonnoir. Il n'y avait pas sa place :
-          les cinq marches mesurent une <em>acquisition</em> — combien de personnes
-          franchissent une étape de plus — et celui-ci mesure une <em>rétention</em>, ce que
+          les cinq marches mesurent une <em>acquisition</em>, combien de personnes
+          franchissent une étape de plus, et celui-ci mesure une <em>rétention</em>, ce que
           fait quelqu'un qui a déjà tout franchi. Mélangés, ils font chercher la cause du
           décrochage au mauvais endroit.</p>
         <p style="font-family:var(--font-display);font-size:1.6rem;line-height:1.2;
@@ -8439,7 +8439,7 @@ function vueAdoption(u){
                 a.delaiMesurable > 1 ? "ont" : "a"} obtenu une première action validée.</strong>
               Ce délai est celui de ces ${nb(a.delaiMesurable)}-là, et d'eux seuls : les autres
               n'ont pas un délai long, ils n'ont pas de délai. Médiane et non moyenne, pour la
-              même raison — un salarié qui met huit mois tirerait la moyenne et ferait croire
+              même raison, un salarié qui met huit mois tirerait la moyenne et ferait croire
               à un problème général alors qu'il est seul.</p>
             ${a.sansAction ? `<p class="hint" style="margin-top:var(--s4)">
               <strong style="color:var(--ink)">${nb(a.sansAction)} compte${

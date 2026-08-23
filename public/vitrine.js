@@ -289,7 +289,7 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
     if(bulletin) bulletin.classList.toggle('ready',done===total);
 
     var n=inputs[0].value.trim().toUpperCase().replace(/[^A-Z]/g,'').slice(0,4);
-    if(ref) ref.textContent=prefixe+(n?n.padEnd(4,'\u2022'):'\u2022\u2022\u2022\u2022');
+    if(ref) ref.textContent=prefixe+(n?n.padEnd(4,'.'):'....');
   }
 
   inputs.forEach(function(inp){
@@ -329,8 +329,8 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
   }
 
   function courriel(d){
-    var sujet = asso ? 'Riseva — une association vous écrit'
-                     : 'Riseva — préinscription saison 2027';
+    var sujet = asso ? 'Riseva, une association vous écrit'
+                     : 'Riseva, préinscription saison 2027';
     var corps = asso
       ? 'Association : '+d.asso+'\nVille : '+d.ville+'\nCe qui nous manque : '+d.mot
         +'\nContact : '+d.mail
@@ -366,7 +366,7 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
     var d=valeurs();
     var cfg = window.RISEVA_CONFIG;
     msg.className='j-msg';
-    msg.textContent='Envoi…';
+    msg.textContent='Envoi...';
 
     if(!cfg || !cfg.url || !cfg.anonKey){
       replier(d, 'Le formulaire n\u2019est pas encore relié à notre boîte. '
@@ -418,7 +418,7 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
     var m=qs('#prix .tar-n').textContent.match(/(\d[\d\s\u202f]*)\s*€/);
     return m?parseInt(m[1].replace(/[^0-9]/g,''),10):0;
   })();
-  var eur=function(n){ return n.toLocaleString('fr-FR')+' €'; };
+  var eur=function(n){ return n.toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g,' ')+' €'; };
   function maj(){
     var e=Math.max(1,parseInt(eff.value,10)||1), s=Math.max(1,parseInt(sites.value,10)||1);
     var p=null;

@@ -249,7 +249,7 @@ export function qrSvg(texte, taille = 160, alt = "") {
   for (let r = 0; r < n; r++) for (let j = 0; j < n; j++)
     if (m[r][j]) d += `M${j + marge} ${r + marge}h1v1h-1z`;
   return `<svg class="qr" width="${taille}" height="${taille}" viewBox="0 0 ${c} ${c}" ` +
-    `role="img" aria-label="${alt || 'Code QR vers le lien d’inscription'}">` +
+    `role="img" aria-label="${alt || "Code QR vers le lien d'inscription"}">` +
     `<rect width="${c}" height="${c}" fill="#fff"/>` +
     `<path d="${d}" fill="#131510"/></svg>`;
 }

@@ -132,6 +132,15 @@ def main():
               or sortie.splitlines()[-1])
         if code: echecs.append("parcours"); print(sortie[-1500:])
 
+        titre("Ce qui s'affiche doit pouvoir se taper")
+        # Un tiret cadratin, une apostrophe courbe ou une espace fine insécable
+        # ne sont sur aucun clavier français. Ils signent la machine, ils
+        # deviennent des losanges dans un courriel, et ils empêchent de
+        # retrouver un mot dans la page qui l'affiche.
+        code, sortie = lancer("python3 scripts/clavier.py --strict")
+        print(sortie.rstrip())
+        if code: echecs.append("caractères hors clavier")
+
         titre("Contraste")
         code, sortie = lancer("python3 scripts/contraste.py")
         print(sortie.rstrip())
