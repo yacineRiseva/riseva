@@ -3034,15 +3034,17 @@ body{
 .vd .aff-texte p{font-size:clamp(14.5px,1.02vw,16px);line-height:1.62;color:var(--ink-soft);}
 .vd .aff-encart{grid-area:encart;display:grid;gap:10px;justify-items:start;}
 .vd .aff-encart .shot--affiche{
-  /* Zero degre, angles vifs, et une vraie epaisseur de papier : deux ombres
-     superposees, une courte pour le contact, une longue pour la distance. */
-  width:min(230px,60%);border-radius:2px;border:1px solid rgba(19,21,16,.10);
+  /* Le detail du bas de l'affiche : un bandeau large, pas une vignette. Angles
+     vifs et une vraie epaisseur de papier, deux ombres superposees, une courte
+     pour le contact, une longue pour la distance. */
+  width:100%;border-radius:2px;border:1px solid rgba(19,21,16,.10);
   box-shadow:0 2px 4px rgba(19,21,16,.06),0 16px 34px -12px rgba(19,21,16,.20);
 }
+.vd .aff-encart .shot--affiche img{display:block;width:100%;height:auto;}
 .vd .aff-encart .mono{color:var(--faint);max-width:26ch;line-height:1.5;}
 @media (max-width:900px){
   .vd .aff-scene{grid-template-columns:1fr;grid-template-areas:"mur" "texte" "encart";}
-  .vd .aff-encart .shot--affiche{width:min(200px,45%);}
+  .vd .aff-encart .shot--affiche{width:100%;}
 }
 
 /* ── la ligne de saison ─────────────────────────────────────────────────────

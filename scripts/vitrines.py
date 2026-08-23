@@ -948,6 +948,9 @@ CHANGE_ENT = f"""<section id="change" class="band">
 # Le seul support papier du produit, et le seul objet Riseva qu'un salarié voit
 # sans ouvrir un écran. Il est montré tel qu'il sort de l'application, avec le
 # lien de l'entreprise dedans et un code QR qui se scanne pour de bon.
+# L'encart montrait la meme affiche en petit a cote de la grande : deux fois la
+# meme image sur la meme ligne. Il montre maintenant le detail qui porte la
+# promesse, le code QR et le lien qu'il ouvre.
 AFFICHES_ENT = f"""<section id="affiches">
   <div class="layer">
 {entete("Les affiches", "Ce qui se met<br><span class='it'>au-dessus de la machine à café.</span>",
@@ -956,14 +959,14 @@ AFFICHES_ENT = f"""<section id="affiches">
 
     <div class="aff-scene">
       {photo("affiche-bureau",
-             "Une affiche Riseva collée sur la paroi vitrée d'un plateau de bureaux, "
-             "visible depuis le couloir", "", " photo--mur")}
+             "L'affiche A3 que Riseva génère, entière, posée devant un plateau de bureaux : "
+             "le nom de l'entreprise, la saison, les formats proposés, le lien d'inscription "
+             "et son code QR", "", " photo--mur")}
       <div class="aff-encart">
-        {capture("affiche",
-                 "L'affiche A3 générée par Riseva : le nom de l'entreprise, la saison, les "
-                 "formats proposés, le lien d'inscription et son code QR",
-                 "", " shot--affiche")}
-        <p class="mono">Celle que la plateforme génère, avec votre lien et son code QR</p>
+        {photo("affiche-qr",
+               "Le bas de l'affiche : le code QR et le lien d'inscription de l'entreprise, "
+               "en toutes lettres à côté", "", " shot--affiche")}
+        <p class="mono">Le code QR porte le lien de vos équipes. Il se scanne pour de bon.</p>
       </div>
       <div class="aff-texte">
         <h3>Elle porte le lien de votre entreprise</h3>

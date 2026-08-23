@@ -22,7 +22,7 @@ illisible est une image décorative de plus.
 """
 import http.server, socketserver, threading, functools, pathlib, contextlib, sys
 from playwright.sync_api import sync_playwright
-from PIL import Image
+from PIL import Image, ImageFilter, ImageEnhance
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent / "public"
 SORTIE = RACINE / "captures"
@@ -160,6 +160,49 @@ def main():
                     subsampling=0)
             brut.unlink()
             ecrites.append(("affiche", (SORTIE / "affiche.jpg").stat().st_size // 1024))
+
+            # Deux images derivees, ecrites ici pour qu'elles ne puissent pas
+            # dater d'une version anterieure de l'affiche. La vitrine montrait
+            # une affiche de synthese, coupee en bas, a cote de la vraie : deux
+            # affiches differentes sur la meme ligne, et aucune des deux n'etait
+            # celle que le client recevra.
+            photos = RACINE / "photos"
+
+            # 1. Le detail du bas : le code QR et le lien qu'il ouvre.
+            w, h = im.size
+            det = im.crop((int(w*0.055), int(h*0.655), int(w*0.945), int(h*0.815)))
+            det = det.resize((1400, round(det.height * 1400 / det.width)), Image.LANCZOS)
+            det.save(photos / "affiche-qr.jpg", quality=92, subsampling=0)
+            ecrites.append(("affiche-qr", (photos / "affiche-qr.jpg").stat().st_size // 1024))
+
+            # 2. L'affiche entiere, posee devant un plateau de bureaux. Le fond
+            #    est l'ancienne mise en scene, floutee : il n'en reste que la
+            #    lumiere et la paroi vitree, ce qu'on lui demandait.
+            fond_src = photos / "bureau-flou.jpg"
+            if fond_src.exists():
+                fond = Image.open(fond_src).convert("RGB")
+                fond = fond.resize((1640, 1140), Image.LANCZOS)
+                aff = im.copy()
+                HA = 1010
+                WA = round(aff.width * HA / aff.height)
+                aff = aff.resize((WA, HA), Image.LANCZOS).convert("RGBA")
+                dh = round(HA * 0.022)
+                cible = (WA, HA + 2*dh)
+                pose = Image.new("RGBA", cible, (0, 0, 0, 0))
+                pose.paste(aff.transform(cible, Image.QUAD,
+                    (0, 0, 0, HA, WA, HA + dh, WA, -dh), Image.BICUBIC), (0, 0))
+                ombre = Image.new("RGBA", pose.size, (0, 0, 0, 0))
+                ombre.paste((18, 24, 20, 110), (0, 0), pose.split()[3])
+                ombre = ombre.filter(ImageFilter.GaussianBlur(20))
+                scene = fond.convert("RGBA")
+                x = (scene.width - WA)//2
+                y = (scene.height - pose.height)//2
+                scene.alpha_composite(ombre, (x+10, y+16))
+                scene.alpha_composite(pose, (x, y))
+                scene.convert("RGB").save(photos / "affiche-bureau.jpg",
+                                          quality=90, subsampling=0)
+                ecrites.append(("affiche-bureau",
+                                (photos / "affiche-bureau.jpg").stat().st_size // 1024))
             a.close()
         except Exception as exc:
             erreurs.append(f"affiche : {exc}")

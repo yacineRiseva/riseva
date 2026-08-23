@@ -293,9 +293,16 @@ def main():
         verifie("la vitrine montre l'affiche et ce qu'elle porte",
                 "code QR" in aff and "lien d'inscription" in aff
                 and "quatre moments de la saison" in aff)
+        # Les deux images de cette section sont fabriquees par
+        # `scripts/captures.py` a partir de l'affiche que la plateforme genere :
+        # la scene entiere et le detail du code QR. La section montrait aupavant
+        # une affiche de synthese, coupee en bas, a cote de la vraie.
+        srcs = p.eval_on_selector_all("#affiches img", "l=>l.map(e=>e.getAttribute('src'))")
         verifie("l'affiche montrée est une vraie sortie de la plateforme",
-                p.eval_on_selector_all("#affiches img[src*='/captures/affiche']",
-                                       "l=>l.length") == 1)
+                len(srcs) == 2 and all("/photos/affiche-" in x for x in srcs), str(srcs))
+        gen = (RACINE.parent / "scripts" / "captures.py").read_text(encoding="utf-8")
+        verifie("ces deux images se refabriquent avec l'affiche, elles ne se dessinent pas",
+                'photos / "affiche-qr.jpg"' in gen and 'photos / "affiche-bureau.jpg"' in gen)
         # ── ce que ça change ────────────────────────────────────────────────
         # Trois effets, et chacun porte son chiffre. Dans la version précédente
         # celui du milieu n'en avait pas : au lieu de trois colonnes, l'œil
