@@ -194,10 +194,16 @@ language sql stable security definer set search_path = '' as $$
   ), base as (
     select ab.entreprise, e.nom, e.logo, e.secteur, e.visibilite, ab.effectif_reference,
            coalesce(b.brut, 0) as brut, coalesce(r.retenu, 0) as retenu,
+           -- Les memes bornes que `CATEGORIES` dans data.js, et que la grille
+           -- publiee sur le reglement : moins de 50, 50 a 199, 200 a 499, 500 et
+           -- plus. Elles disaient 250 et 5 000 ici : une entreprise de deux cent
+           -- vingt salaries changeait de cohorte selon qu'on la regardait dans
+           -- le navigateur ou dans la base, et la mediane de la cohorte avec
+           -- elle, donc qui est nomme et qui reste anonyme.
            case
              when ab.effectif_reference < 50   then 'TPE'
-             when ab.effectif_reference < 250  then 'PME'
-             when ab.effectif_reference < 5000 then 'ETI'
+             when ab.effectif_reference < 200  then 'PME'
+             when ab.effectif_reference < 500  then 'ETI'
              else 'GE' end as categorie
       from public.abonnement ab
       join public.entreprise e on e.id = ab.entreprise
@@ -1017,7 +1023,16 @@ begin
   if p_quantite is null or p_quantite <= 0 or p_quantite > v_a.restant then
     raise exception 'Quantité indisponible' using errcode = '23514';
   end if;
-  if v_a.type <> 'don_financier' and p_quantite <> floor(p_quantite) then
+  -- Un don en argent ne s'ENGAGE pas : il s'annonce, se vire, et se confirme par
+  -- l'association qui l'a recu. Le moteur du navigateur le refusait, la RPC non :
+  -- un appel direct creditait donc des points sur une promesse de virement que
+  -- personne ne confirmerait par le circuit prevu. Une regle qui n'existe que
+  -- dans le navigateur n'est pas une regle.
+  if v_a.type = 'don_financier' then
+    raise exception 'Un don en argent passe par une intention de virement, pas par un engagement'
+      using errcode = '23514';
+  end if;
+  if p_quantite <> floor(p_quantite) then
     raise exception 'Cette annonce se compte en unités entières' using errcode = '23514';
   end if;
   if not exists (select 1 from public.abonnement ab
@@ -1780,7 +1795,25 @@ returns jsonb language sql immutable set search_path = '' as $$
                      / private.n(v,'effectif_fin') * 100 end,
     'part_femmes', case when private.n(v,'effectif_fin') > 0
                 then private.n(v,'femmes')
-                     / private.n(v,'effectif_fin') * 100 end
+                     / private.n(v,'effectif_fin') * 100 end,
+    -- Quatre taux manquaient ici alors qu'ils existent dans data.js. La regle
+    -- « expliquez toute variation de plus de trente pour cent » ne les couvrait
+    -- donc pas en production : un site dont la part de dechets valorises
+    -- s'effondrait de soixante pour cent etait bloque en demonstration et
+    -- passait sans un mot chez un vrai client. Le commentaire de cette fonction
+    -- affirmait « les memes formules que dans data.js » ; ce n'etait plus vrai.
+    'part_valorise', case when private.n(v,'dechets_kg') > 0
+                then private.n(v,'dechets_valorises_kg')
+                     / private.n(v,'dechets_kg') * 100 end,
+    'part_flotte_elec', case when private.n(v,'flotte') > 0
+                then private.n(v,'flotte_electrique')
+                     / private.n(v,'flotte') * 100 end,
+    'part_achats_locaux', case when private.n(v,'achats_montant') > 0
+                then private.n(v,'achats_locaux')
+                     / private.n(v,'achats_montant') * 100 end,
+    'elec_par_salarie', case when private.n(v,'effectif_fin') > 0
+                then private.n(v,'elec_kwh')
+                     / private.n(v,'effectif_fin') end
   ))
 $$;
 

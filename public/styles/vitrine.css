@@ -1594,7 +1594,10 @@ section{
   padding:11px 0;border-bottom:1px dashed rgba(19,21,16,.20);
   font-size:13.5px;
 }
-.bl-k{flex:none;width:6.6em;}
+/* « ASSOCIATION » en capitales espacees mesure cent un pixels ; la colonne en
+   faisait soixante-dix-huit, et les deux textes se chevauchaient. Mesure faite
+   au navigateur, pas a l'oeil. */
+.bl-k{flex:none;width:9em;}
 .bl-v{flex:1;}
 .bl-tick{
   width:15px;height:15px;border-radius:50%;

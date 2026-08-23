@@ -355,6 +355,17 @@ begin
       'une association non eligible ne recoit plus de mise a disposition (L. 8241-3)',
       sqlerrm like '%8241-3%');
   end;
+  -- Un don en argent ne s'engage pas : il passe par une intention de virement,
+  -- et c'est l'association qui confirme l'avoir recu. La regle existait dans le
+  -- navigateur et pas ici : un appel direct creditait des points sur une promesse.
+  begin
+    select public.engager_mission(a.id, 1) into v_mid
+      from public.annonce a where a.type = 'don_financier' and a.etat = 'ouverte' limit 1;
+    perform pg_temp.dit('un don en argent ne s''engage pas comme une mission', false);
+  exception when others then
+    perform pg_temp.dit('un don en argent ne s''engage pas comme une mission',
+      sqlerrm like '%intention de virement%');
+  end;
 end $$;
 reset role;
 update public.association set eligible_mecenat = true, recus_actif = true

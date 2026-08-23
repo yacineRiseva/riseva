@@ -36,8 +36,12 @@
                 <input class="input" id="ent" name="ent" required placeholder="Raison sociale"></div>
               <div class="field" style="flex:1"><label for="eff">Effectif</label>
                 <select class="select" id="eff" name="eff">
-                  <option>Moins de 50</option><option>50 à 149</option>
-                  <option>150 à 499</option><option>500 et plus</option>
+                  <!-- Les memes tranches que la grille tarifaire. Elles disaient
+                       « 50 a 149 » et « 150 a 499 » : un effectif de 160 personnes
+                       ne retombait sur aucune ligne de la grille affichee. -->
+                  <option>Moins de 50</option><option>50 à 199</option>
+                  <option>200 à 499</option><option>500 à 999</option>
+                  <option>1 000 à 1 999</option><option>2 000 et plus</option>
                 </select></div>
             </div>
             <div class="row" style="gap:var(--s4);align-items:stretch">

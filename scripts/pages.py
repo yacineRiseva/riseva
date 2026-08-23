@@ -7,6 +7,27 @@ Ces pages font partie du dossier qu'un acheteur demande avant de signer. Elles s
 """
 import pathlib, re
 
+# Le bareme du reglement se LIT dans `public/app/data.js`. Il y etait recopie a
+# la main, et il avait divergé : le reglement — le document contractuel, celui
+# vers lequel la page de vente renvoie avant la signature — n'annoncait que
+# trois formats quand le produit en compte sept. Un acheteur qui suit le lien y
+# trouvait quatre formats absents.
+def lire_bareme():
+    src = (pathlib.Path(__file__).resolve().parent.parent
+           / "public" / "app" / "data.js").read_text(encoding="utf-8")
+    bloc = src[src.index("export const BAREME = {"):src.index("/* Les trois questions")]
+    formats = []
+    for m in re.finditer(
+        r'(\w+):\s*\{\s*label:\s*"([^"]+)",\s*unite:\s*"([^"]+)",\s*\n?\s*points:\s*(\d+)',
+        bloc):
+        formats.append({"cle": m.group(1), "label": m.group(2),
+                        "unite": m.group(3), "points": int(m.group(4))})
+    if len(formats) < 5:
+        raise SystemExit("pages.py : bareme illisible dans data.js")
+    return formats
+
+BAREME = lire_bareme()
+
 RACINE = pathlib.Path(__file__).resolve().parent.parent / "public"
 
 GABARIT = """<!DOCTYPE html>
@@ -97,10 +118,10 @@ en points.</p>
 <table>
   <thead><tr><th>Format</th><th>Unité</th><th>Points</th></tr></thead>
   <tbody>
-    <tr><td>Don financier</td><td>par tranche de 10 € versés</td><td>1 point</td></tr>
-    <tr><td>Bénévolat</td><td>par demi-journée validée</td><td>150 points</td></tr>
-    <tr><td>Don de matériel</td><td>par don validé</td><td>100 points</td></tr>
-  </tbody>
+""" + "".join(
+    f"    <tr><td>{b['label']}</td><td>par {b['unite']}</td>"
+    f"<td>{b['points']} point{'s' if b['points'] > 1 else ''}</td></tr>\n"
+    for b in BAREME) + """  </tbody>
 </table>
 <p>Le barème est versionné par saison. Une modification ne s'applique jamais en cours de saison :
 elle fausserait un classement déjà commencé. Elle est annoncée au moins un mois avant l'ouverture
@@ -618,6 +639,26 @@ ecrire("engagements.html",
   chapo="« Meilleur effort » ne veut rien dire. Voici des chiffres, et ce qui se passe quand nous "
         "ne les tenons pas.",
   corps="""
+<h2>Le démarrage</h2>
+<p>Une saison ne commence pas à la signature : elle commence quand l'outil fonctionne chez vous.
+Cinq points sont constatés ensemble, à une date convenue. Ils sont vérifiables par vous, sans
+nous croire sur parole.</p>
+<ol>
+  <li>Votre espace est ouvert et le lien d'inscription fonctionne <strong>depuis un poste de
+      votre réseau</strong> : c'est le seul test qui vaut, un lien qui marche chez nous ne prouve
+      rien.</li>
+  <li>Les comptes commandés sont disponibles, et le quota de chaque site est réparti.</li>
+  <li>Les formats de votre contrat sont actifs, et le barème de la saison est celui du
+      règlement publié.</li>
+  <li>Des associations vérifiées et actives sont présentes autour de vos sites. Le nombre exact
+      vous est donné site par site, y compris quand il est faible.</li>
+  <li>Un rapport est exportable, avec la méthode de calcul à côté de chaque chiffre.</li>
+</ol>
+<p>Vous disposez de quinze jours pour les constater. Si l'un manque et n'est pas levé dans les
+quinze jours suivants, <strong>l'acompte est remboursé intégralement</strong> et aucun solde
+n'est dû. Le solde est facturé à l'ouverture de la saison et payable à trente jours ; si le
+démarrage n'est pas constaté, il n'est pas dû.</p>
+
 <h2>Disponibilité</h2>
 <table>
   <thead><tr><th>Engagement</th><th>Valeur</th></tr></thead>
@@ -654,13 +695,16 @@ tourne en rond.</p>
 le réseau, pas seulement sur le logiciel.</p>
 <ul>
   <li>Nous visons <strong>huit annonces ouvertes à tout moment, dont trois de bénévolat</strong>,
-      dans un rayon de <strong>50 km</strong> autour de chaque établissement de chaque entreprise
+      dans un rayon de <strong>30 km</strong> autour de chaque établissement de chaque entreprise
       cliente. C'est notre objectif de service, et nous le mesurons.</li>
   <li>L'engagement contractuel, celui sur lequel vous pouvez nous tenir, est plus prudent et plus
       net : <strong>au moins trois annonces ouvertes, dont une de bénévolat</strong>, dans ce même
-      rayon. Nous ne promettons pas huit associations dans un rayon de 50 km autour d'un site isolé
-      alors que le réseau se construit : ce serait une promesse que la carte de France ne permet
-      pas toujours de tenir.</li>
+      rayon. Nous ne promettons pas huit associations autour d'un site isolé alors que le réseau
+      se construit : ce serait une promesse que la carte de France ne permet pas toujours de
+      tenir.</li>
+  <li>Trente kilomètres, et pas cinquante : c'est le rayon que l'écran d'un salarié montre
+      réellement. Un engagement mesuré sur un rayon plus large que celui qu'on affiche serait tenu
+      sur le papier pendant que l'écran resterait vide.</li>
   <li>Si ce plancher n'est pas atteint <strong>pendant plus de trente jours consécutifs</strong>
       pour un établissement, nous élargissons son rayon à 100 km et nous vous prévenons. S'il n'est
       toujours pas atteint au bout de <strong>soixante jours</strong>, le mois d'abonnement

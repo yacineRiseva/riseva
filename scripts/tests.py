@@ -1204,6 +1204,32 @@ def main():
         verifie("elle ne dit pas « aucun compte à ouvrir » sous un bouton qui en ouvre un",
                 "Aucun compte à ouvrir" not in vit)
 
+        print("\nUn document contractuel ne contredit pas le produit")
+        reg = (RACINE / "reglement.html").read_text(encoding="utf-8")
+        formats = p.evaluate("""async()=>{const m=await import('/app/data.js');
+          return Object.values(m.BAREME).map(b=>b.label);}""")
+        manque = [f for f in formats if f not in reg]
+        verifie("le règlement liste les sept formats du barème, pas trois",
+                not manque, ", ".join(manque))
+
+        eng = (RACINE / "engagements.html").read_text(encoding="utf-8")
+        verifie("les cinq critères de démarrage sont écrits dans les engagements",
+                "Le démarrage" in eng and "acompte est remboursé" in eng)
+        rayon = p.evaluate("""async()=>{const m=await import('/app/data.js');
+          return m.DB.RAYON_OFFRE_KM;}""")
+        verifie("le rayon sur lequel on s'engage est celui que l'écran montre",
+                f"{rayon} km" in eng and "50 km" not in eng, str(rayon))
+
+        vit = (RACINE / "associations.html").read_text(encoding="utf-8")
+        verifie("la page association ne promet pas que rien ne compte sans elle",
+                "ne rapporte rien à personne" not in vit and "quatorze jours" in vit)
+
+        sql = (RACINE.parent / "supabase" / "02_logique.sql").read_text(encoding="utf-8")
+        bornes = p.evaluate("""async()=>{const m=await import('/app/data.js');
+          return m.CATEGORIES.map(c=>c.max).slice(0,3);}""")
+        verifie("les tranches d'effectif sont les mêmes dans le navigateur et dans la base",
+                all(f"< {b + 1}" in sql for b in bornes), str(bornes))
+
         print("\nRègles de calcul")
         # Le plafond porte sur le total retenu, pas sur le brut : avec (6240, 780, 0)
         # la règle « aucun format au-delà de la moitié » impose 1 560, pas 4 290.

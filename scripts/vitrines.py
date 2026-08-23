@@ -80,6 +80,11 @@ def lire_tarifs():
 TARIFS = lire_tarifs()
 EUR = lambda n: f"{n:,}".replace(",", "&nbsp;") + "&nbsp;€"
 
+# Un chiffre isole au milieu d'une phrase se lit comme une donnee ; ecrit en
+# lettres, il se lit comme une phrase. Les montants restent en chiffres.
+EN_LETTRES = {1: "un", 2: "deux", 3: "trois", 4: "quatre", 5: "cinq", 6: "six",
+              7: "sept", 8: "huit", 9: "neuf", 10: "dix", 11: "onze", 12: "douze"}
+
 
 FEUILLE = "riseva-mark"   # favicon
 
@@ -326,7 +331,7 @@ def faq(items):
     return f"""<section id="faq" class="band">
   <div class="layer">
 {entete("La FAQ", "Ce qu'on nous demande<br><span class='it'>vraiment.</span>",
-        "Les questions posées en rendez-vous, avec les réponses données en rendez-vous. Si la vôtre manque, écrivez-la-nous : elle finira ici.")}
+        "Les questions qui décident d'une signature, et nos réponses. Si la vôtre manque, écrivez-la-nous à contact@riseva.fr : elle finira ici.")}
     <div class="qa-split">
       <ol class="qa-index rv" id="qaIndex" role="tablist" aria-label="Sommaire des questions">
       {idx}
@@ -375,16 +380,17 @@ def faq(items):
 
 NAV_ENT = nav(
     [("saison", "Le déroulé"), ("equipes", "Côté salariés"),
-     ("associations", "Côté associations"), ("outil", "L'outil RSE"),
-     ("pilotage", "Ce que vous pilotez"), ("prix", "Le prix"), ("faq", "Questions")],
+     ("associations", "Côté associations"), ("pilotage", "Ce que vous pilotez"),
+     ("outil", "L'outil RSE"), ("prix", "Le prix"), ("faq", "Questions")],
     "Explorer la plateforme", "/app/", "Démonstration libre, sans rendez-vous")
 
 PIED_ENT = pied(
     "Riseva met des entreprises françaises au service des associations qui protègent "
     "le vivant, partout en France. Une saison, un barème public, un rapport qui tient debout.",
     [("La saison", [("#saison", "Le déroulé"), ("#equipes", "Côté salariés"),
-                    ("#associations", "Côté associations"), ("#outil", "L'outil RSE"),
-                    ("#pilotage", "Ce que vous pilotez"), ("#affiches", "Les affiches"),
+                    ("#associations", "Côté associations"),
+                    ("#pilotage", "Ce que vous pilotez"), ("#outil", "L'outil RSE"),
+                    ("#affiches", "Les affiches"),
                     ("#perimetres", "Groupes et périmètres"),
                     ("#prix", "Le prix")]),
      ("Les règles", [("/reglement.html", "Le règlement du barème"),
@@ -682,7 +688,7 @@ SAISON_ENT = f"""<section id="saison" class="band">
 EQUIPES_ENT = f"""<section id="equipes">
   <div class="layer">
 {entete("Côté salariés", "Ce que vos salariés<br><span class='it'>voient réellement.</span>",
-        "Trois écrans, et une règle : chacun se propose. Un salarié qui se sent inscrit "
+        "Deux écrans, et une règle : chacun se propose. Un salarié qui se sent inscrit "
         "d'office ne revient pas une deuxième fois.")}
 
     {objection("Est-ce que ça prend, avec des équipes en poste ou sur le terrain ?",
@@ -1022,15 +1028,15 @@ BANDEAU_ENT = """<section id="rejoindre" class="bandeau">
   <div class="layer">
     <div class="bandeau-in">
       <div>
-        <h2>Douze places pour la première saison.</h2>
-        <p>Nous ouvrons douze entreprises pour la première saison, pas plus. Avant que le
-          solde soit facturé, cinq critères de démarrage prévus au contrat sont vérifiés
-          avec vous.</p>
+        <h2>Vingt places au tarif fondateur.</h2>
+        <p>La remise de lancement est limitée à vingt entreprises, et au 31 décembre 2026.
+          Avant que le solde soit facturé, les cinq critères de démarrage écrits dans les
+          engagements de service sont constatés avec vous.</p>
       </div>
       <div class="bandeau-cta">
         <a class="btn btn-lg" href="/inscription.html"><span class="dot"></span>Réserver une place</a>
-        <span class="mono">Préinscription gratuite, sans carte bancaire.
-          Une personne de l'équipe vous répond.</span>
+        <span class="mono">Préinscription gratuite, sans carte bancaire,
+          sans engagement.</span>
       </div>
     </div>
   </div>
@@ -1040,8 +1046,17 @@ BANDEAU_ENT = """<section id="rejoindre" class="bandeau">
 FAQ_ENT = faq([
   ("Combien coûte une saison ?",
    f"<p>La grille est <a href='#prix'>affichée sur cette page</a> : de "
-   f"<b>{EUR(TARIFS['paliers'][0]['prix'])[:-2]} à {EUR(TARIFS['paliers'][-1]['prix'])} HT</b> "
-   f"pour douze mois, selon votre effectif, un à douze sites compris selon la tranche. "
+   # `[:-2]` coupait « € » et laissait « &nbsp » sans point-virgule : l'entite
+   # restait a moitie ecrite dans la page. Et la fourchette annoncait le dernier
+   # palier comme un prix ferme, alors que le heros et la note sous la grille
+   # disent « a partir de ». Les trois disent maintenant la meme chose.
+   f"<b>{EUR(TARIFS['paliers'][0]['prix']).replace('&nbsp;€', '')} à "
+   f"{EUR(TARIFS['paliers'][-2]['prix'])} HT</b> pour douze mois, selon votre effectif, "
+   f"un à {EN_LETTRES.get(TARIFS['paliers'][-2]['sites'], TARIFS['paliers'][-2]['sites'])} "
+   f"sites compris selon la tranche. Au-delà de deux mille salariés, sur devis à partir de "
+   f"{EUR(TARIFS['paliers'][-1]['prix'])}, "
+   f"{EN_LETTRES.get(TARIFS['paliers'][-1]['sites'], TARIFS['paliers'][-1]['sites'])} "
+   f"sites compris. "
    f"Les {TARIFS['fondateur_places']} premières entreprises signataires bénéficient de "
    f"{int(TARIFS['fondateur_taux'] * 100)} % de remise sur leur première saison.</p>"
    "<p>Pas de facturation par salarié, pas de module en supplément, pas de commission sur les "
@@ -1063,7 +1078,8 @@ FAQ_ENT = faq([
    "est disponible ; un rapport est exportable.</p>"
    "<p>Vous avez quinze jours pour les constater. Si l'un manque et n'est pas levé sous "
    "quinze jours de plus, <b>l'acompte est remboursé intégralement</b> et aucun solde n'est "
-   "dû. Le solde n'est facturé qu'après ce constat.</p>"),
+   "dû. Le solde est facturé à l'ouverture de la saison et payable à trente jours ; si le "
+   "démarrage n'est pas constaté, il n'est pas dû.</p>"),
   ("Qui valide qu'une mission a bien eu lieu ?",
    "<p>L'association, et elle seule. Elle reçoit un message après la date prévue et répond en "
    "un clic, sans se connecter. Sans réponse de sa part sous quatorze jours, la mission est "
@@ -1208,8 +1224,8 @@ def grille_tarifaire():
                inputmode="numeric">
       </div>
       <p class="tar-sim-out" id="simOut" aria-live="polite"></p>
-      <p class="tar-sim-cta"><a class="btn" href="/inscription.html">Recevoir un devis daté</a>
-        <span class="mono">Le devis reprend exactement ce calcul.</span></p>
+      <p class="tar-sim-cta"><a class="btn" href="/inscription.html">Réserver une place</a>
+        <span class="mono">Le bon de commande reprend cette grille telle quelle.</span></p>
       <div class="tar-sim-notes">
         <p class="tar-n"><b>Tarif fondateur : -{int(TARIFS['fondateur_taux'] * 100)} %</b>
           pour les {TARIFS['fondateur_places']} premières entreprises qui signent, jusqu'au
@@ -1254,7 +1270,7 @@ CORPS_ENT = "\n\n".join([
 # ═══════════════════════════════════════════════════════════════════════════
 
 NAV_ASSO = nav(
-    [("comment", "Comment ça marche"), ("challenge", "Pourquoi elles viennent"),
+    [("comment", "Comment ça marche"), ("challenge", "Pourquoi les entreprises viennent"),
      ("argent", "Les dons"), ("faq", "Vos questions")],
     "Ouvrir mon espace", "#commencer", "Gratuit, et sans exclusivité")
 
@@ -1262,7 +1278,7 @@ PIED_ASSO = pied(
     "Riseva met des entreprises françaises au service des associations qui protègent le "
     "vivant. Gratuit pour vous, sans exclusivité, et sans commission sur vos dons.",
     [("Comprendre", [("#comment", "Comment ça marche"),
-                     ("#challenge", "Pourquoi elles viennent"),
+                     ("#challenge", "Pourquoi les entreprises viennent"),
                      ("#argent", "Les dons"), ("#faq", "Vos questions")]),
      ("Les textes", [("/charte-associations.html", "La charte des associations"),
                      ("/reglement.html", "Le règlement du barème"),
@@ -1286,9 +1302,6 @@ HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
         <p>Vous publiez une annonce : des bras pour un samedi, du matériel, un coup de main
           financier. Des salariés d'entreprises abonnées se proposent. Quand c'est fait, vous
           confirmez en un clic depuis un courriel.</p>
-        <p>Les entreprises suivent une saison d'engagement, avec un classement entre elles.
-          Les points ne comptent qu'après votre confirmation : c'est vous qui décidez si la
-          mission a eu lieu.</p>
         <div class="hero-cta">
           <a class="btn btn-lg" href="#commencer"><span class="dot"></span>Ouvrir mon espace</a>
           <a class="tlink" href="#comment">Voir comment ça marche</a>
@@ -1300,7 +1313,8 @@ HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
       </div>
 
       <dl class="fiche">
-        <div><dt class="mono">Prix</dt><dd>gratuit, aujourd'hui et après</dd></div>
+        <div><dt class="mono">Prix</dt><dd>gratuit, aujourd'hui et après. Ce sont les
+          entreprises abonnées qui paient</dd></div>
         <div><dt class="mono">Engagement</dt><dd>aucune exclusivité, vous continuez tout ce que
           vous faites ailleurs</dd></div>
         <div><dt class="mono">Sur vos dons</dt><dd>aucune commission. L'argent va du donateur à
@@ -1316,7 +1330,8 @@ HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
     {chiffres([
       ("0 €", "à payer, et aucune commission sur vos dons.", None),
       ("1 clic", "pour confirmer une mission, depuis un courriel.", None),
-      ("5 min", "pour publier une annonce. Nous la rédigeons avec vous si vous préférez.",
+      ("5 min", "pour publier une annonce. Six annonces déjà écrites vous attendent, "
+                "vous changez la date.",
        None),
       ("3", "façons d'être aidé : des bras, du matériel, de l'argent.", None),
     ])}
@@ -1351,9 +1366,11 @@ COMMENT_ASSO = f"""<section id="comment" class="band">
 
 CHALLENGE_ASSO = f"""<section id="challenge">
   <div class="layer">
-{entete("Pourquoi elles viennent", "Les entreprises jouent<br><span class='it'>une saison.</span>",
-        "Les points ne comptent qu'après votre confirmation. Une mission que vous ne "
-        "confirmez pas ne rapporte rien à personne.")}
+{entete("Pourquoi les entreprises viennent",
+        "Les entreprises jouent<br><span class='it'>une saison.</span>",
+        "C'est vous qui dites si une mission a eu lieu. Sans réponse de votre part sous "
+        "quatorze jours, elle est comptée, et reste marquée comme non confirmée partout "
+        "où elle apparaît.")}
 
     <div class="photos3">
       {photo("refuge", "Un chien recueilli, allongé dans un box de refuge", "")}
@@ -1364,9 +1381,10 @@ CHALLENGE_ASSO = f"""<section id="challenge">
     </div>
 
     <div class="trois3">
-      <div><h4>Les points comptent quand vous confirmez</h4>
-        <p>Une mission ne rapporte rien tant que vous n'avez pas dit qu'elle avait eu lieu.
-          C'est vous qui tenez le stylo.</p></div>
+      <div><h4>C'est vous qui confirmez</h4>
+        <p>Vous dites si la mission a eu lieu, en un clic, depuis un courriel. Sans réponse
+          sous quatorze jours, elle est comptée mais reste écrite comme non confirmée, et le
+          résultat comme estimé. Ce n'est pas une faute, et vous pouvez répondre plus tard.</p></div>
       <div><h4>Elles cherchent près de chez vous</h4>
         <p>Chaque entreprise voit les besoins ouverts dans un rayon de trente kilomètres autour
           de ses sites. Tant que vous n'avez rien publié, vous n'apparaissez pas dans cette
@@ -1437,7 +1455,9 @@ FAQ_ASSO = faq([
    "abonnées ont un site à moins de trente kilomètres de chez vous. Si la réponse est zéro, "
    "il l'écrit.</p>"),
   ("Qui peut s'inscrire ?",
-   "<p>Toute association déclarée, avec un numéro RNA et des statuts à jour. Nous vérifions "
+   "<p>Toute association déclarée, y compris de droit local d'Alsace-Moselle. Un numéro, RNA "
+   "ou SIREN, accélère la vérification sans être obligatoire : neuf associations déclarées sur "
+   "dix n'ont pas de SIREN. Nous vérifions "
    "l'enregistrement administratif avant de publier votre page, et nous vous disons ce qui "
    "manque le cas échéant.</p>"
    "<p>Pour les dons ouvrant droit à un reçu fiscal, c'est vous qui appréciez votre "
@@ -1461,8 +1481,9 @@ CONTACT_ASSO = f"""<section id="commencer">
       <div class="rv">
         <div class="j-step mono">Quatre informations suffisent</div>
         <p class="j-sentence">Nous sommes <span class="blank"><label class="sr-only" for="fa-asso">Nom de l'association</label><input id="fa-asso" class="bk" type="text" name="asso" data-key="asso" data-label="le nom de votre association" placeholder="votre association" spellcheck="false" required><span class="ghost" aria-hidden="true"></span></span>, à <span class="blank"><label class="sr-only" for="fa-ville">Ville</label><input id="fa-ville" class="bk" type="text" name="ville" data-key="ville" data-label="votre ville" placeholder="votre ville" required><span class="ghost" aria-hidden="true"></span></span>. Ce qui nous manque le plus en ce moment, c'est <span class="blank"><label class="sr-only" for="fa-mot">Ce qui vous manque</label><input id="fa-mot" class="bk" type="text" name="mot" data-key="mot" data-label="ce qui vous manque" placeholder="des bras un samedi matin" required><span class="ghost" aria-hidden="true"></span></span>. Notre adresse est <span class="blank"><label class="sr-only" for="fa-mail">Adresse e-mail</label><input id="fa-mail" class="bk" type="email" name="mail" data-key="mail" data-label="votre adresse e-mail" placeholder="nom@association.fr" spellcheck="false" required><span class="ghost" aria-hidden="true"></span></span>.</p>
-        <p class="j-hint" id="jHint">Votre espace s'ouvre tout de suite. Il restera trois champs
-          à compléter pour être visible : votre numéro au registre, votre IBAN et une photo.</p>
+        <p class="j-hint" id="jHint">Votre espace s'ouvre tout de suite. Votre page devient
+          visible une fois votre enregistrement vérifié, et votre espace vous dit ce qu'il
+          reste à faire.</p>
         <div class="j-cta">
           <button type="submit" class="btn btn-lg"><span class="dot"></span>Ouvrir mon espace</button>
           <span class="mono">Gratuit, sans exclusivité, sans commission</span>
@@ -1501,10 +1522,10 @@ BANDEAU_ASSO = """<section id="rejoindre" class="bandeau">
   <div class="layer">
     <div class="bandeau-in">
       <div>
-        <h2>Trois minutes, et vous êtes en ligne.</h2>
-        <p>Vous ouvrez votre espace vous-même. Vous décrivez ce que vous faites, vous publiez
-          votre première annonce, et nous vérifions votre enregistrement pendant ce temps.
-          Rien à installer, rien à payer, personne à attendre.</p>
+        <h2>Quatre lignes, et votre espace est ouvert.</h2>
+        <p>Vous décrivez ce que vous faites et vous préparez votre première annonce. Nous
+          vérifions votre enregistrement pendant ce temps : votre page devient visible des
+          entreprises une fois cette vérification faite. Rien à installer, rien à payer.</p>
       </div>
       <div class="bandeau-cta">
         <a class="btn btn-lg" href="#commencer"><span class="dot"></span>Ouvrir mon espace</a>

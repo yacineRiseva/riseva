@@ -382,7 +382,12 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
     if(bad.length){
       bad.forEach(function(i){i.classList.add('bad');});
       msg.className='j-msg bad';
-      msg.textContent='Il manque '+bad[0].dataset.label+'.';
+      /* « Il manque ce qui vous manque. » : le gabarit unique produisait cette
+         phrase la ou l'etiquette du champ est deja une tournure. Un champ vide
+         manque, un champ rempli mais invalide se verifie. */
+      msg.textContent = bad[0].value.trim()
+        ? 'Vérifiez ' + bad[0].dataset.label + '.'
+        : 'Il manque ' + bad[0].dataset.label + '.';
       bad[0].focus();
       return;
     }
@@ -403,7 +408,21 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
        le compte : on les depose, et l'application les reprend pour creer la
        fiche et emmener directement dans le dossier a completer. */
     if(asso){
-      try { localStorage.setItem('riseva.nouvelleAsso', JSON.stringify(d)); } catch(e){}
+      /* On VERIFIE que le depot a eu lieu avant de rediriger. Le `try/catch`
+         avalait l'echec — navigation privee, stockage bloque, quota plein — et
+         partait quand meme vers l'application : la presidente arrivait sur un
+         ecran de connexion, ses quatre reponses perdues, sans un mot. */
+      var pose = false;
+      try {
+        localStorage.setItem('riseva.nouvelleAsso', JSON.stringify(d));
+        pose = localStorage.getItem('riseva.nouvelleAsso') !== null;
+      } catch(e){ pose = false; }
+      if(!pose){
+        replier(d, 'Votre navigateur empêche l\u2019ouverture directe du compte. '
+                  +'Votre demande est prête, il ne manque qu\u2019un clic pour '
+                  +'l\u2019envoyer depuis votre messagerie. Rien n\u2019est perdu.');
+        return;
+      }
       msg.className='j-msg ok';
       msg.textContent='Compte en cours d\u2019ouverture...';
       if(stamp) stamp.textContent='Compte ouvert';
@@ -430,8 +449,10 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
     }).then(function(r){
       if(!r.ok) throw new Error('écriture refusée ('+r.status+')');
       msg.className='j-msg ok';
-      msg.textContent = 'Bulletin enregistré. Une personne de l\u2019équipe vous écrit '
-        + 'sous 48 heures ouvrées.';
+      /* Pas de delai promis : personne ne le tiendrait, et la preinscription se
+         suffit a elle-meme. Ce qu'elle fait est ecrit, et c'est verifiable. */
+      msg.textContent = 'Préinscription enregistrée. Elle vous réserve une place au tarif '
+        + 'fondateur et n\u2019engage à rien.';
       if(stamp) stamp.textContent='Envoyé';
     }).catch(function(err){
       replier(d, 'Nous n\u2019avons pas pu enregistrer votre message ('+err.message+'). '

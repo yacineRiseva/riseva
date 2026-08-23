@@ -6093,10 +6093,18 @@ const versEtat = {
     lat: r.lat, lon: r.lon, groupe: r.groupe || null, domaines: [],
     logo: r.logo || null
   }),
-  groupe: (r) => ({ id: r.id, nom: r.nom, societe_mere: r.societe_mere, cree_le: r.cree_le }),
+  groupe: (r) => ({ id: r.id, nom: r.nom, societe_mere: r.societe_mere,
+                    classement_sites: !!r.classement_sites, cree_le: r.cree_le }),
+  /* Quatre colonnes se perdaient ici, et chacune emportait une fonctionnalite :
+     sans `registre_actif`, aucun site ne tenait jamais son registre de securite
+     et les valeurs deduites ne l'etaient jamais ; sans l'adresse et les
+     coordonnees, la mesure de ce qu'un salarie peut aller faire autour de son
+     site ne trouvait plus le site. */
   etablissement: (r) => ({
     id: r.id, societe: r.societe, nom: r.nom, ville: r.ville, siret: r.siret,
     effectif: r.effectif, quota: r.quota,
+    adresse: r.adresse || null, lat: r.lat ?? null, lon: r.lon ?? null,
+    registre_actif: !!r.registre_actif,
     referent: r.referent_nom, referent_mail: r.referent_mail
   }),
   association: (r) => ({
