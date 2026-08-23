@@ -680,17 +680,21 @@ function tableauEntreprise(u){
           ${Object.entries(BAREME).map(([k, b]) => {
             const v = pts.parType[k] || 0;
             const r = pts.retenuParType[k] || 0;
+            /* « Voir les annonces de ce format » repete sous chaque format a
+               zero point donnait cinq fois le meme lien sur douze centimetres.
+               Le lien tient en un seul, sous le bloc. */
             if (!v) return `<div class="kpi">
               <span class="kpi__label">${esc(b.label)}</span>
               <span class="kpi__value" style="font-size:1.4rem;color:var(--ink-300)">0</span>
-              <a class="kpi__delta" href="#/annonces" style="color:var(--forest-800)">
-                Voir les annonces de ce format</a></div>`;
+              <span class="kpi__delta">aucun point sur ce format</span></div>`;
             return `<div class="kpi">
               <span class="kpi__label">${esc(b.label)}</span>
               <span class="kpi__value" style="font-size:1.4rem">${nb(r)}</span>
               <span class="kpi__delta">${v > r ? nb(v - r) + " au-delà du plafond" : "points retenus"}</span></div>`;
           }).join("")}
         </div>
+        <a class="btn btn--ghost btn--sm" href="#/annonces" style="margin-top:var(--s5)">
+          Voir les annonces, format par format</a>
       </section>
 
       <div class="stack" style="--gap:var(--s5)">
@@ -747,6 +751,18 @@ function tableauEntreprise(u){
             <h3>Missions en cours</h3><a class="btn btn--quiet btn--sm" href="#/missions">Tout voir</a></div>
           <div class="stack" style="--gap:var(--s3)" id="todo"></div>
         </section>
+
+        ${/* La colonne s'arrêtait ici, et le bas de l'écran restait vide sur la
+              moitié droite pendant que la colonne de gauche continuait. Ce qui
+              manquait n'était pas du remplissage : c'étaient les dates. Un
+              responsable RSE les cherche ailleurs, une par écran, alors qu'elles
+              tiennent en quatre lignes et qu'elles décident de sa semaine. */""}
+        <section class="card">
+          <h3>Les dates qui comptent</h3>
+          <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+            Ce qui arrive, et d'où ça vient.</p>
+          <div class="stack" style="--gap:0;margin-top:var(--s5)" id="dates"></div>
+        </section>
       </div>
     </div>
 
@@ -781,13 +797,62 @@ function tableauEntreprise(u){
 
   const todo = el.querySelector("#todo");
   const items = enCours.slice(0, 4);
-  if (!items.length) todo.appendChild(h(`<p class="muted" style="font-size:var(--t-sm)">Rien en attente.</p>`));
+  /* Le titre etait coupe a la moitie par une pastille d'etat : « Sortie de 42
+     animaux et entretien de... ». Un titre tronque ne se lit pas, et une ligne
+     qu'on ne lit pas ne sert a rien. Il tient maintenant sur deux lignes, avec
+     l'association et la date en dessous, et l'etat au-dessus a droite. */
+  if (!items.length) todo.appendChild(h(`<div class="stack" style="--gap:var(--s3)">
+    <p class="muted" style="font-size:var(--t-sm)">Aucun engagement en cours.</p>
+    <a class="btn btn--ghost btn--sm" href="#/annonces" style="align-self:flex-start">
+      Voir ce que les associations demandent</a></div>`));
   items.forEach(m => {
     const a = DB.annonceDe(m);
-    todo.appendChild(h(`<div class="between" style="font-size:var(--t-sm)">
-      <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.titre)}</span>
-      <span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].label}</span></div>`));
+    const asso = a ? DB.association(a.asso) : null;
+    const ligne = h(`<a class="mini" href="#/missions">
+      <span class="mini__haut">
+        <span class="mini__titre">${esc(a ? a.titre : "Mission")}</span>
+        <span class="badge ${ETATS_MISSION[m.etat].badge}">${ETATS_MISSION[m.etat].label}</span>
+      </span>
+      <span class="mini__meta">${esc(asso ? asso.nom : "")}${
+        m.date ? `, le ${dateCourte(m.date)}` : ""}</span>
+    </a>`);
+    todo.appendChild(ligne);
   });
+
+  /* Les dates qui comptent. Elles se deduisent toutes de l'etat, aucune n'est
+     ecrite en dur : une base vide n'affiche donc que la fin de saison, et c'est
+     exactement ce qu'un premier client doit voir. */
+  const boiteDates = el.querySelector("#dates");
+  const jFin = DB.joursAvantFinSaison();
+  const dates = [];
+  const campOuverte = DB.campagnes(e.groupe || undefined).find(c => c.etat === "ouverte");
+  if (campOuverte){
+    const ec = DB.etatCampagne(campOuverte.id);
+    const rest = ec.sites.length - ec.declares - ec.approuves;
+    dates.push({ quand: campOuverte.echeance,
+      quoi: `Échéance de la collecte, ${campOuverte.libelle.toLowerCase()}`,
+      detail: rest > 0
+        ? `${nb(rest)} site${rest > 1 ? "s" : ""} n'${rest > 1 ? "ont" : "a"} pas encore répondu`
+        : "tous les sites ont répondu",
+      vers: "#/indicateurs", ton: rest > 0 && ec.joursRestants <= 14 ? "alerte" : "info" });
+  }
+  const prochaine = (fact.contrat ? fact.contrat.factures : [])
+    .filter(f => f.etat !== "payee")
+    .sort((a, b) => String(a.echeance).localeCompare(String(b.echeance)))[0];
+  if (prochaine) dates.push({ quand: prochaine.echeance, quoi: esc(prochaine.libelle),
+    detail: `${eur(prochaine.montant)}${prochaine.echeance < "2026-08-20" ? ", échéance dépassée" : ""}`,
+    vers: "#/abonnement", ton: prochaine.echeance < "2026-08-20" ? "alerte" : "info" });
+  dates.push({ quand: DB.saison().fin, quoi: "Clôture de la saison",
+    detail: jFin > 0 ? `${nb(jFin)} jours, puis le rapport annuel se génère`
+                     : "la saison est close",
+    vers: "#/rapports", ton: "info" });
+  dates.sort((a, b) => String(a.quand).localeCompare(String(b.quand)));
+  dates.forEach(d => boiteDates.appendChild(h(`<a class="dat" href="${d.vers}">
+    <span class="dat__jour tnum">${esc(dateCourte(d.quand))}</span>
+    <span class="dat__quoi"><strong>${d.quoi}</strong>
+      <span class="muted" style="font-size:var(--t-xs)">${esc(d.detail)}</span></span>
+    <span class="notif__point notif__point--${d.ton}"></span>
+  </a>`)));
 
   el.querySelector("#reco").appendChild(listeAnnonces(DB.annonces({ ouvertes:true }).slice(0, 3), u));
 

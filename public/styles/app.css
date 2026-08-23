@@ -492,3 +492,34 @@
    se passe de la premiere colonne au lieu de reserver une gouttiere vide. */
 .login__formats li:has(.login__ic:empty){grid-template-columns:0 1fr auto;gap:0 var(--s3)}
 .login__formats li:has(.login__ic:empty) .login__ic{display:none}
+
+
+/* --- Colonne de droite du tableau de bord --------------------------- */
+/* Deux motifs, une meme intention : ne jamais couper un texte pour faire tenir
+   une pastille. Un titre tronque au milieu d'un mot ne se lit pas, et la ligne
+   entiere devient decorative. */
+.mini{ display:grid; gap:2px; padding:var(--s3); border-radius:var(--r-sm);
+  color:inherit; text-decoration:none; transition:background var(--dur) var(--ease); }
+.mini:hover{ background:var(--paper-sunk); }
+.mini__haut{ display:flex; align-items:flex-start; justify-content:space-between;
+  gap:var(--s3); }
+.mini__titre{ font-size:var(--t-sm); font-weight:550; line-height:1.35;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  overflow:hidden; }
+.mini__meta{ font-size:var(--t-xs); color:var(--ink-500); }
+.mini .badge{ flex:none; }
+
+/* Les dates qui comptent. Le jour a gauche, en chiffres tabulaires, pour que la
+   colonne s'aligne d'une ligne a l'autre : c'est ce qui rend une liste de dates
+   lisible en diagonale. */
+.dat{ display:grid; grid-template-columns:auto 1fr auto; gap:var(--s4);
+  align-items:start; padding:var(--s3) 0; border-top:var(--line-soft);
+  color:inherit; text-decoration:none; }
+.dat:first-child{ border-top:0; padding-top:0; }
+.dat:hover .dat__quoi strong{ color:var(--forest-800); }
+/* Chiffres tabulaires plutot que fonte a chasse fixe : le mono ajoute une
+   espace avant le point de « sept. » qui se lit comme une coquille. */
+.dat__jour{ font-variant-numeric:tabular-nums; font-size:var(--t-xs);
+  color:var(--ink-500); padding-top:2px; white-space:nowrap; min-width:64px; }
+.dat__quoi{ display:grid; gap:2px; font-size:var(--t-sm); min-width:0; }
+.dat .notif__point{ margin-top:6px; }
