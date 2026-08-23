@@ -3340,3 +3340,9 @@ body{
 .vd .photo img,.va .photo img{ border-radius:var(--r-md); }
 /* La legende d'une photo est posee SOUS l'image, pas dessus : l'image garde
    donc ses quatre coins arrondis dans tous les cas. */
+
+/* « a partir de », sur le dernier palier. La grille annoncait un prix ferme a
+   2 000 salaries et la note en dessous parlait d'un devis : un prospect a 2 500
+   lisait les deux et ne savait pas lequel l'engageait. */
+.tar-apd{color:var(--faint);font-size:12px;font-weight:600;letter-spacing:.04em;}
+.vd #prix .tar-apd{color:rgba(242,240,233,.55);}

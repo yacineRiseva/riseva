@@ -1134,6 +1134,36 @@ def main():
         verifie("chaque association de l'annuaire porte une image",
                 cartes > 0 and avec == cartes, f"{avec} / {cartes}")
 
+        print("\nCe que la vitrine promet existe dans le produit")
+        # Une phrase de vitrine qui n'a pas son geste dans l'application est une
+        # promesse qu'on decouvre fausse le jour de l'inscription.
+        connecte(p, "u7", "#/mesannonces")
+        p.evaluate("()=>document.querySelector('#np')?.click()"); p.wait_for_timeout(300)
+        verifie("le formulaire d'annonce propose des modèles",
+                p.locator(".modal #modeles [data-m]").count() >= 4)
+        p.evaluate("()=>document.querySelector('#modeles [data-m=\"0\"]').click()")
+        p.wait_for_timeout(200)
+        rempli = p.evaluate("""()=>({t:document.querySelector('#titre').value,
+          d:document.querySelector('#desc').value, q:document.querySelector('#q').value})""")
+        verifie("un modèle remplit le titre, la description et la quantité",
+                len(rempli["t"]) > 5 and len(rempli["d"]) > 40 and rempli["q"] not in ("", "0"))
+        p.evaluate("()=>document.querySelector('.overlay')?.remove()")
+
+        connecte(p, "u7", "#/tableau")
+        t = p.inner_text(".content")
+        verifie("l'association lit combien d'entreprises peuvent venir chez elle",
+                "Qui peut venir chez vous" in t)
+        vide_autour = p.evaluate("""async()=>{const m=await import('/app/data.js');
+          const r = m.DB.entreprisesAutour('a1');
+          return typeof r.entreprises === 'number' && typeof r.rayon === 'number';}""")
+        verifie("ce chiffre se calcule, il ne s'écrit pas", vide_autour)
+
+        vit = (RACINE / "associations.html").read_text(encoding="utf-8")
+        verifie("la page association ne promet aucun appel téléphonique",
+                "appelez-nous" not in vit and "nous vous rappelons" not in vit)
+        verifie("elle ne dit pas « aucun compte à ouvrir » sous un bouton qui en ouvre un",
+                "Aucun compte à ouvrir" not in vit)
+
         print("\nRègles de calcul")
         # Le plafond porte sur le total retenu, pas sur le brut : avec (6240, 780, 0)
         # la règle « aucun format au-delà de la moitié » impose 1 560, pas 4 290.

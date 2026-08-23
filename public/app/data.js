@@ -3741,6 +3741,39 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         });
     },
 
+    /* Le miroir de `associationsProches` : les entreprises abonnees dont un site
+       se trouve dans le rayon d'une association. C'est la question que pose
+       toute association avant de s'inscrire — « est-ce que quelqu'un viendra ? »
+       — et la page vitrine promet de lui repondre. Une promesse sans le chiffre
+       derriere est une promesse qu'on ne tient pas.
+
+       On compte les SITES, pas les sieges sociaux : une entreprise parisienne
+       dont l'usine est a douze kilometres compte, et c'est l'usine qui enverra
+       du monde. Une entreprise dont aucun site n'est situe n'est pas comptee :
+       on ne sait pas ou elle est, et l'annoncer serait mentir dans le bon sens. */
+    entreprisesAutour(aid, { rayon = null } = {}){
+      const asso = api.association(aid);
+      if (!asso) return { entreprises: 0, sites: 0, salaries: 0, plusProche: null, rayon: 0 };
+      const r = rayon == null ? api.RAYON_OFFRE_KM : rayon;
+      const ici = api.coordsDe(asso);
+      const proches = [];
+      api.entreprises().forEach(e => {
+        const sites = api.etablissements(e.id)
+          .map(et => ({ et, d: distanceKm(ici, api.coordsDe(et)) }))
+          .filter(x => x.d != null && x.d <= r);
+        if (sites.length) proches.push({ entreprise: e, sites });
+      });
+      const toutes = proches.flatMap(x => x.sites.map(y => y.d));
+      return {
+        entreprises: proches.length,
+        sites: toutes.length,
+        salaries: proches.reduce((n, x) =>
+          n + x.sites.reduce((m, y) => m + (y.et.effectif || 0), 0), 0),
+        plusProche: toutes.length ? Math.round(Math.min(...toutes)) : null,
+        rayon: r
+      };
+    },
+
     /* ---- L'offre associative autour d'un site ----
        La question qu'un responsable RSE se pose au bout de trois mois est
        « pourquoi ça ne prend pas ». L'entonnoir d'adoption lui dit à quelle

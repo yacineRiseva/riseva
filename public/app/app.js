@@ -3013,6 +3013,9 @@ function tableauAsso(u){
      envie de la partager, dit noir sur blanc plutôt que laissé à deviner. */
   const attendu = [
     [asso.resume && asso.resume.length > 40, "une description d'au moins deux lignes"],
+    /* La photo passe en tete de ce qui manque : c'est la premiere chose qu'un
+       salarie voit dans l'annuaire de son entreprise, avant le texte. */
+    [!!asso.photo, "une photo de ce que vous faites"],
     [!!asso.adresse, "l'adresse"],
     [!!asso.site, "le site ou la page publique"],
     [!!asso.cause, "la cause"],
@@ -3027,8 +3030,9 @@ function tableauAsso(u){
   if (aValider.length) rappels.push({ ton:"alerte", vers:"#/avalider", texte:
     `${aValider.length} mission${aValider.length > 1 ? "s" : ""} à confirmer, sans réponse sous quatorze jours, elle${aValider.length > 1 ? "s seront clôturées automatiquement sans confirmation" : " sera clôturée automatiquement sans confirmation"}` });
   if (asso.a_reverifier_le && asso.a_reverifier_le <= new Date(2026, 7, 20).toISOString().slice(0, 10))
-    rappels.push({ ton:"alerte", vers:"#/page", texte:
-      "Votre vérification annuelle est échue : Riseva va vous recontacter" });
+    rappels.push({ ton:"alerte", vers:"#/dossier", texte:
+      "Votre vérification annuelle est échue : refaites le contrôle au registre "
+      + "depuis votre dossier, il prend quelques secondes" });
   if (!asso.recus || !asso.recus.actif) rappels.push({ ton:"info", vers:"#/recus", texte:
     "Les reçus fiscaux ne sont pas activés : les entreprises ne peuvent pas déduire leurs dons" });
   if (!annonces.some(a => a.etat === "ouverte")) rappels.push({ ton:"info", vers:"#/mesannonces", texte:
@@ -3062,6 +3066,13 @@ function tableauAsso(u){
             <span class="rappel__go">${ICONS.arrow || "->"}</span></a>`).join("")}
         </div></div>
     </section>` : ""}
+
+    ${/* Le chiffre que toute association demande avant meme de s'inscrire :
+          est-ce que quelqu'un viendra. La page vitrine promet de le dire ; il
+          faut donc qu'il existe, et qu'il soit vrai le jour ou la reponse est
+          zero. Une plateforme qui commence a zero et le dit vaut mieux qu'une
+          plateforme qui laisse esperer. */""}
+    <section class="card" id="autour"></section>
 
     <div id="produit"></div>
 
@@ -3155,6 +3166,37 @@ function tableauAsso(u){
     titre: "Ce que vous avez réalisé avec le soutien des entreprises", sombre: true,
     note: "Ces chiffres sont ceux que vous avez confirmés en validant les missions." });
   if (rea) el.querySelector("#produit").appendChild(rea);
+
+  /* Les entreprises autour de l'association. Rien n'est arrondi vers le haut, et
+     zero s'affiche comme zero : c'est la seule version que l'association pourra
+     verifier elle-meme le jour ou personne ne se propose. */
+  const au = DB.entreprisesAutour(aid);
+  const boiteAutour = el.querySelector("#autour");
+  boiteAutour.appendChild(h(`<div class="between" style="align-items:flex-start;
+    flex-wrap:wrap;gap:var(--s4)">
+    <div style="max-width:62ch">
+      <h3>Qui peut venir chez vous</h3>
+      <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+        ${au.entreprises
+          ? `${nb(au.entreprises)} entreprise${au.entreprises > 1 ? "s" : ""} abonnée${
+              au.entreprises > 1 ? "s" : ""} ${au.entreprises > 1 ? "ont" : "a"} au moins un site
+             à moins de ${nb(au.rayon)} km de chez vous${
+             au.plusProche != null ? `, le plus proche à ${nb(au.plusProche)} km` : ""}.
+             Leurs salariés voient vos annonces dès qu'elles sont publiées.`
+          : `Aucune entreprise abonnée n'a encore de site à moins de ${nb(au.rayon)} km de chez
+             vous. Vos annonces restent publiées et deviennent visibles le jour où une entreprise
+             de votre secteur s'abonne. Nous ne vous ferons pas patienter en vous laissant croire
+             le contraire.`}</p>
+    </div>
+    ${au.entreprises ? `<div class="row" style="gap:var(--s6)">
+      <div><span class="muted" style="font-size:var(--t-xs);text-transform:uppercase;
+        letter-spacing:var(--track-wide)">Sites</span>
+        <div style="font-family:var(--font-display);font-size:1.6rem;line-height:1.1">${nb(au.sites)}</div></div>
+      <div><span class="muted" style="font-size:var(--t-xs);text-transform:uppercase;
+        letter-spacing:var(--track-wide)">Salariés</span>
+        <div style="font-family:var(--font-display);font-size:1.6rem;line-height:1.1">${nb(au.salaries)}</div></div>
+    </div>` : ""}
+  </div>`));
   return el;
 }
 
@@ -3227,8 +3269,54 @@ function lireImpact(corps){
   return { unite, par_unite: objectif / quantite, objectif };
 }
 
+/* Les demandes les plus frequentes, deja ecrites. Une association qui ouvre ce
+   formulaire devant sept formats, un titre vide et une description vide ferme la
+   fenetre : c'est la marche a laquelle on perd le plus de monde. Ces modeles ne
+   publient rien, ils remplissent les champs, et tout reste modifiable.
+
+   Ils ne sont pas decoratifs : la page vitrine promet que « le formulaire
+   propose les formats les plus demandes ». Une promesse faite sur la vitrine
+   doit exister dans le produit le jour ou la personne arrive. */
+const MODELES_ANNONCE = [
+  { nom:"Des bras un samedi", type:"benevolat_demi_journee", quantite:8,
+    titre:"Coup de main un samedi matin",
+    desc:"Nous cherchons des bras pour une matinée. Rendez-vous sur place à 9 h, "
+       + "nous fournissons le matériel et de quoi déjeuner. Aucune compétence "
+       + "particulière n'est nécessaire." },
+  { nom:"Une journée entière", type:"benevolat_journee", quantite:6,
+    titre:"Une journée de chantier",
+    desc:"Une journée complète, de 9 h à 17 h, repas partagé sur place. "
+       + "Prévoir des vêtements qui ne craignent rien." },
+  { nom:"Une compétence", type:"mecenat_competence", quantite:2,
+    titre:"Un coup de main sur nos outils",
+    desc:"Nous cherchons quelqu'un qui puisse nous aider sur le sujet, sur son "
+       + "temps de travail, une demi-journée à convenir ensemble." },
+  { nom:"Du matériel", type:"don_materiel", quantite:1,
+    titre:"Du matériel dont nous manquons",
+    desc:"Nous prenons ce qui fonctionne encore, même usagé. Dites-nous ce que "
+       + "vous avez, nous venons le chercher si c'est près." },
+  { nom:"Un parrainage", type:"parrainage_animal", quantite:4,
+    titre:"Parrainer un animal du refuge",
+    desc:"Le parrainage couvre la nourriture et les soins d'un animal pendant "
+       + "l'année. Vous recevez de ses nouvelles." },
+  /* La quantite d'un don financier se compte en tranches de dix euros : 50, ce
+     sont cinq cents euros, et non cinq cents euros de plus. */
+  { nom:"Un coup de main financier", type:"don_financier", quantite:50,
+    titre:"Une aide pour boucler l'année",
+    desc:"Ce que nous cherchons à financer, et à quoi l'argent servira "
+       + "exactement." }
+];
+
 function formAnnonce(u, existante = null){
   const corps = h(`<div class="stack" style="--gap:var(--s4)">
+    ${existante ? "" : `<div class="field">
+      <label>Partir d'un modèle</label>
+      <div class="row" style="gap:var(--s2);flex-wrap:wrap" id="modeles">
+        ${MODELES_ANNONCE.map((m, i) =>
+          `<button type="button" class="btn btn--quiet btn--sm" data-m="${i}">${esc(m.nom)}</button>`).join("")}
+      </div>
+      <p class="hint">Ils remplissent les champs, rien de plus. Tout reste modifiable, et rien
+        n'est publié tant que vous n'avez pas relu.</p></div>`}
     <div class="field"><label>Format</label>
       <select class="select" id="type">
         ${Object.entries(BAREME).map(([k, b]) =>
@@ -3282,6 +3370,19 @@ function formAnnonce(u, existante = null){
     }
   };
   corps.querySelector("#type").addEventListener("change", majTT);
+
+  corps.querySelectorAll("#modeles [data-m]").forEach(b => b.addEventListener("click", () => {
+    const m = MODELES_ANNONCE[Number(b.dataset.m)];
+    if (!m) return;
+    corps.querySelector("#type").value = m.type;
+    corps.querySelector("#titre").value = m.titre;
+    corps.querySelector("#desc").value = m.desc;
+    corps.querySelector("#q").value = m.quantite;
+    if (!corps.querySelector("#lieu").value)
+      corps.querySelector("#lieu").value = (DB.association(u.org) || {}).ville || "";
+    majTT();
+    corps.querySelector("#titre").focus();
+  }));
 
   /* L'aperçu écrit la phrase exacte qui partira sur l'annonce. C'est le seul
      moment où l'incohérence entre le titre et l'objectif saute aux yeux de la

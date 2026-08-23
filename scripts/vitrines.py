@@ -56,8 +56,14 @@ def lire_tarifs():
     for m in re.finditer(
         r"\{ id:\"(\w+)\",\s*max:([^,]+),\s*prix:(\d+),\s*sites:(\d+),\s*label:\"([^\"]+)\"",
         bloc):
+        # `sur_devis` suit le palier plutot que d'etre reecrit ici : la grille et
+        # la note en dessous doivent dire la meme chose, et la source est data.js.
+        reste = bloc[m.end():]
+        suivant = reste.find('{ id:"')
+        apres = reste[:suivant if suivant != -1 else 200]
         paliers.append({"id": m.group(1), "max": m.group(2).strip(), "prix": int(m.group(3)),
-                        "sites": int(m.group(4)), "label": m.group(5)})
+                        "sites": int(m.group(4)), "label": m.group(5),
+                        "sur_devis": "sur_devis:true" in apres.replace(" ", "")})
     un = lambda cle: re.search(cle + r":\s*([\d.]+)", bloc).group(1)
     return {
         "paliers": paliers,
@@ -1160,7 +1166,7 @@ def grille_tarifaire():
         lignes += f"""
         <tr>
           <td class="tar-eff">{p['label']}</td>
-          <td class="tar-prix"><b>{EUR(p['prix'])}</b> <span class="tar-ht">HT / saison</span></td>
+          <td class="tar-prix">{"<span class='tar-apd'>à partir de</span> " if p.get('sur_devis') else ""}<b>{EUR(p['prix'])}</b> <span class="tar-ht">HT / saison</span></td>
           <td class="tar-sites">{p['sites']} site{'s' if p['sites'] > 1 else ''} inclus</td>
         </tr>"""
     inclus = "".join(f"<li>{x}</li>" for x in TARIFS["inclus"])
@@ -1286,7 +1292,8 @@ HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
         </div>
         <p class="doc-garanties">Gratuit. Sans exclusivité. Sans commission sur vos dons.
           Rien à installer.</p>
-        <p class="doc-micro">Trois minutes, et votre première annonce est en ligne.</p>
+        <p class="doc-micro">Quatre lignes pour ouvrir votre espace, cinq minutes pour votre
+          première annonce.</p>
       </div>
 
       <dl class="fiche">
@@ -1326,14 +1333,14 @@ COMMENT_ASSO = f"""<section id="comment" class="band">
 
 {etapes([
   ("Vous publiez", "Une <span class='it'>annonce.</span>",
-   "Ce dont vous avez besoin, pour quelle date, combien de personnes. Cinq minutes. Si vous "
-   "préférez, appelez-nous : nous la rédigeons avec vous."),
+   "Ce dont vous avez besoin, pour quelle date, combien de personnes. Cinq minutes, et le "
+   "formulaire vous propose les formats les plus demandés."),
   ("Des salariés répondent", "Ils <span class='it'>viennent.</span>",
    "Les salariés des entreprises abonnées proches de chez vous voient l'annonce et se "
    "proposent. Vous voyez qui vient et pour quelle date."),
   ("Vous confirmez", "En <span class='it'>un clic.</span>",
    "Après la date, vous recevez un courriel avec trois boutons. Vous cliquez, c'est terminé. "
-   "Aucun compte à ouvrir, aucun rapport à écrire."),
+   "Rien à ressaisir dans votre espace, aucun rapport à écrire."),
 ])}
   </div>
 </section>"""
@@ -1408,8 +1415,9 @@ FAQ_ASSO = faq([
    "<p>Cinq minutes pour publier une annonce, un clic pour confirmer après la mission. Il n'y "
    "a pas de tableau de bord à surveiller, pas de fichier à tenir, pas de rapport à produire "
    "pour l'entreprise.</p>"
-   "<p>Si écrire l'annonce vous rebute, appelez-nous : nous la rédigeons avec vous au "
-   "téléphone, et rien n'est publié tant qu'elle ne vous convient pas.</p>"),
+   "<p>Si écrire l'annonce vous rebute, le formulaire propose les formats les plus demandés "
+   "et vous n'avez qu'à changer la date et le nombre de places. Rien n'est publié tant que "
+   "vous n'avez pas relu.</p>"),
   ("Est-ce que je peux refuser quelqu'un ?",
    "<p>Oui, sans avoir à vous justifier. Vous fixez le nombre de places, les dates, ce que "
    "vous acceptez et ce que vous n'acceptez pas. Une proposition peut être déclinée d'un "
@@ -1422,8 +1430,9 @@ FAQ_ASSO = faq([
   ("Et si personne ne vient ?",
    "<p>Ça peut arriver, surtout la première saison : Riseva démarre et les entreprises "
    "abonnées ne couvrent pas encore tout le territoire. Vous ne perdez rien, votre annonce "
-   "reste publiée, et nous vous disons franchement combien d'entreprises sont présentes "
-   "autour de vous avant que vous vous inscriviez.</p>"),
+   "reste publiée, et votre tableau de bord affiche noir sur blanc combien d'entreprises "
+   "abonnées ont un site à moins de trente kilomètres de chez vous. Si la réponse est zéro, "
+   "il l'écrit.</p>"),
   ("Qui peut s'inscrire ?",
    "<p>Toute association déclarée, avec un numéro RNA et des statuts à jour. Nous vérifions "
    "l'enregistrement administratif avant de publier votre page, et nous vous disons ce qui "
