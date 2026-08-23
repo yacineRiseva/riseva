@@ -1,5 +1,7 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, DELAI_VALIDATION_JOURS, FISCAL, cerfaPour, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, KITS_SAISON, ETATS_EXPEDITION, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements, estArgent, estTemps, estPrive, heuresPour } from "./data.js";
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, DELAI_VALIDATION_JOURS, FISCAL, cerfaPour, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, KITS_SAISON, ETATS_EXPEDITION, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements, estArgent, estTemps, estPrive, heuresPour,
+  RUBRIQUES, rubrique, rubriquesDe, saisisDe, calculesDe, sectionsDe } from "./data.js";
 import { qrSvg } from "./qr.js";
+import { classeur, telecharger } from "./tableur.js";
 import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, ecusson, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
@@ -5597,6 +5599,110 @@ function formReferent(et){
 /* La collecte des indicateurs. Le contributeur saisit, l'approbateur verrouille :
    sans ces deux gestes, un chiffre entre dans un document contractuel sans que
    personne ne l'ait regardé. */
+/* ------------------------------------------------------------------ */
+/* Le rapport de collecte                                              */
+/* ------------------------------------------------------------------ */
+/* Ce que remplace ce bloc : un fichier de relance, quatorze tableurs reçus par
+   courriel, une nuit de copier-coller, et la question « est-ce qu'il manque
+   quelqu'un ? » à laquelle personne ne sait répondre avant d'avoir tout ouvert.
+
+   Ce qu'il n'est pas : une déclaration, une certification, un avis. Les valeurs
+   sont celles que les sites ont écrites ; Riseva les additionne et les rend, en
+   disant sur combien de sites chaque somme porte. La responsabilité de la valeur
+   reste chez celui qui la saisit — exactement comme dans le tableur qu'il
+   remplissait avant. C'est cette limite qui rend le service utilisable sans
+   engager qui que ce soit.
+
+   Trois sorties, parce que trois habitudes : l'écran pour regarder, le classeur
+   pour retravailler, le CSV pour verser dans un autre outil. Aucune n'est
+   supérieure aux autres, et aucune ne passe par le réseau : tout est fabriqué
+   dans l'onglet de celui qui clique. */
+function blocRapport(r){
+  if (!r) return "";
+  const manquants = r.sections.flatMap(s => s.manquants);
+  return `<section class="card" id="rapc">
+    <div class="between" style="flex-wrap:wrap;gap:var(--s4);align-items:flex-start">
+      <div style="max-width:56ch">
+        <h3>Rapport de collecte</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
+          ${r.complete
+            ? `<strong style="color:var(--ink)">Les ${nb(r.sites)} sites ont répondu.</strong>
+               Le rapport porte sur l'ensemble du périmètre : les totaux sont des totaux,
+               et les taux sont calculés sur toutes les sommes.`
+            : `<strong style="color:var(--ink)">${nb(r.repondus)} site${r.repondus > 1 ? "s" : ""}
+               sur ${nb(r.sites)} ${r.repondus > 1 ? "ont" : "a"} répondu.</strong>
+               Les totaux ci-dessous portent sur eux seuls. Un taux dont les deux termes ne
+               sont pas complets n'est pas affiché : un taux calculé sur trois sites sur
+               quatre est un taux faux qui a l'air juste.`}</p>
+      </div>
+      <div class="row" style="--gap:var(--s3);flex-wrap:wrap">
+        <button class="btn btn--ghost btn--sm" id="docR">Ouvrir le rapport</button>
+        <button class="btn btn--ghost btn--sm" id="csvR">CSV</button>
+        <button class="btn btn--primary btn--sm" id="xlsR">Télécharger le classeur</button>
+      </div>
+    </div>
+    <hr class="sep">
+    <div class="stack" style="--gap:var(--s6)">
+      ${r.sections.map(s => `<div>
+        <div class="between" style="align-items:baseline">
+          <h4 style="font-size:var(--t-md);margin:0">${esc(s.libelle)}</h4>
+          <span class="muted" style="font-size:var(--t-xs)">${esc(s.aide)}</span>
+        </div>
+        <table class="table" style="margin-top:var(--s3)"><thead><tr>
+          <th>Indicateur</th>
+          <th style="text-align:right">Total du périmètre</th>
+          <th style="text-align:right">Sites renseignés</th>
+        </tr></thead><tbody>
+          ${s.champs.map(d => {
+            const tt = s.totaux[d.cle];
+            return `<tr>
+              <td>${esc(d.libelle)}${d.unite ? ` <span class="muted">(${esc(d.unite)})</span>` : ""}</td>
+              <td class="tnum" style="text-align:right">${tt.somme === null
+                ? `<span class="muted">non disponible</span>` : nb(Math.round(tt.somme * 100) / 100)}</td>
+              <td class="tnum ${tt.sites < r.repondus ? "" : "muted"}" style="text-align:right">${
+                nb(tt.sites)} / ${nb(r.repondus)}</td>
+            </tr>`;
+          }).join("")}
+        </tbody></table>
+      </div>`).join("")}
+
+      ${r.ratios.length ? `<div>
+        <h4 style="font-size:var(--t-md);margin:0">Ce que ça donne</h4>
+        <p class="muted" style="font-size:var(--t-xs);margin-top:2px">
+          Rapport de sommes, jamais moyenne de taux.</p>
+        <table class="table" style="margin-top:var(--s3)"><thead><tr>
+          <th>Indicateur</th><th style="text-align:right">Valeur</th><th>Assise</th>
+        </tr></thead><tbody>
+          ${r.ratios.map(x => `<tr>
+            <td>${esc(x.libelle)}<br><span class="muted" style="font-size:var(--t-xs)">${esc(x.formule)}</span></td>
+            <td class="tnum" style="text-align:right">${x.valeur === null
+              ? `<span class="muted">non disponible</span>`
+              : nb2(x.valeur) + (x.unite ? " " + esc(x.unite) : "")}</td>
+            <td class="muted" style="font-size:var(--t-xs)">${x.surTousLesSites
+              ? "tous les sites ayant répondu"
+              : "périmètre partiel, à lire avec précaution"}</td>
+          </tr>`).join("")}
+        </tbody></table>
+      </div>` : ""}
+
+      ${manquants.length ? `<div class="card card--flat"
+        style="background:var(--warn-bg);border-color:transparent">
+        <p style="font-size:var(--t-sm);color:var(--ink-600)">
+          <strong style="color:var(--ink)">${nb(manquants.length)} valeur${manquants.length > 1 ? "s" : ""}
+          laissée${manquants.length > 1 ? "s" : ""} vide${manquants.length > 1 ? "s" : ""}</strong>
+          par un site qui a pourtant répondu. Elles restent vides : Riseva n'écrit jamais
+          zéro à la place de « je ne sais pas », parce que les deux ne se distinguent plus
+          ensuite.</p>
+        <ul class="stack" style="--gap:var(--s2);margin-top:var(--s3);font-size:var(--t-sm);
+          list-style:none;color:var(--ink-600)">
+          ${manquants.slice(0, 8).map(m => `<li>${esc(m.site)} : ${esc(m.libelle)}</li>`).join("")}
+          ${manquants.length > 8 ? `<li class="muted">et ${nb(manquants.length - 8)} autres, dans le classeur.</li>` : ""}
+        </ul>
+      </div>` : ""}
+    </div>
+  </section>`;
+}
+
 function vueIndicateurs(u){
   const gid = u.groupe || null;
   const cs = DB.campagnes(gid || undefined)
@@ -5612,6 +5718,7 @@ function vueIndicateurs(u){
   const ind = DB.indicateursDe({ ...portee, approuvesSeulement: true });
   const brouillon = DB.indicateursDe(portee);
   const monSite = u.role === "site_referent" ? u.etablissement : null;
+  const rap = DB.rapportCollecte(cid);
   const ETIQ = { attendu:["À saisir", "badge--warn"], declare:["Soumis", "badge--info"],
                  approuve:["Approuvé", "badge--ok"], clos_sans_reponse:["Clos sans réponse", "badge--neutre"] };
 
@@ -5626,11 +5733,14 @@ function vueIndicateurs(u){
             et si personne ne répond la période se clôt <strong>sans réponse</strong>,
             plutôt que d'être comblée avec celle d'avant.</p>
         </div>
-        <div class="field" style="min-width:220px">
-          <label for="camp">Période</label>
-          <select class="select" id="camp">
-            ${cs.map(c => `<option value="${c.id}" ${c.id === cid ? "selected" : ""}>${esc(c.libelle)}${c.etat === "close" ? ", close" : ""}</option>`).join("")}
-          </select>
+        <div class="stack" style="--gap:var(--s3);min-width:220px">
+          <div class="field" style="margin:0">
+            <label for="camp">Période</label>
+            <select class="select" id="camp">
+              ${cs.map(c => `<option value="${c.id}" ${c.id === cid ? "selected" : ""}>${esc(c.libelle)}${c.etat === "close" ? ", close" : ""}</option>`).join("")}
+            </select>
+          </div>
+          ${monSite ? "" : `<button class="btn btn--ghost btn--sm" id="newC">Nouvelle collecte</button>`}
         </div>
       </div>
       <hr class="sep">
@@ -5659,6 +5769,8 @@ function vueIndicateurs(u){
       </tr></thead><tbody></tbody></table>
     </section>
 
+    ${monSite ? "" : blocRapport(rap)}
+
     <div class="two">
       <section class="card">
         <h3>Ce que ça donne, une fois consolidé</h3>
@@ -5679,7 +5791,7 @@ function vueIndicateurs(u){
           <th style="text-align:right">Approuvé</th>
           ${brouillon.provisoire ? `<th style="text-align:right">Provisoire</th>` : ""}
         </tr></thead><tbody>
-          ${INDICATEURS.calcules.map(d => `<tr>
+          ${calculesDe(e.campagne).map(d => `<tr>
             <td>${esc(d.libelle)}<br><span class="muted" style="font-size:var(--t-xs)">${esc(d.formule)}</span>
               ${d.note ? `<br><span class="muted" style="font-size:var(--t-xs)">${esc(d.note)}</span>` : ""}</td>
             <td class="tnum" style="text-align:right">${ind && ind.calcules[d.cle] !== null
@@ -5709,6 +5821,8 @@ function vueIndicateurs(u){
   el.querySelector("#camp").onchange = (ev) => {
     sessionStorage.setItem("riseva.campagne", ev.target.value); rendre();
   };
+  const nc = el.querySelector("#newC");
+  if (nc) nc.onclick = () => formCampagne(u, gid || (DB.entreprise(u.org) || {}).groupe, cs[0]);
 
   const tb = el.querySelector("tbody");
   e.sites.filter(x => !monSite || x.etablissement.id === monSite).forEach(x => {
@@ -5752,15 +5866,102 @@ function vueIndicateurs(u){
   el.querySelector("#csvI").onclick = () => {
     versCSV(`riseva-indicateurs-${e.campagne.periode}.csv`,
       ["Société", "Établissement", "Ville", "État", "Saisi par", "Approuvé par",
-       ...INDICATEURS.saisis.map(d => d.libelle)],
+       ...saisisDe(e.campagne).map(d => d.libelle)],
       e.sites.map(x => [
         DB.entreprise(x.etablissement.societe)?.nom || "", x.etablissement.nom,
         x.etablissement.ville, ETIQ[x.etat][0],
         x.saisiPar ? x.saisiPar.nom : "", x.approuvePar ? x.approuvePar.nom : "",
-        ...INDICATEURS.saisis.map(d => (x.observation && x.observation.valeurs[d.cle]) ?? "")]));
+        ...saisisDe(e.campagne).map(d => (x.observation && x.observation.valeurs[d.cle]) ?? "")]));
     toast("Export téléchargé.");
   };
+
+  /* Les trois sorties du rapport. Elles partent du même objet — `rap` — de sorte
+     qu'un chiffre lu à l'écran, un chiffre imprimé et un chiffre dans le classeur
+     ne peuvent pas diverger. C'est la seule façon de tenir la promesse : ce que
+     vous voyez est ce que vous envoyez. */
+  const nomFichier = `riseva-collecte-${e.campagne.periode}`;
+  const dl = el.querySelector("#xlsR");
+  if (dl) dl.onclick = () => {
+    try {
+      telecharger(classeur(DB.classeurCollecte(cid)), nomFichier + ".xlsx");
+      toast("Classeur téléchargé : un onglet par rubrique.");
+    } catch (err){ toast("Le classeur n'a pas pu être fabriqué : " + err.message); }
+  };
+
+  /* Le CSV du rapport n'est pas le CSV des saisies : celui-là donne le détail
+     site par site, celui-ci donne le consolidé. Les deux existent parce que les
+     deux sont demandés, et confondre les deux fait recommencer le travail. */
+  const cr = el.querySelector("#csvR");
+  if (cr) cr.onclick = () => {
+    versCSV(nomFichier + ".csv",
+      ["Rubrique", "Indicateur", "Clé", "Unité", "Total du périmètre",
+       "Sites renseignés", "Sites ayant répondu", "Type"],
+      [...rap.sections.flatMap(s => s.champs.map(d => [
+          s.libelle, d.libelle, d.cle, d.unite || "",
+          s.totaux[d.cle].somme ?? "", s.totaux[d.cle].sites, rap.repondus, "collecté"])),
+       ...rap.ratios.map(x => [
+          (rubrique(x.rubrique) || {}).libelle || x.rubrique, x.libelle, x.cle, x.unite || "",
+          x.valeur === null ? "" : Math.round(x.valeur * 100) / 100,
+          x.surTousLesSites ? rap.repondus : "", rap.repondus, "calculé"])]);
+    toast("Export téléchargé.");
+  };
+
+  const dr = el.querySelector("#docR");
+  if (dr) dr.onclick = () => ouvrirRapportCollecte(rap);
+
   return el;
+}
+
+/* La version imprimable. Elle porte en tête ce qu'un rapport tait d'ordinaire :
+   combien de sites ont répondu, lesquels n'ont rien dit, et sur quelle assise
+   chaque taux est calculé. Un lecteur qui reçoit ce document peut le contester —
+   c'est précisément ce qui le rend recevable. */
+function ouvrirRapportCollecte(r){
+  if (!r) return;
+  const muets = r.sections[0]
+    ? r.sections[0].lignes.filter(l => l.etat === "attendu" || l.etat === "clos_sans_reponse")
+    : [];
+  const corps = `
+    <h1>${esc(r.campagne.libelle)}</h1>
+    <p class="st">Rapport de collecte, période du ${dateFR(r.campagne.debut)} au
+      ${dateFR(r.campagne.fin)}. Dictionnaire version ${esc(r.version)}.</p>
+    <div class="note${r.complete ? "" : " alerte"}">
+      <strong>Périmètre.</strong> ${nb(r.repondus)} site${r.repondus > 1 ? "s" : ""}
+      sur ${nb(r.sites)} ${r.repondus > 1 ? "ont" : "a"} répondu, soit
+      ${nb(r.effectifCouvert)} salariés sur ${nb(r.effectifTotal)}.
+      ${muets.length ? `Sans réponse : ${muets.map(l => esc(l.site.nom)).join(", ")}.
+        Leurs valeurs ne sont pas estimées ; elles sont absentes.` : ""}
+      Les totaux ci-dessous portent sur les sites qui ont répondu, et sur eux seuls.
+    </div>
+    ${r.sections.map(s => `<h2>${esc(s.libelle)}</h2>
+      <table><thead><tr><th>Indicateur</th><th style="text-align:right">Total</th>
+        <th style="text-align:right">Sites renseignés</th></tr></thead><tbody>
+        ${s.champs.map(d => {
+          const tt = s.totaux[d.cle];
+          return `<tr><td>${esc(d.libelle)}${d.unite ? ` (${esc(d.unite)})` : ""}</td>
+            <td class="v">${tt.somme === null ? `<span class="manque">non disponible</span>`
+              : nb(Math.round(tt.somme * 100) / 100)}</td>
+            <td class="v">${tt.sites} / ${r.repondus}</td></tr>`;
+        }).join("")}
+      </tbody></table>`).join("")}
+    ${r.ratios.length ? `<h2>Indicateurs calculés</h2>
+      <table><thead><tr><th>Indicateur</th><th style="text-align:right">Valeur</th>
+        <th>Assise du calcul</th></tr></thead><tbody>
+        ${r.ratios.map(x => `<tr>
+          <td>${esc(x.libelle)}<br><span class="m">${esc(x.formule)}</span></td>
+          <td class="v">${x.valeur === null ? `<span class="manque">non disponible</span>`
+            : nb2(x.valeur) + (x.unite ? " " + esc(x.unite) : "")}</td>
+          <td class="m">${x.surTousLesSites ? "tous les sites ayant répondu"
+            : "périmètre partiel"}</td></tr>`).join("")}
+      </tbody></table>` : ""}
+    <div class="pied">
+      Riseva rassemble les valeurs saisies par chaque site, les additionne et les restitue.
+      Elle ne les audite pas, ne les interprète pas et ne dépose rien avec : la
+      responsabilité de chaque valeur reste chez l'établissement qui l'a écrite, comme
+      dans le tableur que ce rapport remplace.<br>
+      ${r.limites.map(x => esc(x)).join("<br>")}
+    </div>`;
+  ouvrirDoc(`${r.campagne.libelle} — rapport de collecte`, corps);
 }
 
 /* ------------------------------------------------------------------ */
@@ -6662,6 +6863,93 @@ function ouvrirDictionnaire(cid){
   ]);
 }
 
+/* Ouvrir une collecte, c'est surtout choisir ce qu'on NE demande pas. Un
+   formulaire de vingt-sept champs envoyé à quatorze sites revient à moitié
+   rempli ; six champs demandés à quatorze sites reviennent entiers. L'écran
+   affiche donc, en permanence, le nombre de valeurs que chaque site devra
+   trouver — c'est le seul chiffre qui prédit le taux de réponse, et il vaut
+   mieux le voir avant d'envoyer qu'après.
+
+   Les rubriques sont écrites sur la campagne et n'en bougent plus. Une collecte
+   close doit continuer à dire ce qu'elle demandait : sans cela, ses totaux
+   deviennent illisibles dès qu'on ajoute une rubrique au catalogue. */
+function formCampagne(u, gid, derniere){
+  if (!gid) return toast("Ce compte n'est rattaché à aucun groupe.");
+  const dejaPrises = derniere && Array.isArray(derniere.rubriques) && derniere.rubriques.length
+    ? derniere.rubriques : RUBRIQUES.filter(r => r.defaut).map(r => r.cle);
+  const corps = h(`<div class="stack" style="--gap:var(--s5)">
+    <p class="muted" style="font-size:var(--t-sm)">
+      Chaque site verra apparaître sur son écran ce que vous demandez ici, et un rappel
+      à l'approche de l'échéance. Vous n'avez personne à relancer : quand tout le monde
+      a répondu, le rapport se fabrique tout seul.</p>
+    <div class="two" style="--gap:var(--s4)">
+      <div class="field"><label for="c-lib">Nom de la période</label>
+        <input class="input" id="c-lib" placeholder="Second semestre 2026">
+        <p class="hint">C'est ce nom que liront les sites.</p></div>
+      <div class="field"><label for="c-per">Code</label>
+        <input class="input" id="c-per" placeholder="2026-S2">
+        <p class="hint">Court et stable, il sert de nom de fichier aux exports.</p></div>
+    </div>
+    <div class="two" style="--gap:var(--s4)">
+      <div class="field"><label for="c-deb">Début de la période</label>
+        <input class="input" id="c-deb" type="date"></div>
+      <div class="field"><label for="c-fin">Fin de la période</label>
+        <input class="input" id="c-fin" type="date">
+        <p class="hint">Une période non terminée ne se collecte pas : les sites
+          n'auraient rien à déclarer.</p></div>
+    </div>
+    <div class="field"><label for="c-ech">Date limite de réponse</label>
+      <input class="input" id="c-ech" type="date">
+      <p class="hint">Passée cette date, la collecte peut être close. Les sites qui
+        n'ont rien dit sont marqués « sans réponse » — leur période précédente n'est
+        jamais recopiée à leur place.</p></div>
+    <div>
+      <label style="display:block;font-size:var(--t-sm);font-weight:600">Ce que vous demandez</label>
+      <div class="stack" style="--gap:var(--s3);margin-top:var(--s3)" id="c-rub">
+        ${RUBRIQUES.map(r => `<label class="checkline">
+          <input type="checkbox" value="${r.cle}" ${dejaPrises.includes(r.cle) ? "checked" : ""}>
+          <span><strong>${esc(r.libelle)}</strong>
+            <span class="muted" style="font-size:var(--t-xs)"> ${nb(INDICATEURS.saisis.filter(d => d.rubrique === r.cle).length)} valeurs</span>
+            <br><span class="muted" style="font-size:var(--t-xs)">${esc(r.aide)}</span></span>
+        </label>`).join("")}
+      </div>
+      <p class="hint" id="c-cpt" style="margin-top:var(--s3)"></p>
+    </div>
+  </div>`);
+
+  const cases = () => [...corps.querySelectorAll("#c-rub input:checked")].map(i => i.value);
+  const cpt = corps.querySelector("#c-cpt");
+  const majCpt = () => {
+    const n = INDICATEURS.saisis.filter(d => cases().includes(d.rubrique)).length;
+    cpt.textContent = !n
+      ? "Aucune rubrique choisie : il n'y aurait rien à demander."
+      : `${n} valeur${n > 1 ? "s" : ""} à trouver pour chaque site. `
+        + (n <= 8 ? "Un formulaire qui se remplit d'une traite."
+           : n <= 16 ? "Il faudra ouvrir deux ou trois dossiers : prévoyez le délai."
+           : "C'est beaucoup pour une seule fois. Deux collectes valent souvent mieux qu'une.");
+  };
+  corps.querySelectorAll("#c-rub input").forEach(i => i.addEventListener("change", majCpt));
+  majCpt();
+
+  modal("Nouvelle collecte", corps, [
+    { label: "Annuler", classe: "btn--ghost" },
+    { label: "Ouvrir la collecte", classe: "btn--primary", onClick: () => {
+        try {
+          const c = DB.ouvrirCampagne({ groupe: gid,
+            libelle: corps.querySelector("#c-lib").value,
+            periode: corps.querySelector("#c-per").value,
+            debut: corps.querySelector("#c-deb").value,
+            fin: corps.querySelector("#c-fin").value,
+            echeance: corps.querySelector("#c-ech").value,
+            rubriques: cases() });
+          sessionStorage.setItem("riseva.campagne", c.id);
+          toast("Collecte ouverte. Chaque site la voit maintenant sur son écran.");
+          rendre();
+        } catch (err){ toast(err.message); return false; }
+      } }
+  ]);
+}
+
 function formIndicateurs(u, cid, et){
   const o = DB.observation(cid, et.id);
   const v = (o && o.valeurs) || {};
@@ -6695,29 +6983,53 @@ function formIndicateurs(u, cid, et){
       Les accidents et les journées perdues sont déduits des événements déclarés sur la
       période : il n'y a rien à recopier ici, et les deux chiffres ne peuvent plus diverger.</p>
   </div>`));
-  INDICATEURS.saisis.forEach(d => {
-    const auto = derive && DB.CLES_DU_REGISTRE.includes(d.cle);
-    /* `inclut` et `exclut` valent mieux qu'une définition en prose : c'est là que
-       deux sites divergent sans le savoir, l'un comptant les intérimaires et
-       l'autre non, et c'est invisible une fois les chiffres additionnés. */
-    box.appendChild(h(`<div class="field">
-      <label for="i-${d.cle}">${esc(d.libelle)}${d.unite ? ` <span class="muted">(${esc(d.unite)})</span>` : ""}
-        ${auto ? `<span class="badge badge--ok" style="height:20px;margin-left:6px">déduit du registre</span>` : ""}</label>
-      <input class="input" id="i-${d.cle}" type="number" min="0" step="any"
-        value="${auto ? derive[d.cle] : (v[d.cle] ?? "")}"${auto ? " readonly disabled" : ""}>
-      <p class="hint">${esc(d.aide)}</p>
-      ${d.inclut ? `<p class="hint"><strong>On compte :</strong> ${esc(d.inclut)}.
-        <strong>On ne compte pas :</strong> ${esc(d.exclut)}.</p>` : ""}
-    </div>`));
+  /* Un formulaire rangé par rubriques, et pas une colonne de vingt-sept champs.
+     Ce n'est pas de l'ornement : les valeurs d'une rubrique viennent d'une même
+     source et d'une même personne — la paie pour les effectifs, le registre pour
+     la sécurité, les factures pour l'énergie. Groupées, elles se remplissent en
+     une fois ; mélangées, elles obligent à rouvrir trois dossiers.
+
+     Seules les rubriques demandées par CETTE campagne sont affichées. Un site à
+     qui l'on demande l'énergie au mois d'août ne doit pas voir passer douze
+     champs sociaux qu'on ne lui demande pas cette fois-ci. */
+  const sections = sectionsDe(DB.campagne(cid));
+  const champsDemandes = sections.flatMap(r => r.champs);
+  sections.forEach(r => {
+    const bloc = h(`<div class="stack" style="--gap:var(--s4)">
+      <div>
+        <h4 style="font-size:var(--t-md);margin:0">${esc(r.libelle)}</h4>
+        <p class="muted" style="font-size:var(--t-xs);margin-top:2px">${esc(r.aide)}</p>
+      </div>
+    </div>`);
+    r.champs.forEach(d => {
+      const auto = derive && DB.CLES_DU_REGISTRE.includes(d.cle);
+      /* `inclut` et `exclut` valent mieux qu'une définition en prose : c'est là que
+         deux sites divergent sans le savoir, l'un comptant les intérimaires et
+         l'autre non, et c'est invisible une fois les chiffres additionnés. */
+      bloc.appendChild(h(`<div class="field">
+        <label for="i-${d.cle}">${esc(d.libelle)}${d.unite ? ` <span class="muted">(${esc(d.unite)})</span>` : ""}
+          ${auto ? `<span class="badge badge--ok" style="height:20px;margin-left:6px">déduit du registre</span>` : ""}</label>
+        <input class="input" id="i-${d.cle}" type="number" min="0" step="any"
+          value="${auto ? derive[d.cle] : (v[d.cle] ?? "")}"${auto ? " readonly disabled" : ""}>
+        <p class="hint">${esc(d.aide)}</p>
+        ${d.inclut ? `<p class="hint"><strong>On compte :</strong> ${esc(d.inclut)}.
+          <strong>On ne compte pas :</strong> ${esc(d.exclut)}.</p>` : ""}
+      </div>`));
+    });
+    box.appendChild(bloc);
   });
 
+  /* Les valeurs déjà saisies pour une rubrique qui n'est plus demandée ne sont
+     pas effacées : elles restent dans `v` et repartent telles quelles. Une
+     campagne qui rétrécit ne doit pas détruire ce qu'une campagne plus large
+     avait recueilli. */
   const lire = () => {
     const vals = {};
-    INDICATEURS.saisis.forEach(d => {
+    champsDemandes.forEach(d => {
       const champ = corps.querySelector(`#i-${d.cle}`);
-      if (!champ.disabled) vals[d.cle] = champ.value;
+      if (champ && !champ.disabled) vals[d.cle] = champ.value;
     });
-    return { ...(derive || {}), ...vals };
+    return { ...v, ...(derive || {}), ...vals };
   };
   /* Les écarts s'affichent pendant la saisie, pas au moment du refus : découvrir
      qu'on doit se justifier après avoir rempli douze champs est la meilleure

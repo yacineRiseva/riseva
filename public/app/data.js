@@ -659,58 +659,207 @@ export function devisPour({ effectif = 0, sites = 1, fondateur = false, comptant
    Riseva *calcule*, Riseva ne *certifie* pas. Les valeurs sont déclarées par
    l'entreprise, site par site, et chaque ligne garde qui l'a saisie et qui l'a
    approuvée. */
+/* ------------------------------------------------------------------ */
+/* Les rubriques : des sections, et des clés qui ne bougent plus       */
+/* ------------------------------------------------------------------ */
+/* Un indicateur sans rubrique est un champ dans un formulaire. Un indicateur
+   dans une rubrique est une ligne d'un catalogue : on peut l'activer pour une
+   entreprise et pas pour une autre, le demander une période et pas la suivante,
+   et en ajouter un nouveau sans toucher au code de la page qui l'affiche.
+
+   C'est ce qui permet d'ouvrir une entreprise avec les bonnes sections dès le
+   premier jour, au lieu de lui présenter un formulaire de trente champs dont
+   vingt ne la concernent pas.
+
+   La clé est le contrat. Elle est écrite une fois, en minuscules et sans
+   accent, et elle ne change plus : elle sert de colonne dans les exports, de
+   nom de champ dans la base, et d'en-tête dans le tableur qu'on renvoie. Un
+   libellé se corrige ; une clé qui change casse deux ans d'historique.
+
+   Ce que Riseva fait de ces chiffres, et ce qu'elle n'en fait pas. Elle les
+   rassemble, elle les additionne, elle les rend. Elle ne les audite pas, elle
+   ne les interprète pas, et elle ne dépose rien avec. La responsabilité de la
+   valeur reste chez celui qui la saisit, exactement comme dans le tableur
+   qu'elle remplace. */
+export const RUBRIQUES = [
+  { cle:"social",    libelle:"Effectifs et mouvements", ordre:1, defaut:true,
+    aide:"Ce que la paie sait déjà. C'est le dénominateur de presque tout le reste." },
+  { cle:"securite",  libelle:"Sécurité", ordre:2, defaut:true,
+    aide:"Ce que le registre du site consigne déjà, période par période." },
+  { cle:"formation", libelle:"Formation", ordre:3, defaut:true,
+    aide:"Volume et nombre de personnes formées, toutes formations confondues." },
+  { cle:"diversite", libelle:"Diversité", ordre:4, defaut:true,
+    aide:"Comptages simples. Aucun index réglementaire n'est calculé ici." },
+  { cle:"energie",   libelle:"Énergie et eau", ordre:5, defaut:false,
+    aide:"Les relevés de vos factures. C'est la question la plus fréquente des "
+         + "questionnaires clients, et celle qui traîne le plus." },
+  { cle:"dechets",   libelle:"Déchets", ordre:6, defaut:false,
+    aide:"Les tonnages de vos bordereaux d'enlèvement, site par site." },
+  { cle:"mobilite",  libelle:"Mobilité et flotte", ordre:7, defaut:false,
+    aide:"Les déplacements domicile-travail et les véhicules du site." },
+  { cle:"achats",    libelle:"Achats", ordre:8, defaut:false,
+    aide:"Le poids des fournisseurs proches et du secteur protégé dans vos achats." }
+];
+
+export const rubrique = (cle) => RUBRIQUES.find(r => r.cle === cle) || null;
+
+/* Les indicateurs d'une campagne, et eux seuls. Une campagne sans liste de
+   rubriques demande tout : c'est le comportement des campagnes créées avant que
+   les sections existent, et il ne faut pas qu'elles se vident du jour au
+   lendemain. */
+export const rubriquesDe = (campagne) =>
+  (campagne && Array.isArray(campagne.rubriques) && campagne.rubriques.length)
+    ? campagne.rubriques
+    : RUBRIQUES.map(r => r.cle);
+
+export const saisisDe = (campagne) => {
+  const r = rubriquesDe(campagne);
+  return INDICATEURS.saisis.filter(d => r.includes(d.rubrique));
+};
+
+export const calculesDe = (campagne) => {
+  const r = rubriquesDe(campagne);
+  return INDICATEURS.calcules.filter(d => r.includes(d.rubrique));
+};
+
+/* Les rubriques dans l'ordre du catalogue, avec leurs champs : c'est la forme
+   dont un formulaire a besoin, et celle d'un onglet de tableur. */
+export const sectionsDe = (campagne) =>
+  RUBRIQUES.filter(r => rubriquesDe(campagne).includes(r.cle))
+    .map(r => ({ ...r, champs: INDICATEURS.saisis.filter(d => d.rubrique === r.cle) }));
+
 export const INDICATEURS = {
-  version: "2026.2",
+  version: "2026.3",
   /* Chaque indicateur porte le niveau auquel il a un sens, sa source attendue, et
      s'il correspond ou non à une définition réglementaire. Sans ce dictionnaire,
      on affiche un taux au mauvais niveau avec le bon nom — et c'est là qu'un
      préventeur ou un contrôleur s'arrête. */
   saisis: [
-    { cle:"effectif_fin",      libelle:"Effectif à la fin de la période",      unite:"personnes", niveau:"établissement", source:"paie ou DSN",
+    { cle:"effectif_fin", rubrique:"social",      libelle:"Effectif à la fin de la période",      unite:"personnes", niveau:"établissement", source:"paie ou DSN",
       aide:"En contrat au dernier jour de la période, tous contrats confondus.",
       inclut:"CDI, CDD, apprentis et contrats de professionnalisation présents au dernier jour",
       exclut:"intérimaires, stagiaires, prestataires, sous-traitants" },
-    { cle:"entrees",           libelle:"Entrées",                              unite:"personnes", niveau:"établissement", source:"paie ou DSN",
+    { cle:"entrees", rubrique:"social",           libelle:"Entrées",                              unite:"personnes", niveau:"établissement", source:"paie ou DSN",
       aide:"Embauches sur la période.",
       inclut:"toute embauche sur la période, y compris en CDD",
       exclut:"les mutations internes entre sites du même employeur" },
-    { cle:"sorties",           libelle:"Sorties",                              unite:"personnes", niveau:"établissement", source:"paie ou DSN",
+    { cle:"sorties", rubrique:"social",           libelle:"Sorties",                              unite:"personnes", niveau:"établissement", source:"paie ou DSN",
       aide:"Fins de contrat sur la période, quel qu'en soit le motif.",
       inclut:"fins de contrat, démissions, licenciements, ruptures conventionnelles, départs en retraite, décès",
       exclut:"les mutations internes entre sites du même employeur" },
-    { cle:"heures_travaillees",libelle:"Heures travaillées",                   unite:"heures",    niveau:"établissement", source:"paie",
+    { cle:"heures_travaillees", rubrique:"social",libelle:"Heures travaillées",                   unite:"heures",    niveau:"établissement", source:"paie",
       aide:"Heures réellement travaillées, hors absences. C'est le dénominateur des taux de sécurité.",
       inclut:"heures réellement travaillées par les personnes comptées dans l'effectif",
       exclut:"congés, RTT, arrêts, formation hors poste, heures des intérimaires" },
-    { cle:"at_avec_arret",     libelle:"Accidents du travail avec arrêt",      unite:"accidents", niveau:"établissement", source:"registre HSE",
+    { cle:"at_avec_arret", rubrique:"securite",     libelle:"Accidents du travail avec arrêt",      unite:"accidents", niveau:"établissement", source:"registre HSE",
       aide:"Accidents survenus sur le lieu de travail ayant entraîné un arrêt d'au moins un jour. Ce n'est pas la notion d'« accident en premier règlement » utilisée par l'assurance maladie : les taux calculés ici sont donc des indicateurs internes.",
       inclut:"accidents survenus par le fait ou à l'occasion du travail, ayant entraîné au moins un jour d'arrêt au-delà du jour de l'accident",
       exclut:"accidents de trajet, maladies professionnelles, accidents d'intérimaires ou de prestataires" },
-    { cle:"at_sans_arret",     libelle:"Accidents du travail sans arrêt",      unite:"accidents", niveau:"établissement", source:"registre HSE",
+    { cle:"at_sans_arret", rubrique:"securite",     libelle:"Accidents du travail sans arrêt",      unite:"accidents", niveau:"établissement", source:"registre HSE",
       aide:"Accidents ayant nécessité des soins mais sans arrêt.",
       inclut:"accidents ayant nécessité des soins, sans arrêt",
       exclut:"les incidents sans soin, les presqu'accidents" },
-    { cle:"at_trajet",         libelle:"Accidents de trajet",                  unite:"accidents", niveau:"établissement", source:"registre HSE",
+    { cle:"at_trajet", rubrique:"securite",         libelle:"Accidents de trajet",                  unite:"accidents", niveau:"établissement", source:"registre HSE",
       aide:"Comptés à part : ils ne relèvent pas des mêmes actions de prévention.",
       inclut:"accidents survenus sur le trajet domicile-travail ou vers le lieu de restauration",
       exclut:"les déplacements professionnels, qui relèvent de l'accident du travail" },
-    { cle:"jours_arret",       libelle:"Journées perdues pour accident",       unite:"jours",     niveau:"établissement", source:"registre HSE",
+    { cle:"jours_arret", rubrique:"securite",       libelle:"Journées perdues pour accident",       unite:"jours",     niveau:"établissement", source:"registre HSE",
       aide:"Journées calendaires d'arrêt imputables aux accidents de la période.",
       inclut:"journées calendaires d'arrêt imputables aux accidents de la période, décomptées jusqu'au dernier jour de la période",
       exclut:"les journées d'arrêt pour maladie ordinaire ou maladie professionnelle" },
-    { cle:"formation_heures",  libelle:"Heures de formation",                  unite:"heures",    niveau:"établissement", source:"plan de formation",
+    { cle:"formation_heures", rubrique:"formation",  libelle:"Heures de formation",                  unite:"heures",    niveau:"établissement", source:"plan de formation",
       aide:"Toutes formations confondues.",
       inclut:"toutes formations, internes et externes, sur et hors temps de travail",
       exclut:"l'accueil sécurité au poste et les briefings de moins d'une heure" },
-    { cle:"formation_benef",   libelle:"Salariés formés",                      unite:"personnes", niveau:"établissement", source:"plan de formation",
+    { cle:"formation_benef", rubrique:"formation",   libelle:"Salariés formés",                      unite:"personnes", niveau:"établissement", source:"plan de formation",
       aide:"Personnes distinctes ayant suivi au moins une formation.",
       inclut:"personnes distinctes ayant suivi au moins une formation sur la période",
       exclut:"les inscriptions non suivies" },
-    { cle:"femmes",            libelle:"Femmes dans l'effectif",               unite:"personnes", niveau:"établissement", source:"paie ou DSN",
+    { cle:"femmes", rubrique:"diversite",            libelle:"Femmes dans l'effectif",               unite:"personnes", niveau:"établissement", source:"paie ou DSN",
       aide:"Au dernier jour de la période.",
       inclut:"personnes déclarées de sexe féminin dans la paie, au dernier jour de la période",
       exclut:"les intérimaires et les prestataires" },
-    { cle:"boeth",             libelle:"Bénéficiaires de l'obligation d'emploi présents sur le site", unite:"personnes", niveau:"établissement", source:"RH du site",
+    /* ── Énergie et eau ─────────────────────────────────────────────────
+       Des relevés de factures, pas des estimations. Riseva ne convertit aucun
+       kilowattheure en équivalent carbone : un facteur d'émission dépend du
+       contrat, de l'année et de la méthode, et le choisir à la place du client
+       transformerait un relevé en affirmation. */
+    { cle:"elec_kwh", rubrique:"energie", libelle:"Électricité consommée", unite:"kWh", niveau:"établissement", source:"facture du fournisseur",
+      aide:"Relevé de la période, tel qu'il figure sur vos factures.",
+      inclut:"la consommation du site sur la période, tous usages confondus",
+      exclut:"l'électricité refacturée à un tiers occupant le même bâtiment" },
+    { cle:"gaz_kwh", rubrique:"energie", libelle:"Gaz consommé", unite:"kWh", niveau:"établissement", source:"facture du fournisseur",
+      aide:"En kilowattheures, tels qu'ils figurent sur la facture.",
+      inclut:"le gaz de réseau et le gaz en citerne",
+      exclut:"le gaz des chariots élévateurs, compté avec le carburant" },
+    { cle:"carburant_l", rubrique:"energie", libelle:"Carburant acheté", unite:"litres", niveau:"établissement", source:"cartes carburant",
+      aide:"Fioul de chauffage et carburant des engins et véhicules du site.",
+      inclut:"fioul, gazole, essence et GPL achetés par le site",
+      exclut:"le carburant des véhicules personnels des salariés" },
+    { cle:"eau_m3", rubrique:"energie", libelle:"Eau consommée", unite:"m³", niveau:"établissement", source:"facture ou relevé de compteur",
+      aide:"Relevé de la période.",
+      inclut:"l'eau du réseau et l'eau de forage si elle est comptée",
+      exclut:"l'eau de pluie récupérée et non comptée" },
+
+    /* ── Déchets ────────────────────────────────────────────────────────
+       Des tonnages de bordereaux. Riseva ne qualifie aucun déchet et ne tient
+       pas le registre réglementaire : elle additionne ce que le site déclare
+       avoir fait enlever. */
+    { cle:"dechets_kg", rubrique:"dechets", libelle:"Déchets produits", unite:"kg", niveau:"établissement", source:"bordereaux d'enlèvement",
+      aide:"Tonnage total enlevé sur la période, toutes filières confondues.",
+      inclut:"tous les déchets enlevés du site sur la période",
+      exclut:"les déchets d'un chantier réalisé par un tiers sur votre terrain" },
+    { cle:"dechets_valorises_kg", rubrique:"dechets", libelle:"Dont partis en valorisation", unite:"kg", niveau:"établissement", source:"bordereaux d'enlèvement",
+      aide:"La part du tonnage précédent partie en recyclage, réemploi ou valorisation énergétique, selon ce qu'indique votre prestataire.",
+      inclut:"ce que le bordereau du prestataire déclare valorisé",
+      exclut:"toute estimation faite par le site lui-même" },
+    { cle:"biodechets_kg", rubrique:"dechets", libelle:"Biodéchets triés", unite:"kg", niveau:"établissement", source:"bordereaux d'enlèvement",
+      aide:"Restauration collective, espaces verts, déchets alimentaires.",
+      inclut:"les biodéchets faisant l'objet d'un tri à la source",
+      exclut:"les biodéchets partis avec les ordures résiduelles" },
+
+    /* ── Mobilité et flotte ─────────────────────────────────────────────
+       Des comptages simples, tirés du parc et de la paie. Rien n'est estimé :
+       un champ vide vaut mieux qu'un chiffre inventé, et le rapport le dit. */
+    { cle:"flotte", rubrique:"mobilite", libelle:"Véhicules de la flotte du site", unite:"véhicules", niveau:"établissement", source:"parc automobile",
+      aide:"Véhicules détenus ou loués par le site au dernier jour de la période.",
+      inclut:"voitures, utilitaires et engins immatriculés affectés au site",
+      exclut:"les véhicules personnels des salariés" },
+    { cle:"flotte_electrique", rubrique:"mobilite", libelle:"Dont électriques ou hybrides rechargeables", unite:"véhicules", niveau:"établissement", source:"parc automobile",
+      aide:"Sous-ensemble du chiffre précédent.",
+      inclut:"les véhicules 100 % électriques et les hybrides rechargeables",
+      exclut:"les hybrides non rechargeables" },
+    { cle:"places_recharge", rubrique:"mobilite", libelle:"Points de recharge sur le site", unite:"points", niveau:"établissement", source:"services généraux",
+      aide:"Bornes accessibles aux salariés, au dernier jour de la période.",
+      inclut:"les points de charge en service",
+      exclut:"les bornes installées mais non raccordées" },
+    { cle:"forfait_mobilite", rubrique:"mobilite", libelle:"Salariés au forfait mobilités durables", unite:"personnes", niveau:"établissement", source:"paie",
+      aide:"Personnes ayant perçu le forfait au moins une fois sur la période.",
+      inclut:"les bénéficiaires effectivement payés",
+      exclut:"les salariés éligibles qui n'ont rien demandé" },
+
+    /* ── Achats ─────────────────────────────────────────────────────────
+       « De proximité » est une notion que chaque entreprise définit à sa façon.
+       La définition retenue est écrite à côté du chiffre et le suit dans le
+       rapport : sans elle, le taux ne veut rien dire. */
+    { cle:"achats_montant", rubrique:"achats", libelle:"Montant des achats du site", unite:"€", niveau:"établissement", source:"comptabilité fournisseurs",
+      aide:"Achats hors taxes engagés par le site sur la période.",
+      inclut:"les achats de biens et de services imputés au site",
+      exclut:"les achats du siège refacturés au site" },
+    { cle:"achats_locaux", rubrique:"achats", libelle:"Dont fournisseurs de proximité", unite:"€", niveau:"établissement", source:"comptabilité fournisseurs",
+      aide:"Selon la définition que vous retenez, et que le rapport reprend telle quelle.",
+      inclut:"les fournisseurs répondant à votre définition de la proximité",
+      exclut:"tout fournisseur dont l'adresse n'a pas été vérifiée" },
+    { cle:"achats_esat", rubrique:"achats", libelle:"Dont secteur du travail protégé", unite:"€", niveau:"établissement", source:"comptabilité fournisseurs",
+      aide:"Achats auprès d'ESAT, d'entreprises adaptées et de travailleurs indépendants handicapés.",
+      inclut:"les prestations facturées par ces structures sur la période",
+      exclut:"toute déduction d'obligation d'emploi : Riseva n'en calcule aucune" },
+    { cle:"fournisseurs", rubrique:"achats", libelle:"Fournisseurs actifs sur la période", unite:"fournisseurs", niveau:"établissement", source:"comptabilité fournisseurs",
+      aide:"Nombre de fournisseurs distincts ayant facturé au moins une fois.",
+      inclut:"les fournisseurs ayant émis au moins une facture sur la période",
+      exclut:"les comptes ouverts sans mouvement" },
+
+    { cle:"boeth", rubrique:"diversite",             libelle:"Bénéficiaires de l'obligation d'emploi présents sur le site", unite:"personnes", niveau:"établissement", source:"RH du site",
       aide:"Comptage interne, à ne pas confondre avec le taux d'emploi OETH : celui-ci se calcule une fois par an, au niveau de la société (SIREN), sur des effectifs moyens annuels Urssaf. Riseva ne le calcule pas.",
       inclut:"personnes présentes sur le site ayant déclaré une reconnaissance en cours de validité",
       exclut:"toute inférence : ce comptage repose sur des déclarations volontaires, et un salarié n'a aucune obligation de déclarer" }
@@ -725,43 +874,69 @@ export const INDICATEURS = {
      le taux de rotation chuterait de cent pour cent, et l'alerte d'écart se
      déclencherait sur une donnée manquante. */
   calcules: [
-    { cle:"tf1", libelle:"Fréquence interne des accidents avec arrêt",
+    { cle:"tf1", rubrique:"securite", libelle:"Fréquence interne des accidents avec arrêt",
       unite:"", niveau:"tout périmètre", reglementaire:false,
       num:"at_avec_arret", den:"heures_travaillees",
       formule:"accidents avec arrêt × 1 000 000 ÷ heures travaillées",
       note:"Indicateur interne. Le taux de fréquence de l'assurance maladie repose sur les accidents en premier règlement : ces deux chiffres ne se comparent pas.",
       calcul: (v) => v.heures_travaillees ? (v.at_avec_arret * 1e6) / v.heures_travaillees : null },
-    { cle:"tf2", libelle:"Fréquence interne, avec et sans arrêt",
+    { cle:"tf2", rubrique:"securite", libelle:"Fréquence interne, avec et sans arrêt",
       unite:"", niveau:"tout périmètre", reglementaire:false,
       num:"at_avec_arret + at_sans_arret", den:"heures_travaillees",
       formule:"(accidents avec arrêt + sans arrêt) × 1 000 000 ÷ heures travaillées",
       note:"Indicateur interne, utile pour suivre les presqu'accidents soignés sans arrêt.",
       calcul: (v) => v.heures_travaillees
         ? ((v.at_avec_arret + v.at_sans_arret) * 1e6) / v.heures_travaillees : null },
-    { cle:"tg", libelle:"Gravité interne",
+    { cle:"tg", rubrique:"securite", libelle:"Gravité interne",
       unite:"", niveau:"tout périmètre", reglementaire:false,
       num:"jours_arret", den:"heures_travaillees",
       formule:"journées perdues × 1 000 ÷ heures travaillées",
       note:"Indicateur interne. Les journées perdues déclarées ici ne suivent pas forcément les règles d'imputation de l'assurance maladie.",
       calcul: (v) => v.heures_travaillees ? (v.jours_arret * 1e3) / v.heures_travaillees : null },
-    { cle:"if_", libelle:"Indice interne de fréquence",
+    { cle:"if_", rubrique:"securite", libelle:"Indice interne de fréquence",
       unite:"", niveau:"tout périmètre", reglementaire:false,
       num:"at_avec_arret", den:"effectif_fin",
       formule:"accidents avec arrêt × 1 000 ÷ effectif",
       note:"Indicateur interne.",
       calcul: (v) => v.effectif_fin ? (v.at_avec_arret * 1e3) / v.effectif_fin : null },
-    { cle:"turnover", libelle:"Rotation du personnel",
+    { cle:"turnover", rubrique:"social", libelle:"Rotation du personnel",
       unite:"%", niveau:"tout périmètre", reglementaire:false,
       num:"(entrees + sorties) / 2", den:"effectif_fin",
       formule:"(entrées + sorties) ÷ 2 ÷ effectif × 100",
       note:"Définition interne : il en existe plusieurs, celle-ci est écrite pour être refaite à la main.",
       calcul: (v) => v.effectif_fin ? ((v.entrees + v.sorties) / 2) / v.effectif_fin * 100 : null },
-    { cle:"part_femmes", libelle:"Part des femmes dans l'effectif",
+    { cle:"part_femmes", rubrique:"diversite", libelle:"Part des femmes dans l'effectif",
       unite:"%", niveau:"tout périmètre", reglementaire:false,
       num:"femmes", den:"effectif_fin",
       formule:"femmes ÷ effectif × 100",
       note:"Ne préjuge en rien de l'index d'égalité professionnelle, qui obéit à d'autres règles et se calcule au niveau de l'entreprise.",
-      calcul: (v) => v.effectif_fin ? (v.femmes / v.effectif_fin) * 100 : null }
+      calcul: (v) => v.effectif_fin ? (v.femmes / v.effectif_fin) * 100 : null },
+    { cle:"part_valorise", rubrique:"dechets", libelle:"Part des déchets valorisés",
+      unite:"%", niveau:"tout périmètre", reglementaire:false,
+      num:"dechets_valorises_kg", den:"dechets_kg",
+      formule:"déchets valorisés ÷ déchets produits × 100",
+      note:"Reprend la qualification du prestataire d'enlèvement, sans la vérifier.",
+      calcul: (v) => v.dechets_kg ? (v.dechets_valorises_kg / v.dechets_kg) * 100 : null },
+    { cle:"part_flotte_elec", rubrique:"mobilite", libelle:"Part électrique de la flotte",
+      unite:"%", niveau:"tout périmètre", reglementaire:false,
+      num:"flotte_electrique", den:"flotte",
+      formule:"véhicules électriques ou hybrides rechargeables ÷ flotte × 100",
+      note:"Comptage de véhicules, pas de kilomètres parcourus.",
+      calcul: (v) => v.flotte ? (v.flotte_electrique / v.flotte) * 100 : null },
+    { cle:"part_achats_locaux", rubrique:"achats", libelle:"Part des achats de proximité",
+      unite:"%", niveau:"tout périmètre", reglementaire:false,
+      num:"achats_locaux", den:"achats_montant",
+      formule:"achats de proximité ÷ achats du site × 100",
+      note:"Dépend entièrement de la définition de proximité retenue par l'entreprise, "
+        + "qui est reprise à côté du chiffre dans le rapport.",
+      calcul: (v) => v.achats_montant ? (v.achats_locaux / v.achats_montant) * 100 : null },
+    { cle:"elec_par_salarie", rubrique:"energie", libelle:"Électricité par salarié",
+      unite:"kWh", niveau:"tout périmètre", reglementaire:false,
+      num:"elec_kwh", den:"effectif_fin",
+      formule:"électricité consommée ÷ effectif",
+      note:"Rapporter à l'effectif permet de comparer deux sites de tailles différentes. "
+        + "Ce ratio n'a aucun sens entre un entrepôt et un bureau.",
+      calcul: (v) => v.effectif_fin ? v.elec_kwh / v.effectif_fin : null }
     /* Retiré : le « taux d'emploi de travailleurs handicapés ». Il ne se calcule
        pas en divisant les bénéficiaires d'un site par l'effectif de ce site :
        l'obligation d'emploi est annuelle, s'apprécie au niveau de la société,
@@ -1431,11 +1606,17 @@ const seed = {
      C'est le même mécanisme que la validation d'une mission — on demande, on
      rappelle, et si personne ne répond on clôt en le disant. */
   campagnes: [
+    /* `rubriques` : les sections demandées pour cette période, et elles seules.
+       Une campagne qui présente les trente-sept champs du catalogue à un
+       référent de site qui n'en concerne que douze ne reçoit pas douze réponses,
+       elle n'en reçoit aucune. */
     { id:"c1", groupe:"g1", periode:"2026-S1", libelle:"Premier semestre 2026",
+      rubriques:["social","securite","formation","diversite"],
       debut:"2026-01-01", fin:"2026-06-30", ouverte_le:J(-40), echeance:J(-19), etat:"close" },
     /* Une campagne de point d'étape, dont la période est réellement terminée : on
        ne demande pas le second semestre au mois d'août. */
     { id:"c2", groupe:"g1", periode:"2026-T3", libelle:"Point au 31 juillet 2026",
+      rubriques:["social","securite","formation","diversite","energie","dechets"],
       debut:"2026-07-01", fin:"2026-07-31", ouverte_le:J(-6), echeance:J(15), etat:"ouverte" }
   ],
   /* Une observation = une valeur, pour un site, une période, un indicateur.
@@ -2554,6 +2735,137 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
           : []
       };
     },
+    /* ------------------------------------------------------------------ */
+    /* Le rapport de collecte                                             */
+    /* ------------------------------------------------------------------ */
+    /* Ce que la plateforme rend une fois que les sites ont répondu, et le seul
+       endroit où elle apporte quelque chose que le tableur n'apporte pas : elle
+       rassemble sans qu'on ait à relancer, elle additionne au bon niveau, et
+       elle dit ce qui manque.
+
+       Deux règles y sont tenues, et elles ne sont pas décoratives. Une valeur
+       absente reste absente : écrire zéro à sa place transformerait « ce site
+       n'a pas déclaré ses entrées » en « ce site n'a eu aucune entrée ». Et un
+       taux consolidé est un rapport de sommes, jamais une moyenne de taux : la
+       moyenne des taux de Paris, Lyon et Marseille n'est pas le taux du groupe,
+       et l'écart ne se voit pas à l'œil.
+
+       Ce que ce rapport n'est pas : une déclaration, une certification, une
+       interprétation. Les chiffres sont ceux que les sites ont saisis, et la
+       responsabilité de chacun reste chez celui qui l'a écrit. Riseva tient le
+       classeur ; elle ne signe pas à la place du client. */
+    rapportCollecte(cid){
+      const c = api.campagne(cid); if (!c) return null;
+      const etat = api.etatCampagne(cid);
+      const repondus = etat.sites.filter(x => x.etat === "declare" || x.etat === "approuve");
+      const sections = sectionsDe(c).map(r => {
+        const champs = r.champs;
+        const lignes = etat.sites.map(x => ({
+          site: x.etablissement,
+          etat: x.etat,
+          valeurs: Object.fromEntries(champs.map(d => [d.cle,
+            x.observation && x.observation.valeurs[d.cle] !== undefined
+              && x.observation.valeurs[d.cle] !== null
+              ? Number(x.observation.valeurs[d.cle]) : null])),
+          commentaire: x.observation ? x.observation.commentaire : null
+        }));
+        /* Une somme n'a de sens que si l'on dit sur combien de sites elle porte.
+           « 1 240 » sur quatre sites et « 1 240 » sur deux ne racontent pas la
+           même chose, et c'est la première question qu'on pose devant un
+           agrégat. */
+        const totaux = Object.fromEntries(champs.map(d => {
+          const vs = lignes.map(l => l.valeurs[d.cle]).filter(v => v !== null);
+          return [d.cle, { somme: vs.length ? vs.reduce((a, b) => a + b, 0) : null,
+                           sites: vs.length }];
+        }));
+        const manquants = champs.flatMap(d =>
+          lignes.filter(l => l.valeurs[d.cle] === null
+                             && (l.etat === "declare" || l.etat === "approuve"))
+            .map(l => ({ champ: d.cle, libelle: d.libelle, site: l.site.nom })));
+        return { ...r, lignes, totaux, manquants };
+      });
+
+      /* Les ratios se calculent sur les sommes du périmètre, et seulement si
+         leurs deux termes sont eux-mêmes complets. Un taux calculé sur trois
+         sites sur quatre est un taux faux qui a l'air juste. */
+      const sommes = {};
+      sections.forEach(r => Object.entries(r.totaux)
+        .forEach(([k, v]) => { sommes[k] = v.somme; }));
+      const complet = (cle) => {
+        for (const r of sections) if (r.totaux[cle]) return r.totaux[cle].sites === repondus.length;
+        return false;
+      };
+      const ratios = calculesDe(c).map(d => {
+        const termes = String(d.num + " " + d.den).match(/[a-z_]+[a-z0-9_]*/g) || [];
+        const utilisables = termes.filter(t => sommes[t] !== undefined);
+        const tousLa = utilisables.length > 0 && utilisables.every(t => sommes[t] !== null);
+        return { cle:d.cle, libelle:d.libelle, unite:d.unite, rubrique:d.rubrique,
+                 formule:d.formule, note:d.note,
+                 valeur: tousLa ? d.calcul(sommes) : null,
+                 surTousLesSites: utilisables.every(complet) };
+      });
+
+      return {
+        campagne: c,
+        sections, ratios,
+        sites: etat.sites.length,
+        repondus: repondus.length,
+        approuves: etat.approuves,
+        sansReponse: etat.clos,
+        /* « Complète » veut dire : tous les sites attendus ont répondu. C'est
+           l'événement qui déclenche la notification et qui rend le rapport
+           utilisable tel quel. */
+        complete: etat.sites.length > 0 && repondus.length === etat.sites.length,
+        effectifCouvert: repondus.reduce((n, x) => n + (x.etablissement.effectif || 0), 0),
+        effectifTotal: etat.sites.reduce((n, x) => n + (x.etablissement.effectif || 0), 0),
+        version: INDICATEURS.version,
+        limites: INDICATEURS_LIMITES
+      };
+    },
+
+    /* Les onglets d'un classeur, dans l'ordre où on veut les lire : d'abord ce
+       que chaque site a répondu, rubrique par rubrique, puis les totaux, puis
+       les définitions. Un tableur dont le premier onglet est un dictionnaire ne
+       se lit pas. */
+    classeurCollecte(cid){
+      const r = api.rapportCollecte(cid); if (!r) return [];
+      const onglets = r.sections.map(sec => ({
+        nom: sec.libelle,
+        lignes: [
+          ["Site", "Ville", "Effectif", "État", ...sec.champs.map(d => `${d.libelle}${d.unite ? " (" + d.unite + ")" : ""}`), "Commentaire du site"],
+          ...sec.lignes.map(l => [
+            l.site.nom, l.site.ville || "", l.site.effectif || null,
+            ({ attendu:"Pas de réponse", declare:"Saisi", approuve:"Approuvé",
+               clos_sans_reponse:"Clos sans réponse" })[l.etat] || l.etat,
+            ...sec.champs.map(d => l.valeurs[d.cle]),
+            l.commentaire || ""
+          ]),
+          [],
+          ["Total du périmètre", "", r.effectifCouvert, `${r.repondus} site(s) sur ${r.sites}`,
+           ...sec.champs.map(d => sec.totaux[d.cle].somme), ""],
+          ["Sites ayant renseigné", "", "", "",
+           ...sec.champs.map(d => sec.totaux[d.cle].sites), ""]
+        ]
+      }));
+      onglets.push({
+        nom: "Ratios",
+        lignes: [["Indicateur", "Valeur", "Unité", "Formule", "Calculé sur tous les sites", "Note"],
+          ...r.ratios.map(x => [x.libelle,
+            x.valeur === null ? null : Math.round(x.valeur * 100) / 100,
+            x.unite || "", x.formule, x.surTousLesSites ? "oui" : "non", x.note])]
+      });
+      onglets.push({
+        nom: "Définitions",
+        lignes: [["Clé", "Rubrique", "Indicateur", "Unité", "Source attendue", "Ce que ça inclut", "Ce que ça exclut"],
+          ...saisisDe(r.campagne).map(d => [d.cle, (rubrique(d.rubrique) || {}).libelle || d.rubrique,
+            d.libelle, d.unite, d.source, d.inclut, d.exclut]),
+          [],
+          ["Ce que Riseva ne fait pas"],
+          ...INDICATEURS_LIMITES.map(x => [x])]
+      });
+      return onglets;
+    },
+
     approuverIndicateurs(cid, etid, uid){
       const o = api.observation(cid, etid);
       if (!o) throw new Error("Rien à approuver pour ce site.");
@@ -2565,6 +2877,43 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       o.approuve_le = new Date().toISOString().slice(0,10);
       return o;
     },
+    /* Ouvrir une campagne, c'est décider deux choses : sur quelle période on
+       demande, et QUOI on demande. La seconde est la nouveauté. Un groupe qui
+       lance sa première collecte veut les effectifs et la sécurité ; celui qui
+       répond à un questionnaire client au mois d'août veut l'énergie et les
+       déchets, et il ne veut pas repasser par un tableur pour ça.
+
+       Les rubriques choisies sont écrites SUR la campagne, pas sur l'entreprise :
+       ce qui est demandé varie d'une période à l'autre, et une campagne close
+       doit continuer à dire ce qu'elle demandait à l'époque. Une campagne dont
+       on changerait la liste après coup rendrait ses propres totaux illisibles. */
+    ouvrirCampagne({ groupe, libelle, periode, debut, fin, echeance, rubriques } = {}){
+      if (!groupe) throw new Error("Une campagne appartient à un groupe.");
+      const lib = String(libelle || "").trim();
+      if (lib.length < 3) throw new Error("Donnez un nom à la période, il sera lu par chaque site.");
+      if (!debut || !fin || !echeance) throw new Error("Il manque une date.");
+      if (fin < debut) throw new Error("La fin de la période précède son début.");
+      const aujourdhui = new Date(2026, 7, 20).toISOString().slice(0, 10);
+      /* On ne demande pas des chiffres pour une période qui n'a pas eu lieu : le
+         site les invente ou ne répond pas, et les deux se ressemblent. */
+      if (fin > aujourdhui)
+        throw new Error("Cette période n'est pas terminée : les sites n'auraient rien à déclarer.");
+      if (echeance <= aujourdhui)
+        throw new Error("L'échéance est déjà passée : les sites n'auraient pas le temps de répondre.");
+      const per = String(periode || lib).trim().slice(0, 20);
+      if (s.campagnes.some(c => c.groupe === groupe && c.periode === per))
+        throw new Error(`Une campagne « ${per} » existe déjà pour ce groupe.`);
+      const rs = (Array.isArray(rubriques) ? rubriques : [])
+        .filter(x => RUBRIQUES.some(r => r.cle === x));
+      if (!rs.length) throw new Error("Choisissez au moins une rubrique à demander.");
+      const c = { id:id("c"), groupe, periode:per, libelle:lib,
+        rubriques: RUBRIQUES.filter(r => rs.includes(r.cle)).map(r => r.cle),
+        debut, fin, echeance,
+        ouverte_le: aujourdhui, etat:"ouverte" };
+      s.campagnes.push(c);
+      return c;
+    },
+
     /* Une campagne arrivée à échéance se referme. Les sites qui n'ont pas répondu sont
        marqués comme tels : on ne recopie pas la période précédente à leur place. */
     cloreCampagne(cid){
@@ -3618,6 +3967,63 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         if (j <= 60) pousser({ id:"fin", date:s.saison.fin, ton:"info",
           titre:"La saison se termine bientôt",
           texte:`${j} jours avant la clôture et le rapport annuel.`, vers:"#/abonnement" });
+      }
+      /* La collecte, des deux côtés. C'est le remplacement le plus direct du
+         travail de relance : au lieu d'écrire à quatorze sites et de tenir la
+         liste de ceux qui ont répondu, on affiche à chacun ce qu'on attend de
+         lui, et au siège ce qui manque encore. Rien n'est envoyé, rien n'est
+         stocké : la notification EST l'état de la collecte. */
+      if (u.role === "site_referent" || u.role === "entreprise_admin"){
+        const ent = api.entreprise(u.org);
+        const gid = ent ? ent.groupe : null;
+        api.campagnes(gid || undefined)
+          .filter(c => c.etat === "ouverte")
+          .forEach(c => {
+            const e = api.etatCampagne(c.id);
+            const j = api.joursAvant(c.echeance);
+            const sections = sectionsDe(c);
+            const quoi = sections.length > 2
+              ? `${sections.slice(0, 2).map(r => r.libelle.toLowerCase()).join(", ")} et ${sections.length - 2} autre${sections.length - 2 > 1 ? "s" : ""} rubrique${sections.length - 2 > 1 ? "s" : ""}`
+              : sections.map(r => r.libelle.toLowerCase()).join(" et ");
+            if (u.role === "site_referent"){
+              const x = e.sites.find(y => y.etablissement.id === u.etablissement);
+              if (!x) return;
+              if (x.etat === "attendu")
+                pousser({ id:"col" + c.id, date:c.echeance, ton: j <= 7 ? "alerte" : "info",
+                  titre:"Le siège attend vos chiffres",
+                  texte:`${c.libelle} : ${quoi}. ${j > 0 ? `${j} jour${j > 1 ? "s" : ""} avant l'échéance` : "L'échéance est passée"}.`,
+                  vers:"#/indicateurs" });
+              /* Ce que le référent veut savoir après avoir saisi, c'est si
+                 quelqu'un a relu. Sans cette ligne, il rouvre le formulaire
+                 pour vérifier que sa saisie est bien partie. */
+              if (x.etat === "declare")
+                pousser({ id:"colr" + c.id, date:c.echeance, ton:"info",
+                  titre:"Votre saisie attend une relecture",
+                  texte:`${c.libelle} : vos chiffres sont enregistrés, le siège doit encore les approuver.`,
+                  vers:"#/indicateurs" });
+            } else {
+              const manque = e.sites.filter(y => y.etat === "attendu");
+              /* L'événement qui compte pour un responsable RSE : le moment où
+                 il n'a plus personne à relancer. C'est là que le rapport
+                 devient utilisable, et c'est la seule notification de cette
+                 liste qui annonce une bonne nouvelle. */
+              if (!manque.length && e.sites.length)
+                pousser({ id:"colok" + c.id, date:c.echeance, ton:"ok",
+                  titre:"Tous les sites ont répondu",
+                  texte:`${c.libelle} : votre rapport de collecte est prêt, avec l'export tableur.`,
+                  vers:"#/indicateurs" });
+              else if (manque.length)
+                pousser({ id:"colatt" + c.id, date:c.echeance, ton: j <= 7 ? "alerte" : "info",
+                  titre:`${manque.length} site${manque.length > 1 ? "s" : ""} n'${manque.length > 1 ? "ont" : "a"} pas encore répondu`,
+                  texte:`${c.libelle} : ${manque.slice(0, 3).map(y => y.etablissement.nom).join(", ")}${manque.length > 3 ? `, et ${manque.length - 3} autre${manque.length - 3 > 1 ? "s" : ""}` : ""}. Ils sont prévenus sur leur écran, vous n'avez personne à relancer.`,
+                  vers:"#/indicateurs" });
+              if (e.declares)
+                pousser({ id:"colap" + c.id, date:c.echeance, ton:"info",
+                  titre:`${e.declares} saisie${e.declares > 1 ? "s" : ""} à approuver`,
+                  texte:"Tant qu'elles ne sont pas relues, elles n'entrent ni dans un rapport ni dans une réponse à un client.",
+                  vers:"#/indicateurs" });
+            }
+          });
       }
       if (u.role === "association"){
         const aValider = api.missions({ asso:u.org, etat:"a_valider" });

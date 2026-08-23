@@ -113,14 +113,15 @@ def main():
             # survole. On coupe donc au nombre d'éléments qui se lisent.
             if haut:
                 im = im.crop((0, 0, im.width, min(im.height, haut * 2)))
-            # Une capture cadrée sur un élément fait 1 100 à 1 200 pixels de large
-            # en double densité. La ramener de moitié la ramène à la largeur d'un
-            # texte courant, et elle s'affiche alors floue dès qu'on l'agrandit un
-            # peu. On garde donc la pleine résolution pour celles-là, et on ne
-            # divise que les captures de fenêtre entière, qui partent de 2 880.
-            large = im.width if im.width <= 1440 else min(1440, im.width // 2)
+            # Une capture s'affiche sur la vitrine jusqu'à 1 250 pixels de large.
+            # Sur un écran à double densité, il en faut le double pour qu'elle
+            # soit nette : à 1 440, la capture du tableau de bord était affichée
+            # à 1 118 et paraissait molle. On ne descend donc plus en dessous de
+            # 1 920, et les captures cadrées sur un élément gardent leur pleine
+            # résolution.
+            large = im.width if im.width <= 1920 else min(1920, im.width)
             im = im.resize((large, round(im.height * large / im.width)), Image.LANCZOS)
-            im.save(SORTIE / f"{nom}.jpg", quality=82, optimize=True, progressive=True)
+            im.save(SORTIE / f"{nom}.jpg", quality=78, optimize=True, progressive=True)
             brut.unlink()
             ecrites.append((nom, (SORTIE / f'{nom}.jpg').stat().st_size // 1024))
 
@@ -145,7 +146,7 @@ def main():
             brut = SORTIE / "affiche.png"
             a.locator(".a4").screenshot(path=str(brut))
             im = Image.open(brut).convert("RGB")
-            large = min(1000, im.width)
+            large = min(1400, im.width)
             im = im.resize((large, round(im.height * large / im.width)), Image.LANCZOS)
             im.save(SORTIE / "affiche.jpg", quality=84, optimize=True, progressive=True)
             brut.unlink()

@@ -1452,6 +1452,108 @@ def main():
         verifie("la personne qui saisit ne peut pas approuver sa propre saisie",
                 "ne peut pas approuver" in seul, seul)
 
+        print("\nLe rapport de collecte, et ce qu'il remplace")
+        # Ce que ce bloc protège : la promesse tenue au responsable RSE — il ne
+        # relance personne, il reçoit. Si le rapport disparaissait de l'écran, il
+        # ne resterait qu'un tableau d'états, c'est-à-dire le travail à faire.
+        verifie("le rapport de collecte est sur la page, pas dans un export",
+                "Rapport de collecte" in i)
+        verifie("il dit combien de sites ont répondu avant de donner un chiffre",
+                "sur 4 a répondu" in i or "sur 4 ont répondu" in i)
+        verifie("un total dit sur combien de sites il porte",
+                "Sites renseignés" in i)
+        verifie("un taux dont les termes sont incomplets n'est pas affiché",
+                "non disponible" in i)
+        verifie("une case vide reste vide, elle ne devient pas zéro",
+                "n'écrit jamais" in i and "zéro à la place" in i)
+        verifie("les trois sorties sont proposées ensemble",
+                p.eval_on_selector_all("#docR,#csvR,#xlsR", "l=>l.length") == 3)
+
+        # Le classeur est fabriqué dans l'onglet, sans rien appeler dehors. On ne
+        # clique pas sur le bouton : on refait ce qu'il fait, et on regarde les
+        # octets. Un `.xlsx` qui ne commence pas par « PK » n'est pas une archive.
+        cl = p.evaluate("""async()=>{
+            const d=await import('/app/data.js'), t=await import('/app/tableur.js');
+            const b=t.classeur(d.DB.classeurCollecte('c2'));
+            const o=new Uint8Array(await b.arrayBuffer());
+            return { taille:o.length, pk:o[0]===80&&o[1]===75,
+                     type:b.type, onglets:d.DB.classeurCollecte('c2').map(x=>x.nom) }}""")
+        verifie("le classeur est une vraie archive, fabriquée sans réseau",
+                cl["pk"] and cl["taille"] > 2000, str(cl["taille"]))
+        verifie("il porte le type d'un classeur, pas d'un fichier inconnu",
+                "spreadsheetml" in cl["type"])
+        verifie("un onglet par rubrique, puis les ratios, puis les définitions",
+                cl["onglets"][-1] == "Définitions" and cl["onglets"][-2] == "Ratios"
+                and "Sécurité" in cl["onglets"], str(cl["onglets"]))
+
+        print("\nOn ne relance plus, on notifie")
+        # La phrase du client : « ça rassemble toutes les informations de tous les
+        # sites sans avoir à les relancer à chaque fois, juste ça les notifie sur
+        # leur plateforme ». C'est ici que ça se vérifie, des deux côtés.
+        nsiege = p.evaluate("""async()=>{const m=await import('/app/data.js');
+            return m.DB.notifications('u2').map(n=>n.titre+' | '+n.texte)}""")
+        siege = norm(" ".join(nsiege))
+        verifie("le siège voit qui n'a pas répondu, nommément",
+                "pas encore répondu" in siege)
+        verifie("et il lui est dit qu'il n'a personne à relancer",
+                "personne à relancer" in siege)
+        verifie("les saisies en attente d'approbation lui sont rappelées",
+                "à approuver" in siege)
+
+        nsite = p.evaluate("""async()=>{const m=await import('/app/data.js');
+            return m.DB.notifications('u11').map(n=>n.titre+' | '+n.texte)}""")
+        site = norm(" ".join(nsite))
+        verifie("le site à qui l'on demande quelque chose l'apprend sur son écran",
+                "Le siège attend vos chiffres" in site)
+        verifie("la demande dit ce qu'on attend et pour quand",
+                "avant l'échéance" in site)
+        relu = p.evaluate("""async()=>{const m=await import('/app/data.js');
+            return m.DB.notifications('u10').map(n=>n.titre).join(' ; ')}""")
+        verifie("un site qui a saisi sait que sa saisie attend une relecture",
+                "attend une relecture" in relu, relu)
+
+        print("\nCe qu'on demande, et ce qu'on ne demande pas")
+        # Une collecte demande des rubriques, pas le catalogue entier. Un
+        # formulaire de vingt-sept champs revient à moitié rempli ; six champs
+        # reviennent entiers. C'est la seule variable qui prédit le taux de réponse.
+        rub = p.evaluate("""async()=>{const m=await import('/app/data.js');
+            const c=m.DB.campagne('c2');
+            return { demandees:m.sectionsDe(c).map(r=>r.libelle),
+                     champs:m.saisisDe(c).length, tout:m.INDICATEURS.saisis.length }}""")
+        verifie("une campagne ne demande que les rubriques qu'elle a choisies",
+                "Mobilité et flotte" not in rub["demandees"]
+                and "Énergie et eau" in rub["demandees"], str(rub["demandees"]))
+        verifie("elle demande donc moins de champs que le catalogue entier",
+                rub["champs"] < rub["tout"], f'{rub["champs"]}/{rub["tout"]}')
+
+        connecte(p, "u2", "#/indicateurs")
+        p.click("#newC"); p.wait_for_timeout(300)
+        m = norm(p.inner_text(".modal"))
+        verifie("ouvrir une collecte, c'est d'abord choisir ce qu'on demande",
+                "Ce que vous demandez" in m)
+        verifie("chaque rubrique dit combien de valeurs elle coûte au site",
+                "valeurs" in m and "Effectifs et mouvements" in m)
+        verifie("le total des valeurs demandées est affiché avant l'envoi",
+                "à trouver pour chaque site" in m)
+        verifie("l'écran promet qu'il n'y aura personne à relancer",
+                "personne à relancer" in m)
+        # Une période non terminée ne se collecte pas : le site n'aurait rien à
+        # déclarer, il inventerait ou se tairait, et les deux se ressemblent.
+        refus = p.evaluate("""async()=>{const m=await import('/app/data.js');
+            try{ m.DB.ouvrirCampagne({groupe:'g1',libelle:'Trop tôt',periode:'2027-S1',
+                 debut:'2027-01-01',fin:'2027-06-30',echeance:'2027-12-31',
+                 rubriques:['social']}); return 'passé' }
+            catch(e){ return e.message }}""")
+        verifie("une période qui n'est pas finie ne se collecte pas",
+                "pas terminée" in refus, refus)
+        vide = p.evaluate("""async()=>{const m=await import('/app/data.js');
+            try{ m.DB.ouvrirCampagne({groupe:'g1',libelle:'Vide',periode:'2026-X9',
+                 debut:'2026-01-01',fin:'2026-06-30',echeance:'2026-12-31',
+                 rubriques:[]}); return 'passé' }
+            catch(e){ return e.message }}""")
+        verifie("une collecte sans rubrique ne s'ouvre pas",
+                "au moins une rubrique" in vide, vide)
+
         print("\nLe lien de référent, de bout en bout")
         # Le parcours entier : la société nomme, la personne accepte, elle ne pilote
         # que son site, et elle ne peut pas accepter avec une autre adresse.

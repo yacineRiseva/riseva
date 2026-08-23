@@ -78,7 +78,7 @@ for source, cible in [("index.html", "riseva-site.html"),
 
 # ---- application ------------------------------------------------------
 bundle = "\n".join(strip_modules((R/"app"/f).read_text(encoding="utf-8"))
-                   for f in ["qr.js","data.js","ui.js","app.js"])
+                   for f in ["qr.js","tableur.js","data.js","ui.js","app.js"])
 # Les logos vivent aussi dans les gabarits que le script fabrique — la barre
 # latérale, l'en-tête des documents imprimables. Ils sont substitués ici, sur le
 # script, parce que la substitution faite sur le HTML ne l'atteint plus depuis

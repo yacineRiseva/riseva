@@ -222,6 +222,32 @@ create policy sourcing_lecture on public.sourcing for select to authenticated
          or private.est_admin());
 
 -- ---------------------------------------------------------------- indicateurs
+-- Le catalogue est un référentiel, pas une donnée d'entreprise : il ne contient
+-- ni chiffre ni nom, seulement des définitions. Tout compte connecté le lit —
+-- il le faut, puisque c'est ce qui permet à un formulaire d'afficher ce qu'on
+-- compte et ce qu'on ne compte pas. Il ne s'écrit, lui, que par migration.
+grant select on public.rubrique to authenticated;
+create policy rubrique_lecture on public.rubrique for select to authenticated using (true);
+
+grant select on public.indicateur to authenticated;
+create policy indicateur_lecture on public.indicateur for select to authenticated using (true);
+
+-- Ce qu'une campagne demande se lit exactement là où la campagne se lit : une
+-- liste de rubriques sans la campagne qui la porte ne dit rien de plus que le
+-- catalogue, mais elle trahirait quelles rubriques un groupe a choisies.
+grant select on public.campagne_rubrique to authenticated;
+create policy campagne_rubrique_lecture on public.campagne_rubrique for select to authenticated
+  using (exists (select 1 from public.campagne_indicateurs c
+                  where c.id = campagne_rubrique.campagne));
+
+-- Les rubriques ouvertes pour une entreprise ne regardent que cette entreprise
+-- et son groupe : c'est un réglage, et un réglage dit ce qu'on mesure.
+grant select on public.entreprise_rubrique to authenticated;
+create policy entreprise_rubrique_lecture on public.entreprise_rubrique for select to authenticated
+  using (entreprise = private.mon_entreprise()
+         or private.dans_mon_groupe(entreprise)
+         or private.est_admin());
+
 grant select on public.campagne_indicateurs to authenticated;
 create policy campagne_lecture on public.campagne_indicateurs for select to authenticated
   using (entreprise = private.mon_entreprise()
@@ -365,6 +391,10 @@ grant execute on function
   public.rejoindre_comme_referent(text),
   public.saisir_indicateurs(uuid, uuid, jsonb, text),
   public.approuver_indicateurs(uuid, uuid),
+  public.ouvrir_campagne(text, text, date, date, date, text[]),
+  public.rubriques_de(uuid),
+  public.indicateurs_de(uuid),
+  public.rubriques_entreprise(uuid),
   public.controler_association(uuid, jsonb, boolean),
   public.enregistrer_numeros_association(uuid, text, text),
   public.sans_accents(text),

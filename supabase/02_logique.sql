@@ -494,6 +494,99 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------- indicateurs
+-- Ce qu'une campagne demande. Une campagne sans aucune rubrique demande tout :
+-- c'est le comportement des campagnes ouvertes avant que les rubriques
+-- existent, et elles ne doivent pas se vider du jour au lendemain.
+create or replace function public.rubriques_de(p_campagne uuid) returns text[]
+language sql stable security definer set search_path = '' as $$
+  select coalesce(
+    nullif(array(select cr.rubrique
+                   from public.campagne_rubrique cr
+                   join public.rubrique r on r.cle = cr.rubrique
+                  where cr.campagne = p_campagne
+                  order by r.ordre), '{}'),
+    array(select r.cle from public.rubrique r where r.active order by r.ordre))
+$$;
+
+-- Les clés qu'un site doit renseigner pour cette campagne, dans l'ordre du
+-- formulaire. C'est la même liste que celle qu'affiche l'application : elle est
+-- lue ici plutôt que recopiée, parce qu'une liste recopiée finit par diverger.
+create or replace function public.indicateurs_de(p_campagne uuid) returns setof public.indicateur
+language sql stable security definer set search_path = '' as $$
+  select i.* from public.indicateur i
+   where i.active
+     and i.rubrique = any (public.rubriques_de(p_campagne))
+   order by i.ordre
+$$;
+
+-- Les rubriques ouvertes pour une entreprise. Aucune ligne veut dire « celles
+-- par défaut » : une entreprise créée à l'instant a donc immédiatement les
+-- bonnes sections, sans que personne ne recopie une liste.
+create or replace function public.rubriques_entreprise(p_entreprise uuid) returns text[]
+language sql stable security definer set search_path = '' as $$
+  select coalesce(
+    nullif(array(select er.rubrique
+                   from public.entreprise_rubrique er
+                   join public.rubrique r on r.cle = er.rubrique
+                  where er.entreprise = p_entreprise and r.active
+                  order by r.ordre), '{}'),
+    array(select r.cle from public.rubrique r where r.active and r.defaut order by r.ordre))
+$$;
+
+-- Ouvrir une collecte. Ce que la RPC fixe elle-même et qui ne se négocie pas :
+-- le groupe (celui de l'appelant), l'état, la date d'ouverture. Ce qu'elle
+-- refuse : une période non terminée — les sites n'auraient rien à déclarer et
+-- inventeraient ou se tairaient, deux réponses qui se ressemblent une fois
+-- dans la base — et une échéance déjà passée.
+create or replace function public.ouvrir_campagne(
+  p_libelle text, p_periode text, p_debut date, p_fin date, p_echeance date,
+  p_rubriques text[])
+returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_groupe uuid := private.mon_groupe();
+  v_ent uuid := private.mon_entreprise();
+  v_id uuid;
+  v_n integer;
+begin
+  if private.mon_role() <> 'entreprise_admin' then
+    raise exception 'Réservé à la société' using errcode = '42501';
+  end if;
+  if v_groupe is null and v_ent is null then
+    raise exception 'Ce compte n''est rattaché à aucun périmètre' using errcode = '42501';
+  end if;
+  if length(btrim(coalesce(p_libelle, ''))) < 3 then
+    raise exception 'Donnez un nom à la période' using errcode = '22023';
+  end if;
+  if p_fin < p_debut then
+    raise exception 'La fin de la période précède son début' using errcode = '22023';
+  end if;
+  if p_fin > current_date then
+    raise exception 'Cette période n''est pas terminée : les sites n''auraient rien à déclarer'
+      using errcode = '22023';
+  end if;
+  if p_echeance <= current_date then
+    raise exception 'L''échéance est déjà passée' using errcode = '22023';
+  end if;
+  select count(*) into v_n from public.rubrique r
+   where r.active and r.cle = any (coalesce(p_rubriques, '{}'));
+  if v_n = 0 then
+    raise exception 'Choisissez au moins une rubrique à demander' using errcode = '22023';
+  end if;
+
+  insert into public.campagne_indicateurs
+    (groupe, entreprise, periode, libelle, debut, fin, echeance)
+  values (v_groupe, case when v_groupe is null then v_ent end,
+          btrim(p_periode), btrim(p_libelle), p_debut, p_fin, p_echeance)
+  returning id into v_id;
+
+  insert into public.campagne_rubrique (campagne, rubrique)
+  select v_id, r.cle from public.rubrique r
+   where r.active and r.cle = any (p_rubriques);
+
+  return v_id;
+end $$;
+
 -- Le contributeur saisit. L'approbateur verrouille. Deux gestes, et deux
 -- personnes : sans cette séparation, un chiffre entre dans un document
 -- contractuel sans que personne ne l'ait regardé.
@@ -510,6 +603,7 @@ declare
   v_etat public.etat_collecte;
   v_version integer;
   v_ecarts jsonb;
+  v_inconnues text;
   v_mot text := btrim(coalesce(p_commentaire, ''));
 begin
   if v_ent is null or v_role not in ('entreprise_admin','site_referent') then
@@ -530,6 +624,19 @@ begin
   if exists (select 1 from jsonb_each(p_valeurs) e
               where jsonb_typeof(e.value) not in ('number','null')) then
     raise exception 'Seules des valeurs numériques sont acceptées' using errcode = '22023';
+  end if;
+  -- Et seulement des clés du catalogue, appartenant à une rubrique que CETTE
+  -- campagne demande. Une clé inconnue qui entre est une colonne qui n'existe
+  -- nulle part, qui ne s'additionne pas, et qu'on retrouve six mois plus tard
+  -- dans un export sans savoir qui l'a écrite ni ce qu'elle voulait dire.
+  select string_agg(e.key, ', ') into v_inconnues
+    from jsonb_each(p_valeurs) e
+   where not exists (select 1 from public.indicateur i
+                      where i.cle = e.key and i.active and i.nature = 'collecte'
+                        and i.rubrique = any (public.rubriques_de(p_campagne)));
+  if v_inconnues is not null then
+    raise exception 'Clés hors du catalogue de cette collecte : %', v_inconnues
+      using errcode = '22023';
   end if;
 
   select o.id, o.etat, o.version into v_id, v_etat, v_version

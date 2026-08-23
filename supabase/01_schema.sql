@@ -843,6 +843,91 @@ create table rapport (
 -- chiffres de chaque site. On réemploie donc le mécanisme des missions — on
 -- demande, on rappelle, et si personne ne répond la période se clôt *sans
 -- réponse*, plutôt que d'être comblée avec celle d'avant.
+-- ---------------------------------------------------- catalogue des rubriques
+-- Une rubrique est une famille de valeurs qui viennent de la même source et de
+-- la même personne : la paie pour les effectifs, le registre pour la sécurité,
+-- les factures pour l'énergie. C'est l'unité qui compte pour celui qui remplit,
+-- et donc l'unité qu'on demande, qu'on affiche et qu'on exporte.
+--
+-- Pourquoi une table et non un enum. Ajouter une rubrique doit être une ligne
+-- insérée, pas un déploiement : le jour où un client demande « eau » ou
+-- « biodiversité », personne ne doit attendre une migration. Un enum aurait
+-- rendu chaque ajout bloquant, et chaque retrait impossible.
+--
+-- `cle` est la clé stable, écrite en clair, jamais renommée : c'est elle qu'on
+-- retrouve dans les valeurs saisies, dans les exports déjà partis chez un
+-- client, et dans les rapports scellés. Un libellé se corrige ; une clé, non.
+create table rubrique (
+  cle       text primary key check (cle ~ '^[a-z][a-z0-9_]{1,30}$'),
+  libelle   text not null check (length(libelle) between 2 and 80),
+  aide      text check (length(aide) <= 400),
+  ordre     integer not null default 0,
+  -- Ce qu'on demande à un groupe qui commence, tant qu'il n'a rien choisi.
+  defaut    boolean not null default false,
+  -- On désactive, on ne supprime pas : les valeurs déjà saisies sous cette
+  -- rubrique doivent rester lisibles, sinon un rapport de l'an dernier perd la
+  -- moitié de ses lignes sans que personne ne s'en aperçoive.
+  active    boolean not null default true
+);
+
+-- Le catalogue des indicateurs. Il porte la définition, pas la valeur : ce qui
+-- est compté, ce qui ne l'est pas, d'où ça sort, et si le nom correspond ou non
+-- à une définition réglementaire. Sans ce dictionnaire, deux sites saisissent le
+-- même champ en comptant l'un les intérimaires et l'autre non, on additionne les
+-- deux, et l'écart ne se voit plus jamais.
+--
+-- `nature` sépare ce qu'un site saisit de ce que la plateforme calcule. Un
+-- calculé n'a pas de colonne dans un formulaire ; il a une formule et deux
+-- termes, et il ne s'affiche que si ses deux termes sont complets.
+create table indicateur (
+  cle       text primary key check (cle ~ '^[a-z][a-z0-9_]{1,40}$'),
+  rubrique  text not null references rubrique(cle) on update cascade,
+  libelle   text not null check (length(libelle) between 2 and 120),
+  unite     text check (length(unite) <= 40),
+  nature    text not null default 'collecte'
+              check (nature in ('collecte', 'calcule')),
+  -- Le niveau auquel l'indicateur a un sens. Un taux affiché au mauvais niveau
+  -- porte le bon nom et dit autre chose.
+  niveau    text check (length(niveau) <= 40),
+  source    text check (length(source) <= 120),
+  aide      text check (length(aide) <= 400),
+  inclut    text check (length(inclut) <= 400),
+  exclut    text check (length(exclut) <= 400),
+  -- Pour un calculé : la formule en clair, et ses deux termes. Ce sont des
+  -- EXPRESSIONS, pas forcément des clés seules — « at_avec_arret +
+  -- at_sans_arret » en est une — mais chaque nom qui y apparaît doit exister
+  -- dans le catalogue, sinon la formule lit une case vide et rend un résultat
+  -- qui a l'air d'un chiffre.
+  formule   text check (length(formule) <= 200),
+  numerateur   text check (length(numerateur) <= 40),
+  denominateur text check (length(denominateur) <= 40),
+  note      text check (length(note) <= 600),
+  -- Faux par défaut, et c'est volontaire : affirmer qu'un chiffre correspond à
+  -- une définition réglementaire quand ce n'est pas le cas est la seule erreur
+  -- de ce fichier qui puisse se retourner contre celui qui l'a publié.
+  reglementaire boolean not null default false,
+  ordre     integer not null default 0,
+  -- La version du dictionnaire au moment où la ligne a été posée. Un rapport
+  -- scellé cite cette version : une définition qui change plus tard ne réécrit
+  -- pas ce qui a déjà été arrêté.
+  version   text not null,
+  active    boolean not null default true,
+  constraint indicateur_calcule check (
+    nature <> 'calcule' or (numerateur is not null and denominateur is not null))
+);
+create index indicateur_rubrique on indicateur (rubrique) where active;
+
+-- Les rubriques ouvertes pour une entreprise. C'est ce qui permet de créer une
+-- entrée neuve — une entreprise — et qu'elle ait immédiatement les bonnes
+-- sections et les bonnes clés, sans que personne ne recopie une liste.
+-- Une entreprise sans aucune ligne prend les rubriques marquées par défaut.
+create table entreprise_rubrique (
+  entreprise uuid not null references entreprise(id) on delete cascade,
+  rubrique   text not null references rubrique(cle) on update cascade,
+  ouverte_le timestamptz not null default now(),
+  primary key (entreprise, rubrique)
+);
+
 create table campagne_indicateurs (
   id        uuid primary key default gen_random_uuid(),
   groupe    uuid references groupe(id) on delete cascade,
@@ -859,6 +944,21 @@ create table campagne_indicateurs (
   constraint campagne_portee check (
     (groupe is not null and entreprise is null) or
     (groupe is null and entreprise is not null))
+);
+
+-- Ce qu'une campagne demande, rubrique par rubrique. Écrit sur la campagne et
+-- non sur l'entreprise : ce qu'on demande varie d'une période à l'autre, et une
+-- campagne close doit continuer à dire ce qu'elle demandait à l'époque. Sans
+-- cela, ajouter une rubrique au catalogue rendrait illisibles les totaux de
+-- toutes les collectes déjà terminées.
+--
+-- Une campagne sans aucune ligne demande tout : c'est le comportement des
+-- campagnes ouvertes avant que les rubriques existent, et elles ne doivent pas
+-- se vider du jour au lendemain.
+create table campagne_rubrique (
+  campagne uuid not null references campagne_indicateurs(id) on delete cascade,
+  rubrique text not null references rubrique(cle) on update cascade,
+  primary key (campagne, rubrique)
 );
 
 -- Une observation : une valeur, pour un site, une période, un indicateur.

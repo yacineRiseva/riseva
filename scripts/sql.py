@@ -12,7 +12,11 @@ import subprocess, sys, pathlib, os
 BASE = "riseva_test"
 RACINE = pathlib.Path(__file__).resolve().parent.parent
 FICHIERS = ["00_local.sql", "01_schema.sql", "02_logique.sql",
-            "03_rls.sql", "04_seed.sql", "05_taches.sql"]
+            "03_rls.sql", "04_seed.sql", "05_taches.sql",
+            # Engendré par scripts/catalogue.mjs depuis public/app/data.js :
+            # les rubriques et les clés d'indicateurs, identiques des deux côtés
+            # parce qu'un seul des deux est écrit à la main.
+            "06_catalogue.sql"]
 
 def psql(args, entree=None, base=BASE):
     return subprocess.run(

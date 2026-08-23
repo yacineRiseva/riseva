@@ -572,6 +572,105 @@ begin
 end $$;
 reset role;
 
+\echo ''
+\echo 'Le catalogue des rubriques et des indicateurs'
+-- Ce que ce bloc protège : la promesse qu'une entreprise créée demain aura les
+-- bonnes sections et les bonnes clés sans que personne ne recopie une liste.
+-- Le catalogue est engendré depuis `public/app/data.js` — si les deux côtés
+-- divergeaient, c'est ici que ça se verrait, et pas chez un client.
+do $$
+begin
+  perform pg_temp.dit('le catalogue est peuplé',
+    (select count(*) from public.rubrique where active) >= 8
+    and (select count(*) from public.indicateur where active) >= 30);
+  perform pg_temp.dit('chaque indicateur appartient à une rubrique existante',
+    not exists (select 1 from public.indicateur i
+                 where not exists (select 1 from public.rubrique r where r.cle = i.rubrique)));
+  perform pg_temp.dit('un calculé porte ses deux termes',
+    not exists (select 1 from public.indicateur i
+                 where i.nature = 'calcule'
+                   and (i.numerateur is null or i.denominateur is null)));
+  -- Le numérateur est une expression, pas forcément une clé seule :
+  -- « at_avec_arret + at_sans_arret » en est une. Ce qui doit être vrai, c'est
+  -- que CHAQUE nom qui y apparaît existe dans le catalogue — sinon la formule
+  -- lit une case vide et rend un résultat qui a l'air d'un chiffre.
+  perform pg_temp.dit('chaque terme d''une formule est une clé du catalogue',
+    not exists (
+      select 1 from public.indicateur i,
+        lateral regexp_split_to_table(i.numerateur || ' ' || i.denominateur, '[^a-z0-9_]+') mot
+       where i.nature = 'calcule' and mot <> '' and mot ~ '^[a-z]'
+         and not exists (select 1 from public.indicateur n where n.cle = mot)));
+  -- Une campagne sans rubrique demande tout : c'est le comportement des
+  -- collectes ouvertes avant que les rubriques existent, et elles ne doivent
+  -- pas se vider du jour au lendemain.
+  perform pg_temp.dit('une campagne sans rubrique demande tout le catalogue',
+    array_length(public.rubriques_de('c1000000-0000-4000-8000-000000000001'), 1)
+      = (select count(*)::int from public.rubrique where active));
+  perform pg_temp.dit('une entreprise sans réglage prend les rubriques par défaut',
+    array_length(public.rubriques_entreprise('22222222-2222-4222-8222-222222222222'), 1)
+      = (select count(*)::int from public.rubrique where active and defaut));
+end $$;
+
+-- Une rubrique choisie restreint la collecte, et le refus se fait dans la base.
+-- Une clé inconnue qui entrerait serait une colonne qui n'existe nulle part,
+-- qui ne s'additionne pas, et qu'on retrouve six mois plus tard dans un export
+-- sans savoir qui l'a écrite ni ce qu'elle voulait dire.
+insert into campagne_rubrique (campagne, rubrique) values
+  ('c1000000-0000-4000-8000-000000000002', 'social');
+do $$
+begin
+  perform pg_temp.dit('une campagne qui a choisi ses rubriques ne demande qu''elles',
+    public.rubriques_de('c1000000-0000-4000-8000-000000000002') = array['social']);
+  perform pg_temp.dit('le formulaire de cette campagne ne contient que ces clés',
+    not exists (select 1 from public.indicateurs_de('c1000000-0000-4000-8000-000000000002') i
+                 where i.rubrique <> 'social'));
+end $$;
+delete from campagne_rubrique where campagne = 'c1000000-0000-4000-8000-000000000002';
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000005', false);
+select set_config('request.jwt.claim.email', 'karim@vaudrey-ciments.fr', false);
+select pg_temp.refuse('une clé hors du catalogue est refusée',
+  'select public.saisir_indicateurs(''c1000000-0000-4000-8000-000000000001'',
+     ''e7000000-0000-4000-8000-000000000002'', ''{\"chiffre_invente\": 3}''::jsonb)');
+select pg_temp.refuse('un référent de site n''ouvre pas de collecte',
+  'select public.ouvrir_campagne(''Essai'', ''2026-X1'', ''2026-01-01'',
+     ''2026-06-30'', ''2027-06-30'', array[''social''])');
+reset role;
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
+select pg_temp.refuse('une période non terminée ne se collecte pas',
+  'select public.ouvrir_campagne(''Trop tôt'', ''2027-S1'', ''2027-01-01'',
+     ''2027-06-30'', ''2027-12-31'', array[''social''])');
+select pg_temp.refuse('une échéance déjà passée est refusée',
+  'select public.ouvrir_campagne(''Trop tard'', ''2025-S2'', ''2025-07-01'',
+     ''2025-12-31'', ''2026-01-31'', array[''social''])');
+select pg_temp.refuse('une collecte sans rubrique ne s''ouvre pas',
+  'select public.ouvrir_campagne(''Vide'', ''2025-S1'', ''2025-01-01'',
+     ''2025-06-30'', ''2027-06-30'', array[]::text[])');
+select pg_temp.refuse('une rubrique inventée ne compte pas',
+  'select public.ouvrir_campagne(''Inventée'', ''2025-S1'', ''2025-01-01'',
+     ''2025-06-30'', ''2027-06-30'', array[''licornes''])');
+do $$
+declare v_id uuid;
+begin
+  v_id := public.ouvrir_campagne('Essai de collecte', '2025-S1', '2025-01-01',
+            '2025-06-30', '2027-06-30', array['social','energie']);
+  perform pg_temp.dit('la société ouvre une collecte',
+    (select close_le is null from public.campagne_indicateurs where id = v_id));
+  perform pg_temp.dit('la collecte retient les rubriques choisies, dans l''ordre du catalogue',
+    public.rubriques_de(v_id) = array['social','energie']);
+  perform pg_temp.dit('elle ne demande rien d''autre',
+    not exists (select 1 from public.indicateurs_de(v_id) i
+                 where i.rubrique not in ('social','energie')));
+end $$;
+reset role;
+-- Le ménage se fait hors du rôle applicatif : `authenticated` n'efface pas une
+-- campagne, et c'est exactement ce qu'on veut qu'il ne puisse pas faire.
+delete from campagne_indicateurs where periode = '2025-S1';
+
 -- Une variation forte doit être expliquée. Le refus porte sur le silence, pas
 -- sur la valeur : un chiffre rejeté parce qu'il bouge trop produirait des
 -- chiffres qui ne bougent pas.

@@ -31,9 +31,10 @@ def main():
     # vérification et casse à l'exécution. On importe réellement les modules.
     import shutil, tempfile
     tmp = tempfile.mkdtemp()
-    for f in ["data.js", "ui.js", "app.js"]:
+    MODULES = ["qr.js", "tableur.js", "data.js", "ui.js", "app.js"]
+    for f in MODULES:
         shutil.copy(RACINE / "public" / "app" / f, pathlib.Path(tmp) / f)
-    for f in ["data.js", "ui.js", "app.js"]:
+    for f in MODULES:
         code, sortie = lancer(
             "node --input-type=module -e "
             f"\"import('file://{tmp}/{f}').then(()=>0).catch(e=>{{"
@@ -68,6 +69,35 @@ def main():
     print(sortie.strip())
     if code:
         echecs.append("codes QR")
+
+    titre("Classeur")
+    # Un `.xlsx` écrit à la main produit très facilement une archive crédible
+    # qu'Excel ouvre vide, sans un mot d'explication. On le relit donc avec un
+    # lecteur qui n'est pas le nôtre.
+    code, sortie = lancer("python3 scripts/test_tableur.py")
+    print(sortie.strip())
+    if code:
+        echecs.append("classeur")
+
+    titre("Catalogue")
+    # Le catalogue SQL est engendré depuis `public/app/data.js`. S'il a été
+    # modifié à la main, ou si un indicateur a été ajouté sans relancer le
+    # script, les deux côtés divergent — et le symptôme, plus tard, est une clé
+    # qui existe d'un seul côté, donc une colonne vide que personne ne sait
+    # expliquer. On régénère et on compare.
+    avant = (RACINE / "supabase" / "06_catalogue.sql").read_text(encoding="utf-8") \
+        if (RACINE / "supabase" / "06_catalogue.sql").exists() else ""
+    code, sortie = lancer("node scripts/catalogue.mjs")
+    apres = (RACINE / "supabase" / "06_catalogue.sql").read_text(encoding="utf-8")
+    if code:
+        print("  RATÉ le catalogue n'a pas pu être engendré")
+        print("      " + sortie.strip()[:400]); echecs.append("catalogue")
+    elif avant != apres:
+        print("  RATÉ 06_catalogue.sql ne correspondait plus à data.js")
+        print("       il vient d'être régénéré : relisez la différence et versionnez-la")
+        echecs.append("catalogue")
+    else:
+        print("  ok   " + sortie.strip())
 
     titre("Base de données")
     code, sortie = lancer("service postgresql status")
