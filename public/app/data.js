@@ -1932,6 +1932,12 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       s.missions.forEach(m => {
         if (eid && m.entreprise !== eid) return;
         if (!["validee", "validee_auto"].includes(m.etat)) return;
+        /* Un don personnel n'entre pas dans les points de l'entreprise
+           (`pointsDe` l'exclut) : l'inclure ici faisait monter la courbe sans
+           que le score bouge, et l'ecart entre les deux se lisait a l'euro
+           pres. Une courbe qui ne mesure pas ce que mesure le score au-dessus
+           d'elle est pire qu'une absence de courbe. */
+        if (api.estDonPersonnel(m)) return;
         const jours = Math.floor((aujourdhui - new Date(m.date)) / 864e5);
         if (jours < 0) return;
         const semaine = Math.floor(jours / 7);
@@ -1954,6 +1960,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       s.missions.forEach(m => {
         if (eid && m.entreprise !== eid) return;
         if (!["validee", "validee_auto"].includes(m.etat)) return;
+        if (api.estDonPersonnel(m)) return;   /* meme raison que dans `semaines` */
         const d = new Date(m.date);
         if (d < debut || d > fin) return;
         let i = 3;
@@ -3062,13 +3069,39 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         const ids = api.etablissementsDuGroupe(groupe).map(x => x.id);
         obs = obs.filter(o => ids.includes(o.etablissement));
       }
-      const somme = {};
+      /* Une valeur qu'aucun site n'a declaree vaut `null`, pas zero. La somme
+         valait `obs.reduce(... || 0)`, ce qui rendait zero pour un indicateur
+         que personne n'avait rempli : la fiche VSME imprimait « 0 embauche »
+         pour une case jamais saisie, et cette fiche part chez un donneur
+         d'ordre ou chez une banque.
+
+         `sites` compte, pour chaque cle, combien de sites l'ont renseignee. Une
+         somme n'a de sens que rapportee au nombre de sites qui la composent :
+         c'est la meme regle que `rapportCollecte`, elle vaut ici aussi. */
+      const somme = {}, sitesParCle = {};
       INDICATEURS.saisis.forEach(d => {
-        somme[d.cle] = obs.reduce((n, o) => n + (Number(o.valeurs[d.cle]) || 0), 0);
+        const vs = obs.map(o => o.valeurs[d.cle])
+                      .filter(v => v !== undefined && v !== null && v !== "")
+                      .map(Number)
+                      .filter(v => Number.isFinite(v));
+        somme[d.cle] = vs.length ? vs.reduce((a, b) => a + b, 0) : null;
+        sitesParCle[d.cle] = vs.length;
       });
-      const calcules = {};
+      /* Un taux dont l'un des termes manque ne se calcule pas. Le calculer
+         reviendrait a traiter l'absence comme un zero, ce que la ligne
+         precedente vient precisement d'interdire : un taux de frequence sur un
+         denominateur absent vaut l'infini, et arrondi il vaut n'importe quoi. */
+      const calcules = {}, assise = {};
       INDICATEURS.calcules.forEach(d => {
-        const v = d.calcul(somme);
+        const termes = String(d.num + " " + d.den).match(/[a-z_]+[a-z0-9_]*/g) || [];
+        const utiles = termes.filter(t => somme[t] !== undefined);
+        const tousLa = utiles.length > 0 && utiles.every(t => somme[t] !== null);
+        /* Meme complets, les termes peuvent ne pas porter sur les memes sites :
+           un numerateur sur trois sites et un denominateur sur quatre donnent un
+           taux faux qui a l'air juste. On le calcule quand meme, mais on dit sur
+           quelle assise il repose. */
+        assise[d.cle] = tousLa && utiles.every(t => sitesParCle[t] === obs.length);
+        const v = tousLa ? d.calcul(somme) : null;
         calcules[d.cle] = v === null || !isFinite(v) ? null : Math.round(v * 100) / 100;
       });
       const tous = etablissement ? [api.etablissement(etablissement)].filter(Boolean)
@@ -3082,6 +3115,10 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const effectifCouvert = tous.filter(x => idsRepondus.has(x.id))
         .reduce((n, x) => n + (x.effectif || 0), 0);
       return { campagne: c, somme, calcules,
+               /* `sitesParCle` : sur combien de sites chaque somme repose.
+                  `assise` : vrai quand un taux porte sur tous les sites qui ont
+                  repondu, faux quand son perimetre est partiel. */
+               sitesParCle, assise,
                sites: obs.length, attendus,
                effectifCouvert, effectifTotal,
                partEffectif: effectifTotal ? effectifCouvert / effectifTotal : 0,
@@ -5761,8 +5798,14 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
     /* --- rapports --- */
     rapport(eid, portee = "annuel"){
       const e = api.entreprise(eid);
+      /* Les dons personnels des salaries sortent du rapport de l'entreprise. Ils
+         n'entrent pas dans son score, ils n'entrent pas dans son assiette de
+         mecenat, et ils ne la regardent pas : le seuil d'agregation de cinq
+         donateurs n'a aucun sens si le meme montant ressort ligne a ligne dans
+         le rapport annuel et dans son export. */
       const ms = api.missions({ entreprise: eid })
-                    .filter(m => m.etat === "validee" || m.etat === "validee_auto");
+                    .filter(m => m.etat === "validee" || m.etat === "validee_auto")
+                    .filter(m => !api.estDonPersonnel(m));
       const parType = {};
       let euros = 0;
       ms.forEach(m => {
@@ -5905,6 +5948,28 @@ export function estProduction(){
    d'être en production tout en servant des données inventées. Tant que la
    couche Supabase n'est pas écrite méthode par méthode, il vaut mieux que ce
    soit visible, bruyant, et bloquant. */
+/* Le controle de completude. Il rend la liste de ce qui manque, et refuse le
+   demarrage en production : servir de la demonstration a un client qui croit
+   voir ses donnees est la panne la plus couteuse que ce produit puisse
+   provoquer, et la perdre en silence en est la deuxieme. */
+export function ecrituresManquantes(dos){
+  const branchees = new Set((dos && dos.ecrituresBranchees) || []);
+  return ECRITURES.filter(k => !branchees.has(k));
+}
+
+function verifierEcritures(dos){
+  const manquantes = ecrituresManquantes(dos);
+  if (!manquantes.length) return manquantes;
+  const message = "Riseva : " + manquantes.length + " écriture(s) n'ont pas de fonction "
+    + "Postgres (" + manquantes.slice(0, 6).join(", ")
+    + (manquantes.length > 6 ? ", ..." : "") + ").";
+  if (estProduction())
+    throw new Error(message + " Démarrage refusé : mieux vaut un refus qu'un "
+      + "enregistrement qui ne quitte jamais l'onglet.");
+  console.warn(message + " En production, le démarrage serait refusé.");
+  return manquantes;
+}
+
 export async function connecterSupabase(config, { client: injecte = null } = {}){
   /* `injecte` sert à la recette : elle branche un client factice alimenté par un
      export de la vraie base, pour prouver que la traduction des lignes tient
@@ -5913,6 +5978,9 @@ export async function connecterSupabase(config, { client: injecte = null } = {})
   if (injecte){
     const dos = creerSupabase(injecte);
     await dos.recharger();
+    /* La recette passe par ici : elle doit constater la meme completude que la
+       production, sinon le controle ne serait verifie par personne. */
+    verifierEcritures(dos);
     impl = dos; branche = true; return impl;
   }
   if (!config || !config.url || !config.anonKey){
@@ -5927,16 +5995,51 @@ export async function connecterSupabase(config, { client: injecte = null } = {})
   /* On charge avant de vérifier : tant que l'état n'est pas là, la couche n'a
      que ses écritures et la vérification ci-dessous se plaindrait à tort. */
   await dos.recharger();
-  const manquantes = Object.keys(impl).filter(k => typeof impl[k] === "function"
-    && typeof dos[k] !== "function");
-  if (manquantes.length && estProduction())
-    throw new Error("Riseva : la couche Supabase est incomplète (" + manquantes.length
-      + " méthodes manquantes : " + manquantes.slice(0, 8).join(", ")
-      + "). Démarrage refusé plutôt que de servir de la démonstration.");
+  /* Sur les cles PROPRES de l'objet, pas a travers le Proxy : celui-ci retombe
+     sur le moteur et repondait « oui » pour tout. */
+  verifierEcritures(dos);
   impl = dos;
   branche = true;
   return impl;
 }
+
+/* ------------------------------------------------------------------ */
+/* Les ecritures : ce qui doit exister cote serveur                    */
+/* ------------------------------------------------------------------ */
+/* Une derivation peut se calculer dans le navigateur, sur l'etat charge et
+   filtre par la RLS : elle ne fait que relire. Une ECRITURE, non. Si elle n'a
+   pas sa fonction Postgres, l'ecran confirme un enregistrement qui n'a jamais
+   quitte l'onglet, et le client s'en apercoit au rechargement suivant.
+
+   Cette liste existe parce que le controle qui devait l'attraper ne pouvait pas
+   fonctionner : il interrogeait `dos[k]`, et `dos` est un Proxy qui retombe sur
+   le moteur, donc `typeof dos[k]` valait toujours "function" et la liste des
+   methodes manquantes etait toujours vide. Le controle passait, et une
+   trentaine d'ecritures se perdaient en silence.
+
+   Deux categories, et la difference compte :
+   - BRANCHEES : elles ont leur RPC, elles sont dans `dos`.
+   - PAS_ENCORE : leur fonction Postgres n'est pas ecrite. Elles LEVENT en
+     production au lieu d'ecrire en memoire. C'est desagreable, et c'est le but :
+     une erreur visible vaut mieux qu'une donnee perdue. */
+const ECRITURES = [
+  "abandonnerIntentionDon", "accepterInvitationCSE", "accepterInvitationReferent",
+  "accepterMandatRecus", "activerClassementSites", "activerRegistre", "ajouterAction",
+  "ajouterEtablissement", "allouerQuota", "annulerEvenement", "approuverIndicateurs",
+  "cloreCampagne", "confirmerAffectation", "confirmerDonRecu", "confirmerReception",
+  "controlerEnregistrement", "creerAnnonce", "creerCompteAssociation",
+  "creerCompteEntreprise", "creerInvitation", "creerInvitationCSE",
+  "creerInvitationReferent", "deciderSignalement", "declarerEvenement", "declarerFaite",
+  "declarerIntentionDon", "declarerValeurMateriel", "engager", "enregistrerHelloAsso",
+  "enregistrerIban", "enregistrerNumeros", "expedier", "fermerAnnonce", "inviterSalarie",
+  "majAction", "majAssociation", "majContrat", "majDomaines", "majEntreprise",
+  "majPreferences", "majReglagesRecus", "marquerFacturePayee", "modifierEtablissement",
+  "ouvrirCampagne", "preinscrire", "promouvoirAdmin", "reconduire", "reglerLogo",
+  "reglerObjectifSaison", "reglerVisibilite", "rejoindre", "retirerSalarie",
+  "retrograderAdmin", "revoquerInvitation", "revoquerMandatRecus", "rouvrirAnnonce",
+  "saisirIndicateurs", "signaler", "signalerZone", "supprimerAnnonce", "supprimerSalarie",
+  "suspendreAcces", "suspendreAssociation", "validerAssociation", "validerMission"
+];
 
 /* La bibliothèque cliente, figée. Importée d'un CDN à l'exécution, elle est
    mutable : le jour où l'URL sert autre chose, ce sont nos jetons de session qui
@@ -6035,6 +6138,39 @@ const versEtat = {
      savoir si une association peut recevoir du mécénat de compétences avant de
      s'engager. Le reste — qui signe, sous quel mandat, avec quelle numérotation —
      ne regarde qu'elle. */
+  /* Un abonnement et ses factures, remis dans la forme que les ecrans lisent.
+     `statut` se deduit plutot que de se stocker : une colonne « actif » qui ne
+     suit pas les dates finit toujours par mentir. */
+  contrat: (a, factures, saisons) => {
+    const sa = (saisons || []).find(x => x.id === a.saison) || {};
+    const mes = (factures || []).filter(f => f.abonnement === a.id);
+    const auj = new Date().toISOString().slice(0, 10);
+    return {
+      entreprise: a.entreprise,
+      statut: sa.fin && sa.fin < auj ? "termine" : "actif",
+      signe_le: a.signe_le, debut: sa.debut || null, fin: sa.fin || null,
+      fondateur: !!a.fondateur, montant_ht: Number(a.montant_ht) || 0,
+      acompte: Number(a.acompte_paye) || 0,
+      effectif_reference: a.effectif_reference,
+      reconduction: !!a.reconduction,
+      plateforme_reception: a.plateforme_reception || "",
+      annuaire_id: a.annuaire_id || "",
+      factures: mes
+        .slice()
+        .sort((x, y) => String(x.echeance).localeCompare(String(y.echeance)))
+        .map(f => ({ ref: f.ref, libelle: f.libelle, montant: Number(f.montant) || 0,
+                     date: f.emise_le, echeance: f.echeance, periode: f.periode || "",
+                     etat: f.payee_le ? "payee" : (f.echeance < auj ? "en_retard" : "a_venir") })),
+      /* Les devis de renouvellement ne sont pas des factures : ils ne creent
+         aucune creance, et la base ne les modelise pas encore. */
+      devis: []
+    };
+  },
+  preinscription: (r) => ({
+    id: r.id, entreprise: r.entreprise, contact: r.contact,
+    effectif: r.effectif, etat: r.etat, date: String(r.cree_le || "").slice(0, 10)
+  }),
+
   reglagesAssociation: (r, base) => ({
     mandat_recus: r.mandat_recus_le
       ? { version: r.mandat_recus_version, nom: r.mandat_recus_nom,
@@ -6124,13 +6260,18 @@ async function chargerEtat(client){
   const [saisons, baremes, entreprises, groupes, etablissements, associations,
          annonces, missions, profils, invitations, campagnes, observations,
          acces, signalements, intentions, controles,
-         evenements, actionsCorrectives, reglagesAsso] = await Promise.all([
+         evenements, actionsCorrectives,
+         abonnements, factures, preinscriptions, reglagesAsso] = await Promise.all([
     lire("saison"), lire("bareme"), lire("entreprise"), lire("groupe"),
     lire("etablissement"), lire("association"), lire("annonce"), lire("mission"),
     lire("profil"), lire("invitation"), lire("campagne_indicateurs"),
     lire("observation_indicateur"), lire("acces"), lire("signalement"),
     lire("intention_don"), lire("controle_association"),
     lire("evenement_securite"), lire("action_corrective"),
+    /* Trois tables qui n'etaient jamais lues : l'ecran « Abonnement » d'un
+       client etait donc vide en production, et l'ecran « Preinscriptions » de
+       Riseva aussi. Elles existaient en base ; personne n'allait les chercher. */
+    lire("abonnement"), lire("facture"), lire("preinscription"),
     lire("association_reglages")
   ]);
 
@@ -6178,7 +6319,12 @@ async function chargerEtat(client){
     controles: controles.map(versEtat.controle),
     evenements: evenements.map(versEtat.evenement),
     actions: actionsCorrectives.map(versEtat.action),
-    contrats: [], preinscriptions: [], moteur_journal: [], rapports_generes: [],
+    /* Un « contrat » cote moteur, c'est un abonnement et ses factures. La forme
+       vient du jeu de demonstration ; elle est reconstituee ici plutot que
+       d'imposer deux formes differentes aux quinze ecrans qui la lisent. */
+    contrats: abonnements.map(a => versEtat.contrat(a, factures, saisons)),
+    preinscriptions: preinscriptions.map(versEtat.preinscription),
+    moteur_journal: [], rapports_generes: [],
     classement_recalcule_le: null
   };
 }
@@ -6291,7 +6437,7 @@ function creerSupabase(client){
     }
   };
 
-  const dos = {
+  const brut = {
     mode: "supabase", client,
     /* Toutes les lectures sont celles du moteur, sur l'état chargé. */
     recharger: async () => {
@@ -6339,13 +6485,156 @@ function creerSupabase(client){
       p_impact_par_unite: a.impact ? a.impact.par_unite : null })),
     fermerAnnonce: (aid) => ecrire(() => rpc("fermer_annonce", { p_annonce: aid })),
     retirerSalarie: (uid) => ecrire(() => rpc("pseudonymiser_salarie", { p_profil: uid })),
-    signaler: (annonce, motif, precisions) => ecrire(() =>
-      rpc("signaler_annonce", { p_annonce: annonce, p_motif: motif, p_precisions: precisions })),
+    /* Le moteur appelle `signaler({annonce, par, motif, precisions})`. Cette
+       liaison prenait trois arguments positionnels : l'ecran passait un objet,
+       la RPC recevait `[object Object]` en identifiant d'annonce et refusait. */
+    signaler: ({ annonce, motif, precisions } = {}) => ecrire(() =>
+      rpc("signaler_annonce", { p_annonce: annonce, p_motif: motif,
+                                p_precisions: precisions || null })),
     deciderSignalement: (sid, decision, motivation) => ecrire(() =>
       rpc("decider_signalement", { p_signalement: sid, p_decision: decision, p_motivation: motivation })),
-    donsPersonnelsAgreges: (saison) => rpc("dons_personnels_agreges", { p_saison: saison }),
+    /* Meme piege : le moteur expose `donsPersonnelsAgreges(eid)` et rend un
+       objet ; cette liaison rendait une promesse, et l'ecran lisait
+       `.suffisant` sur la promesse, donc `undefined`, donc le seuil
+       d'agregation ne s'appliquait plus. La derivation du moteur travaille sur
+       l'etat deja filtre par la RLS : elle reste la source. */
+    donsPersonnelsAgregesServeur: (saison) =>
+      rpc("dons_personnels_agreges", { p_saison: saison }),
     emettreRecu: (don) => ecrire(() => rpc("emettre_recu", { p_don: don })),
-    classement: (saison) => rpc("classement_saison", { p_saison: saison }),
+
+    /* ---- Le reste des ecritures ----
+       Elles etaient absentes, et leur absence ne se voyait pas : le Proxy de fin
+       de fichier retombait sur le moteur en memoire, l'ecran confirmait
+       l'enregistrement, et rien ne partait au serveur. Un IBAN saisi
+       disparaissait au rechargement suivant, sans un message. */
+    enregistrerIban: (aid, { iban, bic, titulaire } = {}) => ecrire(() =>
+      rpc("enregistrer_iban", { p_association: aid, p_iban: iban,
+                                p_bic: bic || null, p_titulaire: titulaire || null })),
+    enregistrerHelloAsso: (aid, lien) => ecrire(() =>
+      rpc("enregistrer_helloasso", { p_association: aid, p_lien: lien })),
+    enregistrerNumeros: (aid, { siren, rna } = {}) => ecrire(() =>
+      rpc("enregistrer_numeros_association", { p_association: aid,
+                                               p_siren: siren || null, p_rna: rna || null })),
+    accepterMandatRecus: (aid, { nom, qualite, version } = {}) => ecrire(() =>
+      rpc("accepter_mandat_recus", { p_association: aid, p_nom: nom, p_qualite: qualite,
+                                     ...(version ? { p_version: version } : {}) })),
+    revoquerMandatRecus: (aid) => ecrire(() =>
+      rpc("revoquer_mandat_recus", { p_association: aid })),
+    controlerEnregistrement: (aid, { fiche = null, panne = false } = {}) => ecrire(() =>
+      rpc("controler_association", { p_association: aid, p_fiche: fiche, p_panne: !!panne })),
+
+    declarerIntentionDon: ({ annonce, montant, origine = "salarie" }) => ecrire(() =>
+      rpc("declarer_intention_don", { p_annonce: annonce, p_montant: montant,
+                                      p_origine: origine })),
+    confirmerDonRecu: (iid, { montant = null } = {}) => ecrire(() =>
+      rpc("confirmer_don_recu", { p_intention: iid, p_montant: montant })),
+    abandonnerIntentionDon: (iid, motif = null) => ecrire(() =>
+      rpc("abandonner_intention_don", { p_intention: iid, p_motif: motif })),
+
+    declarerEvenement: (etid, champs = {}) => ecrire(() =>
+      rpc("declarer_evenement", { p_etablissement: etid, p_date: champs.date,
+        p_nature: champs.nature, p_gravite: champs.gravite, p_type: champs.type,
+        p_zone: champs.zone || null, p_jours: Number(champs.jours_arret) || 0,
+        p_circonstances: champs.circonstances || null })),
+    annulerEvenement: (evid, motif) => ecrire(() =>
+      rpc("annuler_evenement", { p_evenement: evid, p_motif: motif })),
+    activerRegistre: (etid, oui) => ecrire(() =>
+      rpc("activer_registre", { p_etablissement: etid, p_actif: !!oui })),
+    ajouterAction: ({ evenement = null, etablissement, quoi, responsable, echeance }) =>
+      ecrire(() => rpc("ajouter_action", { p_etablissement: etablissement, p_quoi: quoi,
+        p_responsable: responsable, p_echeance: echeance, p_evenement: evenement })),
+    majAction: (aid, etat) => ecrire(() =>
+      rpc("maj_action", { p_action: aid, p_etat: etat })),
+
+    ouvrirCampagne: ({ libelle, periode, debut, fin, echeance, rubriques }) => ecrire(() =>
+      rpc("ouvrir_campagne", { p_libelle: libelle, p_periode: periode, p_debut: debut,
+                               p_fin: fin, p_echeance: echeance,
+                               p_rubriques: rubriques || null })),
+    declarerValeurMateriel: (mid, champs = {}) => ecrire(() =>
+      rpc("declarer_valeur_materiel", { p_mission: mid,
+        p_valeur: champs.valeur ?? null, p_categorie: champs.categorie ?? null,
+        p_nature: champs.nature ?? null, p_reference: champs.reference ?? null,
+        p_sortie_le: champs.sortie_le ?? null, p_justificatif: champs.justificatif ?? null,
+        p_effacement: champs.effacement ?? null })),
+    expedier: (eid, kit, { suivi = null } = {}) => ecrire(() =>
+      rpc("expedier_kit", { p_entreprise: eid, p_kit: kit, p_suivi: suivi })),
+    confirmerReception: (exid) => ecrire(() =>
+      rpc("confirmer_reception", { p_expedition: exid })),
+    supprimerSalarie: (uid) => ecrire(() => rpc("supprimer_salarie", { p_profil: uid })),
+
+    majEntreprise: (eid, champs = {}) => ecrire(() => rpc("maj_entreprise", {
+      p_nom: champs.nom ?? null, p_secteur: champs.secteur ?? null,
+      p_siret: champs.siret ?? null, p_adresse: champs.adresse ?? null,
+      p_ca: champs.ca ?? null, p_cout_jour_moyen: champs.cout_jour_moyen ?? null,
+      p_effectif: champs.effectif ?? null })),
+    majDomaines: (eid, liste) => ecrire(() =>
+      rpc("maj_domaines", { p_domaines: liste || [] })),
+    reglerVisibilite: (eid, valeur) => ecrire(() =>
+      rpc("regler_visibilite", { p_visibilite: valeur })),
+    reglerObjectifSaison: (eid, cible) => ecrire(() =>
+      rpc("regler_objectif_saison", { p_cible: cible === "" || cible === null
+        || cible === undefined ? null : Math.round(Number(cible)) })),
+    activerClassementSites: (gid, oui) => ecrire(() =>
+      rpc("activer_classement_sites", { p_actif: !!oui })),
+
+    promouvoirAdmin: (uid) => ecrire(() => rpc("promouvoir_admin", { p_profil: uid })),
+    retrograderAdmin: (uid) => ecrire(() => rpc("retrograder_admin", { p_profil: uid })),
+    suspendreAcces: (uid, oui) => ecrire(() =>
+      rpc("suspendre_acces", { p_profil: uid, p_suspendre: !!oui })),
+    confirmerAffectation: (uid, etid = null) => ecrire(() =>
+      rpc("confirmer_affectation", { p_profil: uid, p_etablissement: etid })),
+    /* Le moteur de demonstration creait un compte de toutes pieces. Ici un compte
+       n'existe qu'apres authentification : ce qu'on cree est un lien nominatif a
+       usage unique, et la fonction rend ce lien. */
+    inviterSalarie: (org, nom, email) => ecrire(() =>
+      rpc("inviter_salarie", { p_nom: nom, p_mail: email })),
+    revoquerInvitation: (iid) => ecrire(() =>
+      rpc("revoquer_invitation", { p_invitation: iid })),
+    creerInvitationCSE: (eid, nom, email) => ecrire(() =>
+      rpc("creer_invitation_cse", { p_nom: nom, p_mail: email })),
+    accepterInvitationCSE: (code) => ecrire(() =>
+      rpc("rejoindre_comme_cse", { p_code: code })),
+    majPreferences: (uid, champs = {}) => ecrire(() =>
+      rpc("maj_preferences", { p_preferences: champs })),
+
+    rouvrirAnnonce: (aid) => ecrire(() => rpc("rouvrir_annonce", { p_annonce: aid })),
+    supprimerAnnonce: (aid) => ecrire(() => rpc("supprimer_annonce", { p_annonce: aid })),
+    majReglagesRecus: (aid, champs = {}) => ecrire(() => rpc("maj_reglages_recus", {
+      p_actif: champs.actif ?? null, p_eligible: champs.eligible_mecenat ?? null,
+      p_signataire: champs.signataire ?? null, p_qualite: champs.qualite ?? null,
+      p_prefixe: champs.prefixe ?? null })),
+    cloreCampagne: (cid) => ecrire(() => rpc("clore_campagne", { p_campagne: cid })),
+
+    preinscrire: (p = {}) => ecrire(() => rpc("preinscrire", {
+      p_entreprise: p.entreprise, p_contact: p.contact,
+      p_effectif: p.effectif ?? null })),
+    validerAssociation: (aid) => ecrire(() =>
+      rpc("valider_association", { p_association: aid })),
+    suspendreAssociation: (aid, motif) => ecrire(() =>
+      rpc("suspendre_association", { p_association: aid, p_motif: motif })),
+    /* L'inscription d'une association depuis le site public. La personne est
+       deja authentifiee par lien de connexion ; le compte s'ouvre non valide, et
+       n'est visible des entreprises qu'apres le controle au registre. */
+    creerCompteAssociation: ({ association, ville, resume, nom } = {}) => ecrire(() =>
+      rpc("ouvrir_compte_association", { p_nom: association, p_ville: ville,
+                                         p_resume: resume || null, p_contact: nom || null })),
+    creerCompteEntreprise: ({ entreprise, effectif, secteur, ville } = {}) => ecrire(() =>
+      rpc("creer_compte_entreprise", { p_nom: entreprise, p_effectif: Number(effectif) || 0,
+                                       p_secteur: secteur || null, p_ville: ville || null })),
+    majContrat: (eid, champs = {}) => ecrire(() => rpc("maj_contrat", {
+      p_plateforme: champs.plateforme_reception ?? null,
+      p_annuaire: champs.annuaire_id ?? null })),
+    reconduire: (eid, oui) => ecrire(() => rpc("reconduire", { p_oui: !!oui })),
+    marquerFacturePayee: (eid, ref) => ecrire(() =>
+      rpc("marquer_facture_payee", { p_ref: ref, p_le: null })),
+
+    /* `classement`, `donsPersonnelsAgreges` et `signaler` avaient ici des
+       versions asynchrones aux signatures differentes de celles du moteur : le
+       tableau de bord appelait `DB.classement().find(...)` et recevait une
+       promesse, donc un ecran blanc a la connexion. Les derivations du moteur
+       restent la source, elles travaillent sur l'etat deja filtre par la RLS.
+       Ces trois-la gardent leur nom de fonction serveur, distinct. */
+    classementServeur: (saison) => rpc("classement_saison", { p_saison: saison }),
 
     /* ---- Ce que la base calcule, et que le navigateur ne recalcule pas ----
        Ces chiffres finissent dans le rapport de fin de saison d'un client, et
@@ -6377,15 +6666,31 @@ function creerSupabase(client){
   };
 
   /* Le moteur d'abord, les écritures ensuite : une méthode d'écriture masque
-     toujours la dérivation du même nom. */
-  return new Proxy(dos, {
+     toujours la dérivation du même nom.
+
+     Ce que ce Proxy ne fait PLUS : retomber sur le moteur pour une ECRITURE. Il
+     le faisait, et c'est ce qui rendait invisibles une trentaine d'écritures non
+     branchées — l'écran affichait « enregistré », la mutation restait dans un
+     état en mémoire créé avec `persister:false`, et tout disparaissait au
+     rechargement. Une écriture sans fonction Postgres lève maintenant, avec le
+     nom de la fonction qui manque. */
+  /* La liste des ecritures reellement branchees, lisible de l'exterieur : le
+     controle de completude ne peut pas interroger le Proxy, qui repond oui a
+     tout. C'est exactement le piege dans lequel il etait tombe. */
+  brut.ecrituresBranchees = Object.keys(brut).filter(k => ECRITURES.includes(k));
+
+  const dos = new Proxy(brut, {
     get: (cible, prop) => {
-      if (prop in cible) return cible[prop];
+      if (Object.prototype.hasOwnProperty.call(cible, prop)) return cible[prop];
+      if (ECRITURES.includes(prop))
+        return () => { throw new Error("Riseva : « " + String(prop) + " » n'a pas encore "
+          + "de fonction côté serveur. Rien n'a été enregistré."); };
       const v = moteur ? moteur[prop] : undefined;
       return typeof v === "function" ? v.bind(moteur) : v;
     },
     has: (cible, prop) => prop in cible || (moteur ? prop in moteur : false)
   });
+  return dos;
 }
 
 export const DB = new Proxy({}, {

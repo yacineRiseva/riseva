@@ -164,6 +164,11 @@ create table groupe (
   id           uuid primary key default gen_random_uuid(),
   nom          text not null check (length(nom) between 1 and 160),
   societe_mere uuid,                  -- FK posée après la création d'entreprise
+  -- Le classement ordinal entre les sites du groupe est DESACTIVE par defaut. Un
+  -- rang fabrique un dernier, et un dernier qui n'a pas encore de referent nomme
+  -- est puni avant d'avoir commence. Le groupe l'active s'il le veut, en
+  -- connaissance de cause ; par defaut chaque site porte un statut, pas une place.
+  classement_sites boolean not null default false,
   cree_le      timestamptz not null default now()
 );
 
@@ -189,6 +194,12 @@ create table entreprise (
   -- classement qui expose les derniers punit ceux qui participent et donne une
   -- raison rationnelle de ne pas s'inscrire.
   visibilite text not null default 'auto' check (visibilite in ('auto','nom','anonyme')),
+  -- L'objectif de la saison, compté en PERSONNES mobilisées et jamais en points :
+  -- un objectif en points s'atteint avec trois salariés très actifs, un objectif
+  -- en personnes ne s'atteint qu'en allant chercher quelqu'un qui n'est pas
+  -- encore venu. Il vit ici et pas dans l'écran parce qu'il est affiché à tous
+  -- les salariés de l'entreprise, pas seulement à celui qui l'a posé.
+  objectif_mobilises integer check (objectif_mobilises > 0),
   -- Le logo affiché à côté du nom dans le classement. Deux formes, et deux
   -- seulement : une adresse https, ou une image encodée. La contrainte est ici et
   -- pas seulement dans l'écran, parce que cette valeur finit dans un attribut
@@ -360,6 +371,12 @@ create table association (
 create table profil (
   id        uuid primary key references auth.users(id) on delete cascade,
   nom       text not null check (length(nom) between 1 and 160),
+  -- Les reglages d'une personne : ce qu'elle accepte de recevoir, ce qu'elle
+  -- accepte de montrer. Un objet plutot que dix colonnes, parce qu'un reglage
+  -- ajoute ne doit pas demander une migration. Borne : ce sont des cases a
+  -- cocher, pas un espace de stockage.
+  preferences jsonb not null default '{}'::jsonb,
+  constraint profil_preferences_borne check (length(preferences::text) <= 4000),
   cree_le   timestamptz not null default now(),
   maj_le    timestamptz not null default now()
 );
@@ -567,10 +584,44 @@ create table abonnement (
   sites_factures integer not null default 0 check (sites_factures >= 0),
   fondateur   boolean not null default false,
   signe_le    date,
+  -- Facturation électronique : à compter du 1er septembre 2026, toute entreprise
+  -- doit pouvoir RECEVOIR ses factures par une plateforme agréée. Un PDF par
+  -- courriel ne vaut plus facture. On demande donc la plateforme et l'identifiant
+  -- d'annuaire dès la signature, sinon la première facture part dans le vide.
+  plateforme_reception text check (length(plateforme_reception) <= 120),
+  annuaire_id          text check (length(annuaire_id) <= 40),
+  -- La reconduction est une DÉCISION, jamais un défaut. « Pas de reconduction
+  -- tacite » est écrit sur la page de vente : ce booléen est ce qui le tient.
+  reconduction boolean not null default false,
   cree_le     timestamptz not null default now(),
   unique (entreprise, saison),
   constraint abonnement_acompte check (acompte_paye <= montant_ht)
 );
+
+-- Les factures d'un abonnement. Elles existaient dans le jeu de démonstration et
+-- nulle part ailleurs : l'écran « Abonnement » d'un client en production était
+-- donc vide, et « marquer payée » n'écrivait rien.
+--
+-- Ce que cette table ne fait pas : elle ne calcule aucun montant. Le devis se
+-- calcule à partir de la grille et de l'effectif, une fois, et la facture porte
+-- le montant retenu. Un montant recopié à la main est un montant qui finit par
+-- ne plus correspondre au contrat.
+create table facture (
+  id          uuid primary key default gen_random_uuid(),
+  abonnement  uuid not null references abonnement(id) on delete cascade,
+  ref         text not null check (ref ~ '^[A-Z]{3}-[0-9]{4}-[0-9]{4}$'),
+  libelle     text not null check (length(libelle) between 3 and 160),
+  montant     numeric(12,2) not null check (montant >= 0),
+  emise_le    date not null default current_date,
+  echeance    date not null,
+  payee_le    date,
+  periode     text check (length(periode) <= 80),
+  cree_le     timestamptz not null default now(),
+  unique (ref),
+  constraint facture_echeance check (echeance >= emise_le),
+  constraint facture_paiement check (payee_le is null or payee_le >= emise_le)
+);
+create index facture_abonnement on facture (abonnement, echeance);
 
 -- Une place occupée est une ligne. L'unicité rend la course impossible : deux
 -- inscriptions simultanées ne peuvent pas prendre le même siège.
@@ -600,6 +651,10 @@ create table invitation (
   entreprise  uuid not null references entreprise(id) on delete cascade,
   etablissement uuid references etablissement(id) on delete cascade,
   pour_referent boolean not null default false,
+  -- L'acces du comite social et economique : nominatif lui aussi, une seule
+  -- place, et il n'ouvre qu'une lecture agregee. Il ne pouvait pas exister en
+  -- base : l'ecran le proposait, la production n'avait pas de quoi le porter.
+  pour_cse      boolean not null default false,
   -- Un lien de référent est nominatif : il porte le nom et l'adresse de la
   -- personne visée, et il n'ouvre qu'un seul compte.
   destinataire_nom  text check (length(destinataire_nom) <= 160),
@@ -614,7 +669,11 @@ create table invitation (
   constraint invitation_expiration check (expire_le > cree_le),
   constraint invitation_referent check (
     not pour_referent or (etablissement is not null and places = 1
-                          and destinataire_nom is not null and destinataire_mail is not null))
+                          and destinataire_nom is not null and destinataire_mail is not null)),
+  constraint invitation_cse check (
+    not pour_cse or (etablissement is null and places = 1
+                     and destinataire_nom is not null and destinataire_mail is not null)),
+  constraint invitation_un_seul_role check (not (pour_referent and pour_cse))
 );
 create unique index invitation_empreinte on invitation (empreinte);
 

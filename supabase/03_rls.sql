@@ -63,7 +63,8 @@ create policy bareme_lecture on public.bareme for select to anon, authenticated 
 -- affirmait le contraire, et la recette ne testait que `anon`.
 grant select on public.entreprise_publique to anon, authenticated;
 grant select (id, nom, secteur, ville, effectif, ca, cout_jour_moyen,
-              siren, siret, adresse, lat, lon, groupe, visibilite, logo)
+              siren, siret, adresse, lat, lon, groupe, visibilite, logo,
+              objectif_mobilises)
   on public.entreprise to authenticated;
 create policy entreprise_privee on public.entreprise for select to authenticated
   using (id = private.mon_entreprise()
@@ -125,7 +126,10 @@ create policy annonce_lecture on public.annonce for select to anon, authenticate
 
 -- Profil : son propre profil, et les noms des collègues — rien de plus. Un
 -- salarié n'a pas à lire la fiche de toute l'entreprise.
-grant select (id, nom) on public.profil to authenticated;
+-- Ses propres reglages en plus du nom : la policy de lecture ci-dessous laisse
+-- voir les collegues, mais `preferences` ne sort que par la RPC qui filtre sur
+-- auth.uid(). Le grant reste minimal.
+grant select (id, nom, preferences) on public.profil to authenticated;
 create policy profil_lecture on public.profil for select to authenticated
   using (
     id = auth.uid()
@@ -177,9 +181,21 @@ create policy abonnement_lecture on public.abonnement for select to authenticate
   using ((entreprise = private.mon_entreprise() and private.mon_role() = 'entreprise_admin')
          or private.est_admin());
 
+-- Ses factures, pour son administrateur et pour Riseva. Un salarié n'a rien à
+-- lire ici, et le CSE non plus : ce sont des pièces comptables, pas des données
+-- sociales.
+grant select on public.facture to authenticated;
+create policy facture_lecture on public.facture for select to authenticated
+  using (exists (select 1 from public.abonnement a
+                  where a.id = facture.abonnement
+                    and ((a.entreprise = private.mon_entreprise()
+                          and private.mon_role() = 'entreprise_admin')
+                         or private.est_admin())));
+
+
 -- Invitation : l'administrateur voit l'indice et le quota, jamais de quoi
 -- reconstituer un code — l'empreinte n'est pas accordée.
-grant select (id, entreprise, etablissement, pour_referent, destinataire_nom,
+grant select (id, entreprise, etablissement, pour_referent, pour_cse, destinataire_nom,
               destinataire_mail, indice, places, active, cree_le, expire_le)
   on public.invitation to authenticated;
 create policy invitation_lecture on public.invitation for select to authenticated

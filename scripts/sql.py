@@ -16,7 +16,7 @@ FICHIERS = ["00_local.sql", "01_schema.sql", "02_logique.sql",
             # Engendré par scripts/catalogue.mjs depuis public/app/data.js :
             # les rubriques et les clés d'indicateurs, identiques des deux côtés
             # parce qu'un seul des deux est écrit à la main.
-            "06_catalogue.sql"]
+            "06_catalogue.sql", "07_ecritures.sql"]
 
 def psql(args, entree=None, base=BASE):
     return subprocess.run(

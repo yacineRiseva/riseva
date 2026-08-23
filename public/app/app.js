@@ -46,6 +46,10 @@ const MENUS = {
       ["mecenat",    "Mécénat",      "coins"],
       ["materiel",   "Dons de matériel", "box"],
       ["dossier",    "Réponses clients", "hands"],
+      /* La fiche VSME figure dans ce qui est compris au contrat. Elle n'etait
+         atteignable qu'en tapant #/vsme dans la barre d'adresse : pour un
+         client, elle n'existait pas. */
+      ["vsme",       "Fiche VSME",       "report"],
       ["abonnement", "Abonnement",   "card"],
       ["parametres", "Paramètres",   "settings"]
     ]}
@@ -2215,8 +2219,13 @@ function vueRapports(u){
   el.querySelector("#preuve").onclick = () => ouvrirPreuve(u);
   el.querySelector("#pdf").onclick = () => { toast("Ouverture de l'aperçu d'impression."); setTimeout(() => window.print(), 400); };
   el.querySelector("#csv").onclick = () => {
-    const ms = DB.missions({ entreprise: u.org })
-                 .filter(m => m.etat === "validee" || m.etat === "validee_auto");
+    /* L'export du rapport ne sort que ce que l'employeur a le droit de voir. Il
+       contenait le nom du salarie, l'association et le montant de ses dons
+       personnels : le seuil de cinq donateurs protegeait l'agregat pendant que
+       le tableur donnait le detail. */
+    const ms = DB.missionsVueEmployeur(u.org)
+                 .filter(m => m.etat === "validee" || m.etat === "validee_auto")
+                 .filter(m => !m.masquee);
     versCSV(`riseva-rapport-${r.saison.nom.replace(/\s+/g, "-").toLowerCase()}.csv`,
       ["Mission", "Association", "Format", "Sur le temps de travail", "Salarié", "Date", "Quantité", "Points"],
       ms.map(m => { const a = DB.annonceDe(m), sal = DB.utilisateur(m.salarie);
@@ -3839,6 +3848,11 @@ function vueAdminAssos(){
     </section>
   </div>`);
   const tb = el.querySelector("tbody");
+  if (!DB.associations().length)
+    tb.appendChild(h(`<tr><td colspan="8" class="muted" style="font-size:var(--t-sm)">
+      Aucune association inscrite pour l'instant. Elles arrivent par le site
+      <a href="/associations.html" target="_blank">riseva.fr/associations</a>, et se présentent
+      ici dès qu'un compte est ouvert.</td></tr>`));
   DB.associations().forEach(a => {
     const retard = a.valide && a.a_reverifier_le && a.a_reverifier_le < "2026-08-20";
     const etat = a.suspendue ? ["Suspendue", "badge--danger"]
@@ -3926,6 +3940,10 @@ function vueAdminPreinscriptions(){
     <th>Entreprise</th><th>Contact</th><th>Effectif</th><th>Date</th><th>État</th>
   </tr></thead><tbody></tbody></table></section>`);
   const tb = el.querySelector("tbody");
+  if (!DB.preinscriptions().length)
+    tb.appendChild(h(`<tr><td colspan="5" class="muted" style="font-size:var(--t-sm)">
+      Aucune préinscription pour l'instant. Elles arrivent par le formulaire de
+      <a href="/inscription.html" target="_blank">riseva.fr/inscription</a>.</td></tr>`));
   DB.preinscriptions().forEach(p => tb.appendChild(h(`<tr>
     <td><strong>${esc(p.entreprise)}</strong></td>
     <td class="muted">${esc(p.contact)}</td>
@@ -5788,8 +5806,18 @@ function ouvrirRapportGroupe(u){
   <table>
     <thead><tr><th>Indicateur</th><th>Valeur</th><th>Méthode</th></tr></thead>
     <tbody>
-      ${INDICATEURS.saisis.map(d => l(d.libelle, nb(ind.somme[d.cle] || 0),
-          "Somme des valeurs déclarées par les sites qui ont répondu.")).join("")}
+      ${/* `|| 0` imprimait « 0 » pour une valeur que personne n'avait declaree.
+            Dans un rapport remis a un client, zero et « non renseigne » sont
+            deux affirmations differentes, et l'une des deux est fausse. */""}
+      ${INDICATEURS.saisis.map(d => l(d.libelle,
+          ind.somme[d.cle] === null || ind.somme[d.cle] === undefined
+            ? `<span class="manque">non renseigné</span>`
+            : nb(ind.somme[d.cle]),
+          ind.somme[d.cle] === null || ind.somme[d.cle] === undefined
+            ? "Aucun site n'a renseigné cette valeur pour la période."
+            : `Somme des valeurs déclarées par ${nb(ind.sitesParCle[d.cle])} site`
+              + `${ind.sitesParCle[d.cle] > 1 ? "s" : ""} sur ${nb(ind.sites)} ayant répondu.`
+          )).join("")}
       ${INDICATEURS.calcules.map(d => l(d.libelle,
           ind.calcules[d.cle] === null ? `<span class="manque">non calculé</span>`
             : nb2(ind.calcules[d.cle]) + (d.unite ? " " + d.unite : ""),
@@ -5813,9 +5841,11 @@ function ouvrirRapportGroupe(u){
     ${nb(ind.attendus - ind.sites)} site${ind.attendus - ind.sites > 1 ? "s n'ont" : " n'a"} pas de
     valeur approuvée pour cette période, soit
     ${nb(ind.effectifTotal - ind.effectifCouvert)} salariés sur ${nb(ind.effectifTotal)}. Les taux
-    ci-dessus ne portent donc <strong>pas</strong> sur l'ensemble du périmètre, et deux sites sur
-    quatre ne veut pas dire la moitié du groupe. Nous ne comblons pas les trous avec la période
-    précédente : un chiffre absent reste absent.
+    ci-dessus ne portent donc <strong>pas</strong> sur l'ensemble du périmètre :
+    ${nb(ind.sites)} site${ind.sites > 1 ? "s" : ""} sur ${nb(ind.attendus)}, ce n'est pas la même
+    chose que ${pct(ind.effectifTotal ? ind.effectifCouvert / ind.effectifTotal * 100 : 0)} % de
+    l'effectif. Nous ne comblons pas les trous avec la période précédente : un chiffre absent
+    reste absent.
   </div>` : ""}
   <div class="note">
     ${INDICATEURS_LIMITES.map(x => `${esc(x)}<br>`).join("")}
@@ -7169,8 +7199,8 @@ function vueCSE(u){
         </tr>`).join("")}
         ${INDICATEURS.saisis.map(x => `<tr>
           <td>${esc(x.libelle)}</td>
-          <td class="tnum" style="text-align:right">${ind.sommes[x.cle] != null
-            ? nb(ind.sommes[x.cle]) + (x.unite ? " " + esc(x.unite) : "")
+          <td class="tnum" style="text-align:right">${ind.somme[x.cle] != null
+            ? nb(ind.somme[x.cle]) + (x.unite ? " " + esc(x.unite) : "")
             : `<span class="muted">non disponible</span>`}</td>
           <td class="muted" style="font-size:var(--t-xs)">déclaré par les sites, ${esc(x.source || "")}</td>
         </tr>`).join("")}
@@ -7693,8 +7723,12 @@ function vueMateriel(u){
     <div class="kpis">
       ${kpi("Dons de matériel", nb(r.total),
             `dont ${nb(r.confirmes)} confirmés par l'association`, "", "kpi--tete grain")}
-      ${kpi("Valorisés", `${nb(r.valorisees)} / ${nb(r.total)}`,
-            r.sansValeur ? `${nb(r.sansValeur)} sans valeur déclarée` : "tous valorisés")}
+      ${/* « 0 / 0, tous valorises » : un zero sur zero presente comme une
+            reussite. Sur un ensemble vide, on ne dit rien d'autre que le vide. */""}
+      ${r.total
+        ? kpi("Valorisés", `${nb(r.valorisees)} / ${nb(r.total)}`,
+              r.sansValeur ? `${nb(r.sansValeur)} sans valeur déclarée` : "tous valorisés")
+        : kpi("Valorisés", "-", "aucun don à valoriser pour l'instant")}
       ${kpi("Valeur déclarée", eur(r.valeur),
             "somme des valeurs que vous avez déclarées, méthode comprise")}
       ${/* « Réduction correspondante » se lisait comme un montant acquis. Ce n'en

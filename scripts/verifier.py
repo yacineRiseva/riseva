@@ -120,6 +120,14 @@ def main():
         print(sortie.rstrip())
         if code: echecs.append("traduction")
 
+    titre("La couche de production")
+    # Sans Postgres : on branche un client factice et on verifie que chaque
+    # ecriture a bien sa fonction serveur. Vingt-six n'en avaient aucune, et le
+    # repli sur le moteur en memoire rendait la perte invisible.
+    code, sortie = lancer("node scripts/test_couche.mjs")
+    print("\n".join(l for l in sortie.splitlines() if not l.startswith("  ok ")).rstrip())
+    if code: echecs.append("couche de production")
+
     titre("Serveur de test")
     srv = subprocess.Popen(
         ["python3", "-m", "http.server", str(PORT), "--directory", str(RACINE / "public")],

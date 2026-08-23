@@ -1141,6 +1141,39 @@ def main():
         verifie("chaque association de l'annuaire porte une image",
                 cartes > 0 and avec == cartes, f"{avec} / {cartes}")
 
+        print("\nUne valeur absente reste absente")
+        # La regle la plus structurante du produit, et elle etait violee dans la
+        # consolidation : une cle qu'aucun site n'avait declaree valait zero.
+        connecte(p, "u2", "#/indicateurs")
+        r = p.evaluate("""async()=>{const m=await import('/app/data.js');
+          const D=m.DB, out={};
+          const c=D.campagnes()[0];
+          const ind=D.indicateursDe({campagne:c.id, groupe:'g1'});
+          // Une cle du catalogue que le jeu de demonstration ne renseigne pas.
+          const jamais=Object.keys(ind.somme).filter(k=>ind.somme[k]===null);
+          out.aDesNull = jamais.length > 0;
+          out.zeroInvente = Object.keys(ind.somme).some(k =>
+            ind.somme[k] === 0 && (ind.sitesParCle[k] || 0) === 0);
+          out.assise = typeof ind.assise === 'object';
+          return out;}""")
+        verifie("une valeur qu'aucun site n'a déclarée vaut « absente », pas zéro",
+                r["aDesNull"] and not r["zeroInvente"], str(r))
+        verifie("chaque taux dit sur quelle assise il repose", r["assise"])
+
+        # Le rapport de l'employeur ne contient pas les dons personnels de ses
+        # salaries : le seuil d'agregation de cinq donateurs ne vaut rien si le
+        # detail ressort ligne a ligne dans l'export.
+        fuite = p.evaluate("""async()=>{const m=await import('/app/data.js');
+          const D=m.DB;
+          const r=D.rapport('e1');
+          const perso=D.missions({entreprise:'e1'}).filter(x=>D.estDonPersonnel(x));
+          const euros=perso.reduce((n,x)=>n+(Number(x.quantite)||0),0);
+          return {dons:perso.length, euros, rapportEuros:r.euros,
+                  points:r.parType.don_financier||0};}""")
+        verifie("le rapport de l'entreprise ignore les dons personnels",
+                fuite["dons"] > 0 and fuite["rapportEuros"] < fuite["euros"] + 1
+                and fuite["rapportEuros"] != fuite["euros"], str(fuite))
+
         print("\nCe que la vitrine promet existe dans le produit")
         # Une phrase de vitrine qui n'a pas son geste dans l'application est une
         # promesse qu'on decouvre fausse le jour de l'inscription.
