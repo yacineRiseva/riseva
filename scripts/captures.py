@@ -46,7 +46,12 @@ FONTE = "*{font-family:'Carlito','DejaVu Sans',sans-serif !important}"
 ECRANS = [
     ("admin-tableau",  "#/tableau",     "u2", 900),
     ("salarie-saison", "#/tableau",     "u5", ".card--dark"),
-    ("salarie-actions","#/annonces",    "u5", ("#liste", 620)),
+    # Fenetre etroite exprès. La grille d'annonces tient trois colonnes a 1 440,
+    # et ces trois colonnes reduites a la largeur d'une demi-page de vitrine
+    # donnent des cartes de cent cinquante pixels : on voit qu'il y a du texte,
+    # on ne le lit pas. A 1 000, la grille retombe a une colonne, la carte fait
+    # six cents pixels, et la capture prouve enfin ce qu'elle montre.
+    ("salarie-actions","#/annonces",    "u5", ("#liste", 390, 1000, 30)),
     ("asso-tableau",   "#/tableau",     "u7", ".card--dark"),
     ("asso-valider",   "#/avalider",    "u7", 860),
     ("missions",       "#/missions",    "u2", 860),
@@ -80,6 +85,9 @@ def main():
         p = ctx.new_page()
         p.on("pageerror", lambda e: erreurs.append(str(e)))
         for nom, route, uid, cadrage in ECRANS:
+            large_vue = cadrage[2] if isinstance(cadrage, tuple) and len(cadrage) > 2 else 1440
+            cadrage_y0 = cadrage[3] if isinstance(cadrage, tuple) and len(cadrage) > 3 else 0
+            p.set_viewport_size({"width": large_vue, "height": 900})
             p.goto(f"{BASE}/app/", wait_until="domcontentloaded")
             p.evaluate("()=>localStorage.removeItem('riseva.etat')")
             p.evaluate("u=>localStorage.setItem('riseva.session',JSON.stringify({uid:u}))", uid)
@@ -91,8 +99,15 @@ def main():
             brut = SORTIE / f"{nom}.png"
             haut = None
             if isinstance(cadrage, tuple):
-                cadrage, haut = cadrage
+                cadrage, haut = cadrage[0], cadrage[1]
             if isinstance(cadrage, str):
+                # La barre du haut est collante : elle se repeint par-dessus le
+                # haut de l'element vise, et la capture commence par un bout de
+                # titre coupe en deux. On la retire pour la photo.
+                p.evaluate("()=>{const s=document.createElement('style');"
+                           "s.textContent='.topbar{display:none!important}';"
+                           "document.head.appendChild(s)}")
+                p.wait_for_timeout(150)
                 el = p.query_selector(cadrage)
                 if el is None:
                     erreurs.append(f"{nom} : aucun élément « {cadrage} »")
@@ -101,7 +116,7 @@ def main():
                 p.wait_for_timeout(250)
                 el.screenshot(path=str(brut))
             else:
-                p.screenshot(path=str(brut), clip={"x": 0, "y": 0, "width": 1440,
+                p.screenshot(path=str(brut), clip={"x": 0, "y": 0, "width": large_vue,
                                                    "height": cadrage})
             # Le PNG en double densité pèse plusieurs mégaoctets : on redescend à
             # la largeur d'affichage réelle et on encode en JPEG. Une vitrine qui
@@ -112,7 +127,11 @@ def main():
             # lecteur ne lit pas une capture de deux mètres de haut, il la
             # survole. On coupe donc au nombre d'éléments qui se lisent.
             if haut:
-                im = im.crop((0, 0, im.width, min(im.height, haut * 2)))
+                # `y0` coupe le haut : la ligne « 25 annonces ouvertes » est deja
+                # dite par la legende de la vitrine, et son « 2 » se faisait
+                # rogner par le coin arrondi du cadre.
+                y0 = cadrage_y0 * 2
+                im = im.crop((0, y0, im.width, min(im.height, y0 + haut * 2)))
             # Une capture s'affiche sur la vitrine jusqu'à 1 250 pixels de large.
             # Sur un écran à double densité, il en faut le double pour qu'elle
             # soit nette : à 1 440, la capture du tableau de bord était affichée
