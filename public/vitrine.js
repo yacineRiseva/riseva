@@ -257,11 +257,30 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
   };
   var BASE = hint ? hint.textContent : '';
 
+  /* La largeur du champ suit son contenu, ou son placeholder tant qu'il est
+     vide. Un fantome cache mesure le texte et donne la largeur.
+
+     Il sous-estimait. La police demandee n'est pas toujours celle qui dessine,
+     et le repli n'a pas les memes metriques : le fantome annoncait 256 px la ou
+     le champ en dessinait 264, et le placeholder le plus long perdait ses trois
+     dernieres lettres. « des bras un samedi matin » s'affichait « ... matir ».
+     Le defaut ne se voyait pas en survolant la page, seulement sur une capture.
+
+     On garde donc le fantome pour la mesure de depart, puis on demande au champ
+     lui-meme, qui est le seul a savoir ce qu'il dessine. Pour cela il faut que
+     le texte soit une VALEUR : un placeholder ne deborde pas, il est coupe en
+     silence. On la pose et on la retire dans le meme tour de boucle, sans
+     evenement, donc sans rien qui clignote. */
   function sizeField(inp){
     var g=inp.parentNode.querySelector('.ghost');
     if(!g) return;
-    g.textContent=inp.value||inp.placeholder||'';
-    inp.style.setProperty('--w',(g.offsetWidth+8)+'px');
+    var txt=inp.value||inp.placeholder||'';
+    g.textContent=txt;
+    inp.style.setProperty('--w',(g.getBoundingClientRect().width+14)+'px');
+    var besoin;
+    if(inp.value){ besoin=inp.scrollWidth; }
+    else { inp.value=txt; besoin=inp.scrollWidth; inp.value=''; }
+    if(besoin>inp.clientWidth) inp.style.setProperty('--w',(besoin+14)+'px');
   }
 
   function valid(inp){

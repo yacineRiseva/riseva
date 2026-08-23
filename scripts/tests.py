@@ -298,6 +298,20 @@ def main():
         verifie("les allégations viennent avant les équipes qui se parlent",
                 len(ordre) == 3 and "allégations" in ordre[1] and "équipes" in ordre[2],
                 str(ordre))
+        # Le champ a remplir se dimensionne sur son propre texte. Quand la
+        # mesure est trop courte, le placeholder perd ses dernieres lettres et
+        # « des bras un samedi matin » devient « des bras un samedi matir ». Le
+        # defaut ne se voit pas en survolant la page : il faut le mesurer, et un
+        # placeholder ne deborde jamais, il est coupe en silence. On le pose
+        # donc comme valeur le temps de la mesure.
+        p.goto(f"{BASE}/associations.html", wait_until="networkidle"); p.wait_for_timeout(500)
+        coupes = p.evaluate("""()=>[...document.querySelectorAll('.blank input')].map(i=>{
+            i.value = i.placeholder;
+            const c = { ph: i.placeholder, coupe: i.scrollWidth > i.clientWidth };
+            i.value = ''; return c; }).filter(x => x.coupe).map(x => x.ph)""")
+        verifie("aucun placeholder n'est coupé dans la phrase à remplir",
+                not coupes, str(coupes))
+
         # ── plus de prénom nulle part ───────────────────────────────────────
         # Les pages parlent au nom d'une équipe. Une vitrine qui met en avant une
         # personne seule vend une dépendance, pas un service.

@@ -1513,8 +1513,16 @@ section{
 }
 .bk.ok{border-bottom-color:var(--lime-dim);}
 .bk.bad{border-bottom-color:#B4564A;background:rgba(180,86,74,.07);}
+/* Le fantome mesure le texte pour donner sa largeur au champ. Il etait absolu
+   DANS le champ : son bloc conteneur etait donc celui qu'il devait mesurer, et
+   la largeur se rabattait sur elle-meme. Le placeholder le plus long perdait
+   ses trois dernieres lettres, « des bras un samedi matin » devenait « matir »,
+   et le defaut ne se voyait que sur une capture, jamais en survolant la page.
+   `max-content` casse la boucle : le fantome prend la largeur de son texte,
+   quelle que soit celle de son parent. */
 .ghost{
   position:absolute;left:0;top:0;visibility:hidden;white-space:pre;
+  width:max-content;max-width:none;
   padding:0 .16em;font:inherit;pointer-events:none;
 }
 /* le message d'aide vit sous le champ, la ou l'erreur apparaitra */
