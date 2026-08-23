@@ -2977,3 +2977,196 @@ body{
    main a chaque fois qu'un mot change. */
 .vd .h1--doc,.va .h1--doc,.vd section h2,.va section h2,
 .vd .bandeau h2,.va .bandeau h2{text-wrap:balance;}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TROISIEME PASSE · l'audit sur images, et ce qu'il a montre
+
+   Cette fois les deux relectures ont vu le rendu, pas la description. Ce qui
+   suit repare ce qu'elles ont designe toutes les deux, et tranche les deux
+   points ou elles se contredisaient.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── l'affiche : un objet dans un lieu, plus un scan ────────────────────────
+   « Un angle de 1,4 degre avec un rayon de 4 pixels, ca ne fait pas design
+   maitrise, ca donne l'impression que le document a ete scanne de travers. »
+   Le reproche est juste, et il vaut aussi pour zero degre : le probleme n'etait
+   pas l'angle, c'etait qu'on montrait un fichier la ou il fallait montrer un
+   objet. La photographie d'une affiche collee sur une paroi vitree resout les
+   deux : elle a une echelle, un lieu, une lumiere. Le fichier reste, en petit,
+   a cote : c'est lui qui porte le code QR, et c'est l'argument. */
+.vd .aff-scene{
+  display:grid;
+  grid-template-columns:minmax(0,1.28fr) minmax(0,.72fr);
+  grid-template-areas:"mur texte" "mur encart";
+  gap:clamp(22px,2.6vw,44px) clamp(28px,3.4vw,56px);
+  align-items:start;
+  margin-top:clamp(26px,3vw,42px);
+}
+.vd .photo--mur{
+  grid-area:mur;border-radius:var(--r-lg);margin:0;
+  box-shadow:0 30px 66px -32px rgba(11,38,32,.42);
+}
+.vd .aff-texte{grid-area:texte;}
+.vd .aff-texte h3{
+  font-size:clamp(19px,1.5vw,24px);font-weight:600;letter-spacing:-.018em;
+  margin-bottom:10px;
+}
+.vd .aff-texte h3 + p{margin-bottom:clamp(20px,2.2vw,30px);max-width:38ch;}
+.vd .aff-texte p{font-size:clamp(14.5px,1.02vw,16px);line-height:1.62;color:var(--ink-soft);}
+.vd .aff-encart{grid-area:encart;display:grid;gap:10px;justify-items:start;}
+.vd .aff-encart .shot--affiche{
+  /* Zero degre, angles vifs, et une vraie epaisseur de papier : deux ombres
+     superposees, une courte pour le contact, une longue pour la distance. */
+  width:min(230px,60%);border-radius:2px;border:1px solid rgba(19,21,16,.10);
+  box-shadow:0 2px 4px rgba(19,21,16,.06),0 16px 34px -12px rgba(19,21,16,.20);
+}
+.vd .aff-encart .mono{color:var(--faint);max-width:26ch;line-height:1.5;}
+@media (max-width:900px){
+  .vd .aff-scene{grid-template-columns:1fr;grid-template-areas:"mur" "texte" "encart";}
+  .vd .aff-encart .shot--affiche{width:min(200px,45%);}
+}
+
+/* ── la ligne de saison ─────────────────────────────────────────────────────
+   Un trait d'un pixel et des points de neuf : ca faisait maquette de travail.
+   La piste s'epaissit, les reperes prennent un anneau de papier autour d'eux
+   pour se detacher du trait. */
+.vd .sais-line path{stroke-width:4;stroke:rgba(31,92,74,.16);}
+.vd .sais-line circle{stroke-width:14;stroke:var(--forest-700);}
+.vd .sais-steps{padding-top:clamp(38px,4.4vw,60px);}
+
+/* ── le simulateur de tarif ─────────────────────────────────────────────────
+   Il etait sombre sur du vert sombre : l'element le plus interactif de la page
+   se camouflait dans son propre fond. Il redevient du papier blanc pose sur le
+   vert, avec l'ombre qui va avec. */
+.vd #prix .tar-sim{
+  background:var(--paper-2);border:0;
+  box-shadow:0 30px 64px -28px rgba(0,0,0,.45);
+  padding:clamp(24px,2.6vw,36px);
+}
+.vd #prix .tar-sim .mono{color:var(--brand-800);}
+.vd #prix .tar-sim label{color:var(--stone);}
+.vd #prix .tar-in{background:var(--paper);border-color:var(--line-hard);color:var(--ink);}
+.vd #prix .tar-sim-out{color:var(--ink);}
+.vd #prix .tar-sim-out b{color:var(--brand-800);}
+.vd #prix .tar-sim .tar-n{color:var(--stone);}
+.vd #prix .tar-sim .tar-n b{color:var(--ink);}
+.vd #prix .tar-sim .btn{--bg:var(--ink);--fg:var(--paper);}
+.vd #prix .tar-sim .btn .dot{background:var(--lime);}
+.vd #prix .tar-sim-cta .mono{color:var(--faint);}
+
+/* ── les boutons ────────────────────────────────────────────────────────────
+   Un aplat noir parfaitement plat se lit comme un rectangle, pas comme une
+   chose sur laquelle on appuie. Une ombre courte et un filet interieur clair
+   suffisent : au dela, c'est du relief des annees 2000. */
+.vd .btn,.va .btn{
+  box-shadow:0 1px 2px rgba(11,38,32,.14),0 6px 16px -8px rgba(11,38,32,.30),
+             inset 0 1px 0 rgba(255,255,255,.14);
+}
+.vd .btn:hover,.va .btn:hover{
+  box-shadow:0 2px 4px rgba(11,38,32,.16),0 12px 26px -10px rgba(11,38,32,.34),
+             inset 0 1px 0 rgba(255,255,255,.14);
+}
+
+/* ── le dernier ecran ───────────────────────────────────────────────────────
+   « Le point visuel le plus faible de la page. » Le texte touchait le bord
+   gauche : `section` pose la gouttiere dans un raccourci `padding`, et le
+   bandeau la reecrivait a zero en ne pensant qu'au vertical. Toute la page
+   respecte une marge, sauf la seule section qui demande quelque chose.
+
+   La composition change aussi : un seul titre monumental, un seul bouton, et
+   le vide entre les deux est intentionnel. Sept cents pixels ne se remplissent
+   pas, ils se composent. */
+.vd .bandeau,.va .bandeau{padding-inline:var(--gut);}
+.vd .bandeau-in{
+  grid-template-columns:minmax(0,1fr);
+  gap:clamp(30px,4vw,60px);
+  align-items:start;
+}
+.vd .bandeau h2{
+  font-size:clamp(40px,5.6vw,86px);letter-spacing:-.045em;line-height:.94;
+  max-width:13ch;margin-bottom:clamp(18px,2vw,26px);
+}
+.vd .bandeau p{max-width:52ch;font-size:clamp(15.5px,1.12vw,17.5px);}
+.vd .bandeau-cta{
+  flex-direction:row;align-items:center;gap:clamp(16px,2vw,28px);flex-wrap:wrap;
+  padding-top:clamp(6px,1vw,14px);
+  border-top:1px solid rgba(242,240,233,.20);
+  margin-top:clamp(10px,1.4vw,20px);
+}
+.vd .bandeau-cta .mono{max-width:40ch;}
+
+/* ── l'entree du tableau de bord ────────────────────────────────────────────
+   Onze degres, puis quatre et demi, maintenant deux. « Quatre et demi dit
+   encore regarde mon animation ; deux dit cet objet entre dans l'espace. » La
+   puissance vient de la taille et de la place dans la composition, pas de
+   l'angle. */
+@supports (animation-timeline: view()){
+  @media (prefers-reduced-motion:no-preference) and (min-width:900px){
+    @keyframes redresser{
+      from{transform:perspective(1900px) rotateX(2deg) scale(.968) translateY(10px);}
+      to  {transform:perspective(1900px) rotateX(0deg) scale(1)     translateY(0);}
+    }
+  }
+}
+
+/* ── la bande de chiffres ───────────────────────────────────────────────────
+   Elle faisait sas entre le titre et le produit. Les nombres grossissent, le
+   bloc maigrit, et l'espace qui le separe de la capture disparait presque :
+   le lecteur doit passer du chiffre a l'objet qui le materialise. */
+.vd .chiffres b{font-size:clamp(38px,3.5vw,52px);line-height:.9;letter-spacing:-.04em;}
+.vd .chiffres{padding-block:clamp(20px,2.2vw,30px);}
+.vd .chiffres div{padding-block:0;}
+.vd .scene{margin-top:clamp(14px,1.6vw,22px);}
+
+/* ── la ligne de saison, une deuxieme fois ──────────────────────────────────
+   Les deux relectures se contredisaient : l'une voulait une piste de quatre
+   pixels et des reperes de seize pour « faire systeme industriel », l'autre un
+   filet plus fin et des points de huit pour ne pas ecraser des titres de
+   trente-quatre. La seconde a raison sur le rapport de force : c'est le titre
+   qui structure, la ligne accompagne. Elle garde donc une epaisseur lisible
+   sans devenir un rail, et c'est l'escalier qui porte la progression. */
+.vd .sais-line path{stroke-width:2;stroke:rgba(31,92,74,.5);}
+.vd .sais-line circle{stroke-width:9;stroke:var(--brand-700);}
+.vd .sais-steps li:nth-child(1){margin-top:0;}
+.vd .sais-steps li:nth-child(2){margin-top:14px;}
+.vd .sais-steps li:nth-child(3){margin-top:28px;}
+.vd .sais-steps li:nth-child(4){margin-top:42px;}
+
+/* ── comprimer les deux masses sombres sans les affaiblir ───────────────────
+   « Ce sont tes deux grands moments ; ils doivent rester grands, mais ils
+   doivent donner chapitre exceptionnel, pas page dans la page. » */
+.vd #associations{padding-block:clamp(52px,5vw,76px) clamp(56px,5.4vw,84px);}
+.vd #associations .photos3{margin-block:clamp(20px,2.4vw,32px);}
+.vd #associations .trois{margin-top:clamp(20px,2.2vw,30px);}
+.vd .band-moss .fmt-bloc--incruste{
+  margin-top:clamp(24px,2.6vw,38px);
+  padding:clamp(22px,2.4vw,34px) clamp(22px,2.6vw,36px) clamp(18px,2vw,28px);
+}
+.vd .band-moss .fmt-lignes li{padding:11px 0;}
+.vd #prix{padding-block:clamp(56px,5.4vw,84px);}
+.vd #prix .tar-t td{padding:clamp(15px,1.6vw,22px) 0;}
+.vd #prix .deux-col{margin-top:clamp(24px,2.6vw,34px);}
+
+/* ── casser une derniere fois le gabarit, au milieu ─────────────────────────
+   Titre a gauche, texte en dessous, et la capture qui prend les deux tiers
+   droits en debordant du cadre. Le but n'est pas d'ajouter un effet : c'est
+   que le cerveau rencontre enfin une autre silhouette de section. */
+.vd #perimetres .layer{
+  display:grid;grid-template-columns:minmax(0,38fr) minmax(0,62fr);
+  gap:clamp(24px,3vw,52px) clamp(30px,3.6vw,64px);
+  align-items:start;
+}
+.vd #perimetres .s-head{grid-column:1;grid-template-columns:1fr;gap:14px;margin-bottom:0;}
+.vd #perimetres .shot--seule{
+  grid-column:2;grid-row:1 / span 2;
+  width:112%;max-width:none;
+}
+.vd #perimetres .shot--seule img{max-height:clamp(360px,34vw,520px);object-position:left top;}
+.vd #perimetres .duo--texte{
+  grid-column:1;grid-template-columns:1fr;gap:clamp(18px,2vw,26px);margin:0;
+}
+@media (max-width:1000px){
+  .vd #perimetres .layer{grid-template-columns:1fr;}
+  .vd #perimetres .s-head,.vd #perimetres .shot--seule,
+  .vd #perimetres .duo--texte{grid-column:1;grid-row:auto;width:100%;}
+}

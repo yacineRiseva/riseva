@@ -232,8 +232,16 @@ def main():
         legendes = p.evaluate(
             """()=>[...document.querySelectorAll('.shot figcaption')]
                      .map(f=>f.textContent.trim())""")
-        verifie("chaque capture porte un titre court, pas une phrase",
-                legendes and all(0 < len(x) <= 62 for x in legendes),
+        # Une capture peut ne rien porter du tout : celle de l'affiche a son
+        # libellé posé à côté d'elle, dans la composition, et le répéter sous
+        # l'image en ferait une légende de musée. Ce qui reste interdit, c'est
+        # la phrase : un titre de capture qui dépasse la ligne redevient du
+        # texte qu'on saute.
+        verifie("aucun titre de capture ne devient une phrase",
+                legendes and all(len(x) <= 62 for x in legendes),
+                str(legendes)[:300])
+        verifie("la plupart des captures portent quand même un titre",
+                len([x for x in legendes if x]) >= len(legendes) - 1,
                 str(legendes)[:300])
         # Le contenu ne doit dépendre d'aucun défilement : une animation peut
         # accompagner une apparition, jamais la conditionner.

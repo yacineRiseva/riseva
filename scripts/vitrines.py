@@ -833,20 +833,25 @@ AFFICHES_ENT = f"""<section id="affiches">
         "Un lien envoyé une fois par courriel se perd. Une affiche reste, et elle parle aux "
         "gens qui n'ouvrent jamais leurs mails.")}
 
-    <div class="duo duo--texte duo--affiche">
-      <div class="affiche-scene">{capture("affiche",
-               "L'affiche A3 générée par Riseva : le nom de l'entreprise, la saison, les "
-               "formats proposés, le lien d'inscription et son code QR",
-               "L'affiche, telle qu'elle sort", " shot--affiche")}</div>
-      <div class="col">
+    <div class="aff-scene">
+      {photo("affiche-bureau",
+             "Une affiche Riseva collée sur la paroi vitrée d'un plateau de bureaux, "
+             "visible depuis le couloir", "", " photo--mur")}
+      <div class="aff-encart">
+        {capture("affiche",
+                 "L'affiche A3 générée par Riseva : le nom de l'entreprise, la saison, les "
+                 "formats proposés, le lien d'inscription et son code QR",
+                 "", " shot--affiche")}
+        <p class="mono">Celle que la plateforme génère, avec votre lien et son code QR</p>
+      </div>
+      <div class="aff-texte">
         <h3>Elle porte le lien de votre entreprise</h3>
         <p>Chaque affiche est générée avec le lien d'inscription de vos équipes et le code QR
           qui va avec. Un salarié le scanne depuis la salle de pause et son compte est ouvert
           avant qu'il soit remonté à son poste.</p>
-        <h3>Quatre envois compris dans l'abonnement</h3>
-        <p>Les affiches partent imprimées, en nombre suffisant pour tous vos sites, à quatre
-          moments de la saison. Un site qui ouvre en cours d'année, ou qui a perdu la sienne,
-          la réimprime depuis la plateforme sans rien demander.</p>
+        <h3>Quatre envois compris</h3>
+        <p>Elles partent imprimées, en nombre suffisant pour tous vos sites, à quatre moments
+          de la saison. Un site qui ouvre en cours d'année la réimprime lui-même.</p>
         <p class="s-note"><a class="tlink" href="/app/">Voir l'écran des supports</a></p>
       </div>
     </div>
