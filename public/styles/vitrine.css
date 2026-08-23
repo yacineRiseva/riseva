@@ -2583,7 +2583,11 @@ body{
 .vd .band-moss .trois3 p,.va .band-moss .trois3 p,
 .vd .band-moss .trois li,.va .band-moss .trois li{color:rgba(242,240,233,.80);}
 .vd .band-moss .eyebrow,.va .band-moss .eyebrow{color:var(--lime);}
-.vd .band-moss a,.va .band-moss a{color:var(--lime);}
+/* Le lien du chapitre sombre passe au lime. Un bouton EST un lien : sans cette
+   exception, le libelle du bouton prenait la couleur de son propre fond et
+   disparaissait, ce qui ne se voit pas en relisant la regle. */
+.vd .band-moss a:not(.btn),.va .band-moss a:not(.btn){color:var(--lime);}
+.vd .band-moss .btn,.va .band-moss .btn{color:var(--fg);}
 .vd .band-moss .obj,.va .band-moss .obj{
   background:rgba(242,240,233,.06);border-color:rgba(242,240,233,.16);
 }
@@ -2710,3 +2714,266 @@ body{
 .duo--affiche .col > h3:first-child{margin-top:0;}
 .duo--affiche .col > h3 + p{margin-top:10px;}
 @media (max-width:900px){ .duo--affiche{grid-template-columns:1fr;align-items:start;} }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DEUXIEME PASSE · ce que les deux relectures ont reproche a la premiere
+
+   Le verdict etait le meme des deux cotes, avec des mots differents : « ce
+   n'est plus date, c'est encore trop prudent », et « seize mille huit cents
+   pixels, c'est un tunnel ». Trois reproches convergents :
+
+   Le produit arrive trop tard. Le premier ecran deroulait un titre, une fiche,
+   une bande photo, un bloc de chiffres, et seulement ensuite la capture. Le
+   lecteur avait compris comment la page etait faite avant d'avoir vu ce qu'on
+   lui vend. La bande photo est partie ailleurs, la capture arrive directement
+   sous le titre.
+
+   Tout fait la meme largeur. Bandeau, capture, bandeau, capture : les contenus
+   changent, la geometrie de lecture non, et une page qui ne surprend jamais
+   l'oeil se lit comme un empilement. Deux objets sur cinq sortent maintenant de
+   la colonne.
+
+   Le vert foret devenait un mode d'affichage. Trois grandes masses sombres a la
+   suite et le cerveau cesse de les lire comme des blocs poses sur du papier. Il
+   en reste deux, loin l'une de l'autre, et le bareme est devenu une carte claire
+   posee dans la premiere.
+
+   Ce qui a ete ecarte, et par qui. Le carrousel horizontal a defilement
+   magnetique pour les photos : propose par une relecture, range par l'autre
+   parmi les procedes qui donnent a chaque section son propre effet, ce qui fait
+   demonstration d'agence. Le survol en trois dimensions de l'affiche a douze
+   degres : le geste est juste, l'angle est celui d'une vignette de boutique
+   d'applications. Deux degres suffisent a dire « objet pose », douze disent
+   « rendu 3D ».
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── le rythme : des sections qui respirent, et des sections qui serrent ────
+   Toutes les sections avaient le meme creux de part et d'autre. Une page qui
+   respire partout de la meme facon n'a pas de respiration : elle a un rythme
+   plat. Les sections de bascule serrent, les autres tiennent. */
+.vd section,.va section{padding-block:clamp(72px,6.4vw,112px);}
+.vd #saison,.va #comment,
+.vd #change,
+.vd #faq,.va #faq{padding-block:clamp(52px,4.4vw,74px);}
+
+/* ── le premier ecran ───────────────────────────────────────────────────────
+   Le titre gardait quinze caracteres de large, ce qui laissait « l'entreprise. »
+   seule sur sa ligne : un mot orphelin en quatre-vingts pixels ne se lit pas
+   comme une chute, il se lit comme une coupure ratee. */
+.vd .h1--doc,.va .h1--doc{max-width:19ch;}
+.vd .hero--doc{padding-bottom:clamp(24px,2.4vw,40px);}
+.vd .doc-tete{margin-bottom:clamp(20px,2.2vw,30px);}
+
+/* La scene produit. Elle chevauche la section suivante : c'est ce debordement
+   qui fait qu'on la lit comme un objet pose sur la page, et non comme la
+   derniere ligne du premier ecran. */
+.vd .scene{
+  margin:clamp(20px,2.4vw,34px) 0 clamp(-150px,-9vw,-110px);
+  width:min(1120px,88vw);margin-inline:auto;
+  z-index:3;
+}
+.vd #saison{padding-top:clamp(170px,14vw,220px);}
+@supports (animation-timeline: view()){
+  @media (prefers-reduced-motion:no-preference) and (min-width:900px){
+    /* Onze degres etaient trop : a cet angle la capture n'est plus lisible au
+       moment ou elle entre, et le redressement se termine trop bas dans la
+       page. Un degre et demi suffit a dire qu'elle arrive. */
+    @keyframes redresser{
+      from{transform:perspective(1600px) rotateX(4.5deg) scale(.955) translateY(14px);}
+      to  {transform:perspective(1600px) rotateX(0deg)   scale(1)     translateY(0);}
+    }
+    .vd .scene .shot{animation-range:entry 0% cover 22%;}
+  }
+}
+
+/* ── l'asymetrie ────────────────────────────────────────────────────────────
+   Deux objets sur cinq sortent de la colonne. Ce n'est pas un effet : c'est ce
+   qui empeche la page de ressembler a une pile. */
+.vd .photo--large-gauche{
+  width:min(72%,860px);margin:clamp(30px,3.4vw,48px) 0;
+  margin-left:clamp(-40px,-2.6vw,-16px);
+  border-radius:var(--r-lg);
+}
+.vd .photo--large-gauche img{max-height:400px;object-fit:cover;object-position:center 58%;}
+@media (max-width:820px){
+  .vd .photo--large-gauche{width:100%;margin-left:0;}
+  .vd .photo--large-gauche img{max-height:250px;}
+}
+/* La seule image vraiment pleine largeur de la page, et elle sert de couverture
+   au chapitre : elle touche les bords du bloc foret au lieu de flotter dedans. */
+.vd .photo--couverture{
+  margin:calc(-1 * clamp(64px,6.6vw,96px)) calc(-1 * var(--gut)) clamp(40px,4.2vw,60px);
+  border-radius:0;
+}
+.vd .photo--couverture img{
+  max-height:clamp(240px,26vw,380px);object-fit:cover;object-position:center 55%;
+}
+
+/* ── le bareme, en carte claire dans le chapitre sombre ─────────────────────
+   Trois masses sombres a la suite et le vert cesse d'etre precieux. Celle-ci
+   redevient du papier, posee sur le vert. */
+.vd .band-moss .fmt-bloc--incruste{
+  background:var(--paper-2);border:0;border-radius:var(--r-lg);
+  padding:clamp(26px,3vw,44px) clamp(24px,3vw,44px) clamp(22px,2.6vw,36px);
+  box-shadow:0 30px 64px -30px rgba(0,0,0,.45);
+  margin-top:clamp(30px,3.4vw,48px);
+}
+.vd .band-moss .fmt-bloc--incruste .fmt-titre,
+.vd .band-moss .fmt-bloc--incruste b,
+.vd .band-moss .fmt-bloc--incruste strong{color:var(--ink);}
+.vd .band-moss .fmt-bloc--incruste li,
+.vd .band-moss .fmt-bloc--incruste .fmt-bareme{color:var(--ink-soft);}
+.vd .band-moss .fmt-bloc--incruste .fmt-lignes li{border-color:var(--line);}
+.vd .band-moss .fmt-bloc--incruste .fmt-lignes span{color:var(--brand-800);}
+.vd .band-moss .fmt-bloc--incruste .fmt-bareme{border-color:var(--line-hard);}
+.vd .band-moss .fmt-bloc--incruste a{color:var(--brand-800);}
+.vd .band-moss{padding-block:clamp(64px,6.6vw,96px);}
+
+/* ── les quatre moments de la saison ────────────────────────────────────────
+   Ils etaient poses au sol, tous pareils, tous a la meme hauteur. Ils portent
+   maintenant un titre a leur taille et un decalage vertical qui les fait lire
+   comme une progression plutot que comme quatre colonnes. */
+.vd .sais-steps h3{font-size:clamp(24px,2.3vw,34px);line-height:1.02;letter-spacing:-.032em;}
+.vd .sais-steps li:nth-child(2){margin-top:clamp(20px,2.4vw,36px);}
+.vd .sais-steps li:nth-child(3){margin-top:clamp(10px,1.2vw,18px);}
+.vd .sais-steps li:nth-child(4){margin-top:clamp(28px,3.2vw,48px);}
+.vd .sais{margin-top:clamp(18px,2vw,28px);}
+
+/* ── les trois effets ───────────────────────────────────────────────────────
+   Le chiffre etait surligne en vert vif, de travers. Le geste voulait dire
+   « ecrit a la main » ; a l'usage il dit « diapositive de 2012 », et c'etait le
+   seul endroit de la page ou le vert vif servait de fond a du texte. Le chiffre
+   devient enorme et noir, le vert se reduit a une puce. */
+.vd .ret li{grid-template-columns:52px minmax(0,1.15fr) minmax(0,.9fr);}
+.vd .ret-fact b{
+  font-size:clamp(40px,4.6vw,78px);font-weight:600;
+  letter-spacing:-.055em;line-height:.86;white-space:nowrap;
+}
+.vd .ret-fact b i{background:none;padding:0;transform:none;}
+.vd .ret-fact{gap:14px;max-width:20em;}
+.vd .ret-fact em{
+  border-top:1px solid var(--line-hard);padding-top:12px;
+  font-size:12.5px;line-height:1.5;
+}
+.vd .ret h3{font-size:clamp(22px,2.3vw,32px);}
+
+/* ── l'affiche, mise en scene ───────────────────────────────────────────────
+   Un A4 pose bien a plat au centre est un scan ; le meme, legerement tourne et
+   porte par une vraie ombre de papier, est un objet. Le rayon descend a quatre
+   pixels : une affiche imprimee n'a pas les coins arrondis d'une carte. */
+.vd .duo--affiche{grid-template-columns:minmax(0,.92fr) minmax(0,1fr);}
+.vd .affiche-scene{perspective:1600px;}
+.vd .duo--affiche .shot--affiche{
+  border-radius:4px;border:0;
+  transform:rotate(-1.4deg);
+  box-shadow:26px 40px 80px -26px rgba(19,21,16,.30),
+             0 2px 6px rgba(19,21,16,.10);
+  transition:transform var(--d-scene) var(--e-scene);
+}
+.vd .duo--affiche .shot--affiche:hover{transform:rotate(-.4deg) translateY(-6px);}
+.vd .duo--affiche .shot--affiche figcaption{display:none;}
+.vd .duo--affiche .col > p{max-width:38ch;}
+@media (prefers-reduced-motion:reduce){
+  .vd .duo--affiche .shot--affiche{transition:none;}
+}
+
+/* ── le prix, sur fond sombre ───────────────────────────────────────────────
+   La deuxieme masse foret de la page, et c'est celle-la qu'on veut : un tarif
+   affiche sur fond sombre se lit comme une decision, pas comme un tableau
+   qu'on subit. Les montants passent au double de leur taille. */
+.vd #prix .tar-t tr{border-color:rgba(242,240,233,.16);}
+.vd #prix .tar-eff{color:var(--paper-2);font-size:clamp(16px,1.25vw,19px);}
+.vd #prix .tar-t td{padding:clamp(18px,2vw,28px) 0;}
+.vd #prix .tar-prix b{
+  font-size:clamp(30px,3vw,46px);letter-spacing:-.042em;color:var(--paper-2);
+}
+.vd #prix .tar-ht{color:rgba(242,240,233,.55);}
+.vd #prix .tar-sites{color:rgba(242,240,233,.62);}
+.vd #prix .tar-n{color:rgba(242,240,233,.66);}
+.vd #prix .tar-n b{color:var(--paper-2);}
+.vd #prix .tar-l li{color:rgba(242,240,233,.80);}
+.vd #prix .col--oui li::before{color:var(--lime);}
+.vd #prix .col--non li::before{color:rgba(242,240,233,.45);}
+.vd #prix .tar-sim{
+  background:rgba(242,240,233,.06);border:1px solid rgba(242,240,233,.16);
+  border-radius:var(--r-lg);
+}
+.vd #prix .tar-sim .mono{color:var(--lime);}
+.vd #prix .tar-sim label{color:rgba(242,240,233,.72);}
+.vd #prix .tar-in{
+  background:rgba(242,240,233,.10);border-color:rgba(242,240,233,.26);color:var(--paper-2);
+}
+.vd #prix .tar-sim-out{color:var(--paper-2);}
+.vd #prix .tar-sim-out b{color:var(--lime);}
+.vd #prix .btn{--bg:var(--lime);--fg:var(--ink);}
+.vd #prix .btn .dot{background:var(--ink);}
+
+/* Les deux colonnes du prix etaient des cartes ivoire a demi transparentes
+   posees sur du vert : la couleur qui en sortait n'etait ni l'une ni l'autre.
+   Elles redeviennent du texte, separees par un filet. Tout ne merite pas une
+   carte, et le vide fait partie du dessin. */
+.vd #prix .deux-col .col{
+  background:none;border:0;border-top:1px solid rgba(242,240,233,.24);
+  border-radius:0;padding:clamp(18px,2vw,26px) 0 0;
+}
+.vd #prix .deux-col h3{color:var(--paper-2);font-size:clamp(18px,1.4vw,22px);}
+.vd #prix .tar-sim-cta{
+  display:flex;align-items:center;gap:clamp(12px,1.6vw,22px);flex-wrap:wrap;
+  margin-top:clamp(16px,1.8vw,24px);
+}
+.vd #prix .tar-sim-cta .mono{color:rgba(242,240,233,.62);}
+
+/* ── le dernier ecran ───────────────────────────────────────────────────────
+   Trois cent quatre-vingts pixels pour la seule section qui demande quelque
+   chose. On termine bien, on ne termine pas fort : le bandeau prend la place
+   d'une vraie fin. */
+.vd .bandeau{padding-block:clamp(84px,8vw,132px);}
+.vd .bandeau h2{font-size:clamp(34px,4vw,62px);letter-spacing:-.04em;line-height:.98;
+  max-width:14ch;margin-bottom:20px;}
+.vd .bandeau-in{align-items:end;}
+
+/* Le titre de section tenait sur seize caracteres : « L'association publie, »
+   en fait vingt-et-un, et se coupait apres « L'association ». Un titre coupe au
+   mauvais endroit se lit deux fois. */
+.vd section h2,.va section h2{max-width:19ch;}
+
+/* Les trois faits du chapitre associations etaient empiles pleine largeur,
+   trois lignes de quatre-vingts caracteres a la suite. Ils passent en trois
+   colonnes : c'est la meme information, lue en un coup d'oeil au lieu de trois. */
+.vd .band-moss .trois{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:clamp(18px,2.2vw,34px);max-width:none;
+}
+.vd .band-moss .trois li{
+  padding:16px 0 0;border-top:1px solid rgba(242,240,233,.24);border-bottom:0;
+  font-size:clamp(14px,1vw,15.5px);
+}
+.vd .band-moss .trois li:last-child{border-bottom:0;}
+@media (max-width:880px){ .vd .band-moss .trois{grid-template-columns:1fr;} }
+
+/* Le titre passait a la ligne apres « pour », ce qui laissait « l'entreprise. »
+   seule en quatre-vingts pixels : un mot orphelin de cette taille ne se lit pas
+   comme une chute, il se lit comme une coupure ratee. */
+.vd .h1--doc,.va .h1--doc{max-width:24ch;}
+
+/* ── les deux ecrans du salarie ─────────────────────────────────────────────
+   Ils etaient empiles, pleine largeur, l'un sous l'autre : deux grands
+   rectangles identiques a la suite, exactement ce qui fait lire une page comme
+   une pile. Le premier tient les deux tiers a gauche, le second le tiers droit
+   et remonte dessus. */
+.vd .duo--pile{
+  grid-template-columns:minmax(0,1.42fr) minmax(0,1fr);
+  align-items:start;gap:clamp(18px,2.2vw,32px);
+}
+.vd .duo--pile .shot:nth-child(2){margin-top:clamp(34px,4vw,64px);}
+.vd .duo--pile .shot img{max-height:clamp(280px,26vw,400px);}
+@media (max-width:880px){
+  .vd .duo--pile{grid-template-columns:1fr;}
+  .vd .duo--pile .shot:nth-child(2){margin-top:0;}
+}
+
+/* Les titres s'equilibrent d'eux-memes plutot que de laisser un mot seul sur la
+   derniere ligne. C'est la seule facon de ne pas devoir replacer un <br> a la
+   main a chaque fois qu'un mot change. */
+.vd .h1--doc,.va .h1--doc,.vd section h2,.va section h2,
+.vd .bandeau h2,.va .bandeau h2{text-wrap:balance;}

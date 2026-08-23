@@ -573,17 +573,6 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
     </dl>
     </div>
 
-    {photo("berge-ramassage",
-           "Trois personnes en waders remontent une berge de rivière avec des sacs de collecte, "
-           "un matin d'automne", "", " photo--bande", eager=True)}
-
-    <div class="scene">
-    {capture("admin-tableau",
-             "Le tableau de bord d'un responsable RSE dans Riseva : indicateurs de la saison, "
-             "résultats confirmés par les associations, et comparaison entre sites",
-             "Tableau de bord", " shot--large", eager=True)}
-    </div>
-
     {chiffres([
       ("233 Md€", "de commande publique par an en France, dont environ 60 % vers des PME. "
         "Depuis le 21 août 2026, toute nouvelle consultation comporte un critère "
@@ -598,13 +587,20 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
       ("0 €", "de commission sur les dons, et rien de facturé aux associations. Le virement "
         "va du donateur à l'association, sans passer par Riseva.", None),
     ])}
+
+    <div class="scene">
+    {capture("admin-tableau",
+             "Le tableau de bord d'un responsable RSE dans Riseva : indicateurs de la saison, "
+             "résultats confirmés par les associations, et comparaison entre sites",
+             "Tableau de bord", " shot--large", eager=True)}
+    </div>
   </div>
 </header>"""
 
 
 SAISON_ENT = f"""<section id="saison" class="band">
   <div class="layer">
-{entete("Le déroulé", "Une saison,<br><span class='it'>quatre rendez-vous.</span>",
+{entete("Le déroulé", "Une saison,<br><span class='it'>quatre rendez‑vous.</span>",
         "Le rythme est le même pour tout le monde : un début, un courant, des points d'étape, "
         "une fin. Et une date à laquelle on regarde ce qui a réellement été fait.")}
 
@@ -645,7 +641,7 @@ EQUIPES_ENT = f"""<section id="equipes">
 
     {photo("depart-chantier",
            "Quatre personnes en bleu de travail chargent des outils dans un utilitaire devant "
-           "une usine, au lever du jour", "", " photo--bande")}
+           "une usine, au lever du jour", "", " photo--large-gauche")}
 
     <div class="duo duo--pile">
       {capture("salarie-saison",
@@ -677,7 +673,10 @@ EQUIPES_ENT = f"""<section id="equipes">
 
 ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
   <div class="layer">
-{entete("Côté associations", "L'association publie,<br>puis <span class='it'>elle confirme.</span>",
+    {photo("berge-ramassage",
+           "Trois personnes en waders remontent une berge de rivière avec des sacs de collecte, "
+           "un matin d'automne", "", " photo--couverture")}
+{entete("Côté associations", "L'association publie,<br><span class='it'>puis elle confirme.</span>",
         "Le chiffre final de votre rapport vient de la structure qui était sur place. C'est "
         "ce qui lui donne sa valeur devant un acheteur ou un commissaire aux comptes.")}
 
@@ -707,7 +706,7 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
         rapports compris.</li>
     </ul>
 
-    <div class="fmt-bloc">
+    <div class="fmt-bloc fmt-bloc--incruste">
       <h3 class="fmt-titre">Ce qu'une association peut proposer</h3>
       <ul class="fmt-lignes">
         <li><div><b>Une demi-journée de bénévolat</b> : chantier, collecte, entretien, encadrés par
@@ -835,10 +834,10 @@ AFFICHES_ENT = f"""<section id="affiches">
         "gens qui n'ouvrent jamais leurs mails.")}
 
     <div class="duo duo--texte duo--affiche">
-      {capture("affiche",
+      <div class="affiche-scene">{capture("affiche",
                "L'affiche A3 générée par Riseva : le nom de l'entreprise, la saison, les "
                "formats proposés, le lien d'inscription et son code QR",
-               "L'affiche, telle qu'elle sort", " shot--affiche")}
+               "L'affiche, telle qu'elle sort", " shot--affiche")}</div>
       <div class="col">
         <h3>Elle porte le lien de votre entreprise</h3>
         <p>Chaque affiche est générée avec le lien d'inscription de vos équipes et le code QR
@@ -855,7 +854,7 @@ AFFICHES_ENT = f"""<section id="affiches">
 </section>"""
 
 
-PERIMETRES_ENT = f"""<section id="perimetres" class="band-moss">
+PERIMETRES_ENT = f"""<section id="perimetres" class="band">
   <div class="layer">
 {entete("Groupes et services RSE", "Un même cadre,<br><span class='it'>plusieurs périmètres.</span>",
         "Deux portes d'entrée, et un écran pour les montrer.")}
@@ -1044,7 +1043,7 @@ def grille_tarifaire():
         </tr>"""
     inclus = "".join(f"<li>{x}</li>" for x in TARIFS["inclus"])
     exclus = "".join(f"<li>{x}</li>" for x in TARIFS["exclus"])
-    return f"""<section id="prix">
+    return f"""<section id="prix" class="band-moss">
   <div class="layer">
 {entete("Le prix", "Un tarif public,<br><span class='it'>avant de décider.</span>",
         "Une saison de douze mois, tout compris. Le tarif suit votre effectif parce que c'est "
