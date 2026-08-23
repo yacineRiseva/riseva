@@ -100,8 +100,8 @@ brancher(document.getElementById("f"), {
   table: "preinscription",
   sujet: "Riseva, préinscription entreprise",
   ligne: (d) => ({ entreprise: d.ent, contact: d.mail, effectif: Number(d.eff) || null }),
-  resume: (d) => `Entreprise : ${d.ent || ","}\nEffectif : ${d.eff || ","}\n`
-               + `Contact : ${d.nom} (${d.fonction || ","}), ${d.mail}`
+  resume: (d) => `Entreprise : ${d.ent || "non précisé"}\nEffectif : ${d.eff || "non précisé"}\n`
+               + `Contact : ${d.nom} (${d.fonction || "fonction non précisée"}), ${d.mail}`
                + (d.tel ? `, ${d.tel}` : "")
                + (d.mot ? `\n\n${d.mot}` : ""),
   merci: (d) => ({ titre: "Préinscription enregistrée",

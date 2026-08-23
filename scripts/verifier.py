@@ -132,6 +132,14 @@ def main():
               or sortie.splitlines()[-1])
         if code: echecs.append("parcours"); print(sortie[-1500:])
 
+        titre("Le premier jour, sur une base vide")
+        # Le jeu de demonstration montre le produit plein. Un client ne verra
+        # jamais cela le jour de son ouverture : ce parcours-la se verifie a
+        # part, ecran par ecran, role par role, et jusqu'au premier rapport.
+        code, sortie = lancer("python3 scripts/vierge.py")
+        print("\n".join(l for l in sortie.splitlines() if not l.startswith("  ok ")).rstrip())
+        if code: echecs.append("premier jour"); print(sortie[-1500:])
+
         titre("Ce qui s'affiche doit pouvoir se taper")
         # Un tiret cadratin, une apostrophe courbe ou une espace fine insécable
         # ne sont sur aucun clavier français. Ils signent la machine, ils

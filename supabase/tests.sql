@@ -510,7 +510,57 @@ select pg_temp.refuse('elle n''alloue rien à un établissement d''une autre soc
   'select public.allouer_quota(''e7000000-0000-4000-8000-000000000004'', 10)');
 select pg_temp.refuse('un lien de référent sans destinataire est refusé',
   'select public.creer_invitation_referent(''e7000000-0000-4000-8000-000000000003'', '''', '''')');
+
+-- Declarer un site. C'est le premier geste d'un client qui vient d'ouvrir son
+-- compte : sans lui, aucune collecte d'indicateurs n'a personne a qui demander.
+select pg_temp.refuse('un site sans ville est refusé',
+  'select public.creer_etablissement(''Entrepôt'', '''')');
+select pg_temp.refuse('un site dont le nom tient en une lettre est refusé',
+  'select public.creer_etablissement(''E'', ''Brest'')');
+select pg_temp.refuse('un SIRET qui ne passe pas la clé de Luhn est refusé',
+  'select public.creer_etablissement(''Entrepôt'', ''Brest'', ''12345678901234'')');
+select pg_temp.refuse('un site qui ferait dépasser l''effectif de la société est refusé',
+  'select public.creer_etablissement(''Entrepôt'', ''Brest'', null, 99999)');
+select pg_temp.refuse('elle ne déclare pas un site en écrivant dans la table',
+  'insert into public.etablissement (societe, nom, ville)
+     values (''22222222-2222-4222-8222-222222222222'', ''Entrepôt'', ''Brest'')');
+
+create temporary table site_declare_test (id uuid);
+do $$
+declare v_id uuid;
+begin
+  -- L'effectif reste a zero : les deux cent dix salaries de la societe sont
+  -- deja repartis sur les trois sites, et c'est precisement la regle que le
+  -- refus ci-dessus verifie.
+  v_id := public.creer_etablissement('Entrepôt', 'Brest', '90800005200013', 0,
+                                     '12 quai de la Douane');
+  insert into site_declare_test values (v_id);
+  perform pg_temp.dit('elle déclare un site de sa société',
+    exists (select 1 from public.etablissement et
+             where et.id = v_id and et.ville = 'Brest'
+               and et.societe = '22222222-2222-4222-8222-222222222222'));
+  perform pg_temp.dit('le site déclaré part sans quota, il se répartit ensuite',
+    (select quota from public.etablissement where id = v_id) = 0);
+  perform pg_temp.dit('la déclaration est tracée dans le journal d''accès',
+    exists (select 1 from public.acces where quoi = 'site_declare'));
+end $$;
+
+select pg_temp.refuse('un SIRET déjà déclaré ailleurs est refusé',
+  'select public.creer_etablissement(''Dépôt'', ''Brest'', ''90800005200013'')');
+
+do $$
+declare v_id uuid := (select id from site_declare_test);
+begin
+  perform public.modifier_etablissement(v_id, p_ville => 'Brest, Kergonan');
+  perform pg_temp.dit('elle corrige la ville sans toucher au reste',
+    (select ville = 'Brest, Kergonan' and nom = 'Entrepôt' and siret = '90800005200013'
+       from public.etablissement where id = v_id));
+end $$;
 reset role;
+-- Le site de test s'efface ici, hors du role `authenticated` : supprimer un
+-- etablissement n'est pas un droit du client, et ce refus est lui-meme teste.
+delete from public.etablissement where id in (select id from site_declare_test);
+drop table site_declare_test;
 
 \echo ''
 \echo 'Ce que voit un référent de site'
@@ -527,6 +577,11 @@ select pg_temp.dit('il ne lit pas l''abonnement de la société',
   (select count(*) from public.abonnement) = 0);
 select pg_temp.refuse('il ne s''alloue pas de quota',
   'select public.allouer_quota(''e7000000-0000-4000-8000-000000000002'', 200)');
+select pg_temp.refuse('il ne déclare pas un site de plus',
+  'select public.creer_etablissement(''Entrepôt'', ''Brest'')');
+select pg_temp.refuse('il ne corrige pas la fiche d''un site',
+  'select public.modifier_etablissement(''e7000000-0000-4000-8000-000000000002'',
+                                        p_effectif => 3)');
 select pg_temp.refuse('il ne nomme pas un autre référent',
   'select public.creer_invitation_referent(''e7000000-0000-4000-8000-000000000003'',
                                            ''Quelqu''''un'', ''x@vaudrey-ciments.fr'')');

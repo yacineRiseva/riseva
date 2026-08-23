@@ -499,7 +499,7 @@ export function comparerFiche(declaree, fiche){
   let etat = score >= 0.5 ? "proche" : "different";
   if (score === 1) etat = "exact";
   if (etat !== "exact")
-    ecarts.push({ champ:"dénomination", attendu:nomDeclare || ",", registre:fiche.nom || "," });
+    ecarts.push({ champ:"dénomination", attendu:nomDeclare || "", registre:fiche.nom || "" });
 
   const cp = String(declaree.adresse || "").match(/\b\d{5}\b/);
   if (cp && fiche.code_postal && cp[0] !== fiche.code_postal)
@@ -1857,11 +1857,15 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
    est enregistré, et retrouvé au retour. Une clé de version évite de restaurer un
    état écrit par une version antérieure du modèle. */
 const CLE_ETAT = "riseva.etat";
+/* La base vierge se garde a part. Deux etats sous la meme cle, c'est le premier
+   rechargement qui ecrase l'autre : on visite une installation neuve, on revient
+   a la demonstration, et les deux cent vingt-trois missions ont disparu. */
+const CLE_VIERGE = "riseva.etat.vierge";
 const VERSION_ETAT = 8;
 
-function lireEtat(){
+function lireEtat(cle = CLE_ETAT){
   try {
-    const brut = localStorage.getItem(CLE_ETAT);
+    const brut = localStorage.getItem(cle);
     if (!brut) return null;
     const o = JSON.parse(brut);
     if (!o || o.version !== VERSION_ETAT) return null;
@@ -1880,8 +1884,9 @@ function lireEtat(){
    un plafond, un taux de fréquence ne peuvent pas diverger entre ce qu'on montre en
    démonstration et ce qu'on facture. Dupliquer ces formules dans une couche
    « vraie » aurait garanti qu'elles finissent par ne plus dire la même chose. */
-function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
-  const sauvegarde = persister ? lireEtat() : null;
+function creerMoteur({ etat = null, persister = true, mode = "demo",
+                       cle = CLE_ETAT } = {}){
+  const sauvegarde = persister ? lireEtat(cle) : null;
   const s = etat ? etat : (sauvegarde ? sauvegarde.etat : clone(seed));
   if (sauvegarde && sauvegarde.bareme)
     Object.entries(sauvegarde.bareme).forEach(([k, v]) => { if (BAREME[k]) BAREME[k].points = v; });
@@ -1892,7 +1897,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
   const ecrire = () => {
     if (!persister) return;
     try {
-      localStorage.setItem(CLE_ETAT, JSON.stringify({
+      localStorage.setItem(cle, JSON.stringify({
         version: VERSION_ETAT, seq, etat: s,
         bareme: Object.fromEntries(Object.entries(BAREME).map(([k, v]) => [k, v.points])),
         enregistre_le: new Date().toISOString()
@@ -2340,6 +2345,86 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       const alloue = api.etablissements(eid).reduce((n, x) => n + (x.quota || 0), 0);
       return { total, alloue, libre: total - alloue };
     },
+    /* Declarer un site. Sans cette fonction, une entreprise qui vient de creer
+       son compte n'a aucun etablissement : la collecte d'indicateurs n'a personne
+       a qui demander, le classement interne n'a rien a comparer, et l'ecran des
+       quotas affiche « Aucun etablissement declare » sans le moindre geste
+       possible. Le jeu de demonstration masquait le trou, parce qu'il arrive
+       avec ses quatre sites deja en place.
+
+       Ce qui est verifie ici l'est aussi cote Postgres, dans `creer_etablissement` :
+       une regle qui n'existe que dans le navigateur n'est pas une regle. */
+    ajouterEtablissement({ societe, nom, ville, siret, effectif, adresse }){
+      const e = api.entreprise(societe);
+      if (!e) throw new Error("Société inconnue");
+      const n = String(nom || "").trim();
+      if (n.length < 2) throw new Error("Donnez un nom à ce site : « Siège », « Usine », « Agence de Lyon ».");
+      const v = String(ville || "").trim();
+      if (!v) throw new Error("La ville est nécessaire : c'est elle qui dit ce qu'un salarié de ce site peut aller faire.");
+      const sr = String(siret || "").replace(/[^0-9]/g, "");
+      if (sr && sr.length !== 14) throw new Error("Un SIRET compte quatorze chiffres.");
+      if (sr && !siretValide(sr)) throw new Error("Ce SIRET ne passe pas la clé de contrôle. Vérifiez la saisie.");
+      if (sr && s.etablissements.some(x => x.siret === sr))
+        throw new Error("Ce SIRET est déjà déclaré sur un autre site.");
+      const eff = Math.max(0, Math.round(Number(effectif) || 0));
+      /* Un site ne peut pas contenir plus de salaries que la societe n'en
+         declare. Le classement entre sites est normalise par l'effectif : sans
+         ce plafond, il suffirait de se declarer trois salaries sur un site pour
+         le faire remonter tout en haut. */
+      const dejaDeclare = api.etablissements(societe).reduce((t, x) => t + (x.effectif || 0), 0);
+      if (e.effectif && dejaDeclare + eff > e.effectif)
+        throw new Error(`Votre société déclare ${e.effectif} salariés et ${dejaDeclare} sont déjà `
+          + `répartis sur vos sites : il en reste ${e.effectif - dejaDeclare} à placer. `
+          + `Corrigez l'effectif de la société dans Paramètres si le vôtre a changé.`);
+      const et = { id:id("et"), societe, nom:n, ville:v, siret:sr || null,
+                   effectif:eff, quota:0, adresse:String(adresse || "").trim() || null,
+                   lat:null, lon:null, referent:null, referent_mail:null,
+                   registre_actif:false };
+      s.etablissements.push(et);
+      api.tracer(societe, null, "site_declare", `${et.nom} ${et.ville}`);
+      return et;
+    },
+
+    /* Corriger un site declare. Une ville mal orthographiee, un effectif qui
+       change au 1er janvier : ce sont des corrections ordinaires, et les rendre
+       impossibles obligerait a supprimer puis recreer, ce qui emporterait les
+       saisies deja faites. */
+    modifierEtablissement(etid, { nom, ville, effectif, adresse, siret } = {}){
+      const et = api.etablissement(etid);
+      if (!et) throw new Error("Établissement inconnu");
+      const e = api.entreprise(et.societe);
+      if (nom !== undefined){
+        const n = String(nom).trim();
+        if (n.length < 2) throw new Error("Donnez un nom à ce site.");
+        et.nom = n;
+      }
+      if (ville !== undefined){
+        const v = String(ville).trim();
+        if (!v) throw new Error("La ville est nécessaire.");
+        et.ville = v;
+      }
+      if (siret !== undefined){
+        const sr = String(siret || "").replace(/[^0-9]/g, "");
+        if (sr && sr.length !== 14) throw new Error("Un SIRET compte quatorze chiffres.");
+        if (sr && !siretValide(sr)) throw new Error("Ce SIRET ne passe pas la clé de contrôle.");
+        if (sr && s.etablissements.some(x => x.siret === sr && x.id !== etid))
+          throw new Error("Ce SIRET est déjà déclaré sur un autre site.");
+        et.siret = sr || null;
+      }
+      if (effectif !== undefined){
+        const eff = Math.max(0, Math.round(Number(effectif) || 0));
+        const autres = api.etablissements(et.societe)
+          .reduce((t, x) => t + (x.id === etid ? 0 : (x.effectif || 0)), 0);
+        if (e && e.effectif && autres + eff > e.effectif)
+          throw new Error(`Votre société déclare ${e.effectif} salariés : il en reste `
+            + `${e.effectif - autres} à placer sur ce site.`);
+        et.effectif = eff;
+      }
+      if (adresse !== undefined) et.adresse = String(adresse).trim() || null;
+      api.tracer(et.societe, null, "site_modifie", `${et.nom} ${et.ville}`);
+      return et;
+    },
+
     allouerQuota(etid, places){
       const et = api.etablissement(etid);
       if (!et) throw new Error("Établissement inconnu");
@@ -2517,9 +2602,9 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
           return {
             mission: m.id, date: m.date, nature: m.nature || a.titre,
             quantite: m.quantite, unite: (a.impact || {}).unite || "don",
-            association: asso.nom || ",", ville: asso.ville || "",
-            etablissement: et ? `${et.nom}, ${et.ville}` : ",",
-            salarie: sal.nom || ",",
+            association: asso.nom || "", ville: asso.ville || "",
+            etablissement: et ? `${et.nom}, ${et.ville}` : "",
+            salarie: sal.nom || "",
             valeurDeclaree: m.valeur_declaree ?? null,
             categorie: m.categorie_comptable || null,
             reference: m.reference_actif || null,
@@ -3328,10 +3413,22 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
       const e = { id:id("e"), nom:entreprise, effectif:Number(effectif) || 0,
         sieges:Number(effectif) || 0, points:0, secteur:secteur || "", ville:ville || "" };
       s.entreprises.push(e);
-      const u = { id:id("u"), nom, email, role:"entreprise_admin", org:e.id, actif:true };
+      /* Un périmètre, même d'une seule société. Le modèle est à trois étages —
+         groupe, société, établissement — et la collecte d'indicateurs s'attache
+         au premier. Sans ce périmètre, une entreprise qui vient de s'inscrire ne
+         peut ouvrir aucune collecte : « une campagne appartient à un groupe ».
+         Une société seule n'en voit rien, l'interface ne parle de groupe qu'à
+         partir de deux sociétés. Le jour où elle en rachète une, il est déjà là. */
+      const g = { id:id("g"), nom:entreprise, societe_mere:e.id,
+                  classement_sites:false,
+                  cree_le:new Date().toISOString().slice(0, 10) };
+      s.groupes.push(g);
+      e.groupe = g.id;
+      const u = { id:id("u"), nom, email, role:"entreprise_admin", org:e.id,
+                  groupe:g.id, actif:true };
       s.utilisateurs.push(u);
       const inv = api.creerInvitation(e.id, e.sieges);
-      return { entreprise:e, utilisateur:u, invitation:inv };
+      return { entreprise:e, groupe:g, utilisateur:u, invitation:inv };
     },
     creerCompteAssociation({ association, cause, ville, resume, nom, email }){
       const a = { id:id("a"), nom:association, cause:cause || "", ville:ville || "",
@@ -4539,12 +4636,12 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
         const asso = api.association(a.asso) || {};
         const sal = api.utilisateur(m.salarie) || {};
         const ligne = parSalarie[m.salarie] || (parSalarie[m.salarie] = {
-          salarie: m.salarie, nom: sal.nom || ",", heures: 0, cout: 0, lignes: []
+          salarie: m.salarie, nom: sal.nom || "", heures: 0, cout: 0, lignes: []
         });
         ligne.heures += heures;
         ligne.cout   += cout;
         ligne.lignes.push({
-          mission: m.id, date: m.date, association: asso.nom || ",",
+          mission: m.id, date: m.date, association: asso.nom || "",
           heures, heuresReelles: reelles, cout: Math.round(cout),
           convention: m.convention_signee_le || null,
           confirmee: m.etat === "validee",
@@ -5632,6 +5729,41 @@ function creerMoteur({ etat = null, persister = true, mode = "demo" } = {}){
 }
 
 /* ------------------------------------------------------------------ */
+/* La base vierge, c'est-à-dire le premier jour                        */
+/* ------------------------------------------------------------------ */
+/* Une plateforme se juge sur son premier jour, pas sur sa démonstration. Le
+   jeu de démonstration montre le produit plein : deux cent vingt-trois missions,
+   treize associations, un classement de douze entreprises. C'est ce qu'il faut
+   pour vendre, et c'est exactement ce qu'un client n'aura JAMAIS le jour où il
+   ouvre son espace.
+
+   Ce qu'un écran doit faire quand il n'y a rien : dire qu'il n'y a rien, dire
+   pourquoi, et donner le geste suivant. Ce qu'il ne doit jamais faire : afficher
+   « NaN », « undefined », une division par zéro, un classement vide avec un
+   podium, ou pire, un chiffre du jeu de démonstration.
+
+   Cet état sert à le vérifier automatiquement, écran par écran et rôle par rôle.
+   Il contient ce qu'une installation neuve contient réellement : une saison
+   ouverte, le barème, et rien d'autre. Pas une entreprise, pas une association,
+   pas une mission. */
+export function etatVierge({ saison = null } = {}){
+  const annee = new Date().getFullYear() + 1;
+  return {
+    saison: saison || { id:"s" + annee, nom:"Saison " + annee,
+      debut: annee + "-01-01", fin: annee + "-12-31", etat:"ouverte",
+      prix_min: TARIFS.paliers[0].prix, prix_max: TARIFS.paliers.at(-1).prix,
+      acompte: TARIFS.acompte_minimum },
+    groupes: [], etablissements: [], evenements: [], actions: [],
+    entreprises: [], contrats: [], associations: [], annonces: [],
+    campagnes: [], observations: [], missions: [], utilisateurs: [],
+    signalements: [], sourcing: [], acces: [], invitations: [],
+    preinscriptions: [], controles: [], intentions: [], envois: [],
+    expeditions: [], rapports_generes: [], moteur_journal: [],
+    classement_recalcule_le: null
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /* Sélection de l'implémentation                                       */
 /* ------------------------------------------------------------------ */
 const creerMock = () => creerMoteur();
@@ -5644,6 +5776,29 @@ let branche = false;
    démonstration, présenté comme un résultat, est un mensonge commercial même
    quand personne ne l'a voulu. */
 export function donneesReelles(){ return branche; }
+
+/* Démarrer sur une base vierge, sans rien persister : c'est l'état du premier
+   jour, et c'est celui qu'on veut pouvoir traverser écran par écran. */
+export function demarrerVierge(){
+  /* Elle se persiste, comme la demonstration : sans cela, une entreprise creee
+     sur une base vierge disparait au premier rechargement, et on ne peut pas
+     traverser le produit tel qu'un vrai premier client le traverse. */
+  /* Si une visite precedente a laisse un etat sous cette cle, on le reprend :
+     passer un etat neuf a `creerMoteur` court-circuiterait la sauvegarde, et le
+     compte ouvert il y a dix secondes disparaitrait au rechargement. */
+  const reprise = lireEtat(CLE_VIERGE);
+  impl = creerMoteur({ etat: reprise ? null : etatVierge(), persister: true,
+                       mode: "vierge", cle: CLE_VIERGE });
+  branche = false;
+  return impl;
+}
+
+/* Repartir de zero sur la base vierge : c'est ce que fait la recette entre deux
+   parcours, et ce qu'un demonstrateur veut avant de montrer le premier jour. */
+export function reinitialiserVierge(){
+  try { localStorage.removeItem(CLE_VIERGE); } catch (e) {}
+  return demarrerVierge();
+}
 
 /* Domaines sur lesquels la démonstration n'a rien à faire. Un client qui ouvre
    riseva.fr et voit des chiffres inventés ne le saura jamais : c'est la
@@ -6064,6 +6219,14 @@ function creerSupabase(client){
       rpc("creer_invitation_referent", { p_etablissement: etid, p_nom: nom, p_mail: email })),
     allouerQuota: (etid, places) => ecrire(() =>
       rpc("allouer_quota", { p_etablissement: etid, p_places: Number(places) })),
+    ajouterEtablissement: ({ nom, ville, siret, effectif, adresse }) => ecrire(() =>
+      rpc("creer_etablissement", { p_nom: nom, p_ville: ville, p_siret: siret || null,
+                                   p_effectif: Number(effectif) || 0, p_adresse: adresse || null })),
+    modifierEtablissement: (etid, ch) => ecrire(() =>
+      rpc("modifier_etablissement", { p_etablissement: etid, p_nom: ch.nom ?? null,
+                                      p_ville: ch.ville ?? null, p_siret: ch.siret ?? null,
+                                      p_effectif: ch.effectif === undefined ? null : Number(ch.effectif),
+                                      p_adresse: ch.adresse ?? null })),
     saisirIndicateurs: (cid, etid, valeurs) => ecrire(() =>
       rpc("saisir_indicateurs", { p_campagne: cid, p_etablissement: etid, p_valeurs: valeurs })),
     approuverIndicateurs: (cid, etid) => ecrire(() =>

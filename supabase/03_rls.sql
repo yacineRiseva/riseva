@@ -387,6 +387,8 @@ grant execute on function
   public.realisations(uuid, uuid, uuid),
   public.suis_je_admin(),
   public.allouer_quota(uuid, integer),
+  public.creer_etablissement(text, text, text, integer, text),
+  public.modifier_etablissement(uuid, text, text, text, integer, text),
   public.creer_invitation_referent(uuid, text, text),
   public.rejoindre_comme_referent(text),
   public.saisir_indicateurs(uuid, uuid, jsonb, text),

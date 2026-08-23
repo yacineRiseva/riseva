@@ -411,6 +411,133 @@ begin
   return p_places;
 end $$;
 
+-- Déclarer un site. Sans cette fonction, une société qui vient d'ouvrir son
+-- compte n'a aucun établissement : la collecte d'indicateurs n'a personne à qui
+-- demander, et l'écran des quotas n'affiche rien. Le jeu de démonstration le
+-- masquait, parce qu'il arrive avec ses sites déjà en place.
+--
+-- L'effectif du site est déclaré par le client, contrairement à celui de la
+-- société. Ce n'est pas une inconséquence : le classement entre sites est
+-- interne à l'entreprise, il ne se compare à personne d'autre. Le garde-fou est
+-- ailleurs — la somme des effectifs de sites ne peut pas dépasser celui de la
+-- société, sans quoi le rapporté-au-salarié se truquerait en une saisie.
+create or replace function public.creer_etablissement(
+  p_nom text, p_ville text, p_siret text default null,
+  p_effectif integer default 0, p_adresse text default null)
+returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_ent uuid := private.mon_entreprise();
+  v_siret text := nullif(regexp_replace(coalesce(p_siret, ''), '[^0-9]', '', 'g'), '');
+  v_effectif integer := greatest(0, coalesce(p_effectif, 0));
+  v_total integer;
+  v_place integer;
+  v_id uuid;
+begin
+  if v_ent is null or private.mon_role() <> 'entreprise_admin' then
+    raise exception 'Réservé à l''administrateur de la société' using errcode = '42501';
+  end if;
+  if coalesce(length(trim(p_nom)), 0) < 2 then
+    raise exception 'Donnez un nom à ce site' using errcode = '22023';
+  end if;
+  if coalesce(length(trim(p_ville)), 0) < 1 then
+    raise exception 'La ville est nécessaire' using errcode = '22023';
+  end if;
+  if v_siret is not null and (length(v_siret) <> 14 or not private.luhn_ok(v_siret)) then
+    raise exception 'Ce SIRET ne peut pas exister' using errcode = '22023';
+  end if;
+  if v_siret is not null and exists (
+       select 1 from public.etablissement et where et.siret = v_siret) then
+    raise exception 'Ce SIRET est déjà déclaré sur un autre site' using errcode = '22023';
+  end if;
+
+  select e.effectif into v_total from public.entreprise e where e.id = v_ent;
+  if coalesce(v_total, 0) > 0 then
+    select coalesce(sum(et.effectif), 0) into v_place
+      from public.etablissement et where et.societe = v_ent;
+    if v_place + v_effectif > v_total then
+      raise exception 'Votre société déclare % salariés et % sont déjà répartis',
+        v_total, v_place using errcode = '22023';
+    end if;
+  end if;
+
+  insert into public.etablissement (societe, nom, ville, siret, effectif, adresse)
+  values (v_ent, trim(p_nom), trim(p_ville), v_siret, v_effectif,
+          nullif(trim(coalesce(p_adresse, '')), ''))
+  returning id into v_id;
+
+  insert into public.acces (entreprise, profil, quoi, indice)
+  -- `indice` est court par construction : douze caractères, pas un journal.
+  values (v_ent, auth.uid(), 'site_declare', left(trim(p_ville), 12));
+  return v_id;
+end $$;
+
+-- Corriger un site déclaré. Une ville mal orthographiée, un effectif qui change
+-- au 1er janvier : supprimer puis recréer emporterait les saisies déjà faites.
+-- Un paramètre laissé à NULL ne touche pas à la colonne.
+create or replace function public.modifier_etablissement(
+  p_etablissement uuid, p_nom text default null, p_ville text default null,
+  p_siret text default null, p_effectif integer default null,
+  p_adresse text default null)
+returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_ent uuid := private.mon_entreprise();
+  v_siret text := nullif(regexp_replace(coalesce(p_siret, ''), '[^0-9]', '', 'g'), '');
+  v_total integer;
+  v_autres integer;
+begin
+  if v_ent is null or private.mon_role() <> 'entreprise_admin' then
+    raise exception 'Réservé à l''administrateur de la société' using errcode = '42501';
+  end if;
+  if not exists (select 1 from public.etablissement et
+                  where et.id = p_etablissement and et.societe = v_ent) then
+    raise exception 'Établissement hors de votre société' using errcode = '42501';
+  end if;
+  if p_nom is not null and length(trim(p_nom)) < 2 then
+    raise exception 'Donnez un nom à ce site' using errcode = '22023';
+  end if;
+  if p_ville is not null and length(trim(p_ville)) < 1 then
+    raise exception 'La ville est nécessaire' using errcode = '22023';
+  end if;
+  if v_siret is not null then
+    if length(v_siret) <> 14 or not private.luhn_ok(v_siret) then
+      raise exception 'Ce SIRET ne peut pas exister' using errcode = '22023';
+    end if;
+    if exists (select 1 from public.etablissement et
+                where et.siret = v_siret and et.id <> p_etablissement) then
+      raise exception 'Ce SIRET est déjà déclaré sur un autre site' using errcode = '22023';
+    end if;
+  end if;
+  if p_effectif is not null then
+    if p_effectif < 0 then
+      raise exception 'Un effectif ne peut pas être négatif' using errcode = '22023';
+    end if;
+    select e.effectif into v_total from public.entreprise e where e.id = v_ent;
+    if coalesce(v_total, 0) > 0 then
+      select coalesce(sum(et.effectif), 0) into v_autres
+        from public.etablissement et
+       where et.societe = v_ent and et.id <> p_etablissement;
+      if v_autres + p_effectif > v_total then
+        raise exception 'Votre société déclare % salariés : il en reste % à placer',
+          v_total, v_total - v_autres using errcode = '22023';
+      end if;
+    end if;
+  end if;
+
+  update public.etablissement et set
+    nom      = coalesce(nullif(trim(coalesce(p_nom, '')), ''), et.nom),
+    ville    = coalesce(nullif(trim(coalesce(p_ville, '')), ''), et.ville),
+    siret    = coalesce(v_siret, et.siret),
+    effectif = coalesce(p_effectif, et.effectif),
+    adresse  = coalesce(nullif(trim(coalesce(p_adresse, '')), ''), et.adresse)
+  where et.id = p_etablissement;
+
+  insert into public.acces (entreprise, profil, quoi, indice)
+  values (v_ent, auth.uid(), 'site_modifie', left(p_etablissement::text, 12));
+  return p_etablissement;
+end $$;
+
 -- Le lien qui fait d'une personne le référent d'un site. Nominatif, à usage
 -- unique, trente jours. Il ne crée pas de compte tout seul : il autorise une
 -- adresse précise à en ouvrir un, sur un site précis, et sur rien d'autre.
