@@ -6461,7 +6461,7 @@ function vueIndicateurs(u){
       <p class="hint" style="margin-top:var(--s4)">
         Une pièce jointe est ce qui répond, un an plus tard, à « d'où sort ce
         chiffre ». Facture, relevé, extrait de registre : PDF, photo, classeur,
-        10 Mo au plus. <strong>Aucun document nominatif de santé</strong> — on
+        10 Mo au plus. <strong>Aucun document nominatif de santé</strong> : on
         compte des accidents et des journées, pas des personnes. Une pièce
         déposée sur une valeur approuvée ne se retire plus.</p>
     </section>

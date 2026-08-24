@@ -651,13 +651,22 @@ def questions(items):
     document, pas comme une grille de fonctionnalites — et c'est exactement ce
     qu'on veut faire croire, parce que c'est vrai."""
     out = ""
-    for n, (question, qui, reponse, ecran) in enumerate(items):
+    for n, item in enumerate(items):
+        question, qui, reponse, ecran = item[:4]
+        # Une illustration, sur la troisieme seulement. La relecture croisee a
+        # dit la meme chose que l'oeil : les deux premieres questions vendent
+        # l'outil, la troisieme vend le challenge, et le challenge est ce qui
+        # differencie Riseva de n'importe quel logiciel de reporting. Il ne
+        # pouvait pas rester le paragraphe le plus bas de la section, sans une
+        # image, alors que c'est lui qu'on retient.
+        image = item[4] if len(item) > 4 else ""
         d = f" d{n}" if n else ""
         out += f"""
-        <li class="qst rv{d}">
+        <li class="qst{' qst--img' if image else ''} rv{d}">
           <div class="qst-q">
             <p class="qst-t">{question}</p>
             <p class="qst-w mono">{qui}</p>
+            {image}
           </div>
           <div class="qst-r">
             <p>{reponse}</p>
@@ -1016,8 +1025,13 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss">
    "elles ont besoin, vos équipes s'y rendent ensemble, et <b>c'est l'association qui "
    "confirme</b>. Refuges, plantations, berges, distributions de repas. Bénévolat, dons de "
    "matériel, mécénat de compétences et dons en argent passent par le même écran.",
-   "Écrans : Annonces, Nos missions, Associations"),
+   "Écrans : Annonces, Nos missions, Associations",
+   photo("refuge-sortie", "Deux bénévoles sortent quatre chiens de refuge sur un chemin de "
+         "campagne, en plein soleil", "")),
 ])}
+
+    <p class="s-note s-note--trois">Vos sites répondent, vos équipes agissent,
+      <b>et vous avez les preuves</b>.</p>
 
 {flux([
   ("Jour 1", "vous cochez les rubriques et la date limite"),
