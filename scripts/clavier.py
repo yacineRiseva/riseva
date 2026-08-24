@@ -41,6 +41,20 @@ CLAVIER = set(
     "àâäçéèêëîïôöùûüÿœæÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸŒÆ"
     "€°²³§µ«»©®")
 
+# Une espace fine insecable rendue par le navigateur n'est pas une espace fine
+# ecrite par un auteur. Chrome restitue `&nbsp;` tantot en U+00A0, tantot en
+# U+202F selon le chemin de rendu : le meme fichier, servi par le meme serveur,
+# donne l'un ou l'autre d'une execution a l'autre. On a passe une heure a
+# chercher dans les sources un caractere qui n'y etait pas.
+#
+# La regle ne change pas pour autant : ce qui doit etre interdit, c'est ce qu'un
+# auteur ECRIT. La mesure sur le rendu garde donc tout son sens pour le tiret
+# cadratin, l'apostrophe courbe et le point median, qui n'apparaissent jamais
+# spontanement ; et les deux insecables sont ramenees l'une a l'autre, parce que
+# la source, elle, ne contient que `&nbsp;`. Le controle des sources ci-dessous
+# ferme la porte de l'autre cote.
+EQUIVALENTS = {"\u202f": "\u00a0"}
+
 PAGES = [
     ("accueil",            "/",                      None),
     ("associations",       "/associations.html",     None),
@@ -79,6 +93,8 @@ def main():
             p.goto(BASE + chemin.replace("/app/", "/app/?r=1"), wait_until="networkidle")
             p.wait_for_timeout(400)
             texte = p.evaluate("() => document.body.innerText")
+            for avant, apres in EQUIVALENTS.items():
+                texte = texte.replace(avant, apres)
             for i, ch in enumerate(texte):
                 if ch in CLAVIER:
                     continue
@@ -100,4 +116,39 @@ def main():
     if "--strict" in sys.argv:
         sys.exit(1)
 
+
+def sources():
+    """Le meme interdit, mais sur ce qui est ECRIT.
+
+    Deterministe, sans navigateur : on lit les fichiers produits et le
+    generateur qui les ecrit. C'est ce controle-la qui empeche un tiret cadratin
+    d'entrer dans le depot ; celui du rendu attrape ce qui aurait echappe."""
+    import pathlib, re
+    racine = pathlib.Path(__file__).resolve().parent.parent
+    interdits = {"\u2014": "tiret cadratin", "\u2013": "tiret demi-cadratin",
+                 "\u2019": "apostrophe courbe", "\u00b7": "point median",
+                 "\u202f": "espace fine insecable", "\u2026": "points de suspension"}
+    fautes = []
+    for f in sorted((racine / "public").glob("*.html")):
+        t = f.read_text(encoding="utf-8")
+        # Les commentaires HTML et les blocs de script ne s'affichent pas.
+        t = re.sub(r"<!--.*?-->", "", t, flags=re.S)
+        t = re.sub(r"<script.*?</script>", "", t, flags=re.S)
+        for ch, nom in interdits.items():
+            n = t.count(ch)
+            if n:
+                i = t.index(ch)
+                fautes.append((f.name, nom, n, t[max(0, i - 40):i + 30].replace("\n", " ")))
+    if not fautes:
+        print("Sources : aucun caractere interdit dans les pages produites.")
+        return 0
+    print("\nDans les sources :")
+    for nom_f, nom_c, n, extrait in fautes:
+        print(f"  {nom_f:<24} {nom_c} x{n}")
+        print(f"      ...{extrait.strip()}...")
+    return 1
+
+
 main()
+if sources() and "--strict" in sys.argv:
+    sys.exit(1)
