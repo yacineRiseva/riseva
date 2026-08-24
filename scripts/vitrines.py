@@ -71,6 +71,10 @@ def lire_tarifs():
         "fondateur_taux": float(un("taux")),
         "fondateur_places": int(un("places")),
         "acompte_taux": float(un("acompte_taux")),
+        # Le plancher d'acompte manquait a la vitrine : sur le premier palier
+        # remise, 40 % font 838 € et le devis en demande 900. Un prospect qui
+        # compare les deux voit une note plus salee que la vitrine.
+        "acompte_minimum": int(un("acompte_minimum")),
         "remise_comptant": float(un("remise_comptant")),
         "affiches": int(un("envois_affiches_par_saison")),
         "inclus": re.findall(r'"([^"]+)"', bloc[bloc.index("inclus: ["):bloc.index("exclus: [")]),
@@ -499,9 +503,15 @@ def photo(nom, alt, legende, classe="", eager=False):
         raise SystemExit(f"illustration manquante : {fichier}")
     w, h = dimensions(fichier)
     charge = 'loading="eager" fetchpriority="high"' if eager else 'loading="lazy"'
+    # La mention est posee ICI, pas recopiee a chaque appel. La vitrine des
+    # associations la portait, celle des entreprises non : la meme image y etait
+    # donc moins prudente d'un cote que de l'autre, et c'est exactement le genre
+    # d'ecart qu'une regle repetee a la main finit par produire.
+    mention = f"{legende} Illustration générée." if legende else "Illustration générée."
     return f"""<figure class="photo{classe}">
         <img src="/photos/{nom}.jpg" alt="{alt}" {charge} decoding="async"
              width="{w}" height="{h}">
+        <figcaption class="photo-note">{mention}</figcaption>
       </figure>"""
 
 
@@ -602,8 +612,9 @@ def chiffres_hero():
     obtenu."""
     return f"""
     <ul class="chiffres chiffres--hero rv">
-      <li><b>60 %</b><span>de réduction d'impôt sur le mécénat, jusqu'à deux millions d'euros
-        de dons sur l'exercice.<br><span class="mono">Article 238 bis du CGI</span></span></li>
+      <li><b>60 %</b><span>de réduction d'impôt sur les deux premiers millions d'euros de dons
+        de l'exercice, 40 % au-delà, dans la limite de 20 000 € ou de 5 ‰ du chiffre d'affaires
+        HT — la plus élevée des deux.<br><span class="mono">Article 238 bis du CGI</span></span></li>
       <li><b>{CATALOGUE['rubriques']} rubriques</b><span>du social aux achats,
         {CATALOGUE['saisis']} valeurs collectées et {CATALOGUE['calcules']} taux calculés avec
         leur formule à côté du chiffre.<br><span class="mono">Catalogue de la
@@ -685,11 +696,11 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
     </div>
 
     {piliers([
-      ("Le terrain", "Des associations vérifiées<br><span class='it'>près de chaque site.</span>",
+      ("Le terrain", "Des associations enregistrées<br><span class='it'>près de chaque site.</span>",
        "Refuges animaliers, plantations, berges de rivière, distributions de repas. Des "
-       "demi-journées réelles, pour quelqu'un d'autre, "
-       "avec un résultat visible le soir même. Riseva vérifie chaque structure avant de la "
-       "rendre visible.", "associations"),
+       "demi-journées réelles, pour quelqu'un d'autre, avec un résultat visible le soir même. "
+       "Riseva vérifie l'enregistrement administratif de chaque structure avant de la rendre "
+       "visible ; elle ne l'audite pas.", "associations"),
       ("Le collectif", "Un challenge d'un an<br><span class='it'>qui fédère les équipes.</span>",
        "Un objectif compté en personnes et non en points : il ne s'atteint qu'en allant "
        "chercher quelqu'un qui n'est pas encore venu. Le classement situe les entreprises "
@@ -705,12 +716,15 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
     ])}
 
     {chiffres([
-      ("233 Md€", "de commande publique par an en France, dont environ 60 % vers des PME. "
-        "Depuis le 21 août 2026, toute nouvelle consultation comporte un critère "
-        "environnemental.",
-        "Loi Climat et résilience, art. 35, code de la commande publique, art. L. 2152-7"),
-      ("60 %", "de réduction d'impôt sur le mécénat, jusqu'à 2 M€ de dons sur l'exercice, "
-        "dans la limite de 20 000 € ou 5 pour mille du chiffre d'affaires.",
+      ("21 août 2026", "la date à partir de laquelle les consultations engagées sous le code "
+        "de la commande publique doivent retenir au moins un critère prenant en compte les "
+        "caractéristiques environnementales de l'offre, sous réserve des exclusions prévues "
+        "par le code.",
+        "Loi Climat et résilience, art. 35 ; code de la commande publique, art. L. 2152-7 ; "
+        "décret n° 2022-767 du 2 mai 2022"),
+      ("60 %", "de réduction d'impôt sur les deux premiers millions d'euros de dons de "
+        "l'exercice, 40 % au-delà, dans la limite de 20 000 € ou de 5 ‰ du chiffre d'affaires "
+        "HT — la plus élevée des deux, l'excédent étant reportable sur cinq exercices.",
         "Article 238 bis du CGI"),
       ("14 j", "le délai au bout duquel une mission sans réponse est clôturée, avec son "
         "résultat marqué comme estimé partout où il apparaît. C'est notre engagement, et il "
@@ -771,8 +785,8 @@ EQUIPES_ENT = f"""<section id="equipes">
                "avant de parler de points.")}
 
     {photo("refuge-sortie",
-           "Deux personnes promènent quatre chiens de refuge sur un chemin bordé d'arbres, "
-           "un matin d'été", "", " photo--large-gauche")}
+           "Deux personnes promènent cinq chiens en laisse sur un chemin de campagne bordé "
+           "d'arbres, un matin d'été", "", " photo--large-gauche")}
 
     <div class="duo duo--pile">
       {capture("salarie-saison",
@@ -808,8 +822,10 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
            "Un chien de refuge trotte en laisse sur l'allée d'un refuge, au soleil, à côté "
            "de la personne qui le sort", "", " photo--couverture")}
 {entete("Côté associations", "L'association publie,<br><span class='it'>puis elle confirme.</span>",
-        "Le chiffre final de votre rapport vient de la structure qui était sur place. C'est "
-        "ce qui lui donne sa valeur devant un acheteur ou un commissaire aux comptes.")}
+        "Le chiffre final de votre rapport vient de la structure qui était sur place : une "
+        "déclaration datée, tracée et attribuée. Ce n'est pas une attestation et cela ne vaut "
+        "ni contrôle ni certification — c'est déjà tout autre chose qu'un chiffre que vous "
+        "auriez écrit vous-même.")}
 
     {objection("Et s'il n'y avait rien autour d'un de vos sites ?",
                "La plateforme mesure l'offre associative dans un rayon de trente kilomètres "
@@ -1007,7 +1023,9 @@ CHANGE_ENT = f"""<section id="change" class="band">
 {retombees([
   ("Des chiffres datés pour vos <span class='it'>appels d'offres.</span>",
    "Depuis le 21 août 2026, toute nouvelle consultation de marché public comporte un critère "
-   "environnemental, sans seuil de montant ni condition de secteur. Ce qu'on vous demande "
+   "environnemental, sans seuil de montant, sous réserve des exclusions prévues par le code "
+   "— notamment les marchés passés sans publicité ni mise en concurrence préalables. Ce qu'on "
+   "vous demande "
    "alors n'est pas une intention : ce sont des chiffres datés, avec leur méthode. C'est "
    "exactement ce que produit le rapport.",
    "21.08.26", "Entrée en vigueur du critère environnemental pour toute nouvelle "
@@ -1045,8 +1063,10 @@ AFFICHES_ENT = f"""<section id="affiches">
     <div class="aff-scene">
       {photo("affiche-bureau",
              "L'affiche A3 que Riseva génère, entière, posée devant un plateau de bureaux : "
-             "le nom de l'entreprise, la saison, les formats proposés, le lien d'inscription "
-             "et son code QR", "", " photo--mur")}
+             "le nom d'une entreprise de démonstration, la saison, les formats proposés, le "
+             "lien d'inscription et son code QR", "", " photo--mur")}
+      <p class="aff-mention mono">Affiche sortie du jeu de démonstration : le nom d'entreprise
+        et les nombres du bas de page en viennent, ils ne décrivent aucune saison réalisée.</p>
       <div class="aff-encart">
         {photo("affiche-qr",
                "Le bas de l'affiche : le code QR et le lien d'inscription de l'entreprise, "
@@ -1140,8 +1160,10 @@ FAQ_ENT = faq([
    f"{int(TARIFS['fondateur_taux'] * 100)} % de remise sur leur première saison.</p>"
    "<p>Pas de facturation par salarié, pas de module en supplément, pas de commission sur les "
    "dons. Les associations, elles, ne paient jamais rien.</p>"
-   "<p>Pour situer : les outils RSE français facturent couramment de 5 000 à 50 000 € par an, "
-   "et de 3 000 à 12 000 € pour ceux qui visent les PME.</p>"),
+   "<p>Nous ne comparons pas notre prix à celui d'un concurrent que nous ne nommerions pas : "
+   "une fourchette annoncée sans source ne vous aide pas à décider. La grille complète est "
+   "publique, elle est plus bas sur cette page, et le simulateur donne le montant exact pour "
+   "votre effectif.</p>"),
   ("Qu'est-ce qui est compris dans l'abonnement ?",
    "<p>Une saison d'un an, avec les comptes correspondant à votre effectif, les formats du "
    "barème, l'accompagnement au lancement, les affiches et les supports, et les rapports "
@@ -1149,7 +1171,9 @@ FAQ_ENT = faq([
    "<p>Sur le don en argent, une précision qui compte : Riseva <b>n'encaisse rien</b>. Le "
    "donateur paie par carte sur une page <b>HelloAsso</b>, et l'argent arrive sur le compte "
    "de l'association. Nous ne sommes donc pas un établissement de paiement, il n'y a aucune "
-   "commission de notre part, et l'association reçoit son don sans délai de reversement.</p>"),
+   "commission de notre part, et rien à attendre d'un reversement de Riseva puisque l'argent "
+   "ne passe pas par elle. Les délais et les frais éventuels relèvent des conditions de "
+   "HelloAsso, entre l'association et lui.</p>"),
   ("Qu'est-ce que « démarrer » veut dire, précisément ?",
    "<p>Cinq critères, constatés à la date convenue : votre espace est ouvert et le lien "
    "d'inscription fonctionne depuis un de vos postes ; les comptes commandés sont "
@@ -1312,6 +1336,7 @@ def grille_tarifaire():
           nous ne garantissons le prix d'aucune saison que nous n'avons pas encore vécue.
           Passé ces places, la grille s'applique telle quelle.</p>
         <p class="tar-n"><b>Règlement :</b> {int(TARIFS['acompte_taux'] * 100)} % à la commande,
+          avec un minimum de {EUR(TARIFS['acompte_minimum'])} HT,
           le solde à trente jours après l'ouverture de votre saison ; règlement intégral à la
           commande, -{int(TARIFS['remise_comptant'] * 100)} %. L'acompte paie le premier
           envoi d'affiches et l'ouverture de vos comptes, qui partent avant la première
@@ -1415,8 +1440,8 @@ HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
       </div>
 
       <figure class="apercu">
-        {photo("refuge-sortie", "Deux personnes promènent quatre chiens de refuge sur un chemin "
-               "bordé d'arbres, un matin d'été", "", " photo--apercu", eager=True)}
+        {photo("refuge-sortie", "Deux personnes promènent cinq chiens en laisse sur un chemin de "
+               "campagne bordé d'arbres, un matin d'été", "", " photo--apercu", eager=True)}
         <figcaption>Une demi-journée de sortie de chiens, telle qu'une association peut la
           demander sur Riseva. Illustration générée, aucune mission réelle.</figcaption>
       </figure>
@@ -1568,7 +1593,7 @@ FAQ_ASSO = faq([
    "il l'écrit.</p>"),
   ("Qui peut s'inscrire ?",
    "<p>Toute association déclarée, y compris de droit local d'Alsace-Moselle. Un numéro, RNA "
-   "ou SIREN, accélère la vérification sans être obligatoire : neuf associations déclarées sur "
+   "ou SIREN, accélère la vérification sans être obligatoire : beaucoup d'associations déclarées "
    "dix n'ont pas de SIREN. Nous vérifions "
    "l'enregistrement administratif avant de publier votre page, et nous vous disons ce qui "
    "manque le cas échéant.</p>"

@@ -6603,8 +6603,12 @@ function ouvrirAffiche(u){
     </div>
   </div>
   <div class="in pied">
-    <span>Riseva, ${nb(rea.associations || 0)} associations vérifiées${
-      rea.missions ? `, ${nb(rea.missions)} missions confirmées à ce jour` : ""}</span>
+    ${/* Le pied comptait `rea.missions`, qui additionne les missions confirmees par
+         une association et celles closes d'office au bout de quatorze jours : le mot
+         « confirmees » couvrait donc des missions que personne n'a confirmees. Il ne
+         compte plus que les vraies, et il dit d'ou vient le chiffre. */""}
+    <span>Sur Riseva : ${nb(rea.associations || 0)} associations enregistrées${
+      rea.confirmees ? `, ${nb(rea.confirmees)} missions confirmées par une association` : ""}</span>
     <span>riseva.fr</span>
   </div>
 </div></body></html>`);
