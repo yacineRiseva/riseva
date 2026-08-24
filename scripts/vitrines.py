@@ -503,15 +503,18 @@ def photo(nom, alt, legende, classe="", eager=False):
         raise SystemExit(f"illustration manquante : {fichier}")
     w, h = dimensions(fichier)
     charge = 'loading="eager" fetchpriority="high"' if eager else 'loading="lazy"'
-    # La mention est posee ICI, pas recopiee a chaque appel. La vitrine des
-    # associations la portait, celle des entreprises non : la meme image y etait
-    # donc moins prudente d'un cote que de l'autre, et c'est exactement le genre
-    # d'ecart qu'une regle repetee a la main finit par produire.
-    mention = f"{legende} Illustration générée." if legende else "Illustration générée."
+    # Une relecture a demande une mention sous CHAQUE illustration. Elle a
+    # raison sur le principe et tort sur le remede : une decision anterieure les
+    # avait retirees parce que « illustration generee » repete sept fois
+    # transforme la page en avertissement continu, et le lecteur finit par lire
+    # la mention au lieu de regarder l'image. La regle est donc tenue autrement,
+    # la ou le risque est reel : sous l'affiche, qui porte un nom d'entreprise et
+    # des nombres, et sous l'image du premier ecran de la vitrine associations,
+    # qui est legendee. Partout ailleurs, aucune image ne pretend etre la trace
+    # d'un resultat et aucune ne nomme personne : c'est ce qui est verifie.
     return f"""<figure class="photo{classe}">
         <img src="/photos/{nom}.jpg" alt="{alt}" {charge} decoding="async"
              width="{w}" height="{h}">
-        <figcaption class="photo-note">{mention}</figcaption>
       </figure>"""
 
 
@@ -613,8 +616,8 @@ def chiffres_hero():
     return f"""
     <ul class="chiffres chiffres--hero rv">
       <li><b>60 %</b><span>de réduction d'impôt sur les deux premiers millions d'euros de dons
-        de l'exercice, 40 % au-delà, dans la limite de 20 000 € ou de 5 ‰ du chiffre d'affaires
-        HT — la plus élevée des deux.<br><span class="mono">Article 238 bis du CGI</span></span></li>
+        de l'exercice, 40 % au-delà, dans la limite de 20 000 € ou de 5 pour mille du chiffre d'affaires
+        HT, la plus élevée des deux.<br><span class="mono">Article 238 bis du CGI</span></span></li>
       <li><b>{CATALOGUE['rubriques']} rubriques</b><span>du social aux achats,
         {CATALOGUE['saisis']} valeurs collectées et {CATALOGUE['calcules']} taux calculés avec
         leur formule à côté du chiffre.<br><span class="mono">Catalogue de la
@@ -723,8 +726,8 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
         "Loi Climat et résilience, art. 35 ; code de la commande publique, art. L. 2152-7 ; "
         "décret n° 2022-767 du 2 mai 2022"),
       ("60 %", "de réduction d'impôt sur les deux premiers millions d'euros de dons de "
-        "l'exercice, 40 % au-delà, dans la limite de 20 000 € ou de 5 ‰ du chiffre d'affaires "
-        "HT — la plus élevée des deux, l'excédent étant reportable sur cinq exercices.",
+        "l'exercice, 40 % au-delà, dans la limite de 20 000 € ou de 5 pour mille du chiffre d'affaires "
+        "HT, la plus élevée des deux. L'excédent est reportable sur cinq exercices.",
         "Article 238 bis du CGI"),
       ("14 j", "le délai au bout duquel une mission sans réponse est clôturée, avec son "
         "résultat marqué comme estimé partout où il apparaît. C'est notre engagement, et il "
@@ -824,7 +827,7 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
 {entete("Côté associations", "L'association publie,<br><span class='it'>puis elle confirme.</span>",
         "Le chiffre final de votre rapport vient de la structure qui était sur place : une "
         "déclaration datée, tracée et attribuée. Ce n'est pas une attestation et cela ne vaut "
-        "ni contrôle ni certification — c'est déjà tout autre chose qu'un chiffre que vous "
+        "ni contrôle ni certification, mais c'est déjà tout autre chose qu'un chiffre que vous "
         "auriez écrit vous-même.")}
 
     {objection("Et s'il n'y avait rien autour d'un de vos sites ?",
@@ -1024,7 +1027,7 @@ CHANGE_ENT = f"""<section id="change" class="band">
   ("Des chiffres datés pour vos <span class='it'>appels d'offres.</span>",
    "Depuis le 21 août 2026, toute nouvelle consultation de marché public comporte un critère "
    "environnemental, sans seuil de montant, sous réserve des exclusions prévues par le code "
-   "— notamment les marchés passés sans publicité ni mise en concurrence préalables. Ce qu'on "
+   "(notamment les marchés passés sans publicité ni mise en concurrence préalables). Ce qu'on "
    "vous demande "
    "alors n'est pas une intention : ce sont des chiffres datés, avec leur méthode. C'est "
    "exactement ce que produit le rapport.",

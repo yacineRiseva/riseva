@@ -95,8 +95,15 @@ def main():
         # acheter, et « il vous faut des bras » réduisait la relation associative à
         # une fourniture de main-d'œuvre. Le titre dit maintenant ce qu'on vend.
         verifie("l'accueil affiche le titre",
-                "Vos équipes sur le terrain" in p.inner_text("h1")
-                and "sans courir après personne" in p.inner_text("h1"))
+                "Un refuge cherche des bras" in p.inner_text("h1")
+                and "votre rapport RSE s'écrit" in p.inner_text("h1"))
+        # Le premier ecran doit porter, AVANT tout defilement, une image du
+        # produit et quatre chiffres. C'est la demande a l'origine de sa
+        # refonte, et rien n'empeche une refonte suivante de la reperdre.
+        verifie("le premier écran montre le produit",
+                p.locator(".hero .apercu img").count() == 1)
+        verifie("le premier écran porte quatre chiffres",
+                p.locator(".hero .chiffres--hero li").count() == 4)
         t = norm(p.inner_text(".hero"))
         verifie("le prix est visible dès l'accueil", "2 400" in t and "18 500 €" in t)
         verifie("la remise de lancement est plafonnée en nombre",
@@ -159,7 +166,7 @@ def main():
         verifie("le challenge est annoncé comme ce qui fédère les équipes",
                 "qui fédère les équipes" in t)
         verifie("la dimension environnementale est nommée, pas suggérée",
-                "Berges, forêts, refuges" in t)
+                "Refuges animaliers, plantations, berges de rivière" in t)
         verifie("l'étendue de l'outil est chiffrée, pas promise",
                 "Huit rubriques" in t and "vingt-sept valeurs" in t)
         verifie("il annonce que la moitié basse du classement n'est pas nommée",
@@ -392,10 +399,20 @@ def main():
         # moteur d'indexation, un lecteur d'écran et un navigateur sans script.
         src = norm(p.evaluate("()=>fetch('/').then(r=>r.text())"))
         verifie("les chiffres de tête sont dans le HTML, pas seulement animés",
-                "233 Md€" in src and "14 j" in src and "0 €" in src)
-        ch = norm(p.inner_text(".chiffres"))
+                "21 août 2026" in src and "14 j" in src and "0 €" in src)
+        # `.chiffres` designe maintenant deux blocs : la bande du premier ecran
+        # et celle du corps de page. On les mesure separement, sinon le premier
+        # repond pour le second et la source du second n'est plus verifiee.
+        ch = norm(p.inner_text(".chiffres:not(.chiffres--hero)"))
         verifie("les chiffres de tête sont sourcés ou ne dépendent que de nous",
                 "L. 2152-7" in ch and "238 bis" in ch)
+        # Les sources sont composees en capitales par la feuille de style : on
+        # compare donc sur le texte replie en minuscules, sinon la recette
+        # depend d'un `text-transform`.
+        hero = norm(p.inner_text(".chiffres--hero")).lower()
+        verifie("les chiffres du premier écran portent leur source",
+                "238 bis" in hero and "catalogue de la plateforme" in hero
+                and "grille publique" in hero)
         verifie("aucun n'est présenté comme un résultat obtenu par un client",
                 "clients" not in ch and "nos clients" not in ch
                 and "satisfaction" not in ch)
