@@ -90,13 +90,24 @@ def main():
 
         print("\nSite public")
         p.goto(BASE + "/", wait_until="networkidle")
-        # Les deux anciennes accroches étaient négatives : « vos équipes n'ont pas
-        # besoin d'un outil de plus » rappelle à l'acheteur qu'il pourrait ne rien
-        # acheter, et « il vous faut des bras » réduisait la relation associative à
-        # une fourniture de main-d'œuvre. Le titre dit maintenant ce qu'on vend.
+        # Trois accroches successives, et la raison de chaque changement.
+        # « Vos équipes n'ont pas besoin d'un outil de plus » et « il vous faut
+        # des bras » etaient negatives : la premiere rappelle a l'acheteur qu'il
+        # pourrait ne rien acheter, la seconde reduit la relation associative a
+        # une fourniture de main-d'oeuvre. « Un refuge cherche des bras, vos
+        # equipes y vont, votre rapport RSE s'ecrit » disait le vivant, et taisait
+        # le produit : un acheteur RSE arrivait sur ce qui ressemblait a une
+        # plateforme de benevolat. Celle-ci dit d'abord a qui elle s'adresse et
+        # ce qu'elle remplace ; le vivant est trois lignes plus bas, en image et
+        # dans l'accroche.
         verifie("l'accueil affiche le titre",
-                "Un refuge cherche des bras" in p.inner_text("h1")
-                and "votre rapport RSE s'écrit" in p.inner_text("h1"))
+                "La RSE d'une PME" in p.inner_text("h1")
+                and "sans direction RSE" in p.inner_text("h1"))
+        # Et le vivant ne doit pas avoir disparu du premier ecran pour autant :
+        # c'est ce qui distingue Riseva d'un outil de reporting, et c'est ce que
+        # le fondateur a demande de mettre en avant.
+        verifie("le premier écran nomme les associations du vivant",
+                "refuges" in norm(p.inner_text(".hero")).lower())
         # Le premier ecran doit porter, AVANT tout defilement, une image du
         # produit et quatre chiffres. C'est la demande a l'origine de sa
         # refonte, et rien n'empeche une refonte suivante de la reperdre.
