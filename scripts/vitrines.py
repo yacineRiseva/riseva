@@ -997,8 +997,15 @@ def onglets(items):
 # qu'aucune phrase ne prouve.
 PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss">
   <div class="layer">
+# Le titre a été arbitré. « Et vous n'aviez pas la réponse » pointait le
+# lecteur du doigt : la relecture croisée l'a vu, et elle a raison — la section
+# ne marche que parce qu'elle fait reconnaître des situations, pas parce qu'elle
+# reproche quelque chose. La contre-proposition, « trois questions auxquelles
+# Riseva vous permet de répondre », enlevait le reproche et la tension avec.
+# Celle-ci garde les deux : le fait est le même, il n'est simplement plus
+# personnel.
 {entete("Ce que ça répond",
-        "Trois questions,<br><span class='it'>et vous n'aviez pas la réponse.</span>",
+        "Trois questions,<br><span class='it'>et personne n'a la réponse sous la main.</span>",
         "Personne n'ouvre un logiciel RSE par curiosité. On l'ouvre parce qu'on "
         "vient de vous poser une de ces trois questions, et qu'il a fallu répondre "
         "« je vais voir ».")}

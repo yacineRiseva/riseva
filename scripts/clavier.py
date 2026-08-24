@@ -25,7 +25,11 @@ le fichier source.
 from playwright.sync_api import sync_playwright
 import sys, collections, unicodedata
 
-BASE = "http://127.0.0.1:8080"
+# Le port est celui du serveur que `verifier.py` monte pour la recette. On le
+# laisse surchargeable pour pouvoir relancer cette seule verification contre un
+# serveur deja lance, sans attendre les dix minutes de la recette complete.
+import os
+BASE = "http://127.0.0.1:" + os.environ.get("RISEVA_PORT", "8080")
 
 # Ce qu'un clavier français produit, directement ou avec la touche AltGr, plus
 # les majuscules accentuées et les guillemets français, qui sont la ponctuation
