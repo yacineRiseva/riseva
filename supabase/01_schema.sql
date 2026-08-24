@@ -119,6 +119,7 @@ create type origine_don      as enum ('entreprise','salarie');
 -- aucune valeur : elle demande sous quel régime le bien était inscrit, parce
 -- que la méthode de valorisation en dépend, et laisse le montant au donateur.
 create type categorie_materiel as enum ('stock','immobilisation','autre');
+create type objet_piece      as enum ('observation','mission','don');
 create type unite_realisation as enum (
   'arbre','haie','dechet_kg','repas','colis','animal','maraude','kit','eleve','metre_berge');
 
@@ -1170,6 +1171,68 @@ create table private.retention (
   motif       text not null,
   depuis_le   date not null default current_date
 );
+
+
+-- ---------------------------------------------------------------- le coffre
+-- Une pièce justificative, accrochée à un chiffre.
+--
+-- Pourquoi cette table existe. Jusqu'ici, une valeur d'indicateur portait qui
+-- l'avait saisie et qui l'avait approuvée. C'est déjà plus que ce que fait un
+-- tableur, et ce n'est pas assez : un an plus tard, devant un donneur d'ordre
+-- qui demande d'où sort le chiffre, « Karim l'a saisi le 3 juillet » n'est pas
+-- une réponse. La facture d'électricité, elle, en est une.
+--
+-- Ce que la table ne stocke pas : le fichier. Il vit dans le stockage objet,
+-- sous une clé que personne ne devine, et la ligne ici en porte l'empreinte
+-- SHA-256. C'est cette empreinte qui fait la preuve : elle dit que le fichier
+-- qu'on télécharge aujourd'hui est celui qui a été déposé ce jour-là. Une pièce
+-- sans empreinte prouve seulement qu'un fichier existe.
+--
+-- Trois règles de fond :
+--   1. une pièce se rattache à UN objet et un seul, jamais à deux ;
+--   2. une pièce déposée sur une observation approuvée ne se retire plus. Le
+--      retrait est daté, la ligne reste, et le fichier avec : effacer une preuve
+--      après coup, c'est exactement ce contre quoi une piste d'audit existe ;
+--   3. aucun document de santé. Un arrêt de travail nominatif n'a rien à faire
+--      dans un indicateur de sécurité, et l'écran le dit avant le dépôt.
+create table piece_jointe (
+  id            uuid primary key default gen_random_uuid(),
+  entreprise    uuid not null references entreprise(id) on delete cascade,
+  objet         objet_piece not null,
+  observation   uuid references observation_indicateur(id) on delete cascade,
+  mission       uuid references mission(id) on delete cascade,
+  don           uuid references don(id) on delete cascade,
+  -- La clé dans le stockage. Elle contient l'identifiant de l'entreprise, ce qui
+  -- permet à la politique du bucket de trancher sans jointure.
+  chemin        text not null unique check (length(chemin) between 8 and 400),
+  nom           text not null check (length(nom) between 1 and 200),
+  type_mime     text not null,
+  taille        integer not null check (taille > 0 and taille <= 10485760),
+  empreinte     text check (empreinte ~ '^[0-9a-f]{64}$'),
+  depose_par    uuid references profil(id) on delete set null,
+  depose_le     timestamptz not null default now(),
+  retire_le     timestamptz,
+  retire_par    uuid references profil(id) on delete set null,
+  -- Les formats acceptés, en dur. Une liste ouverte finit par accepter un
+  -- exécutable, et un exécutable déposé par un site puis téléchargé par le
+  -- siège est une chaîne d'infection interne complète.
+  constraint piece_format check (type_mime in (
+    'application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'text/csv',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document')),
+  constraint piece_un_seul_objet check (
+    (observation is not null)::int + (mission is not null)::int
+    + (don is not null)::int = 1),
+  constraint piece_objet_coherent check (
+    (objet = 'observation' and observation is not null)
+    or (objet = 'mission'  and mission is not null)
+    or (objet = 'don'      and don is not null)),
+  constraint piece_retrait_date check (
+    (retire_le is null) = (retire_par is null))
+);
+create index piece_observation on piece_jointe (observation) where retire_le is null;
+create index piece_mission     on piece_jointe (mission)     where retire_le is null;
+create index piece_entreprise  on piece_jointe (entreprise, depose_le);
 
 -- ---------------------------------------------------------------- index
 create index profil_maj                on profil (maj_le);

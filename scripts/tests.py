@@ -2021,7 +2021,12 @@ def main():
         p.select_option("#camp", "c2"); p.wait_for_timeout(400)
         p.evaluate("""()=>{
           const tr = [...document.querySelectorAll('tbody tr')].find(x => /Usine/.test(x.textContent));
-          const b = tr && [...tr.querySelectorAll('button')][0]; if (b) b.click();
+          // On vise le bouton par son libelle, pas par son rang. La ligne porte
+          // maintenant aussi le coffre de preuves, et « le premier bouton de la
+          // ligne » ne designait plus celui qu'on croyait.
+          const b = tr && [...tr.querySelectorAll('button')]
+            .find(x => /Saisir|Modifier/.test(x.textContent));
+          if (b) b.click();
         }""")
         p.wait_for_timeout(400)
         md = norm(p.inner_text(".modal"))

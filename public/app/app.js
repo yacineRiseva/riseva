@@ -6242,6 +6242,123 @@ function blocRapport(r){
   </section>`;
 }
 
+/* Le coffre de preuves, dans la ligne d'un site.
+   ------------------------------------------------
+   Ce que cette cellule doit permettre en un geste : deposer la facture qui
+   justifie le chiffre, et la retelecharger un an plus tard. Rien d'autre.
+   Le siege ne lit pas les factures de ses sites, il verifie qu'elles existent :
+   c'est pour cela que la cellule affiche un compte avant d'afficher une liste.
+
+   Deux comportements, un seul code. En demonstration, le fichier est garde en
+   base 64 dans l'etat du navigateur quand il tient sous quatre cents kilo-octets,
+   et la piece le dit quand il n'a pas ete garde. En production, le fichier monte
+   dans le stockage objet et c'est un lien signe qui le redescend. Ce qui ne
+   change pas : la regle de retrait, ecrite une fois dans le moteur et une fois
+   dans la base, jamais dans cet ecran. */
+function coffre(cellule, x, u, rendre){
+  const dessiner = () => {
+    cellule.innerHTML = "";
+    let liste = [];
+    try { liste = DB.piecesDe("observation", x.observation.id) || []; } catch { liste = []; }
+
+    const rang = h(`<div class="row" style="--gap:6px;flex-wrap:wrap;align-items:center"></div>`);
+    if (liste.length){
+      const det = h(`<details style="min-width:0">
+        <summary style="cursor:pointer;font-size:var(--t-xs)">
+          ${liste.length} pièce${liste.length > 1 ? "s" : ""}</summary>
+        <ul class="pieces"></ul></details>`);
+      const ul = det.querySelector("ul");
+      liste.forEach(p => {
+        const li = h(`<li>
+          <span class="pj-n">${esc(p.nom)}</span>
+          <span class="pj-m mono">${esc(p.format)}, ${Math.max(1, Math.round(p.taille / 1024))} Ko,
+            déposée par ${esc(p.deposant)}</span>
+        </li>`);
+        if (p.conserve === false)
+          li.appendChild(h(`<span class="pj-m mono">fichier non conservé en démonstration</span>`));
+        else {
+          const a = h(`<button class="tlink" type="button">Télécharger</button>`);
+          a.onclick = () => telechargerPiece(p);
+          li.appendChild(a);
+        }
+        if (x.etat !== "approuve"){
+          const r = h(`<button class="tlink" type="button" style="margin-left:10px">Retirer</button>`);
+          r.onclick = () => {
+            try { DB.retirerPiece(p.id, u.id); toast("Pièce retirée."); dessiner(); }
+            catch (err){ toast(err.message); }
+          };
+          li.appendChild(r);
+        }
+        ul.appendChild(li);
+      });
+      rang.appendChild(det);
+    } else {
+      rang.appendChild(h(`<span class="muted" style="font-size:var(--t-xs)">aucune</span>`));
+    }
+
+    /* Le depot reste ouvert apres l'approbation : on ajoute une preuve a un
+       chiffre verrouille, on ne la retire pas. C'est l'inverse qui serait
+       dangereux. */
+    const champ = h(`<input type="file" hidden
+      accept=".pdf,.jpg,.jpeg,.png,.webp,.csv,.xlsx,.docx">`);
+    const b = h(`<button class="btn btn--quiet btn--sm" type="button">Joindre</button>`);
+    b.onclick = () => champ.click();
+    champ.onchange = async () => {
+      const f = champ.files && champ.files[0];
+      if (!f) return;
+      b.disabled = true;
+      try {
+        if (DB.mode === "supabase"){
+          await DB.joindrePiece({ objet: "observation", cible: x.observation.id, fichier: f });
+        } else {
+          const contenu = f.size <= (DB.TAILLE_PIECE_GARDEE || 409600)
+            ? await lireEnBase64(f) : null;
+          DB.joindrePiece({ objet: "observation", cible: x.observation.id,
+                            nom: f.name, type: f.type, taille: f.size, contenu, uid: u.id });
+        }
+        toast("Pièce jointe au chiffre.");
+        dessiner();
+      } catch (err){ toast(err.message); }
+      finally { b.disabled = false; champ.value = ""; }
+    };
+    rang.appendChild(b);
+    rang.appendChild(champ);
+    cellule.appendChild(rang);
+  };
+  dessiner();
+}
+
+function lireEnBase64(fichier){
+  return new Promise((ok, ko) => {
+    const l = new FileReader();
+    l.onload = () => ok(l.result);
+    l.onerror = () => ko(new Error("Fichier illisible."));
+    l.readAsDataURL(fichier);
+  });
+}
+
+function telechargerPiece(p){
+  /* En production la piece porte un chemin de stockage, pas son contenu : c'est
+     un lien signe, valable quelques minutes, qui la redescend. En demonstration
+     elle porte son contenu en base 64. */
+  if (p.contenu){
+    const a = document.createElement("a");
+    a.href = p.contenu; a.download = p.nom;
+    document.body.appendChild(a); a.click(); a.remove();
+    return;
+  }
+  if (DB.mode === "supabase" && p.chemin){
+    DB.lienPiece(p.chemin).then(url => {
+      if (!url) return toast("Lien indisponible.");
+      const a = document.createElement("a");
+      a.href = url; a.target = "_blank"; a.rel = "noopener";
+      document.body.appendChild(a); a.click(); a.remove();
+    }).catch(e => toast(e.message));
+    return;
+  }
+  toast("Ce fichier n'a pas été conservé.");
+}
+
 function vueIndicateurs(u){
   const gid = u.groupe || null;
   const cs = DB.campagnes(gid || undefined)
@@ -6338,8 +6455,15 @@ function vueIndicateurs(u){
           <button class="btn btn--ghost btn--sm" id="dicoI">Dictionnaire des données</button>
           <button class="btn btn--ghost btn--sm" id="csvI">Exporter</button></div></div>
       <div class="tableau"><table class="table"><thead><tr>
-        <th>Établissement</th><th>État</th><th>Saisi par</th><th>Approuvé par</th><th></th>
+        <th>Établissement</th><th>État</th><th>Saisi par</th><th>Approuvé par</th>
+        <th>Pièces</th><th></th>
       </tr></thead><tbody></tbody></table></div>
+      <p class="hint" style="margin-top:var(--s4)">
+        Une pièce jointe est ce qui répond, un an plus tard, à « d'où sort ce
+        chiffre ». Facture, relevé, extrait de registre : PDF, photo, classeur,
+        10 Mo au plus. <strong>Aucun document nominatif de santé</strong> — on
+        compte des accidents et des journées, pas des personnes. Une pièce
+        déposée sur une valeur approuvée ne se retire plus.</p>
     </section>
 
     ${monSite ? "" : blocRapport(rap)}
@@ -6406,9 +6530,13 @@ function vueIndicateurs(u){
       <td><span class="badge ${cls}">${lib}</span></td>
       <td class="muted">${x.saisiPar ? esc(x.saisiPar.nom) : "-"}</td>
       <td class="muted">${x.approuvePar ? esc(x.approuvePar.nom) : "-"}</td>
+      <td class="cell-pieces"></td>
       <td style="text-align:right;white-space:nowrap"></td>
     </tr>`);
     const cell = tr.querySelector("td:last-child");
+    if (x.observation) coffre(tr.querySelector(".cell-pieces"), x, u, rendre);
+    else tr.querySelector(".cell-pieces").innerHTML =
+      `<span class="muted" style="font-size:var(--t-xs)">après la saisie</span>`;
     if (e.campagne.etat === "ouverte"){
       const b = h(`<button class="btn btn--quiet btn--sm">${x.observation ? "Modifier" : "Saisir"}</button>`);
       b.onclick = () => formIndicateurs(u, cid, x.etablissement);

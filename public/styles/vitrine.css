@@ -3468,38 +3468,34 @@ body{
    matieres du produit, et une table des matieres doit se balayer, pas se lire.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.briques{
-  list-style:none; margin:clamp(34px,4vw,56px) 0 0; padding:0;
-  display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:clamp(18px,2vw,28px);
+/* Trois lignes empilees, pas des cartes cote a cote. La difference n'est pas
+   decorative : quatre cartes se balayent comme une grille de fonctionnalites,
+   trois lignes se lisent comme un document. La question est en gros a gauche,
+   la reponse a droite, et une reglure separe les trois — la meme composition
+   qu'une page de questions frequentes, qui est exactement ce que c'est. */
+.questions{ list-style:none; margin:clamp(34px,4vw,56px) 0 0; padding:0; display:grid; }
+.qst{
+  display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.35fr);
+  gap:clamp(20px,3vw,56px);
+  padding:clamp(24px,2.6vw,36px) 0;
+  border-top:1px solid rgba(242,240,233,.16);
 }
-/* Colonne flex, pas grille : c'est ce qui permet au pied de carte (« ecrans :
-   … ») de descendre au meme niveau dans les quatre, quel que soit le nombre de
-   lignes du paragraphe. Quatre pieds de carte a quatre hauteurs differentes,
-   l'oeil lit un desordre avant de lire un contenu. */
-.brique{
-  display:flex; flex-direction:column; gap:8px;
-  padding:clamp(20px,1.8vw,26px) clamp(18px,1.6vw,24px) clamp(22px,2vw,28px);
-  border:1px solid rgba(242,240,233,.14); border-radius:var(--r-md);
-  background:rgba(242,240,233,.035);
+.qst:last-child{ border-bottom:1px solid rgba(242,240,233,.16); }
+.qst-t{
+  font-family:var(--f-display); font-weight:600; letter-spacing:-.025em;
+  font-size:clamp(21px,2.1vw,31px); line-height:1.15; margin:0;
+  text-wrap:balance;
 }
-.brique-n{
-  font-size:12px; letter-spacing:.14em; color:var(--lime); opacity:.9;
+.qst-w{ margin-top:10px; font-size:12px; letter-spacing:.06em; opacity:.75; }
+.qst-r p{ margin:0; font-size:15px; line-height:1.62; }
+/* La ligne des ecrans se lisait comme la fin de la phrase au-dessus : meme
+   graisse, meme largeur, collee dessous. Elle passe donc de l'autre cote d'une
+   reglure, et elle s'efface. Ce n'est pas un argument, c'est une adresse. */
+.qst-e{ margin-top:14px; padding-top:10px; font-size:12px; letter-spacing:.08em;
+  opacity:.5; border-top:1px solid rgba(242,240,233,.14); }
+@media (max-width:860px){
+  .qst{ grid-template-columns:minmax(0,1fr); gap:14px; }
 }
-/* Le mot de la brique est le plus gros caractere de la section apres le titre :
-   c'est lui qu'on doit retenir quand on a scrolle trop vite. */
-.brique-k{
-  font-family:var(--f-display); font-weight:600; letter-spacing:-.02em;
-  font-size:clamp(22px,1.9vw,28px); line-height:1.05; margin:2px 0 0;
-}
-.brique-t{ font-size:15px; line-height:1.45; font-weight:600; margin:0; }
-.brique-p{ font-size:13.5px; line-height:1.6; margin:0; }
-.brique-e{
-  margin-top:auto; padding-top:12px; font-size:11px; letter-spacing:.08em;
-  border-top:1px solid rgba(242,240,233,.12);
-}
-@media (max-width:1080px){ .briques{grid-template-columns:repeat(2,minmax(0,1fr));} }
-@media (max-width:620px){ .briques{grid-template-columns:minmax(0,1fr);} }
 
 /* La ligne de temps. Elle ne repete pas les briques : elle repond a la seule
    question qui reste une fois qu'on a compris ce que fait l'outil — combien de

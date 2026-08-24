@@ -1,0 +1,859 @@
+================================================================================
+RISEVA — METTRE LA PLATEFORME EN LIGNE
+Guide complet, écrit pour quelqu'un qui n'a jamais fait ça.
+Version du 24 août 2026.
+================================================================================
+
+Comment lire ce document.
+
+Il est fait pour être suivi dans l'ordre, du début à la fin, une fois. Chaque
+section commence par ce qu'on va faire et pourquoi, puis donne les gestes un par
+un. Rien n'est supposé connu : quand un mot technique apparaît pour la première
+fois, il est expliqué à cet endroit-là.
+
+Comptez trois heures la première fois, en prenant votre temps. Ce n'est pas trois
+heures de travail difficile : c'est surtout de l'attente pendant que des choses
+s'installent, et des allers-retours entre deux sites web.
+
+Une règle avant tout le reste : si une étape ne marche pas, ne passez pas à la
+suivante en espérant que ça se rattrape. Ça ne se rattrape jamais. Arrêtez-vous,
+lisez la section 14 (« Quand quelque chose casse »), et reprenez à l'étape qui a
+échoué.
+
+
+================================================================================
+SOMMAIRE
+================================================================================
+
+  1.  Ce que vous avez entre les mains
+  2.  Les huit mots qu'il faut comprendre
+  3.  Comment la plateforme est faite, en trois morceaux
+  4.  Ce qu'il faut préparer avant de commencer
+  5.  ÉTAPE A — la base de données (Supabase)
+  6.  ÉTAPE B — le site (Vercel)
+  7.  ÉTAPE C — relier le site à la base
+  8.  ÉTAPE D — le coffre de preuves (le stockage des fichiers)
+  9.  ÉTAPE E — les travaux de la nuit
+  10. ÉTAPE F — le nom de domaine
+  11. ÉTAPE G — les courriels
+  12. ÉTAPE H — les dons par HelloAsso
+  13. Vérifier que tout marche : la liste de contrôle
+  14. Quand quelque chose casse
+  15. Les sauvegardes
+  16. Ce que ça coûte
+  17. Les cinq choses à ne jamais faire
+  18. Comment fonctionne le coffre de preuves
+  19. Le jour où vous voulez changer quelque chose
+
+
+================================================================================
+1. CE QUE VOUS AVEZ ENTRE LES MAINS
+================================================================================
+
+Riseva est une plateforme RSE. Concrètement, elle fait trois choses pour une
+entreprise qui a plusieurs sites et pas de service RSE :
+
+  1. Elle demande les chiffres aux sites, et elle relance à votre place.
+     Le siège coche ce qu'il veut savoir pour une période — effectifs, accidents,
+     heures de formation, électricité, déchets. Chaque établissement voit sa part
+     sur son écran, la remplit, et quelqu'un d'autre l'approuve. Quand tout le
+     monde a répondu, le rapport est déjà écrit.
+
+  2. Elle organise une saison d'engagement d'un an.
+     Des associations vérifiées, proches de chaque site, publient ce dont elles
+     ont besoin : sortir les chiens d'un refuge, planter une parcelle, préparer
+     des colis. Les salariés s'inscrivent, y vont, et c'est l'association qui
+     confirme ce qui a été fait. Ça donne des points, et un classement entre les
+     sites.
+
+  3. Elle tient le dossier de mécénat et de dons.
+     Ce qui a été donné, à qui, sous quelle forme, avec les justificatifs et le
+     calcul de la réduction d'impôt, ligne par ligne.
+
+Ce que Riseva ne fait pas, et ne fera pas : votre paie, votre bilan carbone,
+votre index d'égalité, et votre déclaration fiscale. Elle n'encaisse jamais
+d'argent : les dons vont directement de l'entreprise à l'association.
+
+
+================================================================================
+2. LES HUIT MOTS QU'IL FAUT COMPRENDRE
+================================================================================
+
+Lisez cette section une fois. Vous n'aurez plus besoin d'y revenir.
+
+UN SERVEUR
+  Un ordinateur allumé en permanence, quelque part, qui répond quand un
+  navigateur lui demande une page. Vous n'en achèterez pas : on va en louer un
+  bout chez quelqu'un dont c'est le métier.
+
+UN HÉBERGEUR
+  L'entreprise qui possède ces serveurs et vous en loue un bout. Ici : Vercel
+  pour les pages, Supabase pour la base de données.
+
+UNE BASE DE DONNÉES
+  Un grand classeur, avec des onglets (on dit « des tables ») et des lignes.
+  Une table « entreprise », une table « mission », une table « don ». C'est là
+  que vivent toutes les informations. Riseva utilise PostgreSQL, une base de
+  données que le monde entier utilise depuis trente ans.
+
+UN SITE STATIQUE
+  Un site fait de fichiers déjà écrits, qu'on envoie tels quels au navigateur.
+  Il n'y a pas de programme qui tourne côté serveur pour fabriquer les pages.
+  C'est le cas de Riseva : le dossier `public/` est le site, tel quel. C'est ce
+  qui rend l'hébergement quasi gratuit et quasi incassable.
+
+UNE CLÉ D'API
+  Un mot de passe long, que deux programmes se montrent pour se reconnaître.
+  Il y en a deux dans Riseva, et la différence est vitale :
+    - la clé « anon » (anonyme) est PUBLIQUE. Elle est écrite dans les pages,
+      tout le monde peut la lire, et ce n'est pas un problème.
+    - la clé « service_role » est SECRÈTE. Elle ouvre tout. Elle ne doit jamais,
+      jamais apparaître dans une page. Voir la section 17.
+
+LA RLS (SÉCURITÉ LIGNE À LIGNE)
+  La vraie serrure de Riseva. C'est une règle écrite dans la base elle-même qui
+  dit, pour chaque ligne de chaque table, qui a le droit de la lire. Un salarié
+  de l'entreprise A ne voit pas les missions de l'entreprise B, non pas parce que
+  l'écran les cache, mais parce que la base refuse de les envoyer. C'est pour ça
+  que la clé anonyme peut être publique : même avec elle, on n'obtient que ce que
+  la RLS accepte de donner.
+
+UN NOM DE DOMAINE
+  L'adresse que les gens tapent : riseva.fr. On la loue à l'année, et on la fait
+  pointer vers l'hébergeur.
+
+UN DÉPÔT GIT
+  L'endroit où vit le code, avec l'historique de toutes ses versions. Le vôtre
+  est sur GitHub : github.com/yacineRiseva/riseva. Chaque modification y est
+  enregistrée avec sa date et son explication.
+
+
+================================================================================
+3. COMMENT LA PLATEFORME EST FAITE, EN TROIS MORCEAUX
+================================================================================
+
+Riseva tient en trois morceaux, et il est utile de les voir séparément parce
+qu'ils s'hébergent séparément.
+
+MORCEAU 1 — LES PAGES (le dossier `public/`)
+  Le site vitrine, l'application, les pages légales. Ce sont des fichiers HTML,
+  CSS et JavaScript. Ils ne contiennent aucune donnée de client : ils savent
+  seulement où aller les chercher. Ils vont chez Vercel.
+
+MORCEAU 2 — LA BASE (le dossier `supabase/`)
+  Sept fichiers SQL, qu'on exécute une fois dans l'ordre, et qui construisent
+  toute la base : les tables, les règles de calcul, les serrures.
+
+      01_schema.sql      les tables et leurs colonnes
+      02_logique.sql     les calculs : points, taux, plafonds, contrôles
+      03_rls.sql         les serrures : qui lit quoi
+      04_seed.sql        la saison de départ et le barème
+      05_taches.sql      ce qui tourne tout seul chaque nuit
+      06_catalogue.sql   la liste des indicateurs et leurs définitions
+      07_ecritures.sql   les fonctions d'écriture appelées par l'application
+
+  L'ordre n'est pas indicatif. `03` commence par retirer tous les droits par
+  défaut avant d'en rendre nommément ; l'exécuter avant `02` casserait tout.
+
+MORCEAU 3 — LES TRAVAUX DE LA NUIT (dans `05_taches.sql`)
+  Chaque nuit, la base se réveille toute seule et fait le ménage : elle valide
+  les missions qu'aucune association n'a tranchées dans les quatorze jours, elle
+  ferme les annonces dont la date est passée, elle recalcule le classement, elle
+  purge ce qui doit l'être. Personne ne clique sur rien.
+
+Et une quatrième chose, plus petite : les FONCTIONS EDGE, dans
+`supabase/functions/`. Ce sont de petits programmes qui tournent côté serveur
+pour les rares cas où une page ne peut pas s'en charger seule : envoyer un
+courriel, parler à HelloAsso, produire un rapport. Elles se déploient en une
+commande.
+
+
+================================================================================
+4. CE QU'IL FAUT PRÉPARER AVANT DE COMMENCER
+================================================================================
+
+Une adresse électronique que vous contrôlez, et à laquelle vous avez accès
+maintenant : vous allez recevoir des confirmations.
+
+Un gestionnaire de mots de passe, ou à défaut un carnet. Vous allez créer trois
+ou quatre comptes et récupérer deux clés. Écrivez-les au fur et à mesure, dans
+un endroit sûr. Ne les mettez pas dans un fichier du projet.
+
+Le code. Il est sur GitHub, et vous en avez une copie complète dans
+Documents\Green\riseva-git sur votre machine.
+
+Un navigateur récent. Chrome ou Firefox, à jour.
+
+Une heure devant vous, sans interruption, pour les étapes A à C. Le reste peut
+attendre un autre jour : à la fin de l'étape C, la plateforme fonctionne.
+
+Ce dont vous n'avez PAS besoin : savoir programmer, installer quoi que ce soit
+sur votre ordinateur, acheter un serveur, ou comprendre le SQL.
+
+
+================================================================================
+5. ÉTAPE A — LA BASE DE DONNÉES (SUPABASE)
+================================================================================
+
+Ce qu'on fait : on crée la base, on y exécute les sept fichiers, et on récupère
+deux informations dont le site aura besoin.
+
+Durée : 30 à 45 minutes, dont beaucoup d'attente.
+
+--------------------------------------------------------------------------------
+A.1 — Créer le compte et le projet
+--------------------------------------------------------------------------------
+
+  1. Allez sur supabase.com et créez un compte. Le plus simple est « Continue
+     with GitHub », puisque vous avez déjà GitHub.
+
+  2. Une fois connecté, cliquez sur « New project ».
+
+  3. Remplissez :
+       - Name : riseva
+       - Database password : cliquez sur « Generate a password » et COPIEZ-LE
+         dans votre gestionnaire de mots de passe. Ce mot de passe ne se
+         retrouve pas : si vous le perdez, il faudra le réinitialiser.
+       - Region : choisissez l'Europe. « Frankfurt » ou « Paris » si proposé.
+         Ce n'est pas un détail : vos données restent alors dans l'Union
+         européenne, ce que vos clients vous demanderont.
+       - Plan : Free pour commencer.
+
+  4. Cliquez sur « Create new project », et allez faire autre chose. La
+     construction prend deux à cinq minutes.
+
+--------------------------------------------------------------------------------
+A.2 — Exécuter les sept fichiers, dans l'ordre
+--------------------------------------------------------------------------------
+
+C'est l'étape la plus importante du document. Prenez-la calmement.
+
+  1. Dans le menu de gauche, cliquez sur « SQL Editor » (l'icône avec « SQL »).
+
+  2. Ouvrez, sur votre ordinateur, le fichier
+     Documents\Green\riseva-git\supabase\01_schema.sql
+     avec le Bloc-notes. Sélectionnez tout (Ctrl+A), copiez (Ctrl+C).
+
+  3. Retournez dans l'éditeur SQL de Supabase, collez (Ctrl+V), et cliquez sur
+     « Run » (ou Ctrl+Entrée).
+
+  4. Attendez le message vert « Success. No rows returned ». C'est ce qu'on veut :
+     ces fichiers construisent, ils ne lisent rien.
+
+  5. Recommencez, exactement pareil, avec les six autres, DANS CET ORDRE :
+
+         02_logique.sql
+         03_rls.sql
+         04_seed.sql
+         05_taches.sql
+         06_catalogue.sql
+         07_ecritures.sql
+
+     Un fichier à la fois. Attendez le message vert avant de passer au suivant.
+
+  6. Si un fichier renvoie une erreur rouge : ARRÊTEZ-VOUS. Ne passez pas au
+     suivant. Copiez le message d'erreur en entier et allez à la section 14.
+
+  Note : le fichier 00_local.sql, s'il existe dans le dossier, ne se lance PAS
+  ici. Il ne sert qu'à faire tourner une base d'essai sur un ordinateur, et il
+  crée des choses que Supabase fournit déjà.
+
+--------------------------------------------------------------------------------
+A.3 — Récupérer les deux informations
+--------------------------------------------------------------------------------
+
+  1. Menu de gauche, tout en bas : « Project Settings », puis « API ».
+
+  2. Notez deux choses, dans votre gestionnaire de mots de passe :
+
+       - PROJECT URL : ça ressemble à https://abcdefghijkl.supabase.co
+       - ANON PUBLIC KEY : une très longue suite de caractères qui commence par
+         « eyJ ». C'est la clé publique. Elle a le droit d'être dans vos pages.
+
+  3. Sur la même page, vous verrez aussi une clé « service_role ». NE LA COPIEZ
+     PAS MAINTENANT et ne la mettez nulle part. On y reviendra à l'étape G, et
+     elle n'ira que dans un endroit précis. Voir la section 17.
+
+--------------------------------------------------------------------------------
+A.4 — Vérifier que la base est bien construite
+--------------------------------------------------------------------------------
+
+  1. Menu de gauche : « Table Editor ». Vous devez voir une longue liste de
+     tables : association, annonce, mission, don, entreprise, etablissement,
+     observation_indicateur, piece_jointe, et une trentaine d'autres.
+
+  2. Cliquez sur « saison ». Il doit y avoir exactement une ligne, avec l'état
+     « ouverte ». Si cette ligne manque, c'est que 04_seed.sql n'est pas passé.
+
+Si ces deux vérifications passent, la base est prête. La partie la plus
+technique du document est derrière vous.
+
+
+================================================================================
+6. ÉTAPE B — LE SITE (VERCEL)
+================================================================================
+
+Ce qu'on fait : on met les pages en ligne. Vercel va lire votre dépôt GitHub et
+publier le contenu du dossier `public/`. À chaque fois que vous pousserez une
+modification sur GitHub, le site se mettra à jour tout seul, en une minute.
+
+Durée : 10 minutes.
+
+  1. Allez sur vercel.com et créez un compte avec « Continue with GitHub ».
+
+  2. Cliquez sur « Add New… », puis « Project ».
+
+  3. Vercel affiche vos dépôts GitHub. Choisissez « riseva » et cliquez sur
+     « Import ». Si le dépôt n'apparaît pas, cliquez sur « Adjust GitHub App
+     Permissions » et autorisez Vercel à le voir.
+
+  4. Sur l'écran de configuration, un seul réglage compte :
+
+       - Framework Preset : Other
+       - Root Directory : cliquez sur « Edit » et choisissez `public`
+       - Build Command : laissez vide
+       - Output Directory : laissez vide
+       - Install Command : laissez vide
+
+     Riseva n'a pas d'étape de construction : les fichiers sont déjà prêts. Si
+     Vercel propose une commande de build, effacez-la.
+
+  5. Cliquez sur « Deploy ». Une minute plus tard, vous obtenez une adresse du
+     genre riseva-xxxx.vercel.app. Ouvrez-la : le site vitrine doit s'afficher.
+
+  6. Ajoutez /app/ à la fin de l'adresse. L'application doit s'ouvrir sur l'écran
+     de connexion, avec un jeu de démonstration. C'est normal : elle n'est pas
+     encore reliée à votre base. C'est l'étape suivante.
+
+
+================================================================================
+7. ÉTAPE C — RELIER LE SITE À LA BASE
+================================================================================
+
+Ce qu'on fait : on donne au site l'adresse de la base et la clé publique. Tant
+qu'on ne l'a pas fait, l'application tourne sur son jeu de démonstration — ce
+qui est utile pour montrer le produit, et inutile pour l'exploiter.
+
+Durée : 15 minutes.
+
+--------------------------------------------------------------------------------
+C.1 — Créer le fichier de configuration
+--------------------------------------------------------------------------------
+
+  1. Sur votre ordinateur, allez dans
+     Documents\Green\riseva-git\public\app\
+
+  2. Faites une copie du fichier `config.example.js` et renommez la copie en
+     `config.js`. Attention à l'extension : ce doit être `config.js`, pas
+     `config.js.txt`. (Dans l'explorateur Windows : Affichage → cochez
+     « Extensions de noms de fichiers ».)
+
+  3. Ouvrez `config.js` avec le Bloc-notes. Remplacez les deux valeurs par
+     celles notées à l'étape A.3 :
+
+         window.RISEVA_CONFIG = {
+           url: "https://abcdefghijkl.supabase.co",
+           anonKey: "eyJhbGciOi... (la longue clé publique)"
+         };
+
+     Gardez les guillemets. Ne mettez PAS la clé service_role ici.
+
+  4. Enregistrez.
+
+--------------------------------------------------------------------------------
+C.2 — Figer la bibliothèque cliente
+--------------------------------------------------------------------------------
+
+Cette étape mérite une phrase d'explication, parce qu'elle n'est pas évidente.
+
+L'application a besoin d'un petit programme fourni par Supabase pour lui parler.
+Le plus simple serait d'aller le chercher sur internet à chaque chargement de
+page. C'est ce que fait presque tout le monde, et c'est une mauvaise idée : le
+jour où l'adresse d'où on le télécharge sert autre chose, ce sont vos jetons de
+session qui partent ailleurs, sans qu'aucun de vos fichiers n'ait changé.
+
+On en garde donc une copie dans le dépôt, avec son empreinte. Si le fichier
+change, l'application le voit et refuse de démarrer.
+
+  1. Depuis un ordinateur qui a `bash` (Git Bash sur Windows fait l'affaire, il
+     est installé avec Git), placez-vous dans le dossier du projet et lancez :
+
+         ./scripts/figer-dependance.sh
+
+  2. Un fichier apparaît dans `public/app/vendor/`. Il doit être poussé sur
+     GitHub avec le reste.
+
+  Si vous ne pouvez pas lancer ce script maintenant, l'application fonctionnera
+  quand même en repli, mais faites-le avant de mettre un vrai client dessus.
+
+--------------------------------------------------------------------------------
+C.3 — Envoyer la modification en ligne
+--------------------------------------------------------------------------------
+
+  1. Double-cliquez sur `pousser.bat`, à la racine du dossier Green. Il envoie
+     tout sur GitHub.
+
+  2. Vercel le voit et republie tout seul, en une minute environ.
+
+  3. Rechargez l'adresse de votre site, ajoutez /app/, et essayez de créer un
+     compte. Si le compte se crée et que vous arrivez sur un tableau de bord
+     vide, c'est gagné : vous êtes sur votre vraie base.
+
+  ATTENTION : `config.js` contient l'adresse de votre base. C'est normal qu'il
+  soit dans le dépôt, et il n'y a aucun secret dedans. Mais si votre dépôt est
+  public, n'y mettez jamais autre chose que ces deux valeurs.
+
+
+================================================================================
+8. ÉTAPE D — LE COFFRE DE PREUVES (LE STOCKAGE DES FICHIERS)
+================================================================================
+
+Ce qu'on fait : on crée l'endroit où atterriront les factures, relevés et
+attestations que les sites joignent à leurs chiffres.
+
+Durée : 5 minutes.
+
+  1. Dans Supabase, menu de gauche : « Storage ».
+
+  2. Cliquez sur « New bucket ». Nommez-le exactement :
+
+         preuves
+
+     Et laissez « Public bucket » DÉCOCHÉ. C'est capital : un bucket public est
+     un dossier ouvert à qui connaît l'adresse d'un fichier. Le nôtre ne doit
+     rendre un fichier que sur présentation d'un lien signé, valable dix minutes.
+
+  3. Les règles d'accès sont déjà écrites dans `03_rls.sql`, que vous avez
+     exécuté à l'étape A. Elles disent : on ne lit un fichier que si sa clé
+     commence par l'identifiant de son entreprise. Si vous avez créé le bucket
+     APRÈS avoir lancé 03_rls.sql, réexécutez seulement ce fichier : il est
+     écrit pour pouvoir être relancé sans casse.
+
+  4. Vérification : ouvrez l'application, allez dans « Données sociales »,
+     ouvrez une campagne, et regardez la colonne « Pièces » d'un site qui a
+     déjà saisi. Le bouton « Joindre » doit accepter un PDF.
+
+La section 18 explique en détail comment ce coffre fonctionne et pourquoi il est
+fait comme ça.
+
+
+================================================================================
+9. ÉTAPE E — LES TRAVAUX DE LA NUIT
+================================================================================
+
+Ce qu'on fait : on s'assure que la base fait bien son ménage toute seule.
+
+Durée : 2 minutes.
+
+Le fichier `05_taches.sql`, exécuté à l'étape A, a déjà tout programmé. Il ne
+reste qu'à vérifier.
+
+  1. Dans Supabase, menu de gauche : « Database », puis « Extensions ».
+     Cherchez `pg_cron`. Elle doit être activée. Si elle ne l'est pas, activez-la
+     puis réexécutez `05_taches.sql`.
+
+  2. Pour voir ce qui est programmé, ouvrez le SQL Editor et lancez :
+
+         select jobname, schedule, active from cron.job;
+
+     Vous devez voir au moins une ligne active.
+
+Ce que ces travaux font chaque nuit :
+  - une mission déclarée qu'aucune association n'a tranchée depuis quatorze
+    jours est validée automatiquement, et marquée « non confirmée » partout où
+    elle apparaît ;
+  - les annonces dont la date est passée se ferment ;
+  - le classement est recalculé ;
+  - les traces d'accès arrivées à échéance sont purgées.
+
+
+================================================================================
+10. ÉTAPE F — LE NOM DE DOMAINE
+================================================================================
+
+Ce qu'on fait : on remplace riseva-xxxx.vercel.app par riseva.fr.
+
+Durée : 20 minutes, plus quelques heures d'attente.
+
+  1. Achetez le domaine chez un bureau d'enregistrement. Pour un .fr, OVH,
+     Gandi ou Infomaniak font le travail. Comptez une dizaine d'euros par an.
+     Prenez l'option qui masque vos coordonnées dans l'annuaire public si elle
+     est proposée.
+
+  2. Dans Vercel, ouvrez votre projet, puis « Settings », puis « Domains ».
+     Tapez riseva.fr et cliquez sur « Add ».
+
+  3. Vercel affiche alors une ou deux lignes à recopier chez votre bureau
+     d'enregistrement, du genre :
+
+         Type A     Nom @      Valeur 76.76.21.21
+         Type CNAME Nom www    Valeur cname.vercel-dns.com
+
+     Les valeurs exactes sont celles que Vercel affiche, pas celles-ci.
+
+  4. Chez votre bureau d'enregistrement, cherchez « Zone DNS » ou « Gestion
+     DNS », et ajoutez ces lignes exactement.
+
+  5. Attendez. Ça prend de dix minutes à quelques heures. Vercel affiche une
+     pastille verte quand c'est bon, et installe tout seul le certificat qui
+     fait apparaître le cadenas.
+
+  6. Une fois le domaine actif, retournez dans Supabase, « Authentication »,
+     puis « URL Configuration », et mettez https://riseva.fr comme « Site URL ».
+     Sans ça, les liens de confirmation envoyés par courriel renverront vers la
+     mauvaise adresse.
+
+
+================================================================================
+11. ÉTAPE G — LES COURRIELS
+================================================================================
+
+Ce qu'on fait : on branche l'envoi des messages — invitation d'un salarié,
+demande de confirmation à une association, alerte de retard.
+
+Durée : 30 minutes, dont une attente de validation du domaine.
+
+Tant que cette étape n'est pas faite, la plateforme fonctionne : les fonctions
+qui devraient envoyer un courriel écrivent dans le journal au lieu d'envoyer.
+Rien n'est perdu, mais personne n'est prévenu.
+
+  1. Créez un compte sur resend.com. L'offre gratuite suffit largement au début.
+
+  2. Ajoutez votre domaine riseva.fr, et recopiez chez votre bureau
+     d'enregistrement les lignes DNS que Resend affiche (ce sont des lignes de
+     type TXT). Elles servent à prouver que vous avez le droit d'envoyer des
+     messages au nom de ce domaine — sans elles, vos courriels partiront dans
+     les indésirables.
+
+  3. Une fois le domaine validé, créez une clé d'API dans Resend et copiez-la.
+
+  4. Dans Supabase, menu de gauche : « Edge Functions », puis « Secrets » (ou
+     « Project Settings » → « Edge Functions » → « Secrets » selon la version).
+     Ajoutez :
+
+         RESEND_API_KEY   = la clé copiée à l'étape 3
+
+     C'EST LE SEUL ENDROIT où une clé secrète a le droit d'exister. Jamais dans
+     le dépôt, jamais dans `public/`.
+
+  5. Déployez les fonctions. Depuis un terminal, dans le dossier du projet :
+
+         supabase functions deploy demande-validation valider-mission rapport paiement helloasso effacement
+
+     (Il faut avoir installé l'outil `supabase` au préalable ; sa page
+     d'installation explique comment, et c'est une seule commande.)
+
+
+================================================================================
+12. ÉTAPE H — LES DONS PAR HELLOASSO
+================================================================================
+
+Ce qu'on fait : on permet à une entreprise de donner par carte, sans que Riseva
+touche jamais l'argent.
+
+Durée : variable — il faut une réponse de HelloAsso.
+
+Le principe, en une phrase : c'est l'association qui accorde à Riseva le droit
+de préparer un paiement pour elle, et l'argent va de l'entreprise à
+l'association sans passer par nous. C'est ce qui fait que Riseva n'est pas un
+prestataire de services de paiement au sens du code monétaire et financier, et
+n'a donc pas à en demander l'agrément.
+
+  1. Demandez à HelloAsso un accès partenaire. Vous obtenez un identifiant de
+     client et un secret.
+
+  2. Mettez-les dans les secrets des fonctions Edge de Supabase, comme à
+     l'étape G :
+
+         HELLOASSO_CLIENT_ID
+         HELLOASSO_CLIENT_SECRET
+
+  3. Redéployez la fonction `helloasso`.
+
+  4. Dans l'application, côté association, l'écran « Dons » propose alors de
+     relier le compte HelloAsso de l'association. C'est elle qui autorise, sur
+     un écran HelloAsso, et Riseva n'a jamais sa clé.
+
+Tant que ce n'est pas branché, les dons fonctionnent par virement direct, avec
+une référence à recopier. C'est moins agréable et parfaitement légal.
+
+
+================================================================================
+13. VÉRIFIER QUE TOUT MARCHE : LA LISTE DE CONTRÔLE
+================================================================================
+
+À faire une fois, entièrement, avant de montrer la plateforme à un client.
+
+  [ ]  Le site s'ouvre sur https://riseva.fr avec un cadenas.
+  [ ]  /app/ affiche l'écran de connexion.
+  [ ]  Je peux créer un compte entreprise, et je reçois le courriel.
+  [ ]  Je peux ajouter un établissement avec son SIRET.
+  [ ]  Je peux ouvrir une campagne d'indicateurs et cocher des rubriques.
+  [ ]  Depuis un deuxième compte, je peux saisir les valeurs d'un site.
+  [ ]  Le premier compte peut approuver cette saisie — et le deuxième ne peut
+       pas approuver la sienne.
+  [ ]  Je peux joindre un PDF à une valeur, et le retélécharger.
+  [ ]  Le rapport affiche des totaux, avec le nombre de sites derrière chaque
+       somme.
+  [ ]  L'export en classeur s'ouvre dans Excel, avec un onglet par rubrique.
+  [ ]  Une association peut s'inscrire, publier une annonce, et confirmer une
+       mission.
+  [ ]  Le classement affiche les entreprises sans nommer les dernières.
+  [ ]  Sur mon téléphone, la vitrine et l'application se lisent sans zoom.
+
+Si une case ne se coche pas, notez précisément ce que vous avez fait et ce qui
+s'est passé, puis section 14.
+
+
+================================================================================
+14. QUAND QUELQUE CHOSE CASSE
+================================================================================
+
+Les pannes les plus fréquentes, et ce qu'elles veulent dire.
+
+« L'application affiche des données bizarres, des noms que je ne connais pas »
+  Vous êtes sur le jeu de démonstration. Soit `config.js` n'existe pas, soit
+  l'adresse ou la clé dedans est fausse. Ouvrez la console du navigateur (touche
+  F12, onglet « Console ») : elle le dit.
+
+« Une erreur rouge pendant l'exécution d'un fichier SQL »
+  Lisez la première ligne du message, pas la dernière. Trois causes, dans
+  l'ordre de fréquence :
+    - vous n'avez pas exécuté les fichiers dans l'ordre ;
+    - vous avez collé le fichier en deux fois, et coupé au milieu d'une
+      fonction ;
+    - vous avez déjà exécuté ce fichier et une table existe déjà. Dans ce cas
+      seulement, et si la base est encore vide, le plus propre est de supprimer
+      le projet Supabase et de recommencer l'étape A. C'est cinq minutes.
+
+« permission denied for table … »
+  La RLS fait son travail : le compte connecté n'a pas le droit de lire cette
+  table. Ce n'est pas forcément un bug. Vérifiez que vous êtes connecté avec le
+  bon rôle.
+
+« Le site ne se met pas à jour après un pousser.bat »
+  Regardez dans Vercel, onglet « Deployments » : le dernier déploiement est-il
+  vert ? S'il est rouge, cliquez dessus, le journal dit pourquoi.
+
+« Le paquet est illisible » au lancement de pousser.bat
+  Le fichier riseva.bundle est incomplet ou corrompu. Redemandez-en un.
+
+« Les courriels ne partent pas »
+  Étape G non terminée, ou domaine non validé chez Resend. Les fonctions Edge
+  ont un journal dans Supabase : « Edge Functions » → la fonction → « Logs ».
+
+Quand vous demandez de l'aide, donnez toujours ces trois choses : ce que vous
+vouliez faire, ce que vous avez fait exactement, et le message d'erreur copié
+en entier. Sans le message exact, personne ne peut vous aider.
+
+
+================================================================================
+15. LES SAUVEGARDES
+================================================================================
+
+Deux choses à sauvegarder, et elles n'ont rien à voir l'une avec l'autre.
+
+LE CODE
+  Il est sur GitHub, avec tout son historique. C'est déjà une sauvegarde, et
+  elle est bonne. Vous en avez en plus une copie complète dans
+  Documents\Green\riseva-git, et un paquet `riseva.bundle` qui contient
+  l'intégralité de l'historique dans un seul fichier. Gardez ce paquet ailleurs
+  que sur votre disque principal : une clé USB, ou un dossier synchronisé.
+
+LES DONNÉES DE VOS CLIENTS
+  C'est la partie sérieuse. Supabase sauvegarde tous les jours sur les offres
+  payantes ; sur l'offre gratuite, la rétention est courte. Le jour où vous avez
+  un vrai client, passez à l'offre payante — pas pour la puissance, pour les
+  sauvegardes.
+
+  En attendant, faites un export manuel une fois par semaine :
+  Supabase → « Database » → « Backups », ou depuis un terminal avec `pg_dump`.
+  Rangez le fichier ailleurs que chez Supabase.
+
+  Le test qui compte n'est pas « ai-je une sauvegarde », c'est « suis-je déjà
+  parvenu à restaurer une sauvegarde ». Faites-le une fois, sur un projet
+  Supabase jetable, avant d'en avoir besoin.
+
+LES FICHIERS DU COFFRE DE PREUVES
+  Ils vivent dans le stockage Supabase et ne sont PAS inclus dans un export de
+  base : l'export contient les lignes qui les décrivent, pas les fichiers.
+  C'est un piège classique. Si vous exportez, exportez aussi le bucket.
+
+
+================================================================================
+16. CE QUE ÇA COÛTE
+================================================================================
+
+Les ordres de grandeur au moment où ce document est écrit. Les tarifs des
+hébergeurs changent : vérifiez avant de vous engager.
+
+  Le nom de domaine .fr           environ 10 à 15 euros par an
+  Vercel, offre Hobby             gratuit, tant que l'usage reste non commercial
+  Vercel, offre Pro               environ 20 dollars par mois et par personne
+  Supabase, offre Free            gratuit, base mise en pause après une semaine
+                                  sans activité, sauvegardes courtes
+  Supabase, offre Pro             environ 25 dollars par mois
+  Resend                          gratuit jusqu'à quelques milliers de messages
+  HelloAsso                       gratuit pour l'association, financé au
+                                  pourboire du donateur
+
+Autrement dit : tant que vous montrez le produit, ça coûte le domaine. À partir
+du premier client payant, comptez environ cinquante euros par mois pour être sur
+des offres qui sauvegardent et qui ne mettent pas la base en pause. C'est le
+coût qu'il faut assumer : une base en pause au moment où un prospect ouvre le
+lien de démonstration, ça ne se rattrape pas.
+
+
+================================================================================
+17. LES CINQ CHOSES À NE JAMAIS FAIRE
+================================================================================
+
+1. NE JAMAIS METTRE LA CLÉ `service_role` DANS `public/`
+   Cette clé ouvre toute la base et ignore la RLS. Dans une page, elle est
+   lisible par n'importe qui en trois clics. Sa seule place est dans les secrets
+   des fonctions Edge. Si elle fuit une fois, il faut la révoquer et redéployer.
+
+2. NE JAMAIS RENDRE LE BUCKET `preuves` PUBLIC
+   Un bucket public rend n'importe quel fichier à qui connaît son adresse. Les
+   factures de vos clients ne sont pas des images de décoration.
+
+3. NE JAMAIS MODIFIER UNE DONNÉE DIRECTEMENT DANS LE TABLE EDITOR
+   C'est tentant, et ça contourne toutes les règles : le contributeur qui ne
+   peut pas approuver sa propre saisie, le plafond de mécénat, la piste d'audit.
+   Une valeur changée à la main est une valeur dont plus personne ne peut dire
+   d'où elle vient. Passez par l'application, toujours.
+
+4. NE JAMAIS PROMETTRE UNE CONFORMITÉ
+   Riseva rassemble, additionne et rend. Elle n'audite pas, ne certifie pas, ne
+   valide pas une déclaration. La responsabilité d'un chiffre reste chez celui
+   qui l'a écrit. Ce n'est pas de la modestie commerciale : c'est ce qui vous
+   protège le jour où un chiffre est faux.
+
+5. NE JAMAIS ENCAISSER L'ARGENT D'UN DON
+   Le jour où Riseva reçoit des fonds pour les reverser, elle devient un
+   prestataire de services de paiement, et il lui faut un agrément. L'argent va
+   de l'entreprise à l'association, directement, toujours.
+
+
+================================================================================
+18. COMMENT FONCTIONNE LE COFFRE DE PREUVES
+================================================================================
+
+Vous avez demandé que les sites puissent joindre un fichier quand le siège leur
+demande un indicateur, et que le siège puisse ensuite le télécharger. C'est fait.
+Voici comment, en langage clair.
+
+LE PROBLÈME QU'IL RÉSOUT
+  Avant, une valeur portait qui l'avait saisie et qui l'avait approuvée. C'est
+  déjà plus qu'un tableur. Ce n'est pas assez : un an plus tard, devant un
+  donneur d'ordre qui demande d'où sort le chiffre, « Karim l'a saisi le
+  3 juillet » n'est pas une réponse. La facture d'électricité, elle, en est une.
+
+CE QUE VOIT LE SITE QUI SAISIT
+  Dans l'écran « Données sociales », sur la ligne de son établissement, une
+  colonne « Pièces » avec un bouton « Joindre ». Il choisit un fichier — PDF,
+  photo, image, CSV, classeur Excel, document Word, dix mégaoctets au plus — et
+  c'est fini. La pièce apparaît avec son nom, son poids et le nom de qui l'a
+  déposée.
+
+CE QUE VOIT LE SIÈGE
+  La même colonne, mais sur toutes les lignes. Il voit d'abord un COMPTE :
+  « 2 pièces ». C'est ce qui l'intéresse — il ne lit pas les factures de ses
+  sites, il vérifie qu'elles existent. S'il veut ouvrir, il déplie et
+  télécharge.
+
+CE QUI SE PASSE VRAIMENT, SOUS LE CAPOT
+  Deux mouvements, dans cet ordre et jamais l'inverse.
+    1. Le fichier monte dans le stockage, sous une clé qui commence par
+       l'identifiant de l'entreprise : `<entreprise>/observation/<valeur>/…`.
+    2. La base enregistre la ligne : nom, poids, type, qui, quand, et
+       l'empreinte du fichier.
+  Si le deuxième mouvement échoue, on a un fichier orphelin — pas grave, il sera
+  ramassé. Dans l'autre sens, on aurait une ligne qui promet une preuve derrière
+  un lien qui ne rend rien. C'est bien pire.
+
+L'EMPREINTE, ET POURQUOI ELLE COMPTE
+  Au dépôt, on calcule une empreinte du fichier : une suite de soixante-quatre
+  caractères qui change entièrement si un seul octet du fichier change. Elle est
+  rangée avec la ligne. Un an plus tard, on peut recalculer l'empreinte du
+  fichier téléchargé et la comparer : si elles sont identiques, c'est bien le
+  fichier déposé ce jour-là. Une pièce sans empreinte prouve seulement qu'un
+  fichier existe quelque part.
+
+LES QUATRE RÈGLES, ET LEUR RAISON
+  1. On ne joint une pièce qu'à un chiffre de son propre périmètre. Un site ne
+     peut pas accrocher sa facture au chiffre d'une autre entreprise, et la base
+     le refuse — pas l'écran, la base.
+  2. Les formats sont une liste fermée. Un exécutable déposé par un site puis
+     téléchargé par le siège, c'est une chaîne d'infection interne complète.
+  3. Une pièce accrochée à une valeur APPROUVÉE ne se retire plus. Le chiffre
+     est entré dans un rapport ; sa justification part avec lui. Effacer une
+     preuve après coup, c'est exactement ce contre quoi une piste d'audit
+     existe. En revanche, on peut toujours en AJOUTER une : ajouter une preuve à
+     un chiffre verrouillé est sain, la retirer ne l'est pas.
+  4. Le CSE ne voit aucune pièce. Il lit des agrégats approuvés ; une facture
+     porte des noms, des adresses et des références de contrat que l'agrégat ne
+     porte pas.
+
+CE QU'IL NE FAUT PAS Y METTRE
+  Aucun document nominatif de santé. Pas d'arrêt de travail, pas de certificat
+  médical, pas de nom de victime. La plateforme compte des accidents et des
+  journées, pas des personnes, et l'écran le dit avant le dépôt. Ce n'est pas
+  une préférence : c'est ce qui distingue une donnée de sécurité d'une donnée de
+  santé, et les deux n'ont pas le même régime juridique.
+
+EN DÉMONSTRATION
+  Il n'y a pas de serveur : le fichier est gardé dans le navigateur, et
+  seulement s'il pèse moins de quatre cents kilo-octets. Au-delà, la pièce est
+  enregistrée et le fichier ne l'est pas — et l'écran l'écrit, plutôt que de
+  faire croire à une preuve qu'on n'a pas.
+
+
+================================================================================
+19. LE JOUR OÙ VOUS VOULEZ CHANGER QUELQUE CHOSE
+================================================================================
+
+CHANGER UN TEXTE DE LA VITRINE
+  Les pages ne se modifient pas à la main : elles sont fabriquées par
+  `scripts/vitrines.py`. On modifie le texte dans ce fichier, on relance
+  `python3 scripts/vitrines.py`, et `public/index.html` est réécrit. Modifier
+  l'HTML directement, c'est écrire quelque chose qui sera effacé au prochain
+  passage.
+
+CHANGER UN TARIF
+  Un seul endroit : `public/app/data.js`, la constante `TARIFS`. La grille de la
+  vitrine, le simulateur et le bon de commande la lisent tous les trois. Écrire
+  un prix ailleurs, c'est garantir qu'un jour deux prix se contrediront sur la
+  même page.
+
+AJOUTER UN INDICATEUR
+  `supabase/06_catalogue.sql` et le catalogue du moteur. Un indicateur porte
+  toujours sa définition — ce qu'on compte, ce qu'on ne compte pas — et sa
+  formule si c'est un taux.
+
+VÉRIFIER QUE VOUS N'AVEZ RIEN CASSÉ
+  Une seule commande, avant chaque mise en ligne :
+
+        python3 scripts/verifier.py
+
+  Elle vérifie la syntaxe, installe la base à blanc, joue les tests SQL, ouvre
+  un navigateur, refait le parcours complet, mesure les contrastes et relit les
+  caractères affichés. Elle prend quelques minutes. Si elle n'est pas verte, ne
+  mettez pas en ligne.
+
+LA RÈGLE QUI TIENT TOUT
+  Trois documents font autorité, dans cet ordre : `SPEC.md` pour les règles
+  produit, `DECISIONS.md` pour le journal daté de ce qu'on a décidé et de ce que
+  ça remplace, `DESIGN.md` pour le visuel. Si le code et ces documents divergent,
+  c'est le code qui a tort.
+
+
+================================================================================
+Vous êtes arrivé au bout. La plateforme est en ligne, elle sauvegarde, elle
+relance toute seule, et chaque chiffre qu'elle affiche peut être remonté jusqu'à
+la personne qui l'a écrit et à la pièce qui le justifie.
+
+Ce document sera périmé le jour où Supabase ou Vercel changera le nom d'un
+bouton. La logique, elle, ne changera pas : une base avec ses serrures, des
+pages statiques devant, un stockage à côté, et des travaux qui tournent la nuit.
+================================================================================

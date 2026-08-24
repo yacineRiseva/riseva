@@ -631,31 +631,40 @@ def chiffres_hero():
     </ul>"""
 
 
-def briques(items):
-    """Les quatre briques du produit, numerotees.
+def questions(items):
+    """Les trois questions auxquelles un dirigeant n'avait pas la reponse.
 
-    Pourquoi ce bloc existe. La vitrine expliquait le produit dans l'ordre des
-    objections d'un acheteur — « qui va gerer ca chez moi », « et s'il n'y a
-    rien autour de mon site » — ce qui est le bon ordre pour convaincre, et le
-    mauvais pour comprendre. Un visiteur qui arrive sans question precise ne
-    savait toujours pas, au bout de trois sections, si Riseva etait un annuaire
-    d'associations, un outil de reporting ou un jeu inter-sites.
+    Ce que ce bloc remplace, et pourquoi. La section presentait le produit en
+    quatre cartes numerotees — agir, collecter, piloter, rapporter. C'etait
+    exact, ordonne, et ca se lisait comme un sommaire de logiciel : quatre mots
+    a l'infinitif que n'importe quel outil de gestion pourrait afficher, et
+    devant lesquels un dirigeant ne se reconnait pas.
 
-    C'est les trois, et ca se dit en quatre mots : agir, collecter, piloter,
-    rapporter. Chaque brique porte un fait verifiable et le nom de l'ecran ou
-    elle se trouve dans l'application — pas un adjectif."""
+    Un dirigeant de PME n'ouvre pas un logiciel RSE par curiosite. Il l'ouvre
+    parce qu'on vient de lui poser une question a laquelle il n'a pas su
+    repondre, et il y en a exactement trois : combien de mes sites ont repondu,
+    d'ou sort ce chiffre, et qu'est-ce que mes equipes ont fait cette annee. La
+    section pose les trois, dit qui les pose, et montre ou est la reponse.
+
+    La forme suit : pas des cartes cote a cote, mais trois lignes empilees, la
+    question en gros a gauche et la reponse a droite. Ca se lit comme un
+    document, pas comme une grille de fonctionnalites — et c'est exactement ce
+    qu'on veut faire croire, parce que c'est vrai."""
     out = ""
-    for n, (cle, titre, corps, ecran) in enumerate(items):
+    for n, (question, qui, reponse, ecran) in enumerate(items):
         d = f" d{n}" if n else ""
         out += f"""
-        <li class="brique rv{d}">
-          <span class="brique-n mono">{n + 1:02d}</span>
-          <h3 class="brique-k">{cle}</h3>
-          <p class="brique-t">{titre}</p>
-          <p class="brique-p">{corps}</p>
-          <p class="brique-e mono">{ecran}</p>
+        <li class="qst rv{d}">
+          <div class="qst-q">
+            <p class="qst-t">{question}</p>
+            <p class="qst-w mono">{qui}</p>
+          </div>
+          <div class="qst-r">
+            <p>{reponse}</p>
+            <p class="qst-e mono">{ecran}</p>
+          </div>
         </li>"""
-    return f'    <ol class="briques">{out}\n    </ol>'
+    return f'    <ol class="questions">{out}\n    </ol>'
 
 
 def flux(etapes_flux):
@@ -971,50 +980,43 @@ def onglets(items):
     </div>"""
 
 
-# ── la plateforme, en quatre briques ────────────────────────────────────────
-# La section qui manquait. Elle vient juste apres le premier ecran parce que
-# c'est la question suivante, toujours la meme : « concretement, c'est quoi ? »
-# Elle repond en quatre mots et une ligne de temps, puis elle montre l'ecran de
-# groupe — celui qui prouve le multi-sites, qu'aucune phrase ne prouve.
+# ── ce que Riseva repond ────────────────────────────────────────────────────
+# La section vient juste apres le premier ecran parce que c'est la question
+# suivante, toujours la meme : « concretement, c'est quoi ? ». Elle y repond en
+# retournant la question — voici les trois qu'on vous pose, et voici ou est la
+# reponse — puis elle montre l'ecran de groupe, celui qui prouve le multi-sites
+# qu'aucune phrase ne prouve.
 PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss">
   <div class="layer">
-{entete("La plateforme",
-        "Quatre briques,<br><span class='it'>un seul endroit.</span>",
-        "Riseva est une plateforme RSE. Elle ne fait ni votre paie, ni votre bilan carbone, "
-        "ni votre index d'égalité — trois choses qui ont leurs outils et leurs règles. Elle "
-        "tient ce qui se perd : les actions, les chiffres de chaque site, les preuves, et le "
-        "rapport qui en sort.")}
+{entete("Ce que ça répond",
+        "Trois questions,<br><span class='it'>et vous n'aviez pas la réponse.</span>",
+        "Personne n'ouvre un logiciel RSE par curiosité. On l'ouvre parce qu'on "
+        "vient de vous poser une de ces trois questions, et qu'il a fallu répondre "
+        "« je vais voir ».")}
 
-{briques([
-  ("Agir",
-   "Des associations vérifiées, près de chaque site.",
-   "Refuges, plantations, berges, distributions de repas. Elles publient ce dont elles ont "
-   "besoin, vos salariés s'inscrivent, et <b>c'est l'association qui confirme</b> ce qui a été "
-   "fait. Bénévolat sur le temps de travail, dons de matériel, mécénat de compétences, dons "
-   "en argent : les quatre passent par le même écran.",
-   "Écrans : Annonces, Nos missions, Associations"),
-  ("Collecter",
-   "Vous demandez, les sites répondent, personne ne relance.",
-   f"Vous cochez les rubriques d'une période parmi {CATALOGUE['rubriques']} — effectifs, "
+{questions([
+  ("« Combien de vos sites ont répondu&nbsp;? »",
+   "Posée par votre direction, en réunion budget",
+   f"Vous cochez les rubriques d'une période parmi {CATALOGUE['rubriques']} : effectifs, "
    "sécurité, formation, énergie, déchets, mobilité, achats. Chaque établissement voit sa "
-   "part sur son écran, avec ce qu'on compte et ce qu'on ne compte pas. <b>Celui qui saisit "
-   "ne peut pas approuver sa propre saisie</b>, et le retard se voit chez celui qui est en "
-   "retard.",
-   "Écrans : Données sociales, Sécurité"),
-  ("Piloter",
-   "Un établissement, une société, un groupe.",
-   f"{CATALOGUE['saisis']} valeurs collectées, {CATALOGUE['calcules']} taux calculés. Un taux "
-   "de périmètre est un <b>rapport de sommes</b>, jamais une moyenne de taux : l'écart entre "
-   "les deux est réel et ne se voit pas à l'œil. Une valeur absente reste absente et n'est "
-   "jamais comptée pour zéro.",
-   "Écrans : Vue consolidée, Sites et quotas"),
-  ("Rapporter",
-   "Le rapport est déjà écrit quand vous l'ouvrez.",
-   "Trimestre et année, à l'écran, en classeur et en CSV. Chaque somme porte le nombre de "
-   "sites sur lequel elle repose, chaque valeur manquante est listée, et chaque chiffre "
-   "remonte à l'établissement, à la personne et à la pièce jointe qui le justifient. La "
-   "fiche VSME et la piste d'audit du mécénat sortent du même jeu de données.",
+   "part sur son écran, avec ce qu'on compte et ce qu'on ne compte pas. La plateforme "
+   "relance à sa place, et <b>vous voyez qui manque, nommément</b>.",
+   "Écrans : Données sociales, Sites et quotas, Vue consolidée"),
+  ("« D'où sort ce chiffre&nbsp;? »",
+   "Posée par un donneur d'ordre, dans un questionnaire fournisseur",
+   f"{CATALOGUE['saisis']} valeurs collectées, {CATALOGUE['calcules']} taux calculés en "
+   "rapport de sommes et jamais en moyenne de taux. Chaque valeur porte qui l'a saisie, qui "
+   "l'a approuvée (jamais la même personne) et <b>la pièce jointe qui la justifie</b>. Le "
+   "rapport sort en classeur et en CSV, avec sa méthode et le nombre de sites derrière "
+   "chaque somme.",
    "Écrans : Rapports, Fiche VSME, Mécénat"),
+  ("« Qu'est-ce que vos équipes ont fait, cette année&nbsp;? »",
+   "Posée par vos salariés, et par vos candidats",
+   "Une saison d'un an. Des associations vérifiées près de chaque site publient ce dont "
+   "elles ont besoin, vos équipes s'y rendent ensemble, et <b>c'est l'association qui "
+   "confirme</b>. Refuges, plantations, berges, distributions de repas. Bénévolat, dons de "
+   "matériel, mécénat de compétences et dons en argent passent par le même écran.",
+   "Écrans : Annonces, Nos missions, Associations"),
 ])}
 
 {flux([
@@ -1026,7 +1028,7 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss">
 ])}
 
     <p class="s-note s-note--flux">Vous ne vous en occupez qu'une fois, au début. Le reste de
-      la période, la plateforme travaille sans vous — et si personne ne répond, la période se
+      la période, la plateforme travaille sans vous, et si personne ne répond, la période se
       clôt <b>sans réponse</b> plutôt que d'être comblée avec celle d'avant.</p>
 
     {capture("groupe",
@@ -1036,7 +1038,6 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss">
              "Deux sociétés, quatre établissements, un seul écran", " shot--seule")}
   </div>
 </section>"""
-
 
 PILOTAGE_ENT = f"""<section id="pilotage">
   <div class="layer">

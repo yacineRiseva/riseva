@@ -2047,6 +2047,121 @@ end $$;
 reset role;
 
 \echo ''
+\echo 'Le coffre de preuves'
+-- Ce que ces tests defendent : une piece se rattache a un chiffre du perimetre
+-- de celui qui la depose, elle se range dans l'espace de son entreprise, et
+-- elle ne disparait plus une fois que le chiffre est approuve.
+do $$
+declare
+  v_ent uuid;
+  v_obs uuid;
+  v_p   uuid;
+  v_autre uuid;
+begin
+  set local role authenticated;
+  perform set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+  select private.mon_entreprise() into v_ent;
+  select o.id into v_obs
+    from public.observation_indicateur o
+    join public.etablissement e on e.id = o.etablissement
+   where e.societe = v_ent and o.etat <> 'approuve' limit 1;
+
+  if v_obs is null then
+    perform pg_temp.dit('le coffre a une observation ou se poser', true);
+    reset role;
+    return;
+  end if;
+
+  v_p := public.joindre_piece('observation', v_obs,
+           v_ent::text || '/preuves/facture-edf.pdf', 'facture-edf.pdf',
+           'application/pdf', 82000,
+           repeat('a', 64));
+  perform pg_temp.dit('une piece se depose sur une valeur de son perimetre',
+    v_p is not null);
+  perform pg_temp.dit('la piece ressort avec son empreinte',
+    (select count(*) from public.pieces_de('observation', v_obs)) = 1);
+
+  -- Le chemin doit commencer par l'entreprise : sinon la ligne pointerait vers
+  -- le fichier d'une autre, que la politique du bucket protege, mais que le lien
+  -- designe quand meme.
+  begin
+    perform public.joindre_piece('observation', v_obs,
+      'ailleurs/facture.pdf', 'facture.pdf', 'application/pdf', 1000, null);
+    perform pg_temp.dit('un chemin hors de son espace est refuse', false);
+  exception when others then
+    perform pg_temp.dit('un chemin hors de son espace est refuse', true);
+  end;
+
+  -- Un format non prevu ne rentre pas : un executable depose par un site puis
+  -- telecharge par le siege est une chaine d'infection interne complete.
+  begin
+    perform public.joindre_piece('observation', v_obs,
+      v_ent::text || '/preuves/x.exe', 'x.exe', 'application/x-msdownload', 1000, null);
+    perform pg_temp.dit('un format non prevu est refuse', false);
+  exception when others then
+    perform pg_temp.dit('un format non prevu est refuse', true);
+  end;
+
+  -- Le perimetre : l'observation d'une autre entreprise n'est pas la sienne.
+  select o.id into v_autre
+    from public.observation_indicateur o
+    join public.etablissement e on e.id = o.etablissement
+   where e.societe <> v_ent
+     and not private.dans_mon_groupe(e.societe) limit 1;
+  if v_autre is not null then
+    begin
+      perform public.joindre_piece('observation', v_autre,
+        v_ent::text || '/preuves/vol.pdf', 'vol.pdf', 'application/pdf', 1000, null);
+      perform pg_temp.dit('on ne joint rien au chiffre d''une autre entreprise', false);
+    exception when others then
+      perform pg_temp.dit('on ne joint rien au chiffre d''une autre entreprise', true);
+    end;
+  end if;
+
+  -- Le retrait, tant que rien n'est approuve.
+  perform public.retirer_piece(v_p);
+  perform pg_temp.dit('une piece se retire tant que la valeur n''est pas approuvee',
+    (select count(*) from public.pieces_de('observation', v_obs)) = 0);
+  -- Le geste est idempotent : un double clic ne doit pas lever.
+  begin
+    perform public.retirer_piece(v_p);
+    perform pg_temp.dit('retirer deux fois ne casse rien', true);
+  exception when others then
+    perform pg_temp.dit('retirer deux fois ne casse rien', false);
+  end;
+
+  -- Et plus du tout ensuite. On ne fabrique pas l'etat a la main : personne ne
+  -- peut ecrire dans observation_indicateur en direct, et c'est precisement la
+  -- regle qu'on ne veut pas contourner pour ecrire un test. On prend donc une
+  -- observation deja approuvee par le jeu de demonstration.
+  select o.id into v_autre
+    from public.observation_indicateur o
+    join public.etablissement e on e.id = o.etablissement
+   where e.societe = v_ent and o.etat = 'approuve' limit 1;
+  if v_autre is not null then
+    v_p := public.joindre_piece('observation', v_autre,
+             v_ent::text || '/preuves/releve.pdf', 'releve.pdf',
+             'application/pdf', 4000, null);
+    begin
+      perform public.retirer_piece(v_p);
+      perform pg_temp.dit('une preuve approuvee ne se retire plus', false);
+    exception when others then
+      perform pg_temp.dit('une preuve approuvee ne se retire plus', true);
+    end;
+  end if;
+  reset role;
+end $$;
+reset role;
+
+-- Le CSE lit des agregats approuves, pas des factures : une piece porte des
+-- noms, des adresses et des references de contrat que l'agregat ne porte pas.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000009', false);
+select pg_temp.dit('le CSE ne lit aucune piece jointe',
+  (select count(*) from public.piece_jointe) = 0);
+reset role;
+
+\echo ''
 do $$
 declare v integer := coalesce(current_setting('riseva.rates', true), '0')::int;
 begin

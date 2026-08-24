@@ -2783,6 +2783,97 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       return v;
     },
 
+    /* ---------------------------------------------------------------- */
+    /* Le coffre de preuves                                               */
+    /*                                                                    */
+    /* Ce qu'il change, et pourquoi il valait la peine d'etre ecrit. Une   */
+    /* valeur portait deja qui l'avait saisie et qui l'avait approuvee.    */
+    /* C'est plus qu'un tableur, et ce n'est pas assez : un an plus tard,  */
+    /* devant un donneur d'ordre qui demande d'ou sort le chiffre,         */
+    /* « Karim l'a saisi le 3 juillet » n'est pas une reponse. La facture  */
+    /* d'electricite, elle, en est une.                                    */
+    /*                                                                    */
+    /* En demonstration, le fichier est garde en base 64 dans l'etat, et   */
+    /* seulement s'il tient sous la limite : le navigateur alloue quelques */
+    /* megaoctets par site, et une demonstration qui casse au troisieme    */
+    /* depot ne demontre rien. Au-dela, on garde la ligne sans le fichier  */
+    /* et on le dit, plutot que de faire croire a une piece qu'on n'a pas. */
+    FORMATS_PIECE: {
+      "application/pdf": "PDF",
+      "image/jpeg": "photo JPEG",
+      "image/png": "image PNG",
+      "image/webp": "image WebP",
+      "text/csv": "CSV",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "classeur",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "document"
+    },
+    TAILLE_PIECE_MAX: 10 * 1024 * 1024,
+    TAILLE_PIECE_GARDEE: 400 * 1024,
+
+    joindrePiece({ objet, cible, nom, type, taille, contenu = null, uid = null }){
+      /* Deux objets ici, trois en base. Le troisieme, le don, existe cote
+         Postgres parce qu'un recu fiscal se justifie ; il n'existe pas dans le
+         moteur du navigateur parce que la demonstration modelise les dons comme
+         des missions. Ajouter un objet vide de ce cote-ci ferait diverger les
+         deux moteurs sur une regle qu'aucun ecran n'utilise encore. */
+      if (!["observation", "mission"].includes(objet))
+        throw new Error("Objet inconnu.");
+      if (!Array.isArray(s.pieces)) s.pieces = [];
+      if (!api.FORMATS_PIECE[type])
+        throw new Error("Format refusé. Acceptés : PDF, photo, image, CSV, classeur, document.");
+      if (!(taille > 0)) throw new Error("Fichier vide.");
+      if (taille > api.TAILLE_PIECE_MAX)
+        throw new Error("Fichier trop lourd : " + Math.round(taille / 1048576) + " Mo, "
+          + "maximum " + Math.round(api.TAILLE_PIECE_MAX / 1048576) + " Mo.");
+      const cibleOk = objet === "observation"
+        ? s.observations.some(o => o.id === cible)
+        : s.missions.some(m => m.id === cible);
+      if (!cibleOk) throw new Error("Cet élément n'existe pas.");
+      const id = "pj" + (s.pieces.length + 1) + "-" + Date.now().toString(36);
+      s.pieces.push({
+        id, objet, cible, nom: String(nom).slice(0, 200), type, taille,
+        contenu: taille <= api.TAILLE_PIECE_GARDEE ? contenu : null,
+        depose_par: uid, depose_le: new Date().toISOString(), retire_le: null
+      });
+      planifier();
+      return id;
+    },
+
+    piecesDe(objet, cible){
+      if (!Array.isArray(s.pieces)) return [];
+      return s.pieces.filter(p => p.objet === objet && p.cible === cible && !p.retire_le)
+        .map(p => ({ ...p,
+          format: api.FORMATS_PIECE[p.type] || "fichier",
+          deposant: (s.utilisateurs.find(u => u.id === p.depose_par) || {}).nom || "compte retiré",
+          conserve: p.contenu !== null }));
+    },
+
+    retirerPiece(id, uid = null){
+      const p = (s.pieces || []).find(x => x.id === id);
+      if (!p || p.retire_le) return;
+      /* Une piece accrochee a une valeur approuvee ne se retire plus : le
+         chiffre est entre dans un rapport, sa justification part avec lui.
+         Effacer une preuve apres coup, c'est exactement ce contre quoi une
+         piste d'audit existe. */
+      if (p.objet === "observation") {
+        const o = s.observations.find(x => x.id === p.cible);
+        if (o && o.etat === "approuve")
+          throw new Error("Cette valeur est approuvée : sa pièce ne se retire plus.");
+      }
+      p.retire_le = new Date().toISOString();
+      p.retire_par = uid;
+      planifier();
+    },
+
+    /* Combien de valeurs d'une campagne portent au moins une piece. C'est le
+       seul chiffre que le siege regarde vraiment : il ne lit pas les factures,
+       il verifie qu'elles existent. */
+    couverturePreuves(cid){
+      const obs = s.observations.filter(o => o.campagne === cid);
+      const avec = obs.filter(o => api.piecesDe("observation", o.id).length > 0).length;
+      return { sites: obs.length, avec, sans: obs.length - avec };
+    },
+
     saisirIndicateurs(cid, etid, valeurs, uid, commentaire = null){
       const c = api.campagne(cid);
       if (!c || c.etat !== "ouverte") throw new Error("Cette campagne est close.");
@@ -5981,7 +6072,7 @@ export function etatVierge({ saison = null } = {}){
     campagnes: [], observations: [], missions: [], utilisateurs: [],
     signalements: [], sourcing: [], acces: [], invitations: [],
     preinscriptions: [], controles: [], intentions: [], envois: [],
-    expeditions: [], rapports_generes: [], moteur_journal: [],
+    expeditions: [], rapports_generes: [], moteur_journal: [], pieces: [],
     classement_recalcule_le: null
   };
 }
@@ -6137,13 +6228,14 @@ const ECRITURES = [
   "creerCompteEntreprise", "creerInvitation", "creerInvitationCSE",
   "creerInvitationReferent", "deciderSignalement", "declarerEvenement", "declarerFaite",
   "declarerIntentionDon", "declarerValeurMateriel", "delierHelloAsso", "engager",
-  "enregistrerHelloAsso", "lierHelloAsso",
+  "enregistrerHelloAsso", "joindrePiece", "lierHelloAsso",
   "enregistrerIban", "enregistrerNumeros", "expedier", "fermerAnnonce", "inviterSalarie",
   "majAction", "majAssociation", "majContrat", "majDomaines", "majEntreprise",
   "majPreferences", "majReglagesRecus", "marquerFacturePayee", "modifierEtablissement",
   "ouvrirCampagne", "preinscrire", "promouvoirAdmin", "reconduire", "reglerLogo",
   "reglerObjectifSaison", "reglerVisibilite", "rejoindre", "retirerSalarie",
-  "retrograderAdmin", "revoquerInvitation", "revoquerMandatRecus", "rouvrirAnnonce",
+  "retirerPiece", "retrograderAdmin", "revoquerInvitation", "revoquerMandatRecus",
+  "rouvrirAnnonce",
   "saisirIndicateurs", "signaler", "signalerZone", "supprimerAnnonce", "supprimerSalarie",
   "suspendreAcces", "suspendreAssociation", "validerAssociation", "validerMission"
 ];
@@ -6378,7 +6470,7 @@ async function chargerEtat(client){
          acces, signalements, intentions, controles,
          evenements, actionsCorrectives,
          abonnements, factures, preinscriptions, reglagesAsso,
-         reglagesProfil] = await Promise.all([
+         reglagesProfil, piecesJointes] = await Promise.all([
     lire("saison"), lire("bareme"), lire("entreprise"), lire("groupe"),
     lire("etablissement"), lire("association"), lire("annonce"), lire("mission"),
     lire("profil"), lire("invitation"), lire("campagne_indicateurs"),
@@ -6389,7 +6481,10 @@ async function chargerEtat(client){
        client etait donc vide en production, et l'ecran « Preinscriptions » de
        Riseva aussi. Elles existaient en base ; personne n'allait les chercher. */
     lire("abonnement"), lire("facture"), lire("preinscription"),
-    lire("association_reglages"), lire("profil_reglages")
+    lire("association_reglages"), lire("profil_reglages"),
+    /* Le coffre. On ne charge que les lignes : le fichier reste dans le
+       stockage, et ne descend que sur un clic, par un lien signe. */
+    lire("piece_jointe")
   ]);
 
   const saison = saisons.find(x => x.etat === "ouverte") || saisons[0] || null;
@@ -6445,6 +6540,17 @@ async function chargerEtat(client){
        d'imposer deux formes differentes aux quinze ecrans qui la lisent. */
     contrats: abonnements.map(a => versEtat.contrat(a, factures, saisons)),
     preinscriptions: preinscriptions.map(versEtat.preinscription),
+    /* Le coffre. Le moteur travaille sur `objet` + `cible` ; la base range les
+       trois rattachements dans trois colonnes distinctes, parce qu'une cle
+       etrangere ne se declare pas sur une colonne polymorphe. La traduction se
+       fait ici, une fois. */
+    pieces: piecesJointes.filter(p => !p.retire_le).map(p => ({
+      id: p.id, objet: p.objet,
+      cible: p.observation || p.mission || p.don,
+      nom: p.nom, type: p.type_mime, taille: p.taille, empreinte: p.empreinte,
+      chemin: p.chemin, contenu: null,
+      depose_par: p.depose_par, depose_le: p.depose_le, retire_le: null
+    })),
     moteur_journal: [], rapports_generes: [],
     classement_recalcule_le: null
   };
@@ -6530,6 +6636,21 @@ function versAdoption(r, moteur){
   };
 }
 
+/* L'empreinte SHA-256 d'un fichier. C'est elle qui fait la preuve : elle dit que
+   le fichier telecharge dans un an est celui qui a ete depose ce jour-la. Une
+   piece sans empreinte prouve seulement qu'un fichier existe quelque part.
+   `crypto.subtle` n'existe qu'en contexte securise ; hors HTTPS on prefere ne
+   pas d'empreinte du tout plutot qu'une empreinte fabriquee autrement, qui
+   n'aurait pas la meme valeur et se lirait pareil. */
+async function empreinteSha256(fichier){
+  if (!globalThis.crypto?.subtle) return null;
+  try {
+    const octets = await fichier.arrayBuffer();
+    const somme = await crypto.subtle.digest("SHA-256", octets);
+    return [...new Uint8Array(somme)].map(o => o.toString(16).padStart(2, "0")).join("");
+  } catch { return null; }
+}
+
 function creerSupabase(client){
   const rpc = async (nom, args) => {
     const { data, error } = await client.rpc(nom, args);
@@ -6599,6 +6720,36 @@ function creerSupabase(client){
                                   p_commentaire: commentaire || null })),
     approuverIndicateurs: (cid, etid) => ecrire(() =>
       rpc("approuver_indicateurs", { p_campagne: cid, p_etablissement: etid })),
+
+    /* Le coffre de preuves. Deux mouvements, dans cet ordre et pas l'inverse :
+       le fichier monte d'abord dans le stockage objet, sous une cle qui commence
+       par l'identifiant de l'entreprise, puis la RPC enregistre la ligne. Si la
+       RPC echoue, le fichier reste orphelin dans le bucket et la tache de menage
+       le ramasse ; si on ecrivait la ligne d'abord, c'est une preuve qui
+       manquerait derriere un lien qui promet qu'elle existe. */
+    joindrePiece: async ({ objet, cible, fichier }) => {
+      const ent = await rpc("mon_entreprise_id", {});
+      if (!ent) throw new Error("Compte sans entreprise.");
+      const propre = String(fichier.name).replace(/[^A-Za-z0-9._-]/g, "_").slice(-80);
+      const cle = `${ent}/${objet}/${cible}/${Date.now()}-${propre}`;
+      const { error: monte } = await client.storage.from("preuves")
+        .upload(cle, fichier, { contentType: fichier.type, upsert: false });
+      if (monte) throw new Error("Le fichier n'est pas monté : " + monte.message);
+      const empreinte = await empreinteSha256(fichier);
+      return ecrire(() => rpc("joindre_piece", {
+        p_objet: objet, p_cible: cible, p_chemin: cle, p_nom: fichier.name,
+        p_type: fichier.type, p_taille: fichier.size, p_empreinte: empreinte }));
+    },
+    retirerPiece: (id) => ecrire(() => rpc("retirer_piece", { p_piece: id })),
+    /* Un lien signe, valable dix minutes. Le bucket n'est pas public : sans
+       signature, un chemin devine ne rend rien, et une signature expire avant
+       d'avoir eu le temps de circuler. */
+    lienPiece: async (chemin) => {
+      const { data, error } = await client.storage.from("preuves")
+        .createSignedUrl(chemin, 600);
+      if (error) throw new Error(error.message);
+      return data?.signedUrl || null;
+    },
     engager: ({ annonce, quantite, cle, consentement }) => ecrire(() =>
       rpc("engager_mission", { p_annonce: annonce, p_quantite: quantite, p_cle: cle || null,
                                p_consentement: !!consentement })),

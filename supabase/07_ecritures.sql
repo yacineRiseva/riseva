@@ -662,6 +662,144 @@ grant execute on function public.preinscrire(text, text, integer) to anon, authe
 -- s'exécute avant ce fichier : sans cette reprise, les fonctions ci-dessus
 -- resteraient au superutilisateur, et la recette le dit — c'est exactement ce
 -- qu'elle vérifie. Le bloc est le même, et il est idempotent.
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- LE COFFRE DE PREUVES
+--
+-- Trois fonctions, et une seule idée : un chiffre qu'on ne peut pas remonter à
+-- sa source n'est pas un chiffre, c'est une affirmation. Le dépôt attache une
+-- pièce à un objet du périmètre de l'appelant ; la lecture rend la liste avec
+-- son empreinte ; le retrait est possible tant que personne n'a approuvé, et
+-- plus jamais après.
+--
+-- Ce que ces fonctions ne font pas : toucher au fichier. Il est déposé dans le
+-- stockage objet par le navigateur, sous une clé qui commence par
+-- l'identifiant de l'entreprise, et la politique du bucket tranche là-dessus.
+-- La base ne voit passer que le nom, le poids, le type et l'empreinte.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- L'identifiant de l'entreprise de l'appelant. Le navigateur en a besoin pour
+-- construire la cle de stockage, et il n'a aucun autre moyen de le connaitre
+-- sans lire une table qu'on ne lui ouvre pas pour ca.
+create or replace function public.mon_entreprise_id() returns uuid
+language sql stable security definer set search_path = '' as $$
+  select private.mon_entreprise()
+$$;
+
+create or replace function public.joindre_piece(
+  p_objet text, p_cible uuid, p_chemin text, p_nom text,
+  p_type text, p_taille integer, p_empreinte text default null)
+returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_ent uuid := private.mon_entreprise();
+  v_id  uuid;
+  v_ok  boolean := false;
+begin
+  if v_ent is null then
+    raise exception 'Réservé aux comptes d''entreprise' using errcode = '42501';
+  end if;
+
+  -- Le rattachement se vérifie objet par objet : c'est le seul endroit où l'on
+  -- s'assure qu'un site ne joint pas sa facture au chiffre d'un autre.
+  if p_objet = 'observation' then
+    select exists (
+      select 1 from public.observation_indicateur o
+        join public.etablissement e on e.id = o.etablissement
+       where o.id = p_cible
+         and (e.societe = v_ent or private.dans_mon_groupe(e.societe))) into v_ok;
+  elsif p_objet = 'mission' then
+    select exists (select 1 from public.mission m
+                    where m.id = p_cible and m.entreprise = v_ent) into v_ok;
+  elsif p_objet = 'don' then
+    select exists (select 1 from public.don d
+                    where d.id = p_cible and d.entreprise = v_ent) into v_ok;
+  else
+    raise exception 'Objet inconnu : %', p_objet using errcode = '22023';
+  end if;
+
+  if not v_ok then
+    raise exception 'Cet élément n''est pas dans votre périmètre' using errcode = '42501';
+  end if;
+
+  -- La clé du stockage doit commencer par l'entreprise. Sans cette contrainte,
+  -- une ligne pourrait pointer vers le fichier d'une autre : la politique du
+  -- bucket protège le fichier, elle ne protège pas le lien qu'on écrit vers lui.
+  if p_chemin not like v_ent::text || '/%' then
+    raise exception 'Chemin de stockage hors de votre espace' using errcode = '42501';
+  end if;
+
+  insert into public.piece_jointe (
+    entreprise, objet, observation, mission, don,
+    chemin, nom, type_mime, taille, empreinte, depose_par)
+  values (
+    v_ent, p_objet::public.objet_piece,
+    case when p_objet = 'observation' then p_cible end,
+    case when p_objet = 'mission'     then p_cible end,
+    case when p_objet = 'don'         then p_cible end,
+    p_chemin, p_nom, p_type, p_taille, p_empreinte, auth.uid())
+  returning id into v_id;
+  return v_id;
+end $$;
+
+create or replace function public.retirer_piece(p_piece uuid)
+returns void
+language plpgsql security definer set search_path = '' as $$
+declare v_p public.piece_jointe; v_etat public.etat_collecte;
+begin
+  select * into v_p from public.piece_jointe p where p.id = p_piece;
+  if not found then
+    raise exception 'Pièce introuvable' using errcode = 'P0002';
+  end if;
+  if not (v_p.entreprise = private.mon_entreprise()
+          or private.dans_mon_groupe(v_p.entreprise)) then
+    raise exception 'Cette pièce n''est pas dans votre périmètre' using errcode = '42501';
+  end if;
+  if v_p.retire_le is not null then
+    return;                                   -- déjà retirée : geste idempotent
+  end if;
+
+  -- Une pièce accrochée à une observation approuvée ne se retire plus. Le
+  -- chiffre est entré dans un rapport ; sa justification part avec lui.
+  if v_p.observation is not null then
+    select o.etat into v_etat from public.observation_indicateur o where o.id = v_p.observation;
+    if v_etat = 'approuve' then
+      raise exception 'Cette valeur est approuvée : sa pièce ne se retire plus'
+        using errcode = '42501';
+    end if;
+  end if;
+
+  update public.piece_jointe p
+     set retire_le = now(), retire_par = auth.uid()
+   where p.id = p_piece;
+end $$;
+
+-- La liste des pièces d'un objet, avec de quoi les afficher et les vérifier.
+create or replace function public.pieces_de(p_objet text, p_cible uuid)
+returns table (id uuid, nom text, type_mime text, taille integer,
+               empreinte text, chemin text, depose_le timestamptz, depose_par text)
+language sql stable security definer set search_path = '' as $$
+  select p.id, p.nom, p.type_mime, p.taille, p.empreinte, p.chemin, p.depose_le,
+         coalesce(pr.nom, 'compte retiré')
+    from public.piece_jointe p
+    left join public.profil pr on pr.id = p.depose_par
+   where p.retire_le is null
+     and ((p_objet = 'observation' and p.observation = p_cible)
+       or (p_objet = 'mission'     and p.mission     = p_cible)
+       or (p_objet = 'don'         and p.don         = p_cible))
+     and (p.entreprise = private.mon_entreprise()
+          or private.dans_mon_groupe(p.entreprise)
+          or private.est_admin())
+     and private.mon_role() is distinct from 'cse'
+   order by p.depose_le;
+$$;
+
+grant execute on function public.mon_entreprise_id() to authenticated;
+grant execute on function public.joindre_piece(text, uuid, text, text, text, integer, text)
+  to authenticated;
+grant execute on function public.retirer_piece(uuid) to authenticated;
+grant execute on function public.pieces_de(text, uuid) to authenticated;
+
 do $$
 declare f record;
 begin

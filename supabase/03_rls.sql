@@ -291,6 +291,64 @@ create policy observation_lecture on public.observation_indicateur for select to
        -- dans une réunion.
        and (private.mon_role() <> 'cse' or observation_indicateur.etat = 'approuve')));
 
+-- ---------------------------------------------------------------- le coffre
+-- Une pièce justificative se lit par ceux qui lisent le chiffre qu'elle
+-- justifie, et par personne d'autre. Le CSE en est écarté : il lit des
+-- agrégats approuvés, pas les factures d'un site — et une facture porte des
+-- noms, des adresses et des références de contrat que l'agrégat, lui, ne porte
+-- pas. C'est la même raison qui interdit les documents de santé à l'entrée.
+--
+-- Aucune écriture directe : le dépôt et le retrait passent par RPC, parce que
+-- chacun a une règle que la table ne peut pas exprimer — le format, le rattachement
+-- à un objet du bon périmètre, et l'interdiction de retirer une pièce d'une
+-- observation déjà approuvée.
+grant select on public.piece_jointe to authenticated;
+create policy piece_lecture on public.piece_jointe for select to authenticated
+  using (private.est_admin() or (
+    private.mon_role() <> 'cse'
+    and (piece_jointe.entreprise = private.mon_entreprise()
+         or private.dans_mon_groupe(piece_jointe.entreprise))));
+
+-- Le bucket. Les politiques de `storage.objects` ne peuvent s'ecrire que la ou
+-- Supabase existe ; en bac a sable local, le schema `storage` n'est pas la et
+-- l'installation doit passer quand meme. D'ou le garde.
+--
+-- La regle du bucket tient en une ligne : la cle d'un fichier commence par
+-- l'identifiant de l'entreprise, et on ne lit que ce qui commence par le sien.
+-- C'est pour cela que `joindre_piece` refuse toute cle qui ne commence pas par
+-- l'entreprise de l'appelant : la politique protege le fichier, elle ne protege
+-- pas le lien qu'on ecrirait vers celui d'un autre.
+do $$
+begin
+  if to_regclass('storage.objects') is null then
+    raise notice 'schema storage absent : politiques du coffre non posées (bac à sable local)';
+    return;
+  end if;
+
+  insert into storage.buckets (id, name, public)
+  values ('preuves', 'preuves', false)
+  on conflict (id) do nothing;
+
+  execute $p$
+    drop policy if exists preuve_lecture on storage.objects;
+    create policy preuve_lecture on storage.objects for select to authenticated
+      using (bucket_id = 'preuves'
+             and private.mon_role() is distinct from 'cse'
+             and (split_part(name, '/', 1)::uuid = private.mon_entreprise()
+                  or private.dans_mon_groupe(split_part(name, '/', 1)::uuid)));
+  $p$;
+  execute $p$
+    drop policy if exists preuve_depot on storage.objects;
+    create policy preuve_depot on storage.objects for insert to authenticated
+      with check (bucket_id = 'preuves'
+                  and private.mon_role() is distinct from 'cse'
+                  and split_part(name, '/', 1)::uuid = private.mon_entreprise());
+  $p$;
+  -- Pas de politique de suppression, et c'est voulu : un fichier depose ne
+  -- s'efface pas depuis le navigateur. Le retrait marque la ligne, la piece
+  -- disparait des ecrans, et le fichier attend la purge decidee ailleurs.
+end $$;
+
 -- Registre de sécurité : le site qui le tient, sa société, le groupe qui la
 -- consolide, et le CSE. Rien de nominatif n'y figure par construction — c'est
 -- pour cela qu'il peut être lu par le comité sans précaution supplémentaire.

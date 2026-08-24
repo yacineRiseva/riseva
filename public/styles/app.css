@@ -593,3 +593,17 @@
 .mini:hover{ background:var(--lime-100); }
 tr.est-moi > td{ background:var(--lime-100); }
 .badge--lime-clair{ background:var(--lime-100); color:var(--ink); }
+
+/* ── le coffre de preuves ────────────────────────────────────────────────── */
+/* Une liste de pièces dans une cellule de tableau : elle doit rester lisible
+   sans élargir la colonne, donc pas de largeur fixe et des libellés qui se
+   replient. Le siège n'ouvre presque jamais ce repli ; ce qu'il regarde, c'est
+   le compte qui le résume. */
+.pieces{ list-style:none; margin:6px 0 0; padding:0; display:grid; gap:8px; }
+.pieces li{ display:grid; gap:2px; padding:6px 0; border-top:1px solid var(--line); }
+.pieces li:first-child{ border-top:0; }
+.pj-n{ font-size:var(--t-sm); word-break:break-word; }
+.pj-m{ font-size:var(--t-xs); color:var(--ink-500); }
+.cell-pieces details summary::-webkit-details-marker{ display:none; }
+.cell-pieces details summary{ list-style:none; color:var(--ink-600); }
+.cell-pieces details[open] summary{ color:var(--ink); }
