@@ -631,6 +631,46 @@ def chiffres_hero():
     </ul>"""
 
 
+def briques(items):
+    """Les quatre briques du produit, numerotees.
+
+    Pourquoi ce bloc existe. La vitrine expliquait le produit dans l'ordre des
+    objections d'un acheteur — « qui va gerer ca chez moi », « et s'il n'y a
+    rien autour de mon site » — ce qui est le bon ordre pour convaincre, et le
+    mauvais pour comprendre. Un visiteur qui arrive sans question precise ne
+    savait toujours pas, au bout de trois sections, si Riseva etait un annuaire
+    d'associations, un outil de reporting ou un jeu inter-sites.
+
+    C'est les trois, et ca se dit en quatre mots : agir, collecter, piloter,
+    rapporter. Chaque brique porte un fait verifiable et le nom de l'ecran ou
+    elle se trouve dans l'application — pas un adjectif."""
+    out = ""
+    for n, (cle, titre, corps, ecran) in enumerate(items):
+        d = f" d{n}" if n else ""
+        out += f"""
+        <li class="brique rv{d}">
+          <span class="brique-n mono">{n + 1:02d}</span>
+          <h3 class="brique-k">{cle}</h3>
+          <p class="brique-t">{titre}</p>
+          <p class="brique-p">{corps}</p>
+          <p class="brique-e mono">{ecran}</p>
+        </li>"""
+    return f'    <ol class="briques">{out}\n    </ol>'
+
+
+def flux(etapes_flux):
+    """La chaine, d'un bout a l'autre, sur une ligne.
+
+    Quatre briques cote a cote disent ce que le produit contient ; elles ne
+    disent pas qu'elles s'enchainent. Cette ligne-la le dit, et c'est elle qui
+    repond a la question que pose vraiment un responsable RSE : combien de fois
+    vais-je devoir m'en occuper ? Une seule, au debut."""
+    cases = "".join(
+        f'<li class="flux-c rv d{min(n, 5)}"><b class="mono">{q}</b><span>{t}</span></li>'
+        for n, (q, t) in enumerate(etapes_flux))
+    return f'    <ol class="flux">{cases}</ol>'
+
+
 # Le premier ecran. Il a ete refait trois fois, et voici ce que chaque passe a
 # corrige. Passe 1 : un titre sur deux lignes, deux paragraphes et une fiche de
 # tarif — on arrivait au bas de l'ecran sans avoir vu ni le produit ni un
@@ -929,6 +969,73 @@ def onglets(items):
       <div class="ong-bar" role="tablist">{entrees}</div>
       <div class="ong-panneaux">{panneaux}</div>
     </div>"""
+
+
+# ── la plateforme, en quatre briques ────────────────────────────────────────
+# La section qui manquait. Elle vient juste apres le premier ecran parce que
+# c'est la question suivante, toujours la meme : « concretement, c'est quoi ? »
+# Elle repond en quatre mots et une ligne de temps, puis elle montre l'ecran de
+# groupe — celui qui prouve le multi-sites, qu'aucune phrase ne prouve.
+PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss">
+  <div class="layer">
+{entete("La plateforme",
+        "Quatre briques,<br><span class='it'>un seul endroit.</span>",
+        "Riseva est une plateforme RSE. Elle ne fait ni votre paie, ni votre bilan carbone, "
+        "ni votre index d'égalité — trois choses qui ont leurs outils et leurs règles. Elle "
+        "tient ce qui se perd : les actions, les chiffres de chaque site, les preuves, et le "
+        "rapport qui en sort.")}
+
+{briques([
+  ("Agir",
+   "Des associations vérifiées, près de chaque site.",
+   "Refuges, plantations, berges, distributions de repas. Elles publient ce dont elles ont "
+   "besoin, vos salariés s'inscrivent, et <b>c'est l'association qui confirme</b> ce qui a été "
+   "fait. Bénévolat sur le temps de travail, dons de matériel, mécénat de compétences, dons "
+   "en argent : les quatre passent par le même écran.",
+   "Écrans : Annonces, Nos missions, Associations"),
+  ("Collecter",
+   "Vous demandez, les sites répondent, personne ne relance.",
+   f"Vous cochez les rubriques d'une période parmi {CATALOGUE['rubriques']} — effectifs, "
+   "sécurité, formation, énergie, déchets, mobilité, achats. Chaque établissement voit sa "
+   "part sur son écran, avec ce qu'on compte et ce qu'on ne compte pas. <b>Celui qui saisit "
+   "ne peut pas approuver sa propre saisie</b>, et le retard se voit chez celui qui est en "
+   "retard.",
+   "Écrans : Données sociales, Sécurité"),
+  ("Piloter",
+   "Un établissement, une société, un groupe.",
+   f"{CATALOGUE['saisis']} valeurs collectées, {CATALOGUE['calcules']} taux calculés. Un taux "
+   "de périmètre est un <b>rapport de sommes</b>, jamais une moyenne de taux : l'écart entre "
+   "les deux est réel et ne se voit pas à l'œil. Une valeur absente reste absente et n'est "
+   "jamais comptée pour zéro.",
+   "Écrans : Vue consolidée, Sites et quotas"),
+  ("Rapporter",
+   "Le rapport est déjà écrit quand vous l'ouvrez.",
+   "Trimestre et année, à l'écran, en classeur et en CSV. Chaque somme porte le nombre de "
+   "sites sur lequel elle repose, chaque valeur manquante est listée, et chaque chiffre "
+   "remonte à l'établissement, à la personne et à la pièce jointe qui le justifient. La "
+   "fiche VSME et la piste d'audit du mécénat sortent du même jeu de données.",
+   "Écrans : Rapports, Fiche VSME, Mécénat"),
+])}
+
+{flux([
+  ("Jour 1", "vous cochez les rubriques et la date limite"),
+  ("Jour 2", "chaque site voit sa part, sans rien installer"),
+  ("J-7, J-2", "le rappel part tout seul, il ne vient pas de vous"),
+  ("Échéance", "vous voyez qui manque, nommément"),
+  ("Le lendemain", "le rapport est là, daté, avec sa méthode"),
+])}
+
+    <p class="s-note s-note--flux">Vous ne vous en occupez qu'une fois, au début. Le reste de
+      la période, la plateforme travaille sans vous — et si personne ne répond, la période se
+      clôt <b>sans réponse</b> plutôt que d'être comblée avec celle d'avant.</p>
+
+    {capture("groupe",
+             "La vue consolidée d'un groupe dans Riseva : chaque société avec son SIREN, "
+             "chaque établissement avec son effectif, ses comptes ouverts, ses missions et "
+             "ses points",
+             "Deux sociétés, quatre établissements, un seul écran", " shot--seule")}
+  </div>
+</section>"""
 
 
 PILOTAGE_ENT = f"""<section id="pilotage">
@@ -1379,7 +1486,8 @@ PRIX_ENT = grille_tarifaire()
 
 CORPS_ENT = "\n\n".join([
     HERO_ENT,           # 1. l'offre, le prix, et une capture de l'application
-    SAISON_ENT,         # 2. « qui va gérer ça chez moi ? »
+    PLATEFORME_ENT,     # 2. « concrètement, c'est quoi ? »
+    SAISON_ENT,         # 3. « qui va gérer ça chez moi ? »
     EQUIPES_ENT,        # 3. « est-ce que mes équipes vont y aller ? »
     ASSOCIATIONS_ENT,   # 4. « et s'il n'y a rien autour de mon site ? »
     PILOTAGE_ENT,       # 5. « qu'est-ce que j'y gagne ? »
