@@ -631,23 +631,45 @@ def chiffres_hero():
     </ul>"""
 
 
-# Le premier ecran. Ce qu'il montrait : un titre sur deux lignes, deux
-# paragraphes et une fiche de tarif de six lignes. On arrivait au bas de l'ecran
-# sans avoir vu ni le produit, ni un chiffre. Il montre maintenant, dans cet
-# ordre : ce que la plateforme rend (une capture qui se lit a cette taille, et
-# qui porte du vivant), quatre chiffres verifiables, puis le detail.
+# Le premier ecran. Il a ete refait trois fois, et voici ce que chaque passe a
+# corrige. Passe 1 : un titre sur deux lignes, deux paragraphes et une fiche de
+# tarif — on arrivait au bas de l'ecran sans avoir vu ni le produit ni un
+# chiffre. Passe 2 : une capture du bandeau de resultats, qui prouvait le
+# vivant mais laissait croire que Riseva n'etait qu'un compteur d'arbres.
+#
+# Passe 3, celle-ci : le plan large du tableau de bord. On voit la navigation,
+# donc on voit qu'il y a une application ; on lit « Groupe », « Vue
+# consolidee », « Sites et quotas », donc on comprend que ca tient plusieurs
+# etablissements ; et le bandeau vert du milieu montre quand meme les arbres et
+# les animaux. Le texte, lui, dit les trois choses dans l'ordre ou un acheteur
+# les demande : c'est une plateforme RSE, elle tient vos sites, et elle embarque
+# vos equipes.
+#
+# Un mot est interdit ici, et il faut savoir pourquoi : « complete ». Une
+# plateforme RSE annoncee complete promet le bilan carbone, l'index egalite et
+# la conformite CSRD — trois choses que Riseva ne fait pas et, pour deux
+# d'entre elles, n'a pas le droit de faire. On ecrit ce qu'elle fait.
 HERO_ENT = f"""<header class="hero hero--doc" id="hero">
   <div class="layer">
-    <p class="eyebrow mono">Plateforme RSE, challenge de saison, associations du vivant</p>
-    <h1 class="h1 h1--doc h1--court">Un refuge cherche des bras.<br>
-      <span class="it">Vos équipes y vont, votre rapport RSE s'écrit.</span></h1>
+    <p class="eyebrow mono">Plateforme RSE multi-sites · Challenge d'un an · Associations
+      du vivant</p>
+    <h1 class="h1 h1--doc h1--court">La RSE d'une PME,<br>
+      <span class="it">sans direction RSE.</span></h1>
 
     <div class="doc-tete doc-tete--apercu">
     <div class="doc-intro">
-      <p class="doc-accroche">Des associations proches de vos sites publient ce dont elles ont
-        besoin : sortir les chiens d'un refuge, planter une parcelle, préparer des colis. Vos
-        salariés s'y rendent, l'association confirme, <b>et les chiffres tombent dans votre
-        rapport</b>.</p>
+      <p class="doc-accroche">Vos sites répondent, la plateforme relance, consolide et sort le
+        rapport. Et pendant ce temps, <b>un challenge d'un an</b> envoie vos équipes chez des
+        <b>associations vérifiées</b> près de chaque site : refuges, plantations, distributions
+        de repas. <b>Ce qu'elles font revient dans les mêmes chiffres.</b></p>
+      <ul class="hero-liste">
+        <li><b>Multi-sites.</b> Un groupe, ses sociétés, ses établissements. Chacun saisit,
+          le siège consolide.</li>
+        <li><b>Indicateurs.</b> Vous choisissez les rubriques, la plateforme calcule les taux
+          et garde la formule à côté du chiffre.</li>
+        <li><b>Preuves.</b> Chaque valeur porte qui l'a saisie, qui l'a approuvée et le
+          justificatif joint.</li>
+      </ul>
       <div class="hero-cta">
         <a class="btn btn-lg" href="#prix"><span class="dot"></span>Calculer mon tarif</a>
         <a class="tlink" href="/app/">Explorer la plateforme</a>
@@ -657,11 +679,13 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
     </div>
 
     <figure class="apercu">
-      {capture("apercu-resultats",
-               "Le bandeau de résultats d'une entreprise dans Riseva : arbres plantés, "
-               "animaux pris en charge, kits distribués, avec le nombre de résultats "
-               "confirmés par les associations", "", " shot--apercu", eager=True)}
-      <figcaption>Ce que la plateforme rend, à la fin d'une saison. Chiffres d'un jeu de
+      {capture("apercu-tableau",
+               "Le tableau de bord d'une entreprise dans Riseva : la navigation du groupe et "
+               "de la saison à gauche, les salariés mobilisés, les missions validées, les "
+               "heures et les associations soutenues, puis le bandeau des résultats — arbres "
+               "plantés, animaux pris en charge, kits distribués", "", " shot--apercu",
+               eager=True)}
+      <figcaption>Le tableau de bord, tel qu'il s'ouvre. Chiffres d'un jeu de
         démonstration.</figcaption>
     </figure>
     </div>

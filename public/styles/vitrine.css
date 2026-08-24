@@ -2231,7 +2231,7 @@ section{
    sous elle par construction, pas par un reglage qui se trouve juste assez grand
    sur l'ecran ou on l'a regarde. */
 .vd .hero,.va .hero{padding-top:calc(64px + clamp(34px,5.5vh,66px));}
-.vd .hero--doc{padding-top:calc(64px + clamp(20px,3vh,38px));}
+.vd .hero--doc{padding-top:calc(64px + clamp(14px,2.2vh,28px));}
 
 /* ── les trois formats, en colonnes ─────────────────────────────────────── */
 .fmt3{
@@ -3398,7 +3398,7 @@ body{
 .apercu figcaption{ margin-top:10px; color:var(--faint); font-size:12.5px; line-height:1.5;
   letter-spacing:0; text-transform:none; font-family:var(--f-body); max-width:52ch; }
 
-.chiffres--hero{ list-style:none; margin:clamp(20px,2.4vw,32px) 0 0; padding:0;
+.chiffres--hero{ list-style:none; margin:clamp(16px,1.8vw,24px) 0 0; padding:0;
   display:grid; gap:clamp(16px,2vw,30px);
   grid-template-columns:repeat(4,minmax(0,1fr));
   border-top:1px solid rgba(19,21,16,.10); padding-top:clamp(16px,1.8vw,24px); }
@@ -3442,3 +3442,20 @@ body{
    sur une section sombre : elle s'ecrit donc en encre, jamais en blanc. */
 .vd .photo figcaption,.va .photo figcaption{ color:var(--stone); }
 .apercu .photo--apercu .photo-note{ display:none; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LE PREMIER ECRAN, TROISIEME PASSE · le plan large du tableau de bord
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Trois lignes sous l'accroche, et pas une de plus. Elles disent ce que
+   l'acheteur RSE cherche et que la photo ne peut pas dire : plusieurs sites,
+   des indicateurs calcules, des preuves attachees. Une liste de six aurait
+   l'air d'un comparatif de fonctionnalites ; trois se lisent d'un coup. */
+.hero-liste{ list-style:none; margin:clamp(14px,1.5vw,20px) 0 0; padding:0;
+  display:grid; gap:10px; max-width:52ch; }
+.hero-liste li{ position:relative; padding-left:20px; font-size:15px; line-height:1.5;
+  color:var(--ink-soft); }
+.hero-liste li::before{ content:""; position:absolute; left:0; top:.62em;
+  width:7px; height:7px; border-radius:2px; background:var(--forest-700); }
+.hero-liste b{ color:var(--ink); font-weight:600; }

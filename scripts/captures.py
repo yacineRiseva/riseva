@@ -56,6 +56,12 @@ ECRANS = [
     # arbres, des animaux, des colis. Le tableau de bord entier, reduit a cette
     # taille, ne prouve qu'une chose : qu'il existe un tableau de bord.
     ("apercu-resultats", "#/tableau",    "u2", (".realis", 320, 1100)),
+    # Le plan large du premier ecran de la vitrine entreprise. Ce qu'il doit
+    # dire en une image : c'est une application de pilotage, elle a une
+    # navigation, elle tient plusieurs sites, et son tableau de bord porte des
+    # chiffres. Fenetre etroite exprès : a 1 180 les cartes sont plus grandes
+    # qu'a 1 440, donc lisibles une fois la capture reduite a 700 pixels.
+    ("apercu-tableau",   "#/tableau",    "u2", (None, 790, 1180)),
     ("salarie-saison", "#/tableau",     "u5", ".card--dark"),
     # Fenetre etroite exprès. La grille d'annonces tient trois colonnes a 1 440,
     # et ces trois colonnes reduites a la largeur d'une demi-page de vitrine
@@ -119,7 +125,9 @@ def main():
         for nom, route, uid, cadrage in ECRANS:
             large_vue = cadrage[2] if isinstance(cadrage, tuple) and len(cadrage) > 2 else 1440
             cadrage_y0 = cadrage[3] if isinstance(cadrage, tuple) and len(cadrage) > 3 else 0
-            p.set_viewport_size({"width": large_vue, "height": 900})
+            haute_vue = (cadrage[1] if isinstance(cadrage, tuple) and cadrage[0] is None
+                         else 900)
+            p.set_viewport_size({"width": large_vue, "height": max(900, haute_vue)})
             p.goto(f"{BASE}/app/", wait_until="domcontentloaded")
             p.evaluate("()=>localStorage.removeItem('riseva.etat')")
             p.evaluate("u=>localStorage.setItem('riseva.session',JSON.stringify({uid:u}))", uid)
@@ -132,7 +140,11 @@ def main():
             haut = None
             if isinstance(cadrage, tuple):
                 cadrage, haut = cadrage[0], cadrage[1]
-            if isinstance(cadrage, str):
+            if cadrage is None:
+                p.screenshot(path=str(brut), clip={"x": 0, "y": 0,
+                                                   "width": large_vue, "height": haut})
+                haut = None
+            elif isinstance(cadrage, str):
                 # La barre du haut est collante : elle se repeint par-dessus le
                 # haut de l'element vise, et la capture commence par un bout de
                 # titre coupe en deux. On la retire pour la photo.
