@@ -3416,3 +3416,14 @@ body{
 @media (max-width:900px){ .chiffres--hero{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width:560px){ .chiffres--hero{ grid-template-columns:minmax(0,1fr); }
   .vd .chiffres--hero b,.chiffres--hero b{ white-space:normal; } }
+
+/* La meme mecanique sur la vitrine des associations : le premier ecran porte
+   une image de terrain et quatre chiffres, pas une fiche de six lignes. */
+.apercu .photo--apercu{ margin:0; }
+/* L'image du premier ecran est recadree a la hauteur, pas laissee libre : a
+   pleine hauteur elle poussait la bande de chiffres treize pixels sous la ligne
+   de flottaison, ce qui revient a ne pas l'avoir mise. */
+.apercu .photo--apercu img{ display:block; width:100%;
+  aspect-ratio:16/9; object-fit:cover; object-position:center 42%;
+  max-height:clamp(220px,26vw,340px); border-radius:var(--r-md); }
+.doc-tete--fiche{ margin-top:clamp(26px,3vw,44px); }

@@ -686,7 +686,8 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
 
     {piliers([
       ("Le terrain", "Des associations vérifiées<br><span class='it'>près de chaque site.</span>",
-       "Berges, forêts, refuges, maraudes. Des demi-journées réelles, pour quelqu'un d'autre, "
+       "Refuges animaliers, plantations, berges de rivière, distributions de repas. Des "
+       "demi-journées réelles, pour quelqu'un d'autre, "
        "avec un résultat visible le soir même. Riseva vérifie chaque structure avant de la "
        "rendre visible.", "associations"),
       ("Le collectif", "Un challenge d'un an<br><span class='it'>qui fédère les équipes.</span>",
@@ -769,9 +770,9 @@ EQUIPES_ENT = f"""<section id="equipes">
                "c'est de ne pas savoir avec qui on y va. L'écran répond à cette question-là "
                "avant de parler de points.")}
 
-    {photo("depart-chantier",
-           "Quatre personnes en bleu de travail chargent des outils dans un utilitaire devant "
-           "une usine, au lever du jour", "", " photo--large-gauche")}
+    {photo("refuge-sortie",
+           "Deux personnes promènent quatre chiens de refuge sur un chemin bordé d'arbres, "
+           "un matin d'été", "", " photo--large-gauche")}
 
     <div class="duo duo--pile">
       {capture("salarie-saison",
@@ -803,9 +804,9 @@ EQUIPES_ENT = f"""<section id="equipes">
 
 ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
   <div class="layer">
-    {photo("berge-ramassage",
-           "Trois personnes en waders remontent une berge de rivière avec des sacs de collecte, "
-           "un matin d'automne", "", " photo--couverture")}
+    {photo("refuge",
+           "Un chien de refuge trotte en laisse sur l'allée d'un refuge, au soleil, à côté "
+           "de la personne qui le sort", "", " photo--couverture")}
 {entete("Côté associations", "L'association publie,<br><span class='it'>puis elle confirme.</span>",
         "Le chiffre final de votre rapport vient de la structure qui était sur place. C'est "
         "ce qui lui donne sa valeur devant un acheteur ou un commissaire aux comptes.")}
@@ -816,10 +817,12 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
                "une zone à couvrir, ou inviter une association que vous connaissez déjà.")}
 
     <div class="photos3">
-      {photo("refuge", "Un chien recueilli, allongé dans un box de refuge", "")}
-      {photo("maraude", "Une table de maraude dressée devant une camionnette, à la tombée "
-             "du jour", "")}
-      {photo("collecte", "Des mains gantées trient des conserves dans des cagettes", "")}
+      {photo("refuge-chats", "Un chat roux se laisse gratter sous le menton dans une salle "
+             "de refuge claire", "")}
+      {photo("plantation", "Deux mains tassent la terre autour d'un jeune arbre qui vient "
+             "d'être planté", "")}
+      {photo("maraude", "Un bol chaud passe de main en main au-dessus d'une table de "
+             "distribution, devant une camionnette", "")}
     </div>
 
     {capture("asso-valider",
@@ -1367,17 +1370,40 @@ PIED_ASSO = pied(
     "Gratuit pour les associations, toujours")
 
 
+def chiffres_asso():
+    """Les quatre chiffres du premier ecran de la vitrine associations.
+
+    Meme discipline que du cote entreprise : aucun n'est un resultat obtenu, ce
+    sont des proprietes du produit, verifiables en cinq minutes par qui ouvre un
+    espace. Une association n'a pas de budget a engager : ce qu'elle regarde en
+    premier, c'est ce que ca coute et ce que ca lui demande de temps."""
+    return """
+    <ul class="chiffres chiffres--hero rv">
+      <li><b>0 €</b><span>à payer, aujourd'hui et après, et aucune commission sur vos
+        dons.<br><span class="mono">Ce sont les entreprises qui paient</span></span></li>
+      <li><b>5 minutes</b><span>pour publier une première annonce. Six modèles sont déjà
+        écrits : vous changez la date.<br><span class="mono">Des bras, du matériel, de
+        l'argent</span></span></li>
+      <li><b>1 clic</b><span>pour confirmer une mission, depuis un courriel. Rien à installer,
+        aucun logiciel à apprendre.<br><span class="mono">La confirmation</span></span></li>
+      <li><b>30 km</b><span>le rayon dans lequel les salariés des entreprises abonnées voient
+        vos besoins autour de leur site.<br><span class="mono">Annuaire et
+        annonces</span></span></li>
+    </ul>"""
+
+
 HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
   <div class="layer">
     <p class="eyebrow mono">Gratuit pour les associations, sans exclusivité</p>
-    <h1 class="h1 h1--doc">Dites ce dont vous avez besoin.<br>
-      <span class="it">Des salariés d'entreprises proches peuvent répondre.</span></h1>
+    <h1 class="h1 h1--doc h1--court">Il vous manque des bras un samedi.<br>
+      <span class="it">Des salariés d'à côté viennent les donner.</span></h1>
 
-    <div class="doc-tete">
+    <div class="doc-tete doc-tete--apercu">
       <div class="doc-intro">
-        <p>Vous publiez une annonce : des bras pour un samedi, du matériel, un coup de main
-          financier. Des salariés d'entreprises abonnées se proposent. Quand c'est fait, vous
-          confirmez en un clic depuis un courriel.</p>
+        <p class="doc-accroche">Sortir les chiens, tenir une distribution, planter une
+          parcelle, porter des cartons : vous écrivez ce dont vous avez besoin, des salariés
+          d'entreprises abonnées se proposent, et <b>c'est vous qui confirmez</b> ce qui a eu
+          lieu.</p>
         <div class="hero-cta">
           <a class="btn btn-lg" href="#commencer"><span class="dot"></span>Ouvrir mon espace</a>
           <a class="tlink" href="#comment">Voir comment ça marche</a>
@@ -1386,6 +1412,23 @@ HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
           Rien à installer.</p>
         <p class="doc-micro">Quatre lignes pour ouvrir votre espace, cinq minutes pour votre
           première annonce.</p>
+      </div>
+
+      <figure class="apercu">
+        {photo("refuge-sortie", "Deux personnes promènent quatre chiens de refuge sur un chemin "
+               "bordé d'arbres, un matin d'été", "", " photo--apercu", eager=True)}
+        <figcaption>Une demi-journée de sortie de chiens, telle qu'une association peut la
+          demander sur Riseva. Illustration générée, aucune mission réelle.</figcaption>
+      </figure>
+    </div>
+
+    {chiffres_asso()}
+
+    <div class="doc-tete doc-tete--fiche">
+      <div class="doc-intro">
+        <p>Vous ne changez rien à ce que vous faites déjà. Riseva ne vous demande ni
+          exclusivité, ni contrepartie, ni logo : elle vous rend visible auprès des entreprises
+          abonnées autour de vous, et elle s'efface une fois que le contact est pris.</p>
       </div>
 
       <dl class="fiche">
@@ -1399,18 +1442,6 @@ HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
           vous-même, et vous confirmez vos missions depuis un courriel</dd></div>
       </dl>
     </div>
-
-    {photo("collecte", "Des mains gantées trient des conserves dans des cagettes lors d'une "
-           "collecte solidaire", "", " photo--bande", eager=True)}
-
-    {chiffres([
-      ("0 €", "à payer, et aucune commission sur vos dons.", None),
-      ("1 clic", "pour confirmer une mission, depuis un courriel.", None),
-      ("5 min", "pour publier une annonce. Six annonces déjà écrites vous attendent, "
-                "vous changez la date.",
-       None),
-      ("3", "façons d'être aidé : des bras, du matériel, de l'argent.", None),
-    ])}
 
     {capture("asso-tableau",
              "Le tableau de bord d'une association dans Riseva",
@@ -1449,11 +1480,12 @@ CHALLENGE_ASSO = f"""<section id="challenge">
         "où elle apparaît.")}
 
     <div class="photos3">
-      {photo("refuge", "Un chien recueilli, allongé dans un box de refuge", "")}
-      {photo("maraude", "Une table de maraude dressée devant une camionnette, à la tombée "
-             "du jour", "")}
-      {photo("berge-ramassage", "Trois personnes en waders remontent une berge de rivière "
-             "avec des sacs de collecte", "")}
+      {photo("refuge", "Un chien de refuge trotte en laisse au soleil, à côté de la personne "
+             "qui le sort", "")}
+      {photo("maraude", "Un bol chaud passe de main en main au-dessus d'une table de "
+             "distribution, devant une camionnette", "")}
+      {photo("plantation", "Deux mains tassent la terre autour d'un jeune arbre qui vient "
+             "d'être planté", "")}
     </div>
 
     <div class="trois3">
