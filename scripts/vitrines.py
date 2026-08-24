@@ -740,7 +740,7 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
       {capture("apercu-tableau",
                "Le tableau de bord d'une entreprise dans Riseva : la navigation du groupe et "
                "de la saison à gauche, les salariés mobilisés, les missions validées, les "
-               "heures et les associations soutenues, puis le bandeau des résultats — arbres "
+               "heures et les associations soutenues, puis le bandeau des résultats : arbres "
                "plantés, animaux pris en charge, kits distribués", "", " shot--apercu",
                eager=True)}
       <figcaption>Le tableau de bord, tel qu'il s'ouvre. Chiffres d'un jeu de
@@ -995,15 +995,16 @@ def onglets(items):
 # retournant la question — voici les trois qu'on vous pose, et voici ou est la
 # reponse — puis elle montre l'ecran de groupe, celui qui prouve le multi-sites
 # qu'aucune phrase ne prouve.
+#
+# Le titre a ete arbitre. « Et vous n'aviez pas la reponse » pointait le lecteur
+# du doigt : la relecture croisee l'a vu, et elle a raison, la section ne marche
+# que parce qu'elle fait reconnaitre des situations, pas parce qu'elle reproche
+# quelque chose. La contre-proposition, « trois questions auxquelles Riseva vous
+# permet de repondre », enlevait le reproche et la tension avec. Celle qui est
+# en place garde les deux : le fait est le meme, il n'est simplement plus
+# personnel.
 PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss">
   <div class="layer">
-# Le titre a été arbitré. « Et vous n'aviez pas la réponse » pointait le
-# lecteur du doigt : la relecture croisée l'a vu, et elle a raison — la section
-# ne marche que parce qu'elle fait reconnaître des situations, pas parce qu'elle
-# reproche quelque chose. La contre-proposition, « trois questions auxquelles
-# Riseva vous permet de répondre », enlevait le reproche et la tension avec.
-# Celle-ci garde les deux : le fait est le même, il n'est simplement plus
-# personnel.
 {entete("Ce que ça répond",
         "Trois questions,<br><span class='it'>et personne n'a la réponse sous la main.</span>",
         "Personne n'ouvre un logiciel RSE par curiosité. On l'ouvre parce qu'on "
