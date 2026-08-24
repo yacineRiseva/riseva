@@ -226,3 +226,24 @@ sous les yeux la liste nominative de « Nos missions ». Masquer « 1 engagé su
 il sert justement à voir si le lancement prend. `lisible` reste un avis rendu à
 l'écran. Un audit qui trouve un vrai trou n'a pas raison sur tout ce qu'il
 propose autour.
+
+## Une espace fine que personne n'avait écrite
+
+*24/08/2026.* La recette « ce qui s'affiche doit pouvoir se taper » signalait
+trois espaces fines insécables (U+202F) sur la page d'accueil et trois sur celle
+des associations. Elles n'étaient dans aucun fichier : ni dans le générateur, ni
+dans le HTML produit, ni dans les octets servis par le serveur. Un `curl` sur la
+page rendait une espace ordinaire ; le navigateur, lui, en rendait une fine.
+
+L'explication tient en une ligne de CSS, `white-space:nowrap`, posée sur les
+gros chiffres du premier écran pour empêcher « 2 400 à 13 800 € » de se couper
+en deux. Chrome rend alors l'espace comme insécable, et `document.body.innerText`
+la restitue en U+202F. La recette avait donc raison, et personne ne pouvait la
+satisfaire : le caractère fautif n'existait dans aucune source.
+
+La règle qui en sort : **une insécable se décide mot par mot, dans le texte, pas
+par une règle de style qui vaut pour tout un bloc.** On écrit `&nbsp;` là où la
+coupure serait laide — c'est tapable, c'est visible dans la source, et c'est
+retirable par celui qui le lit. Une propriété CSS qui produit un caractère
+invisible qu'aucun auteur ne peut retirer est un piège, même quand elle rend le
+bon résultat à l'écran.

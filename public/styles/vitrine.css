@@ -3406,16 +3406,22 @@ body{
 /* Le nombre tient sur UNE ligne. Un chiffre qui passe a la ligne desaligne les
    quatre colonnes entre elles, et la bande cesse de se lire d'un coup d'oeil :
    on relit chaque case au lieu de balayer les quatre. */
+/* Le nombre tient sur une ligne, et c'est le TEXTE qui le dit, pas la feuille
+   de style. `white-space:nowrap` posait ici un probleme qu'on a mis une heure a
+   comprendre : Chrome rend alors l'espace comme insecable, et `innerText` la
+   restitue en espace fine insecable (U+202F). La recette « ce qui s'affiche
+   doit pouvoir se taper » la signalait, a juste titre, et personne ne pouvait
+   la retirer puisqu'elle n'est ecrite dans aucun fichier. Une insecable se
+   decide donc mot par mot, avec `&nbsp;`, qui est tapable, visible dans la
+   source et retirable. */
 .vd .chiffres--hero b,.va .chiffres--hero b,.chiffres--hero b{
   font-family:var(--f-display); font-weight:600; letter-spacing:-.025em;
-  font-size:clamp(22px,1.95vw,29px); line-height:1.1; color:var(--ink);
-  white-space:nowrap; }
+  font-size:clamp(22px,1.95vw,29px); line-height:1.1; color:var(--ink); }
 .vd .chiffres--hero span,.chiffres--hero span{ color:var(--ink-soft); font-size:13px;
   line-height:1.5; white-space:normal; }
 .chiffres--hero .mono{ color:var(--faint); font-size:12px; }
 @media (max-width:900px){ .chiffres--hero{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
-@media (max-width:560px){ .chiffres--hero{ grid-template-columns:minmax(0,1fr); }
-  .vd .chiffres--hero b,.chiffres--hero b{ white-space:normal; } }
+@media (max-width:560px){ .chiffres--hero{ grid-template-columns:minmax(0,1fr); } }
 
 /* La meme mecanique sur la vitrine des associations : le premier ecran porte
    une image de terrain et quatre chiffres, pas une fiche de six lignes. */

@@ -615,14 +615,14 @@ def chiffres_hero():
     obtenu."""
     return f"""
     <ul class="chiffres chiffres--hero rv">
-      <li><b>60 %</b><span>de réduction d'impôt sur les deux premiers millions d'euros de dons
+      <li><b>60&nbsp;%</b><span>de réduction d'impôt sur les deux premiers millions d'euros de dons
         de l'exercice, 40 % au-delà, dans la limite de 20 000 € ou de 5 pour mille du chiffre d'affaires
         HT, la plus élevée des deux.<br><span class="mono">Article 238 bis du CGI</span></span></li>
-      <li><b>{CATALOGUE['rubriques']} rubriques</b><span>du social aux achats,
+      <li><b>{CATALOGUE['rubriques']}&nbsp;rubriques</b><span>du social aux achats,
         {CATALOGUE['saisis']} valeurs collectées et {CATALOGUE['calcules']} taux calculés avec
         leur formule à côté du chiffre.<br><span class="mono">Catalogue de la
         plateforme</span></span></li>
-      <li><b>1 lien</b><span>à diffuser en interne. Chaque salarié ouvre son compte lui-même :
+      <li><b>1&nbsp;lien</b><span>à diffuser en interne. Chaque salarié ouvre son compte lui-même :
         aucune liste à saisir, rien à installer.<br><span class="mono">Déploiement</span></span></li>
       <li><b>{EUR(TARIFS['paliers'][0]['prix']).replace('&nbsp;€', '')} à
         {EUR(TARIFS['paliers'][-2]['prix'])}</b><span>HT la saison de douze mois, selon
@@ -1566,14 +1566,14 @@ def chiffres_asso():
     premier, c'est ce que ca coute et ce que ca lui demande de temps."""
     return """
     <ul class="chiffres chiffres--hero rv">
-      <li><b>0 €</b><span>à payer, aujourd'hui et après, et aucune commission sur vos
+      <li><b>0&nbsp;€</b><span>à payer, aujourd'hui et après, et aucune commission sur vos
         dons.<br><span class="mono">Ce sont les entreprises qui paient</span></span></li>
-      <li><b>5 minutes</b><span>pour publier une première annonce. Six modèles sont déjà
+      <li><b>5&nbsp;minutes</b><span>pour publier une première annonce. Six modèles sont déjà
         écrits : vous changez la date.<br><span class="mono">Des bras, du matériel, de
         l'argent</span></span></li>
-      <li><b>1 clic</b><span>pour confirmer une mission, depuis un courriel. Rien à installer,
+      <li><b>1&nbsp;clic</b><span>pour confirmer une mission, depuis un courriel. Rien à installer,
         aucun logiciel à apprendre.<br><span class="mono">La confirmation</span></span></li>
-      <li><b>30 km</b><span>le rayon dans lequel les salariés des entreprises abonnées voient
+      <li><b>30&nbsp;km</b><span>le rayon dans lequel les salariés des entreprises abonnées voient
         vos besoins autour de leur site.<br><span class="mono">Annuaire et
         annonces</span></span></li>
     </ul>"""
