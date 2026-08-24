@@ -2228,6 +2228,18 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
          une fois pour toutes ne vaut pas consentement à cette mission-là, à ces dates-là. */
       if (a.temps_travail && !consentement)
         throw new Error("Votre accord explicite est nécessaire pour une mission sur le temps de travail");
+      /* Deux fois sur la meme annonce. Un pouce qui appuie deux fois, ou un
+         salarie qui retombe sur l'annonce trois ecrans plus bas sans reconnaitre
+         qu'il s'y est deja mis : la place partait deux fois, l'association voyait
+         deux inscriptions du meme nom, et le besoin restant se vidait pour rien.
+         La quantite existe pour prendre plusieurs places d'un coup ; s'inscrire
+         deux fois ne veut rien dire de plus. Un engagement refuse ou annule ne
+         compte pas : celui-la, on peut le reprendre. */
+      const dejaLa = s.missions.find(x => x.annonce === annonce && x.salarie === salarie
+        && x.etat !== "refusee" && x.etat !== "annulee");
+      if (dejaLa)
+        throw new Error("Vous êtes déjà positionné sur cette annonce. "
+          + "Pour prendre une place de plus, annulez et réinscrivez-vous avec la quantité voulue.");
       const moi = api.utilisateur(salarie) || {};
       if (moi.etablissement && moi.affectation_confirmee === false)
         throw new Error("Votre rattachement à un site doit être confirmé par votre référent "

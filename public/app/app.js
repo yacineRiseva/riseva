@@ -1111,7 +1111,23 @@ function ouvrirEngagement(a, u){
     </div>` : ""}
   </div>`);
   const q = corps.querySelector("#q"), calc = corps.querySelector("#calc");
-  const maj = () => { calc.textContent = `Soit ${nb(DB.pointsPour(a.type, Number(q.value) || 0))} points pour votre entreprise.`; };
+  /* Ce que cette ligne disait au moment precis ou quelqu'un decide de donner
+     son samedi : « Soit 150 points pour votre entreprise. » Le seul retour
+     annonce etait un score, et il allait a l'employeur. L'annonce porte
+     pourtant ce que la mission produit REELLEMENT — sept animaux sortis, quatre
+     cents arbres — et c'est cela qu'il faut lire en premier. Les points restent,
+     en second, parce qu'ils existent. */
+  const maj = () => {
+    const n = Number(q.value) || 0;
+    const pts = `${nb(DB.pointsPour(a.type, n))} points pour votre entreprise`;
+    const im = a.impact && UNITES[a.impact.unite];
+    if (im && a.impact.par_unite){
+      const fait = Math.round(a.impact.par_unite * n);
+      calc.textContent = `Soit ${nb(fait)} ${fait > 1 ? im.pl : im.un}, et ${pts}.`;
+    } else {
+      calc.textContent = `Soit ${pts}.`;
+    }
+  };
   q.oninput = maj; maj();
 
   modal(a.titre, corps, [
@@ -1488,9 +1504,9 @@ function vueClassement(u){
           <span class="badge" id="etatCohorte">Semaine 34</span>
         </div>
         <div id="avertCohorte"></div>
-        <table class="table table--rank"><thead><tr>
+        <div class="tableau"><table class="table table--rank"><thead><tr>
           <th></th><th>Entreprise</th><th></th><th style="text-align:right">Score</th>
-        </tr></thead><tbody></tbody></table>
+        </tr></thead><tbody></tbody></table></div>
       </section>
 
       <div class="stack" style="--gap:var(--s5)">
@@ -4338,10 +4354,18 @@ function vueActivite(u){
     const a = DB.annonceDe(m); if (!a) return;
     parType[a.type] = (parType[a.type] || 0) + m.points;
   });
+  /* Le mur des noms. Cette liste montrait TOUS les collegues, classes, avec
+     leurs points — donc trois d'entre eux nommes a zero, en clair, devant tout
+     le monde. C'est exactement le contraire de la regle qui tient le produit :
+     chacun se propose, et se retirer ne demande aucune justification. Un nom
+     affiche a zero est une convocation.
+     On ne nomme donc plus que ceux qui SONT VENUS. Les autres existent dans le
+     total collectif, jamais dans une ligne a leur nom. */
   const equipe = DB.salaries(u.org).filter(x => !x.anonyme)
                    .map(x => ({ ...x, pointsVus: DB.pointsVisiblesEmployeur(x.id) }))
                    .sort((a, b) => b.pointsVus - a.pointsVus);
-  const monRang = equipe.findIndex(x => x.id === u.id) + 1;
+  const venus = equipe.filter(x => x.pointsVus > 0);
+  const restants = equipe.length - venus.length;
   /* Aucun compteur figé : les points du salarié comme ceux de l'entreprise se
      relisent dans les missions validées, à chaque affichage. */
   const mesPoints = DB.pointsVisiblesEmployeur(u.id);
@@ -4352,7 +4376,11 @@ function vueActivite(u){
     <div class="kpis">
       ${kpi("Mes points", nb(mesPoints), `${part} % du total de l'entreprise`, "", "kpi--tete grain")}
       ${kpi("Missions réalisées", nb(validees.length), ms.length - validees.length + " en cours")}
-      ${kpi("Rang dans l'équipe", rangFR(monRang), "sur " + equipe.length)}
+      ${/* « 3e sur 7 » classe un salarie contre ses collegues sur un geste
+            volontaire. On compte donc ceux qui sont venus, pas ceux qui
+            gagnent. */""}
+      ${kpi("Venus cette saison", nb(venus.length),
+            venus.length ? "collègues, vous compris" : "personne pour l'instant")}
       ${kpi("Heures", nb(validees.reduce(
         (n, m) => n + heuresPour((DB.annonceDe(m) || {}).type, m.quantite), 0)), "de bénévolat")}
     </div>
@@ -4382,18 +4410,21 @@ function vueActivite(u){
           </div>
         </section>
         <section class="card">
-          <h3>L'équipe</h3>
-          <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
-            ${equipe.slice(0, 6).map((x, i) => `<div class="between" ${x.id === u.id
+          <h3>Ceux qui y sont allés</h3>
+          ${venus.length ? `<div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
+            ${venus.slice(0, 6).map(x => `<div class="between" ${x.id === u.id
               ? 'style="font-weight:600;color:var(--forest-800)"' : ""}>
-              <span class="row" style="gap:10px"><span class="muted tnum" style="width:14px">${i + 1}</span>
-                ${esc(x.nom)}${x.id === u.id ? " (vous)" : ""}</span>
+              <span>${esc(x.nom)}${x.id === u.id ? " (vous)" : ""}</span>
               <span class="tnum">${nb(x.pointsVus)}</span></div>`).join("")}
-          </div>
+          </div>` : `<p class="muted" style="font-size:var(--t-sm);margin-top:var(--s4)">
+            Personne n'est encore parti sur une mission cette saison. Vous pouvez être
+            le premier.</p>`}
           <hr class="sep">
-          <p class="hint">Ce classement interne ne sort jamais de votre entreprise, et il ne
-            compte que les missions : les dons personnels de chacun n'y apparaissent pas.
-            Vers l'extérieur, seul le total collectif est publié.</p>
+          <p class="hint">Cette liste ne nomme que ceux qui sont venus${restants
+            ? `, et ${nb(restants)} collègue${restants > 1 ? "s n'y figurent" : " n'y figure"}
+               pas pour cette raison` : ""}. Personne n'apparaît à zéro : ne pas venir
+            n'est pas une information à publier. Elle ne sort jamais de votre entreprise, elle
+            ne compte que les missions, et les dons personnels n'y apparaissent pas.</p>
         </section>
       </div>
     </div>

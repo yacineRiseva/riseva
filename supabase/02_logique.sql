@@ -1051,6 +1051,19 @@ begin
     raise exception 'Cette association ne déclare plus son éligibilité au mécénat de compétences : hors du régime de l''article L. 8241-3, la mise à disposition serait un prêt de main-d''oeuvre illicite'
       using errcode = '42501';
   end if;
+  -- Deux fois sur la même annonce. Un pouce qui appuie deux fois, ou un salarié
+  -- qui retombe sur l'annonce trois écrans plus bas sans reconnaître qu'il s'y
+  -- est déjà mis : la place partait deux fois et l'association voyait deux
+  -- inscriptions du même nom. La quantité existe pour prendre plusieurs places
+  -- d'un coup. Un engagement refusé ou annulé ne compte pas : celui-là se
+  -- reprend. Même règle que dans le moteur du navigateur, écrite ici aussi,
+  -- parce qu'une règle qui n'existe que dans le navigateur n'est pas une règle.
+  if exists (select 1 from public.mission m
+              where m.annonce = p_annonce and m.salarie = v_uid
+                and m.etat not in ('refusee','annulee')) then
+    raise exception 'Vous êtes déjà positionné sur cette annonce' using errcode = '23505';
+  end if;
+
   -- Une mise à disposition sur le temps de travail exige l'accord exprès, écrit et
   -- spécifique du salarié à CETTE mission (article R. 8241-2 du code du travail).
   -- Une acceptation générale des conditions d'utilisation ne le remplace pas. Sans

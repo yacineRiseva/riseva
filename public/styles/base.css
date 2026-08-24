@@ -18,8 +18,20 @@ table{border-collapse:collapse;width:100%}
 
 .wrap{width:100%;max-width:var(--wrap);margin-inline:auto;padding-inline:var(--s6)}
 .stack>*+*{margin-top:var(--gap,var(--s4))}
+/* Une rangee de champs. Sous 640 pixels elle se replie : trois champs de
+   largeur fixe cote a cote font 540 pixels dans une fenetre de 390, et
+   c'est la page entiere qui part de travers. */
 .row{display:flex;align-items:center;gap:var(--s3)}
-.between{display:flex;align-items:center;justify-content:space-between;gap:var(--s4)}
+@media(max-width:640px){
+  .row{flex-wrap:wrap}
+  .row > .field,.row > .input,.row > .select,.row > .textarea{min-width:0;flex:1 1 100%}
+}
+/* `.between` pose un titre a gauche et un bouton a droite. Sans retour a la
+   ligne, sur un telephone, le bouton pousse la ligne au-dela de l'ecran et
+   c'est la PAGE ENTIERE qui gagne une barre de defilement horizontale :
+   l'annuaire mesurait 593 pixels de large dans une fenetre de 390. */
+.between{display:flex;align-items:center;justify-content:space-between;
+  gap:var(--s4);flex-wrap:wrap}
 .grid{display:grid;gap:var(--s5)}
 .muted{color:var(--ink-500)}
 .tnum{font-variant-numeric:tabular-nums;font-family:var(--font-display);letter-spacing:-.01em}

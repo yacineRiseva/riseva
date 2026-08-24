@@ -3,7 +3,16 @@
   height:44px;padding:0 var(--s5);border-radius:var(--r-md);border:1px solid transparent;
   font-size:var(--t-base);font-weight:550;letter-spacing:-.008em;cursor:pointer;
   transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease),
-             color var(--dur) var(--ease),transform var(--dur) var(--ease);white-space:nowrap}
+             color var(--dur) var(--ease),transform var(--dur) var(--ease);white-space:nowrap;
+  /* Un bouton ne pousse jamais la page au-dela de l'ecran. « Existence juridique
+     et coordonnees controlees » mesurait 396 pixels dans une fenetre de 390 :
+     c'est toute la page qui gagnait une barre de defilement horizontale. Sous
+     640 pixels, le libelle a le droit de passer a la ligne. */
+  max-width:100%}
+@media(max-width:640px){
+  .btn{white-space:normal;height:auto;min-height:44px;padding-block:10px;
+       text-align:center;line-height:1.25}
+}
 .btn:active{transform:translateY(.5px)}
 .btn--primary{background:var(--ink);color:var(--paper);box-shadow:var(--sh-1)}
 .btn--primary:hover{background:var(--forest-800)}
@@ -191,6 +200,13 @@ tr.is-anonyme td{color:var(--ink-400)}
   .side.is-open{transform:none;box-shadow:var(--sh-3)}
   .content{padding:var(--s5)}
   .topbar{padding-inline:var(--s5)}
+  /* La barre du haut debordait de trente et un pixels sur « Tous ensemble » :
+     le badge de saison poussait la cloche de notifications hors de l'ecran.
+     Les deux groupes ont donc le droit de retrecir, et le titre coupe avant
+     que la barre ne pousse. */
+  .topbar > *{min-width:0}
+  .topbar .row{min-width:0;flex-shrink:1}
+  .topbar h1,.topbar .titre{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
 /* Une note qui prévient d'une incohérence, pas un message d'erreur : la saisie
    reste possible, c'est l'association qui sait ce qu'elle annonce. */
