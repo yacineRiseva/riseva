@@ -44,7 +44,18 @@ FONTE = "*{font-family:'Carlito','DejaVu Sans',sans-serif !important}"
 # décorative de plus. On garde donc le haut de l'écran — celui qui porte les
 # indicateurs et le bloc de résultats — et on coupe le reste.
 ECRANS = [
+    # Le seul plan large de la serie : celui-la doit montrer QUE c'est une
+    # application, avec sa navigation. Tous les autres cadrent sur la carte qui
+    # porte la preuve annoncee par la legende — le bandeau lateral repete douze
+    # fois ne prouve rien de plus la douzieme fois, et il mange un sixieme de la
+    # largeur au moment ou on a besoin de lire des chiffres.
     ("admin-tableau",  "#/tableau",     "u2", 900),
+    # L'apercu du premier ecran de la vitrine entreprise. Ce qu'il doit prouver
+    # en une image, a six cents pixels de large : que la plateforme rend des
+    # RESULTATS, en gros chiffres, et que ces resultats sont du vivant — des
+    # arbres, des animaux, des colis. Le tableau de bord entier, reduit a cette
+    # taille, ne prouve qu'une chose : qu'il existe un tableau de bord.
+    ("apercu-resultats", "#/tableau",    "u2", (".realis", 320, 1100)),
     ("salarie-saison", "#/tableau",     "u5", ".card--dark"),
     # Fenetre etroite exprès. La grille d'annonces tient trois colonnes a 1 440,
     # et ces trois colonnes reduites a la largeur d'une demi-page de vitrine
@@ -53,12 +64,27 @@ ECRANS = [
     # six cents pixels, et la capture prouve enfin ce qu'elle montre.
     ("salarie-actions","#/annonces",    "u5", ("#liste", 390, 1000, 30)),
     ("asso-tableau",   "#/tableau",     "u7", ".card--dark"),
-    ("asso-valider",   "#/avalider",    "u7", 860),
-    ("missions",       "#/missions",    "u2", 860),
-    ("rapports",       "#/rapports",    "u2", 900),
-    ("mecenat",        "#/mecenat",     "u2", 900),
-    ("groupe",         "#/groupe",      "u2", 900),
-    ("indicateurs",    "#/indicateurs", "u2", 900),
+    # La legende dit « confirmer une mission » : on cadre sur la table des
+    # missions a confirmer, pas sur l'ecran qui la contient.
+    ("asso-valider",   "#/avalider",    "u7", ("#aConfirmer", 380, 1200)),
+    # La liste des missions. Le cadrage sautait jusqu'ici l'encart « les dons
+    # personnels ne sont pas nominatifs » : un paragraphe de doctrine en haut
+    # d'une capture legendee « chaque mission, son association, son etat », et le
+    # lecteur cherche pendant trois secondes ce qu'il est cense regarder.
+    ("missions",       "#/missions",    "u2", ("#tableMissions", 560, 1300)),
+    ("rapports",       "#/rapports",    "u2", ("#tableRapports", 600, 1300)),
+    # Le mecenat s'ouvrait sur « Calcul incomplet, 2 controles sur 8 ». C'est
+    # exact, c'est meme le comportement dont on est le plus fier, mais en vitrine
+    # ca se lit comme un produit en panne. La legende annonce le calcul : on
+    # montre le calcul, ligne par ligne.
+    ("mecenat",        "#/mecenat",     "u2", ("#calcul", 620, 1200)),
+    ("indicateurs",    "#/indicateurs", "u2", (".main", 640, 1440, 70)),
+    # La legende « formule comprise » promettait une formule que la capture ne
+    # montrait pas : c'etait deux fois le meme ecran de collecte sous deux
+    # legendes differentes. Celle-ci montre le tableau consolide, ou chaque taux
+    # porte sa formule sous son libelle.
+    ("indicateurs-formule", "#/indicateurs", "u2", ("#consolide", 620, 1200)),
+    ("groupe",         "#/groupe",      "u2", ("#societes", 520, 1300)),
     ("classement",     "#/classement",  "u2", 860),
     ("materiel",       "#/materiel",    "u2", 860),
 ]
@@ -70,7 +96,13 @@ class Silencieux(http.server.SimpleHTTPRequestHandler):
 def serveur():
     h = functools.partial(Silencieux, directory=str(RACINE))
     socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("127.0.0.1", PORT), h) as srv:
+    # Serveur a fils d'execution. Le serveur simple traite une requete a la
+    # fois : le navigateur en ouvre six en parallele pour les polices et les
+    # modules, la sixieme attend la premiere, et au bout de trente secondes la
+    # capture tombe en timeout sans qu'aucune page soit en cause.
+    class Fil(socketserver.ThreadingMixIn, socketserver.TCPServer):
+        daemon_threads = True
+    with Fil(("127.0.0.1", PORT), h) as srv:
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         try: yield
         finally: srv.shutdown()

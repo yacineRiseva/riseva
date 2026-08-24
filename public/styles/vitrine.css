@@ -1958,7 +1958,11 @@ section{
   gap:clamp(30px,4.4vw,72px);
   align-items:start;
 }
-@media (max-width:1000px){ .doc-tete{grid-template-columns:1fr;gap:34px;} }
+/* `1fr` vaut minmax(auto,1fr) : une image de 1 584 pixels de large posee dans
+   la colonne y impose sa taille intrinseque et la page part en travers sur
+   telephone. `minmax(0,1fr)` la laisse retrecir. */
+@media (max-width:1000px){ .doc-tete{grid-template-columns:minmax(0,1fr);gap:34px;} }
+.doc-tete > *{min-width:0;}
 .doc-intro{max-width:58ch;}
 
 .fiche{
@@ -2227,6 +2231,7 @@ section{
    sous elle par construction, pas par un reglage qui se trouve juste assez grand
    sur l'ecran ou on l'a regarde. */
 .vd .hero,.va .hero{padding-top:calc(64px + clamp(34px,5.5vh,66px));}
+.vd .hero--doc{padding-top:calc(64px + clamp(20px,3vh,38px));}
 
 /* ── les trois formats, en colonnes ─────────────────────────────────────── */
 .fmt3{
@@ -3181,10 +3186,16 @@ body{
   align-items:start;
 }
 .vd #perimetres .s-head{grid-column:1;grid-template-columns:1fr;gap:14px;margin-bottom:0;}
+/* La capture deborde volontairement de sa colonne : c'est ce qui la fait
+   respirer. Elle ne doit pas pour autant deborder de l'ECRAN — a 1 024 elle
+   sortait de dix-neuf pixels et la page entiere gagnait une barre de
+   defilement horizontale. Le debord n'est donc offert qu'a partir de la
+   largeur ou il reste de la place pour lui. */
 .vd #perimetres .shot--seule{
   grid-column:2;grid-row:1 / span 2;
-  width:112%;max-width:none;
+  width:100%;max-width:none;
 }
+@media (min-width:1180px){ .vd #perimetres .shot--seule{width:112%;} }
 .vd #perimetres .shot--seule img{max-height:clamp(360px,34vw,520px);object-position:left top;}
 .vd #perimetres .duo--texte{
   grid-column:1;grid-template-columns:1fr;gap:clamp(18px,2vw,26px);margin:0;
@@ -3351,3 +3362,57 @@ body{
    lisait les deux et ne savait pas lequel l'engageait. */
 .tar-apd{color:var(--faint);font-size:12px;font-weight:600;letter-spacing:.04em;}
 .vd #prix .tar-apd{color:rgba(242,240,233,.55);}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LE PREMIER ECRAN DE LA VITRINE ENTREPRISE
+
+   Ce qu'il faisait : un titre monumental, deux paragraphes, une fiche de six
+   lignes. Le visiteur arrivait au bas de l'ecran sans avoir vu le produit ni un
+   seul chiffre. Ce qu'il fait : une phrase, ce que la plateforme rend en image,
+   et quatre chiffres verifiables — le tout au-dessus de la ligne de flottaison
+   d'un portable de bureau (1 440 x 900).
+   ═══════════════════════════════════════════════════════════════════════════ */
+.h1--court,.vd .h1--court,.va .h1--court{
+  font-size:clamp(30px,3.2vw,46px); max-width:48ch; line-height:1.08;
+  letter-spacing:-.03em; margin:4px 0 clamp(16px,1.7vw,24px);
+  /* Le <br> du titre coupe deja la phrase a l'endroit voulu. `balance`, par
+     dessus, en rajoutait un deuxieme et laissait « votre » seul en bout de
+     ligne : deux lignes annoncees, trois affichees. */
+  text-wrap:balance; }
+/* Et seulement la ou la ligne tient : sous onze cents pixels elle doit pouvoir
+   se replier, sinon le titre deborde de l'ecran. */
+@media (min-width:1100px){ .h1--court,.vd .h1--court,.va .h1--court{ text-wrap:nowrap; } }
+
+/* La capture porte le premier ecran : elle prend la colonne la plus large, le
+   texte se serre. L'inverse — un paragraphe large a cote d'une vignette —
+   redonne au produit la place d'une illustration. */
+.doc-tete--apercu{ align-items:center; gap:clamp(24px,3vw,56px);
+  grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr); }
+@media (max-width:1000px){ .doc-tete--apercu{ grid-template-columns:minmax(0,1fr); } }
+.doc-accroche{ font-size:clamp(15.5px,1.15vw,18px); line-height:1.55; max-width:46ch; }
+
+.apercu{ margin:0; }
+.apercu .shot--apercu{ margin:0; }
+.apercu .shot--apercu img{ display:block; width:100%; height:auto; }
+.apercu figcaption{ margin-top:10px; color:var(--faint); font-size:12.5px; line-height:1.5;
+  letter-spacing:0; text-transform:none; font-family:var(--f-body); max-width:52ch; }
+
+.chiffres--hero{ list-style:none; margin:clamp(20px,2.4vw,32px) 0 0; padding:0;
+  display:grid; gap:clamp(16px,2vw,30px);
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  border-top:1px solid rgba(19,21,16,.10); padding-top:clamp(16px,1.8vw,24px); }
+.chiffres--hero li{ display:grid; gap:6px; align-content:start; }
+/* Le nombre tient sur UNE ligne. Un chiffre qui passe a la ligne desaligne les
+   quatre colonnes entre elles, et la bande cesse de se lire d'un coup d'oeil :
+   on relit chaque case au lieu de balayer les quatre. */
+.vd .chiffres--hero b,.va .chiffres--hero b,.chiffres--hero b{
+  font-family:var(--f-display); font-weight:600; letter-spacing:-.025em;
+  font-size:clamp(22px,1.95vw,29px); line-height:1.1; color:var(--ink);
+  white-space:nowrap; }
+.vd .chiffres--hero span,.chiffres--hero span{ color:var(--ink-soft); font-size:13px;
+  line-height:1.5; white-space:normal; }
+.chiffres--hero .mono{ color:var(--faint); font-size:11.5px; }
+@media (max-width:900px){ .chiffres--hero{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:560px){ .chiffres--hero{ grid-template-columns:minmax(0,1fr); }
+  .vd .chiffres--hero b,.chiffres--hero b{ white-space:normal; } }

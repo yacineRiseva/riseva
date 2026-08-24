@@ -78,6 +78,24 @@ def lire_tarifs():
     }
 
 TARIFS = lire_tarifs()
+
+# Meme regle que pour les tarifs : « huit rubriques, vingt-sept valeurs, dix
+# taux » est une promesse verifiable, donc elle se compte dans le catalogue au
+# lieu de se recopier a la main. Le jour ou un indicateur est ajoute, la vitrine
+# le dit sans que personne y pense.
+def lire_catalogue():
+    src = (PUBLIC / "app" / "data.js").read_text(encoding="utf-8")
+    bloc = src[src.index("export const INDICATEURS = {"):
+               src.index("export const INDICATEURS_LIMITES")]
+    saisis = bloc[bloc.index("saisis: ["):bloc.index("calcules: [")]
+    calcules = bloc[bloc.index("calcules: ["):]
+    return {
+        "rubriques": len(set(re.findall(r'rubrique:"(\w+)"', bloc))),
+        "saisis": len(re.findall(r'\{ cle:"', saisis)),
+        "calcules": len(re.findall(r'\{ cle:"', calcules)),
+    }
+
+CATALOGUE = lire_catalogue()
 EUR = lambda n: f"{n:,}".replace(",", "&nbsp;") + "&nbsp;€"
 
 # Un chiffre isole au milieu d'une phrase se lit comme une donnee ; ecrit en
@@ -447,10 +465,13 @@ def capture(nom, alt, legende, classe="", eager=False):
                          f"Lancez d'abord : python3 scripts/captures.py")
     w, h = dimensions(fichier)
     charge = 'loading="eager" fetchpriority="high"' if eager else 'loading="lazy"'
+    # Une legende vide laissait quand meme un <figcaption> dans la page : une
+    # bande claire de vingt pixels sous l'image, qu'on prenait pour un defaut de
+    # cadrage de la capture. Pas de legende, pas de bloc.
+    bas = f'\n        <figcaption class="mono">{legende}</figcaption>' if legende else ""
     return f"""<figure class="shot{classe}">
         <img src="/captures/{nom}.jpg" alt="{alt}" {charge} decoding="async"
-             width="{w}" height="{h}">
-        <figcaption class="mono">{legende}</figcaption>
+             width="{w}" height="{h}">{bas}
       </figure>"""
 
 
@@ -569,28 +590,80 @@ def objection(question, reponse):
     </div>"""
 
 
+def chiffres_hero():
+    """Quatre chiffres, dans le premier ecran, et pas un de plus.
+
+    La regle qui les gouverne : Riseva n'a AUCUN client et AUCUNE mission
+    realisee. Aucun de ces chiffres ne peut donc etre un resultat. Ce sont soit
+    des faits exterieurs, dates et sources, soit des proprietes verifiables du
+    produit — ce que contient le catalogue, ce que coute une saison, ce que dure
+    l'engagement. Un chiffre gonfle sur cette page se paierait au premier
+    rendez-vous, quand l'acheteur demandera lequel de ses concurrents l'a
+    obtenu."""
+    return f"""
+    <ul class="chiffres chiffres--hero rv">
+      <li><b>60 %</b><span>de réduction d'impôt sur le mécénat, jusqu'à deux millions d'euros
+        de dons sur l'exercice.<br><span class="mono">Article 238 bis du CGI</span></span></li>
+      <li><b>{CATALOGUE['rubriques']} rubriques</b><span>du social aux achats,
+        {CATALOGUE['saisis']} valeurs collectées et {CATALOGUE['calcules']} taux calculés avec
+        leur formule à côté du chiffre.<br><span class="mono">Catalogue de la
+        plateforme</span></span></li>
+      <li><b>1 lien</b><span>à diffuser en interne. Chaque salarié ouvre son compte lui-même :
+        aucune liste à saisir, rien à installer.<br><span class="mono">Déploiement</span></span></li>
+      <li><b>{EUR(TARIFS['paliers'][0]['prix']).replace('&nbsp;€', '')} à
+        {EUR(TARIFS['paliers'][-2]['prix'])}</b><span>HT la saison de douze mois, selon
+        l'effectif. Pas de facturation par salarié, pas de commission sur les
+        dons.<br><span class="mono">Grille publique, plus bas</span></span></li>
+    </ul>"""
+
+
+# Le premier ecran. Ce qu'il montrait : un titre sur deux lignes, deux
+# paragraphes et une fiche de tarif de six lignes. On arrivait au bas de l'ecran
+# sans avoir vu ni le produit, ni un chiffre. Il montre maintenant, dans cet
+# ordre : ce que la plateforme rend (une capture qui se lit a cette taille, et
+# qui porte du vivant), quatre chiffres verifiables, puis le detail.
 HERO_ENT = f"""<header class="hero hero--doc" id="hero">
   <div class="layer">
     <p class="eyebrow mono">Plateforme RSE, challenge de saison, associations du vivant</p>
-    <h1 class="h1 h1--doc">Vos équipes sur le terrain.<br>
-      <span class="it">Vos chiffres RSE, sans courir après personne.</span></h1>
+    <h1 class="h1 h1--doc h1--court">Un refuge cherche des bras.<br>
+      <span class="it">Vos équipes y vont, votre rapport RSE s'écrit.</span></h1>
 
-    <div class="doc-tete">
+    <div class="doc-tete doc-tete--apercu">
     <div class="doc-intro">
-      <p>Riseva organise une <b>saison d'engagement</b> d'un an autour d'<b>associations
-        vérifiées</b> proches de vos sites : berges de rivière, forêts, refuges. Vos salariés
-        choisissent une action, y vont ensemble, et c'est <b>l'association qui confirme</b> ce
-        qui a été fait.</p>
-      <p>Dans le même abonnement, l'<b>outil RSE</b> qui va avec. Vous choisissez les rubriques
-        que vous demandez, chaque site les voit apparaître sur son écran, et quand tout le monde
-        a répondu le <b>rapport est déjà fait</b> : à l'écran, en classeur, en CSV. Vous ne
-        relancez personne, <b>et sans module en supplément</b>.</p>
+      <p class="doc-accroche">Des associations proches de vos sites publient ce dont elles ont
+        besoin : sortir les chiens d'un refuge, planter une parcelle, préparer des colis. Vos
+        salariés s'y rendent, l'association confirme, <b>et les chiffres tombent dans votre
+        rapport</b>.</p>
       <div class="hero-cta">
         <a class="btn btn-lg" href="#prix"><span class="dot"></span>Calculer mon tarif</a>
         <a class="tlink" href="/app/">Explorer la plateforme</a>
       </div>
       <p class="doc-micro mono">Démonstration libre. Aucun rendez-vous, aucune carte
         bancaire.</p>
+    </div>
+
+    <figure class="apercu">
+      {capture("apercu-resultats",
+               "Le bandeau de résultats d'une entreprise dans Riseva : arbres plantés, "
+               "animaux pris en charge, kits distribués, avec le nombre de résultats "
+               "confirmés par les associations", "", " shot--apercu", eager=True)}
+      <figcaption>Ce que la plateforme rend, à la fin d'une saison. Chiffres d'un jeu de
+        démonstration.</figcaption>
+    </figure>
+    </div>
+
+    {chiffres_hero()}
+
+    <div class="doc-tete">
+    <div class="doc-intro">
+      <p>Riseva organise une <b>saison d'engagement</b> d'un an autour d'<b>associations
+        vérifiées</b> proches de vos sites : <b>refuges</b>, berges de rivière, forêts,
+        distributions de repas. Vos salariés choisissent une action, y vont ensemble, et c'est
+        <b>l'association qui confirme</b> ce qui a été fait.</p>
+      <p>Dans le même abonnement, l'<b>outil RSE</b> qui va avec. Vous choisissez les rubriques
+        que vous demandez, chaque site les voit apparaître sur son écran, et quand tout le monde
+        a répondu le <b>rapport est déjà fait</b> : à l'écran, en classeur, en CSV. Vous ne
+        relancez personne, <b>et sans module en supplément</b>.</p>
     </div>
 
     <dl class="fiche">
@@ -831,11 +904,13 @@ PILOTAGE_ENT = f"""<section id="pilotage">
       "Le rapport trimestriel d'une entreprise dans Riseva",
       "Les rapports, en CSV et en PDF")),
   ("meca", "Le dossier de mécénat", capture("mecenat",
-      "La piste d'audit du mécénat, salarié par salarié",
-      "La piste d'audit du mécénat")),
-  ("indi", "Les indicateurs", capture("indicateurs",
-      "Les indicateurs sociaux et de sécurité, consolidés site par site",
-      "Les indicateurs, formule comprise")),
+      "Le calcul du mécénat ligne par ligne : dons versés, mécénat de compétences au coût "
+      "de revient, assiette, plafond, report",
+      "Le calcul, ligne par ligne")),
+  ("indi", "Les indicateurs", capture("indicateurs-formule",
+      "Les taux de sécurité consolidés, chacun avec sa formule sous son libellé, et la "
+      "colonne approuvé séparée de la colonne provisoire",
+      "Chaque taux avec sa formule")),
 ])}
 
     <dl class="faits4 faits4--serre">

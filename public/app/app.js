@@ -1404,7 +1404,7 @@ function vueMissions(u){
             ? ` Moins de ${agg.seuil} donateurs cette saison : le total n'est pas affiché, il permettrait de remonter aux personnes.`
             : ""}</p>
     </section>` : ""}
-    <section class="card">
+    <section class="card" id="tableMissions">
     <div class="tableau"><table class="table"><thead><tr>
       <th>Mission</th><th>Association</th><th>Salarié</th><th>Date</th>
       <th>Points</th><th>État</th><th></th></tr></thead><tbody></tbody></table></div>
@@ -2103,7 +2103,7 @@ function vueRapports(u){
     : null;
 
   const el = h(`<div class="stack" style="--gap:var(--s5)">
-    <section class="card">
+    <section class="card" id="tableRapports">
       <div class="between" style="margin-bottom:var(--s5)">
         <div><h3>Vos rapports</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
@@ -3534,7 +3534,7 @@ function vueAValider(u){
       </div>
     </section>` : ""}
 
-    <section class="card">
+    <section class="card" id="aConfirmer">
       <div class="between" style="margin-bottom:var(--s5)">
         <div><h3>Missions à confirmer</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
@@ -4754,7 +4754,7 @@ function vueMecenat(u){
     </section>` : ""}
 
     <div class="two">
-      <section class="card" style="padding:var(--s8)">
+      <section class="card" id="calcul" style="padding:var(--s8)">
         <h3>Le calcul, ligne par ligne</h3>
         <div class="tableau"><table class="table" style="margin-top:var(--s5)"><tbody>
           <tr><td>Dons versés par l'entreprise elle-même</td>
@@ -5570,7 +5570,7 @@ function vueGroupe(u){
             "la réduction d'impôt s'apprécie société par société, voir le détail plus bas")}
     </div>
 
-    <section class="card">
+    <section class="card" id="societes">
       <div class="between" style="margin-bottom:var(--s5);align-items:flex-start">
         <div><h3>Sociétés et établissements</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
@@ -6314,7 +6314,7 @@ function vueIndicateurs(u){
     ${monSite ? "" : blocRapport(rap)}
 
     <div class="two">
-      <section class="card">
+      <section class="card" id="consolide">
         <h3>Ce que ça donne, une fois consolidé</h3>
         <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
           Un taux de périmètre est un <strong>rapport de sommes</strong> : total des accidents
