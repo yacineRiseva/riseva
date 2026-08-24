@@ -174,3 +174,55 @@ pas les conversations. Toute nouvelle décision s'ajoute en haut de la section c
 - Prix exact dans la fourchette 3 500 à 4 000 €.
 - Forme juridique. SASU évoquée le 30/07/2026, non actée, pas de SIREN.
 - Financement des affiches et du merchandising.
+
+## Le webhook `recu-fiscal` est supprimé, pas réparé
+
+*24/08/2026.* Un audit croisé a trouvé, dans `supabase/functions/recu-fiscal/`,
+une seconde chaîne d'émission de reçus fiscaux, parallèle à `emettre_recu` et
+plus faible qu'elle sur trois points : elle ne vérifiait pas le **mandat écrit**
+de l'association, elle attribuait le numéro d'ordre sans le verrou qui empêche
+deux reçus de porter le même, et elle lisait des colonnes qui n'existent pas
+dans le schéma (`recus_eligible`, `recus_signataire`, `recus_numero`). Elle
+était donc à la fois cassée et dangereuse : cassée, elle ne produisait rien ;
+réparée, elle aurait émis des reçus sans mandat.
+
+Elle n'est pas réparée, elle est retirée, et la ligne de déploiement du README
+avec elle. Il n'existe qu'un seul chemin d'émission : l'association, depuis son
+espace, appelle `emettre_recu`, qui exige le don confirmé, l'association
+bénéficiaire, le mandat écrit et la sérialisation du numéro. C'est elle qui
+émet, c'est elle qui encourt l'amende de l'article 1740 A du CGI, et c'est
+exactement pour cela qu'aucun automate ne doit pouvoir le faire à sa place.
+
+La règle qui en sort, et qui vaut au-delà de ce cas : **une règle de droit ne
+s'écrit qu'à un seul endroit.** Deux implémentations d'une même obligation, ce
+n'est pas une redondance de sécurité, c'est la garantie que la plus faible des
+deux finira par être celle qui tourne.
+
+## Trois fonctions `SECURITY DEFINER` acceptaient n'importe quel identifiant
+
+*24/08/2026.* Même audit. `adoption()`, `offre_par_site()` et `offre_locale()`
+traversent la RLS par construction et prenaient l'entreprise ou le site en
+paramètre sans jamais vérifier que l'appelant y avait droit. N'importe quel
+compte connecté pouvait lire l'entonnoir d'adoption d'un concurrent, la liste de
+ses établissements avec leurs effectifs, ou l'offre associative autour d'un site
+dont il avait ramassé l'identifiant dans une mission.
+
+`offre_locale()` est le cas le plus instructif : le commentaire annonçait qu'on
+« rejouait la RLS ici parce que la fonction est SECURITY DEFINER », et le code
+en dessous ne faisait qu'un second test d'existence, mot pour mot celui de la
+ligne précédente. Le commentaire décrivait un garde que personne n'avait écrit,
+et il a suffi à ce que trois relectures passent à côté.
+
+Les trois portent désormais le même contrôle : `mon_entreprise()`,
+`dans_mon_groupe()` ou `est_admin()`.
+
+L'audit demandait une seconde correction, et elle a été **refusée** : renvoyer
+`null` sous le plancher de cinq dans `adoption()`. Le plancher protège une
+personne d'un tiers — le CSE qui lit un agrégat, le classement qui publie une
+ligne, l'employeur qui verrait qui a donné de sa poche. Une fois le garde
+ci-dessus posé, l'appelant d'`adoption()` est l'entreprise elle-même, qui a déjà
+sous les yeux la liste nominative de « Nos missions ». Masquer « 1 engagé sur
+3 » ne protégerait personne et rendrait l'écran aveugle pendant les semaines où
+il sert justement à voir si le lancement prend. `lisible` reste un avis rendu à
+l'écran. Un audit qui trouve un vrai trou n'a pas raison sur tout ce qu'il
+propose autour.

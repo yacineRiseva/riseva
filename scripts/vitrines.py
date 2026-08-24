@@ -691,8 +691,8 @@ def flux(etapes_flux):
 # d'entre elles, n'a pas le droit de faire. On ecrit ce qu'elle fait.
 HERO_ENT = f"""<header class="hero hero--doc" id="hero">
   <div class="layer">
-    <p class="eyebrow mono">Plateforme RSE multi-sites · Challenge d'un an · Associations
-      du vivant</p>
+    <p class="eyebrow mono">Plateforme RSE multi-sites, challenge d'un an,
+      associations du vivant</p>
     <h1 class="h1 h1--doc h1--court">La RSE d'une PME,<br>
       <span class="it">sans direction RSE.</span></h1>
 
@@ -749,8 +749,8 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
       <div><dt class="mono">Déploiement</dt><dd>un lien à diffuser, rien à installer</dd></div>
       <div><dt class="mono">Périmètre</dt><dd>une entreprise, ou un groupe multi-sites</dd></div>
       <div><dt class="mono">Tarif</dt><dd>de <b>{EUR(TARIFS['paliers'][0]['prix'])} à
-        {EUR(TARIFS['paliers'][-2]['prix'])} HT</b> l'an selon l'effectif, un à huit sites
-        compris. Au-delà de deux mille salariés, sur devis à partir de
+        {EUR(TARIFS['paliers'][-2]['prix'])} HT</b> l'an selon l'effectif, d'un à
+        {TARIFS['paliers'][-2]['sites']} sites compris selon la tranche. Au-delà de deux mille salariés, sur devis à partir de
         {EUR(TARIFS['paliers'][-1]['prix'])}. Pas de facturation par salarié, pas de commission
         sur les dons.</dd></div>
       <div><dt class="mono">Lancement</dt><dd>-10 % pour les 20 premières entreprises,
@@ -900,10 +900,10 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
                "une zone à couvrir, ou inviter une association que vous connaissez déjà.")}
 
     <div class="photos3">
-      {photo("refuge-chats", "Un chat roux se laisse gratter sous le menton dans une salle "
-             "de refuge claire", "")}
-      {photo("plantation", "Deux mains tassent la terre autour d'un jeune arbre qui vient "
-             "d'être planté", "")}
+      {photo("refuge", "Un chien de refuge trotte en laisse au soleil, à côté de la personne "
+             "qui le sort", "")}
+      {photo("berge-ramassage", "Trois personnes remontent une berge de rivière avec leurs "
+             "sacs pleins, un matin d'automne", "")}
       {photo("maraude", "Un bol chaud passe de main en main au-dessus d'une table de "
              "distribution, devant une camionnette", "")}
     </div>
@@ -1040,8 +1040,9 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss">
 
 PILOTAGE_ENT = f"""<section id="pilotage">
   <div class="layer">
-{entete("Ce que vous pilotez", "Sans tenir<br><span class='it'>un seul tableur.</span>",
-        "Quatre écrans de l'application, remplis avec un jeu de démonstration.")}
+{entete("Les écrans", "La preuve,<br><span class='it'>écran par écran.</span>",
+        "Quatre écrans de l'application, tels qu'ils s'affichent, remplis avec un jeu de "
+        "démonstration.")}
 
     {objection("Qu'obtient l'entreprise en fin de saison ?",
                "Des chiffres datés, avec leur source et leur méthode. Pour les missions, le "
@@ -1439,8 +1440,11 @@ def grille_tarifaire():
         <tbody>{lignes}
         </tbody>
       </table>
-      <p class="tar-n">Site supplémentaire au-delà de ceux compris : {EUR(TARIFS['site_sup'])} HT.
-        Au-delà de deux mille salariés, le tarif est établi sur devis à partir du dernier palier.</p>
+      <p class="tar-n">Site supplémentaire <b>au-delà du nombre inclus dans votre tranche</b> :
+        {EUR(TARIFS['site_sup'])} HT. Chaque ligne ci-dessus dit combien de sites sa tranche
+        comprend. Au-delà de deux mille salariés, le tarif est établi sur devis, à partir de
+        {EUR(TARIFS['paliers'][-1]['prix'])} HT et {TARIFS['paliers'][-1]['sites']} sites
+        inclus.</p>
     </div>
 
     <div class="tar-inclus">
@@ -1490,8 +1494,8 @@ CORPS_ENT = "\n\n".join([
     SAISON_ENT,         # 3. « qui va gérer ça chez moi ? »
     EQUIPES_ENT,        # 3. « est-ce que mes équipes vont y aller ? »
     ASSOCIATIONS_ENT,   # 4. « et s'il n'y a rien autour de mon site ? »
-    PILOTAGE_ENT,       # 5. « qu'est-ce que j'y gagne ? »
-    OUTIL_ENT,          # 6. « et le travail que ça m'épargne ? »
+    OUTIL_ENT,          # 5. « et le travail que ça m'épargne ? »
+    PILOTAGE_ENT,       # 6. les écrans qui le prouvent, après le procédé
     CHANGE_ENT,         # 7. trois effets, et leur date
     AFFICHES_ENT,       # 8. le seul objet Riseva qu'un salarié voit sans écran
     PERIMETRES_ENT,     # 9. groupes et services RSE, en porte d'entrée
@@ -1640,12 +1644,12 @@ CHALLENGE_ASSO = f"""<section id="challenge">
         "où elle apparaît.")}
 
     <div class="photos3">
-      {photo("refuge", "Un chien de refuge trotte en laisse au soleil, à côté de la personne "
-             "qui le sort", "")}
-      {photo("maraude", "Un bol chaud passe de main en main au-dessus d'une table de "
-             "distribution, devant une camionnette", "")}
-      {photo("plantation", "Deux mains tassent la terre autour d'un jeune arbre qui vient "
-             "d'être planté", "")}
+      {photo("refuge-sortie", "Deux bénévoles sortent quatre chiens de refuge sur un chemin "
+             "de campagne, en plein soleil", "")}
+      {photo("collecte", "Des mains gantées trient des conserves et des légumes dans des "
+             "cagettes, dans une salle claire", "")}
+      {photo("refuge-chats", "Un chat roux se laisse gratter sous le menton dans une salle "
+             "de refuge claire", "")}
     </div>
 
     <div class="trois3">

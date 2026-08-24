@@ -2236,7 +2236,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
          deux fois ne veut rien dire de plus. Un engagement refuse ou annule ne
          compte pas : celui-la, on peut le reprendre. */
       const dejaLa = s.missions.find(x => x.annonce === annonce && x.salarie === salarie
-        && x.etat !== "refusee" && x.etat !== "annulee");
+        && x.etat !== "refusee");
       if (dejaLa)
         throw new Error("Vous êtes déjà positionné sur cette annonce. "
           + "Pour prendre une place de plus, annulez et réinscrivez-vous avec la quantité voulue.");
@@ -6587,8 +6587,16 @@ function creerSupabase(client){
                                       p_ville: ch.ville ?? null, p_siret: ch.siret ?? null,
                                       p_effectif: ch.effectif === undefined ? null : Number(ch.effectif),
                                       p_adresse: ch.adresse ?? null })),
-    saisirIndicateurs: (cid, etid, valeurs) => ecrire(() =>
-      rpc("saisir_indicateurs", { p_campagne: cid, p_etablissement: etid, p_valeurs: valeurs })),
+    // La liaison s'arretait aux trois premiers arguments et jetait la phrase
+    // d'explication que l'ecran venait de faire ecrire. Or la RPC la reclame des
+    // qu'une valeur bouge de plus de trente pour cent : le contributeur tapait
+    // son explication, elle ne partait pas, et la base refusait la saisie en lui
+    // demandant precisement ce qu'il venait d'ecrire. La demonstration, elle,
+    // acceptait — deux moteurs, deux comportements sur la meme regle.
+    saisirIndicateurs: (cid, etid, valeurs, uid, commentaire = null) => ecrire(() =>
+      rpc("saisir_indicateurs", { p_campagne: cid, p_etablissement: etid,
+                                  p_valeurs: valeurs,
+                                  p_commentaire: commentaire || null })),
     approuverIndicateurs: (cid, etid) => ecrire(() =>
       rpc("approuver_indicateurs", { p_campagne: cid, p_etablissement: etid })),
     engager: ({ annonce, quantite, cle, consentement }) => ecrire(() =>

@@ -1055,12 +1055,19 @@ begin
   -- qui retombe sur l'annonce trois écrans plus bas sans reconnaître qu'il s'y
   -- est déjà mis : la place partait deux fois et l'association voyait deux
   -- inscriptions du même nom. La quantité existe pour prendre plusieurs places
-  -- d'un coup. Un engagement refusé ou annulé ne compte pas : celui-là se
-  -- reprend. Même règle que dans le moteur du navigateur, écrite ici aussi,
-  -- parce qu'une règle qui n'existe que dans le navigateur n'est pas une règle.
+  -- d'un coup. Un engagement refusé ne compte pas : celui-là se reprend. Même
+  -- règle que dans le moteur du navigateur, écrite ici aussi, parce qu'une règle
+  -- qui n'existe que dans le navigateur n'est pas une règle.
+  --
+  -- Le garde listait aussi un état « annulee » qui n'existe dans aucun des deux
+  -- côtés : ni dans l'enum etat_mission, ni dans le moteur. Postgres valide les
+  -- littéraux d'enum à l'exécution, donc la fonction entière levait
+  -- « invalid input value for enum » au premier salarié qui se positionnait
+  -- deux fois. Une mission ne s'annule pas : elle est refusée, ou elle se clôt
+  -- sans confirmation.
   if exists (select 1 from public.mission m
               where m.annonce = p_annonce and m.salarie = v_uid
-                and m.etat not in ('refusee','annulee')) then
+                and m.etat <> 'refusee') then
     raise exception 'Vous êtes déjà positionné sur cette annonce' using errcode = '23505';
   end if;
 
@@ -2492,8 +2499,15 @@ begin
   -- `etablissement` a déjà tranché ce que l'appelant a le droit de voir. On la
   -- rejoue ici parce que cette fonction est SECURITY DEFINER et qu'elle
   -- contournerait sinon la frontière qu'elle est censée respecter.
-  if not exists (select 1 from public.etablissement e where e.id = p_etablissement) then
-    raise exception 'Site inconnu' using errcode = 'P0002';
+  --
+  -- Ce qui était écrit ici ne rejouait rien : c'était un second test
+  -- d'existence, mot pour mot celui de la ligne du dessus. Le commentaire
+  -- décrivait un garde que le code ne posait pas, et les identifiants de site
+  -- circulent dans les missions — il suffisait d'en reprendre un.
+  if not (v_et.societe = private.mon_entreprise()
+          or private.dans_mon_groupe(v_et.societe)
+          or private.est_admin()) then
+    raise exception 'Site hors de votre périmètre' using errcode = '42501';
   end if;
 
   return query
@@ -2575,6 +2589,12 @@ language sql stable security definer set search_path = '' as $$
     from public.etablissement e
     cross join lateral public.offre_locale(e.id) o
    where e.societe = p_entreprise and e.ferme_le is null
+     -- Meme raison qu'ailleurs : SECURITY DEFINER plus un parametre libre,
+     -- c'est la carte d'implantation et les effectifs par site d'un client
+     -- ouverts a tous les autres. Le perimetre se verifie, il ne se suppose pas.
+     and (p_entreprise = private.mon_entreprise()
+          or private.dans_mon_groupe(p_entreprise)
+          or private.est_admin())
    order by case o.verdict when 'aucune' then 0 when 'inaccessible' then 1
                            when 'mince' then 2 else 3 end,
             o.ouvertes
@@ -2654,6 +2674,18 @@ returns table (
 language plpgsql stable security definer set search_path = '' as $$
 declare v_plancher integer := private.plancher_adoption();
 begin
+  -- Le cloisonnement, avant tout le reste. La fonction est SECURITY DEFINER :
+  -- elle traverse la RLS par construction, et son seul parametre designe
+  -- l'entreprise. Sans ce garde, n'importe quel compte connecte appelait
+  -- adoption() avec l'identifiant d'un concurrent et recevait son entonnoir
+  -- complet — comptes ouverts, engages, delai median. Un parametre n'est pas
+  -- une autorisation.
+  if not (p_entreprise = private.mon_entreprise()
+          or private.dans_mon_groupe(p_entreprise)
+          or private.est_admin()) then
+    raise exception 'Réservé à votre entreprise' using errcode = '42501';
+  end if;
+
   return query
   with gens as (
     select p.id, p.cree_le
@@ -2693,6 +2725,22 @@ begin
       from j where j.premiere is null and j.cree_le is not null
        and (current_date - j.cree_le::date) >= 0
   )
+  -- Sur le plancher, on a hésité, puis tranché contre l'audit. Il proposait de
+  -- renvoyer null sous cinq comptes, comme le fait `dons_personnels_agreges`.
+  -- Ce n'est pas le même cas. Le plancher protège une personne d'un tiers : le
+  -- CSE qui lit un agrégat, le classement qui publie une ligne, l'employeur qui
+  -- verrait qui a donné de sa poche. Ici l'appelant est, depuis le garde
+  -- ci-dessus, l'entreprise elle-même — et elle a déjà sous les yeux, dans « Nos
+  -- missions », la liste nominative de ce que ses salariés ont fait sur le temps
+  -- de travail. Masquer « 1 engagé sur 3 » ne protégerait personne : ça cacherait
+  -- au dirigeant un chiffre qu'il lit trois écrans plus loin, et ça rendrait
+  -- l'écran d'adoption illisible dans les premières semaines, quand il sert
+  -- précisément à voir si le lancement prend.
+  --
+  -- `lisible` reste donc ce qu'il est : un avis rendu à l'écran, qui invite à ne
+  -- pas conclure d'un si petit nombre. Le vrai défaut n'était pas là, il était
+  -- au-dessus : n'importe qui pouvait appeler la fonction pour n'importe quelle
+  -- entreprise.
   select
     coalesce((select e.effectif from public.etablissement e where e.id = p_etablissement),
              (select coalesce(ent.effectif, 0) from public.entreprise ent

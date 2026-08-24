@@ -121,7 +121,7 @@ migrations dépendent — schéma `auth`, `auth.users`, `auth.uid()`, les rôles
    dans `public/app/vendor/`, avec son empreinte. Sans ce fichier, l'application
    refuse de démarrer sur le domaine de production plutôt que d'importer du code
    tiers modifiable à l'exécution.
-5. Déployer les fonctions Edge : `supabase functions deploy demande-validation valider-mission rapport recu-fiscal paiement`.
+5. Déployer les fonctions Edge : `supabase functions deploy demande-validation valider-mission rapport paiement helloasso effacement`.
 6. La fonction `paiement` reste déployée pour le jour où un prestataire agréé entrerait
    dans le circuit, mais elle n'est branchée sur rien : les dons arrivent par virement
    direct, et c'est l'association qui confirme la réception (`confirmer_don_recu`).
