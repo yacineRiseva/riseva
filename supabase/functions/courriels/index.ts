@@ -50,13 +50,23 @@ const echappe = (t: string) =>
   String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
            .replace(/"/g, "&quot;");
 
+const EXPEDITEUR = Deno.env.get("MAIL_FROM") ?? "Riseva <bonjour@riseva.fr>";
+
 async function envoyerMail(a: string, sujet: string, html: string): Promise<boolean> {
   const cle = Deno.env.get("RESEND_API_KEY");
-  if (!cle) { console.log("[mail simulé]", a, sujet); return true; }
+  /* Sans clé d'envoi, on ne marque RIEN. L'ancienne version écrivait dans le
+     journal et rendait `true` : la file était vidée et marquée « envoyé » alors
+     que rien n'était parti, et comme `envoi.cle` est unique avec
+     `on conflict do nothing`, ces messages ne seraient jamais réenfilés. Un
+     exploitant qui branche le déclencheur avant d'avoir fini la validation de
+     domaine chez Resend — une journée d'attente, c'est le cas ordinaire —
+     perdait définitivement tout ce qui attendait. Laisser la file pleine est le
+     comportement sûr. */
+  if (!cle) throw new Error("pas de clé d'envoi");
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "Authorization": `Bearer ${cle}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: "Riseva <bonjour@riseva.fr>", to: a, subject: sujet, html }),
+    body: JSON.stringify({ from: EXPEDITEUR, to: a, subject: sujet, html }),
   });
   if (!r.ok) console.error("resend", r.status, await r.text());
   return r.ok;
@@ -164,12 +174,19 @@ async function traiter(f: { id: string; type: string; sujet: string; detail: str
 Deno.serve(async (req) => {
   if (!memeSecret(req.headers.get("x-riseva-cron"), Deno.env.get("CRON_SECRET")))
     return new Response("non autorisé", { status: 401 });
+  if (!Deno.env.get("RESEND_API_KEY"))
+    return new Response("pas de clé d'envoi : la file est laissée intacte", { status: 503 });
 
   const { data: files, error } = await sb
     .from("envoi")
-    .select("id, type, sujet, detail, destinataire_profil")
+    .select("id, type, sujet, detail, destinataire_profil, tentatives")
     .in("type", ["demande_validation", "relance", "rapport"])
-    .eq("etat", "a_envoyer")
+    /* `echec` aussi. Un 429 ou un 500 passager de Resend marquait la ligne en
+       échec, et plus aucune requête ne la sélectionnait jamais : le message
+       était perdu sans qu'un humain le sache. Le compteur de tentatives évite
+       l'autre extrême, celui de réessayer indéfiniment une adresse morte. */
+    .in("etat", ["a_envoyer", "echec"])
+    .lt("tentatives", 3)
     .order("date", { ascending: true })
     .limit(PAR_PASSAGE);
   if (error) return new Response(error.message, { status: 500 });

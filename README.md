@@ -124,13 +124,21 @@ migrations dépendent — schéma `auth`, `auth.users`, `auth.uid()`, les rôles
    dans `public/app/vendor/`, avec son empreinte. Sans ce fichier, l'application
    refuse de démarrer sur le domaine de production plutôt que d'importer du code
    tiers modifiable à l'exécution.
-5. Déployer les fonctions Edge : `supabase functions deploy courriels valider-mission paiement helloasso effacement`.
-6. La fonction `paiement` reste déployée pour le jour où un prestataire agréé entrerait
-   dans le circuit, mais elle n'est branchée sur rien : les dons arrivent par virement
-   direct, et c'est l'association qui confirme la réception (`confirmer_don_recu`).
-   Riseva n'encaisse pas — voir `docs/DON-VIREMENT.md`.
+5. Déployer les fonctions Edge, depuis le dossier qui contient `supabase/config.toml` :
+   `supabase functions deploy courriels valider-mission helloasso effacement`.
+   Ce fichier de configuration n'est pas décoratif : sans lui, Supabase applique
+   `verify_jwt` par défaut et refuse en 401 les trois fonctions qui sont appelées
+   sans compte — la base la nuit, l'association depuis son courriel, la banque au
+   retour d'un paiement.
+6. La fonction `paiement` a été SUPPRIMÉE. Elle n'était appelée par personne, son
+   secret n'était documenté nulle part — donc `undefined`, donc elle répondait 401 à
+   tout —, et le reçu qu'elle prétendait émettre lui était de toute façon refusé.
+   Un point d'entrée déployé qu'aucun appelant ne peut atteindre est une surface
+   d'attaque sans contrepartie. Les dons par carte passent par `helloasso`, les
+   virements par `confirmer_don_recu` : Riseva n'encaisse pas, voir `docs/DON-VIREMENT.md`.
 7. `05_taches.sql` planifie déjà `private.moteur()` chaque nuit via pg_cron :
-   validation automatique, fermeture des annonces, rapports, purges.
+   validation automatique, fermeture des annonces, relances, rapports, purges, et
+   l'appel qui vide la file des courriels.
 
 La clé anonyme est publique par nature : c'est RLS qui protège les données, jamais le secret
 de la clé. La clé `service_role` ne doit exister que dans les variables d'environnement des

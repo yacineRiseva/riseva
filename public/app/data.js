@@ -6313,6 +6313,27 @@ export async function envoyerLienConnexion(email, { retour = null, creerCompte =
   return true;
 }
 
+/* Le RIB d'UNE association, demandé au serveur. Les coordonnées bancaires ne
+   sont plus accordées en bloc à qui n'est pas connecté : rendre l'annuaire
+   complet des IBAN du réseau en une requête, c'est fournir la matière première
+   d'une fraude au changement de RIB. La fiche publique en demande un, celui de
+   l'association qu'on regarde.
+
+   Sans serveur — démonstration, base vierge — on retombe sur le moteur, qui
+   porte les mêmes champs. */
+export async function coordonneesDonPubliques(aid){
+  const c = await clientDAuth();
+  if (!c) return DB.coordonneesDon(aid);
+  try {
+    const { data, error } = await c.rpc("coordonnees_don", { p_association: aid });
+    if (error) return null;
+    const r = Array.isArray(data) ? data[0] : data;
+    if (!r || !r.iban) return null;
+    return { iban: r.iban, iban_lisible: ibanLisible(r.iban), bic: r.bic || null,
+             titulaire: r.titulaire || null };
+  } catch (e){ return null; }
+}
+
 /* La session, s'il y en a une. Le jeton n'est pas recopie sur `window` : un
    jeton pose sur un global enumerable se lit en une ligne depuis n'importe quel
    script tiers charge par la page. On le redemande au moment de s'en servir. */

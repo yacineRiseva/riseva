@@ -102,6 +102,21 @@ def installation_production():
     print(("  ok   " if ok else "  RATÉ ")
           + "aucune fonction privilégiée ne reste au superutilisateur"
           + ("" if ok else f"  [{mal}]"))
+    # Une VUE s'exécute avec les droits de son propriétaire, exactement comme un
+    # SECURITY DEFINER : laissée au superutilisateur, elle contourne la RLS. La
+    # boucle et ce contrôle ne regardaient que `pg_proc`.
+    r = psql("-t -A -f -", base=base, entree=
+        "select count(*) from pg_class c "
+        "join pg_namespace n on n.oid = c.relnamespace "
+        "join pg_roles ro on ro.oid = c.relowner "
+        "where n.nspname = 'public' and c.relkind = 'v' "
+        "and ro.rolname <> 'riseva_definer';")
+    malv = (r.stdout or "").strip()
+    okv = malv == "0"
+    print(("  ok   " if okv else "  RATÉ ")
+          + "aucune vue ne reste au superutilisateur"
+          + ("" if okv else f"  [{malv}]"))
+    ok = ok and okv
 
     # Ce qu'une installation de production doit contenir, et ce qu'elle ne doit
     # SURTOUT pas contenir. Le jour de son ouverture, un client ne doit voir

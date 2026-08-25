@@ -1299,11 +1299,21 @@ set role anon;
 select set_config('request.jwt.claim.sub', '', false);
 select pg_temp.refuse('un visiteur ne lit aucune intention de don',
   'select count(*) from public.intention_don');
+-- Un visiteur ne moissonne PAS l'annuaire des IBAN : c'est la matière première
+-- d'une fraude au changement de RIB, et le rendre en une requête n'a rien à voir
+-- avec le fait qu'une association publie son propre RIB sur sa propre page.
+select pg_temp.refuse('un visiteur ne moissonne pas les IBAN du réseau',
+  'select iban from public.association');
 do $$
+declare v record;
 begin
-  perform pg_temp.dit('l''IBAN d''une association en ligne est public, c''est le principe du virement',
-    (select iban is not null from public.association
-      where id = '33333333-3333-4333-8333-333333333333'));
+  -- Mais la fiche publique d'UNE association le donne, une association à la fois.
+  select * into v from public.coordonnees_don('33333333-3333-4333-8333-333333333333');
+  perform pg_temp.dit('la fiche publique d''une association donne son RIB, un seul',
+    v.iban is not null);
+  perform pg_temp.dit('une association inconnue n''en donne aucun',
+    not exists (select 1 from public.coordonnees_don(
+      '00000000-0000-4000-8000-000000000000')));
 end $$;
 reset role;
 
@@ -1533,9 +1543,18 @@ select pg_temp.refuse('le nom du signataire des reçus n''est pas public',
   'select signataire from public.association limit 1');
 select pg_temp.refuse('ni le nom de la personne qui a donné mandat',
   'select mandat_recus_nom from public.association limit 1');
+select pg_temp.refuse('ni les coordonnées bancaires en bloc',
+  'select titulaire_compte from public.association limit 1');
+reset role;
+
+-- Un compte connecté, lui, les lit : c'est l'écran de virement d'une entreprise
+-- qui en a besoin, et il n'est atteignable qu'après connexion.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
+select set_config('request.jwt.claim.email', 'malik@vaudrey-ciments.fr', false);
 do $$
 begin
-  perform pg_temp.dit('l''IBAN reste public : c''est le principe même du virement',
+  perform pg_temp.dit('un compte connecté lit le RIB pour préparer son virement',
     (select count(*) from public.association where iban is not null) > 0);
 end $$;
 reset role;
@@ -1701,6 +1720,11 @@ begin
   perform pg_temp.dit('et il rend le besoin a l''annonce',
     (select a.restant from public.annonce a join public.mission m on m.annonce = a.id
       where m.id = v_mid) = v_restant + v_q);
+
+  -- Le jeton est STABLE : deux préparations de suite rendent le même lien, sinon
+  -- chaque relance tuerait le courriel précédent.
+  perform pg_temp.dit('deux relances rendent le même lien',
+    private.jeton_mission(v_mid) = private.jeton_mission(v_mid));
 
   -- Un jeton expiré ne tranche plus rien : la mission s'est déjà clôturée seule.
   update public.mission set etat = 'a_valider', declaree_le = clock_timestamp(),

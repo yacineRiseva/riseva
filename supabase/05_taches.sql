@@ -379,43 +379,120 @@ end $$;
 create or replace function private.tache_courriels()
 returns integer
 language plpgsql security definer set search_path = '' as $$
-declare v_url text; v_secret text;
+declare
+  v_url text; v_secret text;
+  v_attente integer; v_lots integer; v_i integer; v_id bigint;
 begin
   if to_regproc('net.http_post') is null then return 0; end if;
   select r.valeur into v_url    from private.reglage r where r.cle = 'url_fonctions';
   select r.valeur into v_secret from private.reglage r where r.cle = 'cron_secret';
   if v_url is null or v_secret is null then return 0; end if;
-  perform net.http_post(
-    url := rtrim(v_url, '/') || '/courriels',
-    headers := jsonb_build_object('Content-Type', 'application/json',
-                                  'x-riseva-cron', v_secret),
-    body := '{}'::jsonb);
-  return 1;
+
+  -- Combien de messages attendent, et donc combien d'appels il faut. La fonction
+  -- Edge en traite deux cents par passage : un seul appel par nuit suffisait
+  -- tant que le réseau était petit, et laissait ensuite un retard qui ne se
+  -- résorbait jamais — le rappel « à trois jours » arrivait à trois semaines.
+  select count(*) into v_attente from public.envoi where etat = 'a_envoyer';
+  if v_attente = 0 then return 0; end if;
+  v_lots := least(25, ceil(v_attente / 200.0)::integer);
+
+  for v_i in 1..v_lots loop
+    select net.http_post(
+      url := rtrim(v_url, '/') || '/courriels',
+      headers := jsonb_build_object('Content-Type', 'application/json',
+                                    'x-riseva-cron', v_secret),
+      body := '{}'::jsonb) into v_id;
+    insert into private.appel_sortant (id, quoi) values (v_id, 'courriels')
+      on conflict (id) do nothing;
+  end loop;
+  return v_lots;
+end $$;
+
+-- ------------------------------------------------- ce qu'on nous a répondu
+-- Sans cette tâche, la base ne saurait jamais qu'un envoi a échoué : elle a
+-- posté, elle a rendu « 1 », et personne n'a rien reçu. On relit les réponses
+-- de pg_net et on les consigne. Un code différent de 2xx remonte dans le
+-- journal du moteur, à l'endroit exact où l'exploitant va regarder.
+create or replace function private.tache_verdicts_sortants()
+returns integer
+language plpgsql security definer set search_path = '' as $$
+declare v_n integer := 0;
+begin
+  if to_regclass('net._http_response') is null then return 0; end if;
+  execute $x$
+    update private.appel_sortant a
+       set code = r.status_code,
+           reponse = left(coalesce(r.content, r.error_msg, ''), 500),
+           lu_le = now()
+      from net._http_response r
+     where r.id = a.id and a.lu_le is null
+  $x$;
+  get diagnostics v_n = row_count;
+  -- Ce qui n'a jamais reçu de réponse au bout de vingt-quatre heures est
+  -- considéré comme perdu : pg_net purge ses réponses, et une ligne qui attend
+  -- indéfiniment n'apprend plus rien à personne.
+  update private.appel_sortant a
+     set code = -1, reponse = 'aucune réponse', lu_le = now()
+   where a.lu_le is null and a.pose_le < now() - interval '24 hours';
+  delete from private.appel_sortant a where a.lu_le < now() - interval '30 days';
+  return v_n;
 end $$;
 
 -- ---------------------------------------------------------------- moteur
 create or replace function private.moteur()
 returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare v jsonb;
+declare v jsonb := '{}'::jsonb; v_erreurs jsonb := '[]'::jsonb;
 begin
+  -- Chaque tâche dans son propre bloc. Elles étaient les dix arguments d'un seul
+  -- `jsonb_build_object`, évalué avant l'écriture du journal, dans UNE
+  -- transaction : une exception dans n'importe laquelle — une saison sans
+  -- barème, un droit manquant sur le schéma `net` — annulait la nuit entière,
+  -- purges et rapports compris, ET le journal qui aurait dit pourquoi. La panne
+  -- était donc silencieuse et se répétait chaque nuit.
+  --
   -- L'ordre n'est pas décoratif : on clôt les collectes échues avant d'arrêter
   -- les rapports, et on arrête les rapports avant de les envoyer. Envoyer avant
   -- d'arrêter, c'était attendre la nuit suivante pour poster un rapport scellé
-  -- le soir même — et l'ancien ordre faisait exactement cela.
-  v := jsonb_build_object(
-    'validations_auto',    private.tache_validation_auto(),
-    'annonces_fermees',    private.tache_fermeture_annonces(),
-    'intentions_expirees', private.tache_intentions_expirees(),
-    'demandes_validation', private.tache_demandes_validation(),
-    'relances_collecte',   private.tache_relances_collecte(),
-    'campagnes_closes',    private.tache_cloture_campagnes(),
-    'rapports',            private.tache_rapports(),
-    'rapports_envoyes',    private.tache_envoi_rapports(),
-    'purges',              private.tache_retention(),
-    -- En dernier, une fois les trois files remplies : un seul appel sortant par
-    -- nuit, et il part avec tout ce que la nuit a produit.
-    'courriels',           private.tache_courriels());
+  -- le soir même.
+  <<taches>>
+  declare
+    v_noms text[] := array['validations_auto','annonces_fermees','intentions_expirees',
+                           'demandes_validation','relances_collecte','campagnes_closes',
+                           'rapports','rapports_envoyes','purges',
+                           'verdicts_sortants','courriels'];
+    v_nom text;
+    v_n integer;
+  begin
+    foreach v_nom in array v_noms loop
+      begin
+        v_n := case v_nom
+          when 'validations_auto'    then private.tache_validation_auto()
+          when 'annonces_fermees'    then private.tache_fermeture_annonces()
+          when 'intentions_expirees' then private.tache_intentions_expirees()
+          when 'demandes_validation' then private.tache_demandes_validation()
+          when 'relances_collecte'   then private.tache_relances_collecte()
+          when 'campagnes_closes'    then private.tache_cloture_campagnes()
+          when 'rapports'            then private.tache_rapports()
+          when 'rapports_envoyes'    then private.tache_envoi_rapports()
+          when 'purges'              then private.tache_retention()
+          when 'verdicts_sortants'   then private.tache_verdicts_sortants()
+          when 'courriels'           then private.tache_courriels()
+        end;
+        v := v || jsonb_build_object(v_nom, v_n);
+      exception when others then
+        -- Le message est conservé : une nuit qui échoue doit dire ce qui a
+        -- échoué, sinon on ne le découvre qu'en cherchant pourquoi personne ne
+        -- reçoit rien.
+        v := v || jsonb_build_object(v_nom, null);
+        v_erreurs := v_erreurs || jsonb_build_object('tache', v_nom, 'erreur', sqlerrm);
+      end;
+    end loop;
+  end taches;
+
+  if jsonb_array_length(v_erreurs) > 0 then
+    v := v || jsonb_build_object('erreurs', v_erreurs);
+  end if;
   insert into public.moteur_journal (tache, fait) values ('moteur', v);
   return v;
 end $$;
@@ -438,7 +515,8 @@ revoke all on function
   private.tache_intentions_expirees(), private.tache_demandes_validation(),
   private.tache_relances_collecte(), private.tache_cloture_campagnes(),
   private.tache_rapports(), private.tache_envoi_rapports(),
-  private.tache_retention(), private.tache_courriels(), private.moteur()
+  private.tache_retention(), private.tache_courriels(),
+  private.tache_verdicts_sortants(), private.moteur()
 from public, anon, authenticated;
 
 -- Les fonctions créées ici sont elles aussi SECURITY DEFINER : elles doivent

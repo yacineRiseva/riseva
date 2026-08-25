@@ -193,6 +193,14 @@ language sql stable security definer set search_path = '' as $$
     select m.entreprise, a.type, sum(m.points)::bigint as pts
       from public.mission m
       join public.annonce a on a.id = m.annonce
+      -- Le classement est PUBLIC et il nomme. Il ne porte donc que des clients :
+      -- une société inscrite en libre-service, qui déclare elle-même son
+      -- effectif de référence et n'a signé aucun contrat, prenait la tête de sa
+      -- cohorte avec une seule mission clôturée d'office — « 1 salarié, 150
+      -- points ». Le dénominateur du classement se pose à la signature, pas au
+      -- formulaire d'inscription.
+      join public.abonnement ab on ab.entreprise = m.entreprise and ab.saison = a.saison
+                               and ab.signe_le is not null
      where a.saison = p_saison
        and m.etat in ('validee','validee_auto')
        and m.origine = 'entreprise'
@@ -873,6 +881,20 @@ begin
   select et.societe into v_societe from public.etablissement et where et.id = p_etablissement;
   if v_societe is null or v_societe <> v_ent then
     raise exception 'Établissement hors de votre société' using errcode = '42501';
+  end if;
+  -- La campagne aussi doit être la mienne. Sans ce contrôle, l'administrateur
+  -- d'une société quelconque écrivait une ligne dans la collecte d'un autre
+  -- client — pas ses chiffres, la garde de `rubriques_de` les refuse, mais une
+  -- ligne fantôme qui fausse le décompte des sites répondants et que son
+  -- propriétaire ne peut ni voir ni approuver.
+  if not exists (
+    select 1 from public.campagne_indicateurs c
+     where c.id = p_campagne
+       and (c.entreprise = v_ent
+            or (c.groupe is not null and exists (
+                  select 1 from public.entreprise e
+                   where e.id = v_ent and e.groupe = c.groupe)))) then
+    raise exception 'Cette collecte n''est pas celle de votre périmètre' using errcode = '42501';
   end if;
   if v_role = 'site_referent' and private.mon_etablissement() <> p_etablissement then
     raise exception 'Vous ne saisissez que pour votre site' using errcode = '42501';
@@ -2296,6 +2318,17 @@ language sql stable security definer set search_path = '' as $$
  where e.etablissement = p_etablissement
    and e.annule_le is null
    and e.date between p_debut and p_fin
+   -- La garde ne testait que la société. Elle laissait donc un SALARIÉ, et
+   -- surtout un élu du CSE, lire les accidents du travail de n'importe quel site
+   -- de son entreprise — alors que la policy `evenement_lecture` les leur refuse
+   -- explicitement, et pour une raison qui n'est pas de confort : sur un site de
+   -- dix personnes, « un accident avec arrêt de douze jours ce mois-ci » désigne
+   -- un collègue, et l'état de santé d'une personne identifiable relève de
+   -- l'article 9 du RGPD. Une fonction SECURITY DEFINER qui contredit sa propre
+   -- policy annule la policy.
+   and private.mon_role() in ('entreprise_admin','site_referent')
+   and (private.mon_role() <> 'site_referent'
+        or private.mon_etablissement() = p_etablissement)
    and exists (select 1 from public.etablissement et
                 where et.id = p_etablissement
                   and (et.societe = private.mon_entreprise()
@@ -2379,6 +2412,7 @@ language plpgsql security definer set search_path = '' as $$
 declare
   v_jeton text;
   v_delai integer;
+  v_secret text;
 begin
   select s.delai_validation_jours into v_delai
     from public.mission m
@@ -2388,12 +2422,36 @@ begin
   if not found then
     raise exception 'Mission introuvable' using errcode = '42501';
   end if;
+  -- Le jeton est DÉRIVÉ, pas tiré au hasard. Il l'était, et
+  -- `preparer_demande_validation` est appelée à chaque relance : le jour 3, la
+  -- relance rotationnait le jeton et TUAIT le lien du courriel du jour 0. La
+  -- bénévole qui ouvrait le premier message le lendemain cliquait et lisait
+  -- « Lien inconnu, cette mission n'existe plus » — ce qui est faux, et
+  -- décourageant. Avec quatre rappels, trois liens sur quatre étaient mort-nés.
+  --
+  -- Dérivé de l'identifiant de la mission et d'un secret qui ne quitte jamais la
+  -- base : le même à chaque envoi, donc tous les courriels ouvrent la même page,
+  -- et toujours indevinable — sans le secret, connaître l'identifiant d'une
+  -- mission n'apprend rien. L'usage unique reste porté par `jeton_utilise_le`,
+  -- qui n'est plus remis à zéro : une réponse déjà donnée reste donnée.
+  select r.valeur into v_secret from private.reglage r where r.cle = 'jeton_secret';
+  if v_secret is null then
+    raise exception 'Le secret des jetons de mission est absent de private.reglage'
+      using errcode = '42501';
+  end if;
   v_jeton := replace(replace(replace(
-               encode(extensions.gen_random_bytes(32), 'base64'), '+', '-'), '/', '_'), '=', '');
+               encode(extensions.hmac(p_mission::text, v_secret, 'sha256'), 'base64'),
+               '+', '-'), '/', '_'), '=', '');
   update public.mission m
      set jeton_empreinte  = extensions.digest(v_jeton, 'sha256'),
          jeton_expire_le  = coalesce(m.declaree_le, clock_timestamp())
                             + make_interval(days => v_delai),
+         -- La remise à zéro reste, mais elle ne fait plus le même effet : le
+         -- jeton étant dérivé, une relance rend LE MÊME et rouvre simplement la
+         -- porte pour une mission qui attend toujours une réponse. Le seul
+         -- appelant est `preparer_demande_validation`, qui ne sélectionne que
+         -- les missions en `a_valider` : une mission déjà tranchée n'est jamais
+         -- relancée, donc son jeton reste consommé.
          jeton_utilise_le = null
    where m.id = p_mission;
   return v_jeton;
@@ -2511,7 +2569,12 @@ begin
   end if;
   update public.envoi e
      set etat = p_etat,
-         destinataire = coalesce(left(p_destinataire, 240), e.destinataire)
+         destinataire = coalesce(left(p_destinataire, 240), e.destinataire),
+         -- Chaque passage compte, y compris celui qui réussit : ce compteur dit
+         -- combien de fois on a dérangé le prestataire d'envoi pour ce message,
+         -- et c'est lui qui borne les reprises.
+         tentatives = e.tentatives + 1,
+         dernier_essai = now()
    where e.id = p_envoi;
 end $$;
 

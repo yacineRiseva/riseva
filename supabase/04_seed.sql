@@ -35,3 +35,12 @@ insert into private.retention (ensemble, duree, motif) values
   ('preinscription', interval '3 years',   'prospection commerciale'),
   ('invitation',     interval '12 months', 'preuve du rattachement à l''entreprise'),
   ('moteur_journal', interval '12 months', 'traçabilité des traitements automatiques');
+
+-- ---------------------------------------------------------------- secrets
+-- Le secret dont on dérive les jetons de réponse des associations. Il est tiré
+-- au hasard à l'installation, une seule fois, et ne quitte jamais la base : le
+-- `on conflict do nothing` garantit qu'un redéploiement ne le change pas — le
+-- changer invaliderait d'un coup tous les liens en circulation.
+insert into private.reglage (cle, valeur)
+values ('jeton_secret', encode(extensions.gen_random_bytes(32), 'hex'))
+on conflict (cle) do nothing;

@@ -28,6 +28,20 @@ declare
   v_ent uuid := private.mon_entreprise();
   v_siret text := nullif(regexp_replace(coalesce(p_siret, ''), '[^0-9]', '', 'g'), '');
 begin
+  -- L'effectif de la société ne peut pas descendre sous la somme de ses sites.
+  -- `creer_etablissement` et `modifier_etablissement` appliquent la règle dans
+  -- un sens ; celle-ci ne l'appliquait pas dans l'autre. Une société de 210
+  -- salariés répartis sur trois sites passée à 3 se retrouvait avec « il reste
+  -- -167 places à placer » et l'administrateur ne pouvait plus toucher à aucun
+  -- site, pas même pour revenir en arrière.
+  if p_effectif is not null and p_effectif < coalesce(
+       (select sum(et.effectif) from public.etablissement et
+         where et.societe = private.mon_entreprise() and et.ferme_le is null), 0) then
+    raise exception 'Vos sites déclarent déjà % salariés : corrigez-les d''abord',
+      (select sum(et.effectif) from public.etablissement et
+        where et.societe = private.mon_entreprise() and et.ferme_le is null)
+      using errcode = '23514';
+  end if;
   if v_ent is null or private.mon_role() <> 'entreprise_admin' then
     raise exception 'Réservé à l''administrateur de la société' using errcode = '42501';
   end if;
@@ -614,6 +628,24 @@ begin
   return v_id;
 end $$;
 
+-- ------------------------------------------- le RIB d'UNE association, à la fois
+-- La fiche publique d'une association affiche son RIB : c'est le principe même
+-- du don par virement, et l'association le publie déjà sur son propre site.
+-- Ce qui n'est pas acceptable, c'est de les rendre TOUS d'un coup à qui n'est
+-- pas connecté. Cette fonction en rend un seul, pour l'association qu'on
+-- regarde, et seulement si elle est vérifiée et non suspendue — les mêmes
+-- conditions que la fiche elle-même.
+create or replace function public.coordonnees_don(p_association uuid)
+returns table (titulaire text, iban text, bic text)
+language sql stable security definer set search_path = '' as $$
+  select a.titulaire_compte, a.iban, a.bic
+    from public.association a
+   where a.id = p_association
+     and ((a.valide and not a.suspendue)
+          or a.id = private.mon_association()
+          or private.est_admin())
+$$;
+
 -- --------------------------------------------------- résoudre un lien d'entrée
 -- Ce que la porte d'entrée doit savoir AVANT que quiconque soit connecté : de
 -- quelle entreprise il s'agit, de quel site, s'il reste des places, et si le
@@ -727,6 +759,7 @@ to authenticated;
 -- La porte d'entrée est ouverte à qui n'est pas encore connecté : c'est tout
 -- l'objet d'un lien d'inscription.
 grant execute on function public.resoudre_invitation(text) to anon, authenticated;
+grant execute on function public.coordonnees_don(uuid) to anon, authenticated;
 
 -- La préinscription vient du site public : c'est la seule écriture ouverte à qui
 -- n'est pas connecté. Elle n'écrit que dans sa propre table, ne lit rien, et ne
@@ -772,6 +805,13 @@ declare
   v_id  uuid;
   v_ok  boolean := false;
 begin
+  -- Le comité ne dépose rien. La policy de lecture, `pieces_de` et les deux
+  -- politiques du bucket l'écartent toutes explicitement du coffre ; les deux
+  -- écritures, non. Un accès de lecture seule qui peut écrire n'est pas un
+  -- accès de lecture seule.
+  if private.mon_role() = 'cse' then
+    raise exception 'Un accès CSE est en lecture seule' using errcode = '42501';
+  end if;
   if v_ent is null then
     raise exception 'Réservé aux comptes d''entreprise' using errcode = '42501';
   end if;
@@ -823,6 +863,9 @@ returns void
 language plpgsql security definer set search_path = '' as $$
 declare v_p public.piece_jointe; v_etat public.etat_collecte;
 begin
+  if private.mon_role() = 'cse' then
+    raise exception 'Un accès CSE est en lecture seule' using errcode = '42501';
+  end if;
   select * into v_p from public.piece_jointe p where p.id = p_piece;
   if not found then
     raise exception 'Pièce introuvable' using errcode = 'P0002';
@@ -1372,5 +1415,20 @@ begin
         'create policy moteur_%I on public.%I to riseva_definer using (true) with check (true)',
         t.tablename, t.tablename);
     end if;
+  end loop;
+end $$;
+
+-- Les vues créées après `03_rls.sql` passent elles aussi sous le rôle dédié :
+-- une vue laissée au superutilisateur contourne la RLS avec ses droits.
+do $$
+declare v record;
+begin
+  for v in
+    select c.oid::regclass as nom
+      from pg_class c join pg_namespace n on n.oid = c.relnamespace
+      join pg_roles ro on ro.oid = c.relowner
+     where n.nspname = 'public' and c.relkind = 'v' and ro.rolname <> 'riseva_definer'
+  loop
+    execute format('alter view %s owner to riseva_definer', v.nom);
   end loop;
 end $$;

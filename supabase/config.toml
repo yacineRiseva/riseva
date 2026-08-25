@@ -1,0 +1,35 @@
+# Riseva — configuration du projet Supabase
+# ---------------------------------------------------------------------------
+# Ce fichier existe pour UNE raison, et elle est décisive : `supabase functions
+# deploy` applique `verify_jwt = true` par défaut. La passerelle rejette alors en
+# 401, AVANT que le code de la fonction tourne, tout appel qui ne porte pas un
+# jeton d'utilisateur.
+#
+# Or quatre de nos cinq fonctions sont appelées par des gens ou des machines qui
+# n'ont pas de jeton, et par construction :
+#   — `courriels` est appelée par la base elle-même, la nuit, avec un secret
+#     partagé qu'elle vérifie en temps constant ;
+#   — `valider-mission` est ouverte par une association depuis son courriel : elle
+#     n'a pas de compte chez nous, c'est tout l'intérêt, et le lien porte un jeton
+#     à usage unique de 32 octets ;
+#   — `helloasso` reçoit une redirection du navigateur du donateur, avec une
+#     signature que nous avons posée ;
+#   — `paiement` est un point d'entrée de prestataire, protégé par son secret.
+#
+# Chacune vérifie donc son propre appelant. Sans ce fichier, aucune ne pouvait
+# être atteinte : la file de courriels ne se vidait jamais, et une association qui
+# cliquait sur son lien recevait une page d'erreur de la passerelle.
+#
+# `effacement` garde `verify_jwt` : elle exige une vraie session, et c'est bien.
+
+[functions.courriels]
+verify_jwt = false
+
+[functions.valider-mission]
+verify_jwt = false
+
+[functions.helloasso]
+verify_jwt = false
+
+[functions.paiement]
+verify_jwt = false

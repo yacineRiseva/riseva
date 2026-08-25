@@ -25,15 +25,42 @@
   <span style="font-size:var(--t-xs);color:var(--ink-400)">© 2026 Riseva</span>
 </div></footer>
 
+<!-- La page publique d'une association charge la configuration comme les autres,
+     et pour la meme raison : sans elle, `DB` reste le moteur de DEMONSTRATION.
+     Le lien que l'association diffuse dans sa lettre d'information porte un
+     identifiant reel ; `DB.association(uuid)` rendait `null`, le repli
+     `associations()[0]` prenait le relais, et la page affichait « Refuge des
+     Quatre Vents » — une association fictive — a tous ses donateurs. -->
+<script src="/app/config.js" onerror="void 0"></script>
 <script type="module">
-import { DB, BAREME, UNITES } from "/app/data.js";
+import { DB, BAREME, UNITES, connecterSupabase, coordonneesDonPubliques } from "/app/data.js";
 import { h, esc, nb, eur, dateFR, toast, couvertureAsso } from "/app/ui.js";
 
-const id = new URLSearchParams(location.search).get("id") || "a1";
-const a = DB.association(id) || DB.associations()[0];
-const annonces = DB.annonces({ asso: a.id, ouvertes: true });
-
 const root = document.getElementById("root");
+let pannePage = null;
+if (window.RISEVA_CONFIG){
+  try { await connecterSupabase(window.RISEVA_CONFIG); }
+  catch (e){ console.warn(e); pannePage = e; }
+}
+
+const id = new URLSearchParams(location.search).get("id") || "a1";
+/* Pas de repli sur la premiere association venue : une page qui montre les
+   besoins et le RIB de QUELQU'UN D'AUTRE parce que l'identifiant est inconnu
+   est pire qu'une page d'erreur. */
+const a = DB.association(id);
+if (pannePage || !a){
+  root.appendChild(h(`<section class="section"><div class="wrap" style="max-width:44ch">
+    <h1 class="display">${pannePage ? "Page momentanément indisponible"
+                                    : "Cette association n'a pas de page ici"}</h1>
+    <p class="muted" style="margin-top:var(--s5)">${pannePage
+      ? "Rien n'est perdu : réessayez dans un instant."
+      : "Le lien est peut-être incomplet, ou la fiche n'est pas encore vérifiée."}</p>
+    <a class="btn btn--primary" style="margin-top:var(--s8)" href="/associations.html">
+      Découvrir Riseva</a>
+  </div></section>`));
+  throw new Error("association introuvable");
+}
+const annonces = DB.annonces({ asso: a.id, ouvertes: true });
 /* Cette page appartient à l'association, pas à Riseva. Son nom en grand, ses liens,
    son contact, et un bouton pour la partager : c'est une page qu'elle doit avoir
    envie de mettre dans sa lettre d'information. Riseva n'apparaît que comme tiers
@@ -96,7 +123,7 @@ if (rea.liste.length){
 
 /* Les coordonnées bancaires viennent du moteur, jamais du gabarit : une page
    publique qui composerait elle-même un IBAN finirait par en afficher un faux. */
-const don = DB.coordonneesDon(a.id) || {};
+const don = (await coordonneesDonPubliques(a.id)) || {};
 const ha = DB.lienHelloAsso(a.id);
 
 const corps = h(`<section class="section"><div class="wrap assoGrid">

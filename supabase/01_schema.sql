@@ -490,7 +490,14 @@ create table envoi (
   detail       text check (length(detail) <= 400),
   date         date not null default current_date,
   etat         text not null default 'a_envoyer'
-                 check (etat in ('a_envoyer','envoye','sans_destinataire','echec'))
+                 check (etat in ('a_envoyer','envoye','sans_destinataire','echec')),
+  -- Combien de fois on a essayé. Un échec passager — un 429 du prestataire
+  -- d'envoi — laissait la ligne en `echec`, et plus aucune requête ne la
+  -- reprenait : le message était perdu sans qu'un humain le sache. Sans le
+  -- compteur, l'autre extrême serait de réessayer indéfiniment une adresse
+  -- morte, chaque nuit, pour toujours.
+  tentatives   integer not null default 0 check (tentatives >= 0),
+  dernier_essai timestamptz
 );
 create index envoi_entreprise on envoi (entreprise, date desc);
 create index envoi_a_envoyer on envoi (type, date) where etat = 'a_envoyer';
@@ -531,9 +538,13 @@ create table expedition (
 -- plateforme qui les héberge devient responsable de quelque chose qu'elle n'a
 -- aucune raison de porter. Ce qu'un préventeur utilise pour agir — la
 -- circonstance, la zone, le type, la gravité — n'en fait pas partie.
+-- `restrict` : le registre des accidents du travail est un document à
+-- conservation obligatoire. Il ne part pas avec la suppression d'une ligne
+-- d'organisation. Fermer un site se fait par `etablissement.ferme_le`, qui est
+-- le bon geste et qui existe déjà.
 create table evenement_securite (
   id            uuid primary key default gen_random_uuid(),
-  etablissement uuid not null references etablissement(id) on delete cascade,
+  etablissement uuid not null references etablissement(id) on delete restrict,
   date          date not null,
   nature        text not null check (nature in ('travail','trajet')),
   gravite       text not null check (gravite in ('sans_soin','soin_sans_arret','avec_arret')),
@@ -568,7 +579,7 @@ create index evenement_securite_site on evenement_securite (etablissement, date 
 create table action_corrective (
   id            uuid primary key default gen_random_uuid(),
   evenement     uuid references evenement_securite(id) on delete set null,
-  etablissement uuid not null references etablissement(id) on delete cascade,
+  etablissement uuid not null references etablissement(id) on delete restrict,
   quoi          text not null check (length(quoi) between 3 and 240),
   -- Un responsable et une échéance, tous deux obligatoires : une action sans
   -- responsable est un vœu, une action sans échéance ne se fait jamais.
@@ -650,9 +661,12 @@ create table abonnement (
 -- calcule à partir de la grille et de l'effectif, une fois, et la facture porte
 -- le montant retenu. Un montant recopié à la main est un montant qui finit par
 -- ne plus correspondre au contrat.
+-- Une facture est une pièce comptable : dix ans de conservation, article
+-- L. 123-22 du code de commerce. Elle ne s'efface pas avec la ligne de contrat
+-- qui l'a produite.
 create table facture (
   id          uuid primary key default gen_random_uuid(),
-  abonnement  uuid not null references abonnement(id) on delete cascade,
+  abonnement  uuid not null references abonnement(id) on delete restrict,
   ref         text not null check (ref ~ '^[A-Z]{3}-[0-9]{4}-[0-9]{4}$'),
   libelle     text not null check (length(libelle) between 3 and 160),
   montant     numeric(12,2) not null check (montant >= 0),
@@ -1107,9 +1121,14 @@ create table observation_indicateur (
 );
 create index observation_campagne on observation_indicateur (campagne);
 
+-- Le journal d'accès porte `legal_hold` : une ligne sous gardiennage judiciaire
+-- survit à la purge automatique, et `private.tache_retention` la respecte. Une
+-- cascade ne respecte rien : supprimer une entreprise emportait tout son
+-- journal, gardiennage compris, sans même écrire une ligne dans
+-- `journal_purge`. Une réquisition disparaissait sur un geste de back-office.
 create table acces (
   id          uuid primary key default gen_random_uuid(),
-  entreprise  uuid references entreprise(id) on delete cascade,
+  entreprise  uuid references entreprise(id) on delete restrict,
   profil      uuid references profil(id) on delete set null,
   quoi        text not null check (length(quoi) <= 60),
   indice      text check (length(indice) <= 12),
@@ -1122,9 +1141,14 @@ create table acces (
   legal_hold  boolean not null default false
 );
 
+-- `restrict`, pas `cascade`. Supprimer une annonce effaçait les signalements
+-- qui la visaient, avec la motivation écrite au titre de l'article 16 du DSA et
+-- la trace de sa déclaration pour celui qui l'avait faite. Une décision de
+-- modération ne disparaît pas parce que l'objet modéré disparaît : c'est
+-- justement quand il disparaît qu'il faut pouvoir dire pourquoi.
 create table signalement (
   id          uuid primary key default gen_random_uuid(),
-  annonce     uuid not null references annonce(id) on delete cascade,
+  annonce     uuid not null references annonce(id) on delete restrict,
   auteur      uuid references profil(id) on delete set null,
   motif       text not null check (length(motif) <= 60),
   precisions  text check (length(precisions) <= 2000),
@@ -1172,6 +1196,23 @@ create table private.reglage (
   valeur text not null check (length(valeur) between 1 and 500),
   maj_le timestamptz not null default now()
 );
+
+-- Ce que la base a demandé au dehors, et ce qu'on lui a répondu. `net.http_post`
+-- est ASYNCHRONE : elle met la requête dans la file de pg_net et rend un
+-- identifiant. Le code jetait cet identifiant et rendait « 1 » quoi qu'il
+-- arrive — un 401, un 500, un dépassement de délai étaient invisibles, et la
+-- procédure d'installation faisait vérifier à l'exploitant un chiffre qui ne
+-- voulait rien dire. On garde l'identifiant, et la nuit suivante on va lire la
+-- réponse.
+create table private.appel_sortant (
+  id       bigint primary key,
+  quoi     text not null check (length(quoi) between 2 and 60),
+  pose_le  timestamptz not null default now(),
+  code     integer,
+  reponse  text check (length(reponse) <= 500),
+  lu_le    timestamptz
+);
+create index appel_sortant_a_lire on private.appel_sortant (pose_le) where lu_le is null;
 
 create table private.journal_purge (
   id          uuid primary key default gen_random_uuid(),

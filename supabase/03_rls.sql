@@ -83,11 +83,24 @@ create policy entreprise_privee on public.entreprise for select to authenticated
 -- sur la table entière : le nom du signataire des reçus, sa qualité, le nom du
 -- mandant et l'état du mandat. Ce sont des personnes physiques, sans nécessité
 -- publique. Elles passent maintenant par la vue `association_reglages`.
+--
+-- Les coordonnées bancaires, elles, ne sont PAS accordées à `anon`. « Publiques
+-- par construction » vaut pour une association qui publie son RIB sur sa propre
+-- page ; cela ne justifie pas qu'un visiteur non connecté moissonne en une
+-- requête l'annuaire complet des IBAN du réseau, sans limite de débit. C'est
+-- exactement la matière première d'une fraude au changement de RIB, et
+-- `titulaire_compte` est du texte libre qui porte souvent le nom du trésorier.
+-- La fiche publique d'une association les obtient une par une, par une fonction
+-- qui n'en rend qu'une seule à la fois.
+grant select (id, nom, nom_juridique, rna, siren, cause, ville, resume, adresse,
+              lat, lon, site, photo, valide, suspendue, verifiee_le, a_reverifier_le,
+              eligible_mecenat, helloasso, helloasso_slug, helloasso_lie_le, cree_le)
+  on public.association to anon;
 grant select (id, nom, nom_juridique, rna, siren, cause, ville, resume, adresse,
               lat, lon, site, photo, valide, suspendue, verifiee_le, a_reverifier_le,
               eligible_mecenat, helloasso, helloasso_slug, helloasso_lie_le,
               iban, bic, titulaire_compte, cree_le)
-  on public.association to anon, authenticated;
+  on public.association to authenticated;
 create policy association_lecture on public.association for select to anon, authenticated
   using ((valide and not suspendue) or id = private.mon_association() or private.est_admin());
 
@@ -566,6 +579,24 @@ begin
   end loop;
 end $$;
 
+-- Les VUES aussi. Une vue s'exécute par défaut avec les droits de son
+-- propriétaire, exactement comme un SECURITY DEFINER : laissée à `postgres`,
+-- elle contourne la RLS avec les droits du superutilisateur. La boucle
+-- ci-dessus ne regardait que `pg_proc`, et la recette non plus. Aucune des
+-- quatre ne fuit aujourd'hui — trois portent leur propre `where` — mais la
+-- prochaine modification ne rencontrerait aucune barrière.
+do $$
+declare v record;
+begin
+  for v in
+    select c.oid::regclass as nom
+      from pg_class c join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relkind = 'v'
+  loop
+    execute format('alter view %s owner to riseva_definer', v.nom);
+  end loop;
+end $$;
+
 -- Les fonctions SECURITY DEFINER s'exécutent au nom de `riseva_definer`, qui
 -- reste soumis à la RLS comme tout le monde : sans policy, une RPC ne verrait
 -- plus rien et refuserait tout. On lui ouvre donc explicitement les tables du
@@ -584,6 +615,25 @@ begin
 end $$;
 
 grant usage on schema private to riseva_definer;
+-- `riseva_definer` est un rôle créé de zéro, `nologin noinherit` : il n'hérite
+-- de rien. Supabase accorde `net` et `auth` à ses rôles à lui, jamais au nôtre.
+-- Sans ces trois lignes, `private.tache_courriels()` levait « permission denied
+-- for schema net » LE LENDEMAIN du jour où l'exploitant installait pg_net comme
+-- la procédure le lui demande — et comme le moteur est une seule transaction,
+-- c'est toute la nuit qui était annulée. Le geste censé réparer l'envoi cassait
+-- tout le reste. `auth` était accordé dans `00_local.sql`, qui n'est jamais
+-- déployé : en production, chaque `auth.uid()` d'une fonction SECURITY DEFINER
+-- reposait sur un droit posé par Supabase et non par nous.
+do $$
+begin
+  if exists (select 1 from pg_namespace where nspname = 'net') then
+    execute 'grant usage on schema net to riseva_definer';
+    execute 'grant execute on all functions in schema net to riseva_definer';
+  end if;
+  if exists (select 1 from pg_namespace where nspname = 'auth') then
+    execute 'grant usage on schema auth to riseva_definer';
+  end if;
+end $$;
 -- `luhn_ok` est appelée par une contrainte CHECK, donc au nom de celui qui écrit ;
 -- `verdict_registre` est appelée depuis une RPC. Ni l'une ni l'autre n'est
 -- SECURITY DEFINER — elles ne doivent rien pouvoir faire d'autre que calculer —

@@ -547,16 +547,33 @@ Rien n'est perdu, mais personne n'est prévenu.
      Ajoutez :
 
          RESEND_API_KEY   = la clé copiée à l'étape 3
+         MAIL_FROM        = Riseva <bonjour@riseva.fr>
+         SITE_URL         = https://riseva.fr
+
+     `MAIL_FROM` doit porter le domaine que vous venez de valider chez Resend :
+     s'il ne correspond pas, Resend refuse chaque message.
+
+     `SITE_URL` est l'adresse vers laquelle les liens des courriels renvoient.
+     Si vous testez d'abord sur l'adresse en `.vercel.app`, mettez celle-là,
+     sinon vos destinataires seront envoyés sur un site qui n'existe pas encore.
 
      C'EST LE SEUL ENDROIT où une clé secrète a le droit d'exister. Jamais dans
      le dépôt, jamais dans `public/`.
 
   5. Déployez les fonctions. Depuis un terminal, dans le dossier du projet :
 
-         supabase functions deploy courriels valider-mission paiement helloasso effacement
+         supabase functions deploy courriels valider-mission helloasso effacement
 
      (Il faut avoir installé l'outil `supabase` au préalable ; sa page
      d'installation explique comment, et c'est une seule commande.)
+
+     IMPORTANT : lancez cette commande depuis le dossier du projet, celui qui
+     contient `supabase/config.toml`. Ce fichier dit à Supabase que trois de ces
+     fonctions peuvent être appelées sans compte — la base qui envoie les
+     courriels la nuit, l'association qui clique sur son lien depuis sa boîte, et
+     la banque qui ramène un donateur après son paiement. Sans lui, Supabase
+     répond « non autorisé » à ces trois-là et rien ne fonctionne, sans le
+     moindre message d'erreur visible.
 
   6. LE DÉCLENCHEUR. C'est l'étape qu'on oublie, et sans elle rien ne part :
      la base range chaque nuit ce qui doit être envoyé, mais quelqu'un doit
@@ -587,14 +604,31 @@ Rien n'est perdu, mais personne n'est prévenu.
 
             create extension if not exists pg_net;
 
-     Comment savoir que ça marche : le lendemain matin, dans le SQL Editor,
+     Comment savoir que ça marche. Le lendemain matin, dans le SQL Editor :
 
             select fait from moteur_journal order by cree_le desc limit 1;
 
-     La réponse contient une ligne `"courriels": 1`. Si elle contient `0`,
-     c'est qu'il manque l'un des deux réglages de l'étape c) ou l'extension de
-     l'étape d) — rien n'est cassé, rien n'est perdu, les messages attendent
-     dans la file et partiront dès que ce sera réparé.
+     Lisez DEUX choses dans la réponse.
+
+     — `"courriels"` vous dit combien de demandes d'envoi sont parties. `0`
+       signifie soit qu'il n'y avait rien à envoyer, soit qu'il manque l'un des
+       deux réglages de l'étape c) ou l'extension de l'étape d). Rien n'est
+       cassé et rien n'est perdu : les messages attendent dans la file et
+       partiront dès que ce sera réparé.
+
+     — `"erreurs"` n'apparaît que si quelque chose a mal tourné, et dit quoi,
+       tâche par tâche. Une tâche qui échoue n'annule plus les autres.
+
+     Et pour savoir si les messages sont VRAIMENT partis — « demandé » n'est pas
+     « arrivé » —, la nuit suivante :
+
+            select quoi, code, reponse, pose_le
+              from private.appel_sortant order by pose_le desc limit 5;
+
+     `code = 200` : c'est parti. `401` : la fonction a refusé l'appel, le mot de
+     passe de l'étape b) et celui de l'étape c) ne sont pas les mêmes, ou le
+     fichier `supabase/config.toml` n'a pas été déployé. `-1` : la fonction n'a
+     jamais répondu, vérifiez qu'elle est bien déployée.
 
 
 ================================================================================
