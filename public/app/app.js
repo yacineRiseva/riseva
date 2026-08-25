@@ -1165,11 +1165,11 @@ function ouvrirSignalement(u, a){
     { label:"Annuler" },
     { label:"Envoyer le signalement", classe:"btn--primary", onClick: () => {
         try {
-          DB.signaler({ annonce: a.id, par: u.id,
+          return alors(DB.signaler({ annonce: a.id, par: u.id,
             motif: corps.querySelector("#motif").value,
-            precisions: corps.querySelector("#prec").value });
+            precisions: corps.querySelector("#prec").value }),
+            () => { toast("Signalement enregistré. Vous recevrez une décision motivée."); });
         } catch (e){ toast(e.message); return false; }
-        toast("Signalement enregistré. Vous recevrez une décision motivée.");
       }}
   ]);
 }
@@ -1254,10 +1254,12 @@ function ouvrirEngagement(a, u){
     { label: "Confirmer", classe: "btn--primary", onClick: () => {
         try {
           const cons = corps.querySelector("#consent");
-          DB.engager({ annonce: a.id, entreprise: u.org, salarie: u.id,
-            quantite: Number(q.value), consentement: cons ? cons.checked : false });
-          toast("Vous êtes positionné. L'association sera prévenue.");
-          rendre();
+          return alors(DB.engager({ annonce: a.id, entreprise: u.org, salarie: u.id,
+            quantite: Number(q.value), consentement: cons ? cons.checked : false }),
+            () => {
+              toast("Vous êtes positionné. L'association sera prévenue.");
+              rendre();
+            });
         } catch (err){ toast(err.message); return false; }
       }}
   ]);
@@ -1565,8 +1567,8 @@ function vueMissions(u){
         const an = DB.annonceDe(m);
         const imp = an && an.impact && UNITES[an.impact.unite] ? an.impact : null;
         if (!imp){
-          DB.declarerFaite(m.id);
-          toast("L'association va recevoir le mail de confirmation."); rendre(); return;
+          return alors(DB.declarerFaite(m.id),
+            () => { toast("L'association va recevoir le mail de confirmation."); rendre(); });
         }
         const attendu = Math.round(m.quantite * imp.par_unite);
         const corps = h(`<div>
@@ -1582,8 +1584,8 @@ function vueMissions(u){
         modal("Déclarer « " + esc(an.titre) + " » réalisée", corps, [
           { label:"Annuler" },
           { label:"Déclarer", classe:"btn--primary", onClick: () => {
-              DB.declarerFaite(m.id, Number(corps.querySelector("#rp").value));
-              toast("L'association va recevoir le mail de confirmation."); rendre(); }}
+              return alors(DB.declarerFaite(m.id, Number(corps.querySelector("#rp").value)),
+                () => { toast("L'association va recevoir le mail de confirmation."); rendre(); }); }}
         ]);
       };
       tr.lastElementChild.appendChild(b);
@@ -2044,12 +2046,16 @@ function vueEquipe(u){
            si vous partez en congés ou quittez l'entreprise, plus personne ne peut agir.</p>`,
           [{ label:"Annuler" },
            { label:"Nommer administrateur", classe:"btn--primary", onClick: () => {
-               DB.promouvoirAdmin(g.id); toast("Administrateur nommé."); rendre(); }}]);
+               return alors(DB.promouvoirAdmin(g.id),
+                 () => { toast("Administrateur nommé."); rendre(); }); }}]);
         tr.lastElementChild.appendChild(pa);
       } else if (admins.length > 1 && g.id !== u.id){
         const ra = h(`<button class="btn btn--quiet btn--sm">Retirer les droits</button>`);
-        ra.onclick = () => { try { DB.retrograderAdmin(g.id); } catch (e){ toast(e.message); return; }
-          toast("Droits retirés."); rendre(); };
+        ra.onclick = () => {
+          try {
+            return alors(DB.retrograderAdmin(g.id), () => { toast("Droits retirés."); rendre(); });
+          } catch (e){ toast(e.message); return; }
+        };
         tr.lastElementChild.appendChild(ra);
       }
       const dernierAdmin = g.role === "entreprise_admin" && admins.length <= 1;
@@ -2067,10 +2073,12 @@ function vueEquipe(u){
              voulez. Sa place reste occupée.</p>`,
             [{ label:"Annuler" },
              { label:"Suspendre l'accès", classe:"btn--primary", onClick: () => {
-                 try { DB.suspendreAcces(g.id, true); } catch (err){ toast(err.message); return false; }
-                 toast("Accès suspendu."); rendre(); }}]);
+                 try {
+                   return alors(DB.suspendreAcces(g.id, true),
+                     () => { toast("Accès suspendu."); rendre(); });
+                 } catch (err){ toast(err.message); return false; } }}]);
         } else {
-          DB.suspendreAcces(g.id, false); toast("Accès rétabli."); rendre();
+          alors(DB.suspendreAcces(g.id, false), () => { toast("Accès rétabli."); rendre(); });
         }
       };
       tr.lastElementChild.appendChild(sus);
@@ -2089,8 +2097,10 @@ function vueEquipe(u){
          <p class="hint" style="margin-top:var(--s4)">Cette opération ne se défait pas.</p>`,
         [{ label:"Annuler" },
          { label:"Retirer et anonymiser", classe:"btn--primary", onClick: () => {
-             try { DB.retirerSalarie(g.id); } catch (err){ toast(err.message); return false; }
-             toast("Compte retiré et anonymisé."); rendre(); }}]);
+             try {
+               return alors(DB.retirerSalarie(g.id),
+                 () => { toast("Compte retiré et anonymisé."); rendre(); });
+             } catch (err){ toast(err.message); return false; } }}]);
       tr.lastElementChild.appendChild(b);
     }
     return tr;
@@ -2170,9 +2180,10 @@ function vueEquipe(u){
   if (bDom) bDom.onclick = () => {
     const l = el.querySelector("#dom").value.split(",").filter(x => x.trim());
     const enregistrer = () => {
-      DB.majDomaines(eid, l);
-      toast(l.length ? "Domaines enregistrés." : "Inscriptions fermées.");
-      rendre();
+      return alors(DB.majDomaines(eid, l), () => {
+        toast(l.length ? "Domaines enregistrés." : "Inscriptions fermées.");
+        rendre();
+      });
     };
     if (!l.length && DB.domaines(eid).length){
       modal("Retirer tous les domaines",
@@ -2221,7 +2232,8 @@ function vueEquipe(u){
      existants ne sont pas touchés.</p>`,
     [{ label:"Annuler" },
      { label:"Révoquer", classe:"btn--primary", onClick: () => {
-         DB.revoquerInvitation(inv.id); toast("Lien révoqué."); rendre(); }}]));
+         return alors(DB.revoquerInvitation(inv.id),
+           () => { toast("Lien révoqué."); rendre(); }); }}]));
 
   el.querySelector("#csvEq").onclick = () => {
     versCSV("riseva-equipe.csv", ["Nom", "Email", "Points des missions", "État"],
@@ -2663,9 +2675,10 @@ function vueAbonnement(u){
   });
 
   el.querySelector("#rec").onclick = () => {
-    DB.reconduire(u.org, !c.reconduction);
-    toast(c.reconduction ? "Reconduction annulée." : "Reconduction enregistrée, nous reviendrons vers vous.");
-    rendre();
+    alors(DB.reconduire(u.org, !c.reconduction), () => {
+      toast(c.reconduction ? "Reconduction annulée." : "Reconduction enregistrée, nous reviendrons vers vous.");
+      rendre();
+    });
   };
   return el;
 }
@@ -3182,42 +3195,46 @@ function vueParametres(u){
     const lecteur = new FileReader();
     lecteur.onload = () => {
       try {
-        DB.reglerLogo(u.org, lecteur.result);
-        majApercu(lecteur.result);
-        el.querySelector("#logo").value = "";
-        toast("Logo enregistré.");
+        alors(DB.reglerLogo(u.org, lecteur.result), () => {
+          majApercu(lecteur.result);
+          el.querySelector("#logo").value = "";
+          toast("Logo enregistré.");
+        });
       } catch (err){ toast(err.message); }
     };
     lecteur.readAsDataURL(f);
   };
   const xLogo = el.querySelector("#logoX");
   if (xLogo) xLogo.onclick = () => {
-    DB.reglerLogo(u.org, "");
-    majApercu(null);
-    el.querySelector("#logo").value = "";
-    toast("Logo retiré. Vos initiales prennent le relais.");
+    alors(DB.reglerLogo(u.org, ""), () => {
+      majApercu(null);
+      el.querySelector("#logo").value = "";
+      toast("Logo retiré. Vos initiales prennent le relais.");
+    });
   };
 
   el.querySelector("#save").onclick = () => {
     const v = (id) => el.querySelector("#" + id).value;
-    DB.majEntreprise(u.org, {
-      nom: v("nom").trim() || e.nom, siret: v("siret").trim(), secteur: v("secteur").trim(),
-      adresse: v("adresse").trim(), referent: v("ref").trim(), referent_mail: v("refmail").trim(),
-      ca: Number(v("ca")) || 0, cout_jour_moyen: Number(v("cout")) || 300,
-      /* Une case vide n'est pas un zéro : « je n'ai rien versé ailleurs » et « je n'ai
-         pas répondu » n'ont pas les mêmes conséquences sur le plafond. */
-      cout_heure_charge: v("couth").trim() === "" ? null : Number(v("couth")),
-      exercice_debut: v("exdeb") || null, exercice_fin: v("exfin") || null,
-      dons_hors_riseva: v("dhors").trim() === "" ? null : Number(v("dhors")),
-      report_anterieur: v("rant").trim() === "" ? null : Number(v("rant")),
-      effectif: Number(v("eff")) || e.effectif
-    });
-    DB.majContrat(u.org, { plateforme_reception: v("pdp").trim(), annuaire_id: v("annu").trim() });
     const vis = el.querySelector('input[name="vis"]:checked');
-    if (vis) DB.reglerVisibilite(u.org, vis.value);
     const lg = el.querySelector("#logo");
-    if (lg && lg.value.trim() !== (e.logo || "")) DB.reglerLogo(u.org, lg.value.trim());
-    toast("Paramètres enregistrés."); rendre();
+    const ecritures = [
+      DB.majEntreprise(u.org, {
+        nom: v("nom").trim() || e.nom, siret: v("siret").trim(), secteur: v("secteur").trim(),
+        adresse: v("adresse").trim(), referent: v("ref").trim(), referent_mail: v("refmail").trim(),
+        ca: Number(v("ca")) || 0, cout_jour_moyen: Number(v("cout")) || 300,
+        /* Une case vide n'est pas un zéro : « je n'ai rien versé ailleurs » et « je n'ai
+           pas répondu » n'ont pas les mêmes conséquences sur le plafond. */
+        cout_heure_charge: v("couth").trim() === "" ? null : Number(v("couth")),
+        exercice_debut: v("exdeb") || null, exercice_fin: v("exfin") || null,
+        dons_hors_riseva: v("dhors").trim() === "" ? null : Number(v("dhors")),
+        report_anterieur: v("rant").trim() === "" ? null : Number(v("rant")),
+        effectif: Number(v("eff")) || e.effectif
+      }),
+      DB.majContrat(u.org, { plateforme_reception: v("pdp").trim(), annuaire_id: v("annu").trim() })
+    ];
+    if (vis) ecritures.push(DB.reglerVisibilite(u.org, vis.value));
+    if (lg && lg.value.trim() !== (e.logo || "")) ecritures.push(DB.reglerLogo(u.org, lg.value.trim()));
+    alors(Promise.all(ecritures), () => { toast("Paramètres enregistrés."); rendre(); });
   };
   /* Le journal se lit par un client, pas par nous : un « quota_site » brut dans
      une colonne le renvoie deviner. Tout ce que le produit écrit ici a son
@@ -3516,11 +3533,13 @@ function tableAnnoncesAsso(annonces, u){
       cell.appendChild(bEdit);
       if (a.etat === "ouverte"){
         const b = h(`<button class="btn btn--quiet btn--sm">Fermer</button>`);
-        b.onclick = () => { DB.fermerAnnonce(a.id); toast("Annonce fermée."); rendre(); };
+        b.onclick = () => alors(DB.fermerAnnonce(a.id),
+          () => { toast("Annonce fermée."); rendre(); });
         cell.appendChild(b);
       } else if (a.restant > 0){
         const b = h(`<button class="btn btn--quiet btn--sm">Rouvrir</button>`);
-        b.onclick = () => { DB.rouvrirAnnonce(a.id); toast("Annonce rouverte."); rendre(); };
+        b.onclick = () => alors(DB.rouvrirAnnonce(a.id),
+          () => { toast("Annonce rouverte."); rendre(); });
         cell.appendChild(b);
       }
       if (!engagees){
@@ -3529,8 +3548,10 @@ function tableAnnoncesAsso(annonces, u){
           `<p class="muted">Personne ne s'y est engagé, elle peut disparaître sans laisser de trace.</p>`,
           [{ label:"Annuler" },
            { label:"Supprimer", classe:"btn--primary", onClick: () => {
-               try { DB.supprimerAnnonce(a.id); } catch (e){ toast(e.message); return false; }
-               toast("Annonce supprimée."); rendre(); }}]);
+               try {
+                 return alors(DB.supprimerAnnonce(a.id),
+                   () => { toast("Annonce supprimée."); rendre(); });
+               } catch (e){ toast(e.message); return false; } }}]);
         cell.appendChild(b);
       }
     }
@@ -3733,12 +3754,13 @@ function formAnnonce(u, existante = null){
           toast("Annonce mise à jour.");
         } else {
           try {
-            DB.creerAnnonce({ asso: u.org, type: v("type"), titre: v("titre"), description: v("desc"),
-              quantite: Number(v("q")) || 1, date: v("d"), lieu: v("lieu") || DB.association(u.org).ville,
+            return alors(DB.creerAnnonce({ asso: u.org, type: v("type"), titre: v("titre"),
+              description: v("desc"), quantite: Number(v("q")) || 1, date: v("d"),
+              lieu: v("lieu") || DB.association(u.org).ville,
               temps_travail: corps.querySelector("#tt").checked,
-              impact: lireImpact(corps) });
+              impact: lireImpact(corps) }),
+              () => { toast("Annonce publiée."); rendre(); });
           } catch (err){ toast(err.message); return false; }
-          toast("Annonce publiée.");
         }
         rendre();
       }}
@@ -3816,8 +3838,8 @@ function vueAValider(u){
       ok.onclick = () => {
         const imp = a.impact && UNITES[a.impact.unite] ? a.impact : null;
         if (!imp){
-          DB.validerMission(m.id, true);
-          toast("Mission confirmée, points crédités."); rendre(); return;
+          return alors(DB.validerMission(m.id, true),
+            () => { toast("Mission confirmée, points crédités."); rendre(); });
         }
         const attendu = Math.round(m.quantite * imp.par_unite);
         const propose = m.realise_propose;
@@ -3836,8 +3858,8 @@ function vueAValider(u){
         modal("Confirmer « " + a.titre + " »", corps, [
           { label:"Annuler" },
           { label:"Confirmer", classe:"btn--primary", onClick: () => {
-              DB.validerMission(m.id, true, Number(corps.querySelector("#re").value));
-              toast("Mission confirmée, points crédités."); rendre(); }}
+              return alors(DB.validerMission(m.id, true, Number(corps.querySelector("#re").value)),
+                () => { toast("Mission confirmée, points crédités."); rendre(); }); }}
         ]);
       };
       no.onclick = () => modal("Refuser cette mission",
@@ -3847,7 +3869,8 @@ function vueAValider(u){
            <textarea class="textarea" id="mot" placeholder="Personne n'est venu, ou la mission a été écourtée..."></textarea></div>`,
         [{ label:"Annuler" },
          { label:"Refuser", classe:"btn--primary", onClick: () => {
-             DB.validerMission(m.id, false); toast("Mission refusée, l'entreprise est prévenue."); rendre(); }}]);
+             return alors(DB.validerMission(m.id, false),
+               () => { toast("Mission refusée, l'entreprise est prévenue."); rendre(); }); }}]);
       tr.lastElementChild.append(no, ok);
     }
     tb.appendChild(tr);
@@ -4016,15 +4039,16 @@ function vuePageAsso(u){
     if (!f) return;
     try {
       const petite = await reduireImage(f);
-      DB.majAssociation(u.org, { photo: petite });
+      await DB.majAssociation(u.org, { photo: petite });
       dessinePhoto(petite);
       toast("Photo enregistrée. Elle apparaît dès maintenant dans l'annuaire.");
     } catch (err){ toast(err.message); }
     fPh.value = "";
   };
   el.querySelector("#phX")?.addEventListener("click", () => {
-    try { DB.majAssociation(u.org, { photo: "" }); dessinePhoto(null);
-          toast("Photo retirée."); }
+    try {
+      alors(DB.majAssociation(u.org, { photo: "" }),
+            () => { dessinePhoto(null); toast("Photo retirée."); }); }
     catch (err){ toast(err.message); }
   });
 
@@ -4034,15 +4058,16 @@ function vuePageAsso(u){
 
   el.querySelector("#pa-save").onclick = () => {
     try {
-      DB.majAssociation(u.org, {
+      alors(DB.majAssociation(u.org, {
         resume: res.value,
         cause: el.querySelector("#pa-cause").value,
         ville: el.querySelector("#pa-ville").value,
         site: el.querySelector("#pa-site").value,
         contact_public: el.querySelector("#pa-mail").value
+      }), () => {
+        toast("Votre page est à jour.");
+        rendre();
       });
-      toast("Votre page est à jour.");
-      rendre();
     } catch (err){ toast(err.message); }
   };
   return el;
@@ -4257,8 +4282,8 @@ function vueAdminAssos(){
         modal("Suspendre " + a.nom, corps, [
           { label:"Annuler" },
           { label:"Suspendre", classe:"btn--primary", onClick: () => {
-              DB.suspendreAssociation(a.id, corps.querySelector("#motif").value);
-              toast("Association suspendue, annonces retirées."); rendre(); }}]);
+              return alors(DB.suspendreAssociation(a.id, corps.querySelector("#motif").value),
+                () => { toast("Association suspendue, annonces retirées."); rendre(); }); }}]);
       };
       cell.appendChild(b);
     }
@@ -5710,25 +5735,34 @@ function vueRecus(u){
   </div>`);
 
   el.querySelector("#save").onclick = () => {
-    DB.majReglagesRecus(aid, {
+    alors(DB.majReglagesRecus(aid, {
       eligible_mecenat: el.querySelector("#elig").checked,
       actif: el.querySelector("#actif").checked,
       signataire: el.querySelector("#sig").value.trim(),
       qualite: el.querySelector("#qual").value.trim(),
       prefixe: el.querySelector("#pref").value.trim(),
       /* Plus transmis : il est déduit des reçus déjà émis. */
+    }), () => {
+      toast(DB.recusPrets(aid) ? "Réglages enregistrés, l'émission est active."
+                               : "Enregistré. L'émission reste inactive tant qu'il manque un réglage.");
+      rendre();
     });
-    toast(DB.recusPrets(aid) ? "Réglages enregistrés, l'émission est active."
-                             : "Enregistré. L'émission reste inactive tant qu'il manque un réglage.");
-    rendre();
   };
   /* Le geste de rattrapage. La nuit le fait aussi, côté base ; l'association ne
      devrait pas avoir à attendre demain matin pour un reçu qu'elle doit joindre
      aujourd'hui. */
   el.querySelector("#rattr")?.addEventListener("click", async () => {
-    try { await DB.emettreRecusEnAttente(aid); }
+    let n;
+    try { n = await DB.emettreRecusEnAttente(aid); }
     catch (e){ toast(e.message); return; }
-    toast("Reçus émis."); rendre();
+    /* Le rattrapage est borné côté serveur : une association qui active ses reçus
+       après trois ans d'encaissements en a des milliers, et une seule requête
+       dépasserait le délai. On dit donc combien sont sortis, et on redessine —
+       s'il en reste, le bouton est toujours là avec le compte à jour. */
+    toast(typeof n === "number"
+      ? (n > 1 ? nb(n) + " reçus émis." : n === 1 ? "Un reçu émis." : "Aucun reçu à émettre.")
+      : "Reçus émis.");
+    rendre();
   });
   el.querySelector("#csvR").onclick = () => {
     const ms = DB.missions({ asso: aid })
@@ -5825,10 +5859,10 @@ function vuePreferences(u){
   el.querySelector("#save").onclick = () => {
     const champs = {};
     el.querySelectorAll("[data-p]").forEach(i => champs[i.dataset.p] = i.checked);
-    DB.majPreferences(u.id, champs);
     const vp = el.querySelector("#visp");
-    if (vp) DB.reglerVisibiliteParis(u.id, vp.checked);
-    toast("Préférences enregistrées.");
+    const ecritures = [DB.majPreferences(u.id, champs)];
+    if (vp) ecritures.push(DB.reglerVisibiliteParis(u.id, vp.checked));
+    alors(Promise.all(ecritures), () => { toast("Préférences enregistrées."); });
   };
   el.querySelector("#raz")?.addEventListener("click", () => modal("Remettre la démonstration à neuf",
     `<p class="muted">Tout ce qui a été saisi depuis le début disparaît : annonces publiées,
@@ -6094,11 +6128,14 @@ function vueGroupe(u){
   </div>`)));
 
   el.querySelector("#ordi").onchange = (ev) => {
-    try { DB.activerClassementSites(gid, ev.target.checked);
-          toast(ev.target.checked
-            ? "Classement ordinal activé pour vos sites."
-            : "Classement ordinal désactivé : chaque site garde son statut.");
-          rendre(); }
+    try {
+      alors(DB.activerClassementSites(gid, ev.target.checked), () => {
+        toast(ev.target.checked
+          ? "Classement ordinal activé pour vos sites."
+          : "Classement ordinal désactivé : chaque site garde son statut.");
+        rendre();
+      });
+    }
     catch (e){ toast(e.message); }
   };
 
@@ -6416,8 +6453,8 @@ function vueSites(u){
       const q2 = h(`<button class="btn btn--quiet btn--sm">Enregistrer</button>`);
       q2.onclick = () => {
         try {
-          DB.allouerQuota(et.id, tr.querySelector("input").value);
-          toast(`Quota de ${et.nom} ${et.ville} mis à jour.`); rendre();
+          alors(DB.allouerQuota(et.id, tr.querySelector("input").value),
+            () => { toast(`Quota de ${et.nom} ${et.ville} mis à jour.`); rendre(); });
         } catch (e){ toast(e.message); }
       };
       const lien = h(`<button class="btn btn--quiet btn--sm">${et.referent ? "Remplacer le référent" : "Nommer un référent"}</button>`);
@@ -6486,10 +6523,11 @@ function formSite(soc, et = null){
     { label: "Annuler", classe: "btn--ghost" },
     { label: et ? "Enregistrer" : "Déclarer ce site", classe: "btn--primary", onClick: () => {
         try {
-          if (et) DB.modifierEtablissement(et.id, lire());
-          else DB.ajouterEtablissement({ societe: soc.id, ...lire() });
-          toast(et ? "Site mis à jour." : "Site déclaré. Nommez-y un référent pour qu'il invite ses salariés.");
-          rendre();
+          return alors(et ? DB.modifierEtablissement(et.id, lire())
+                          : DB.ajouterEtablissement({ societe: soc.id, ...lire() }), () => {
+            toast(et ? "Site mis à jour." : "Site déclaré. Nommez-y un référent pour qu'il invite ses salariés.");
+            rendre();
+          });
         } catch (e){ toast(e.message); return false; }
       } }
   ]);
@@ -6681,7 +6719,8 @@ function coffre(cellule, x, u, rendre){
         if (x.etat !== "approuve"){
           const r = h(`<button class="tlink" type="button" style="margin-left:10px">Retirer</button>`);
           r.onclick = () => {
-            try { DB.retirerPiece(p.id, u.id); toast("Pièce retirée."); dessiner(); }
+            try {
+              alors(DB.retirerPiece(p.id, u.id), () => { toast("Pièce retirée."); dessiner(); }); }
             catch (err){ toast(err.message); }
           };
           li.appendChild(r);
@@ -6710,8 +6749,8 @@ function coffre(cellule, x, u, rendre){
         } else {
           const contenu = f.size <= (DB.TAILLE_PIECE_GARDEE || 409600)
             ? await lireEnBase64(f) : null;
-          DB.joindrePiece({ objet: "observation", cible: x.observation.id,
-                            nom: f.name, type: f.type, taille: f.size, contenu, uid: u.id });
+          await DB.joindrePiece({ objet: "observation", cible: x.observation.id,
+                                  nom: f.name, type: f.type, taille: f.size, contenu, uid: u.id });
         }
         toast("Pièce jointe au chiffre.");
         dessiner();
@@ -6946,8 +6985,9 @@ function vueIndicateurs(u){
         && u.role === "entreprise_admin"){
       const a2 = h(`<button class="btn btn--primary btn--sm" style="margin-left:6px">Approuver</button>`);
       a2.onclick = () => {
-        try { DB.approuverIndicateurs(cid, x.etablissement.id, u.id);
-              toast("Valeurs approuvées et verrouillées."); rendre(); }
+        try {
+          alors(DB.approuverIndicateurs(cid, x.etablissement.id, u.id),
+                () => { toast("Valeurs approuvées et verrouillées."); rendre(); }); }
         catch (err){ toast(err.message); }
       };
       cell.appendChild(a2);
@@ -7213,8 +7253,8 @@ function vueSupports(u){
       <td style="text-align:right"></td></tr>`);
     if (x.expedition && !x.expedition.recu_le){
       const b = h(`<button class="btn btn--ghost btn--sm">Bien reçu</button>`);
-      b.onclick = () => { DB.confirmerReception(x.expedition.id);
-        toast("Réception confirmée. Merci."); rendre(); };
+      b.onclick = () => alors(DB.confirmerReception(x.expedition.id),
+        () => { toast("Réception confirmée. Merci."); rendre(); });
       tr.lastElementChild.appendChild(b);
     }
     tb.appendChild(tr);
@@ -7283,10 +7323,11 @@ function vueExpeditions(){
         modal("Marquer expédié", corps, [
           { label:"Annuler" },
           { label:"Expédié", classe:"btn--primary", onClick: () => {
-              try { DB.expedier(x.entreprise.id, x.kit.code,
-                { suivi: corps.querySelector("#sv").value }); }
-              catch (e){ toast(e.message); return false; }
-              toast("Expédition enregistrée."); rendre(); }}]);
+              try {
+                return alors(DB.expedier(x.entreprise.id, x.kit.code,
+                  { suivi: corps.querySelector("#sv").value }),
+                  () => { toast("Expédition enregistrée."); rendre(); }); }
+              catch (e){ toast(e.message); return false; } }}]);
       };
       tr.lastElementChild.appendChild(b);
       tb.querySelector("tbody").appendChild(tr);
@@ -7491,10 +7532,11 @@ function vueSecurite(u){
            n'efface pas un registre.</p>`,
           [{ label:"Annuler" },
            { label:"Arrêter", classe:"btn--primary", onClick: () => {
-               DB.activerRegistre(x.etablissement.id, false); toast("Registre arrêté."); rendre(); }}]);
+               return alors(DB.activerRegistre(x.etablissement.id, false),
+                 () => { toast("Registre arrêté."); rendre(); }); }}]);
       } else {
-        DB.activerRegistre(x.etablissement.id, true);
-        toast("Registre activé : les taux de ce site seront déduits des événements."); rendre();
+        alors(DB.activerRegistre(x.etablissement.id, true),
+          () => { toast("Registre activé : les taux de ce site seront déduits des événements."); rendre(); });
       }
     };
     cell.appendChild(b);
@@ -7522,8 +7564,8 @@ function vueSecurite(u){
         <td style="text-align:right"></td></tr>`);
       if (a.etat !== "faite" && a.etat !== "abandonnee"){
         const b = h(`<button class="btn btn--ghost btn--sm">${a.etat === "a_faire" ? "Démarrer" : "Terminer"}</button>`);
-        b.onclick = () => { DB.majAction(a.id, a.etat === "a_faire" ? "en_cours" : "faite");
-          toast("Action mise à jour."); rendre(); };
+        b.onclick = () => alors(DB.majAction(a.id, a.etat === "a_faire" ? "en_cours" : "faite"),
+          () => { toast("Action mise à jour."); rendre(); });
         tr.lastElementChild.appendChild(b);
       }
       tb.querySelector("tbody").appendChild(tr);
@@ -7569,9 +7611,10 @@ function vueSecurite(u){
         modal("Annuler cette déclaration", corps, [
           { label:"Fermer" },
           { label:"Annuler la déclaration", classe:"btn--primary", onClick: () => {
-              try { DB.annulerEvenement(e.id, corps.querySelector("#mo").value); }
-              catch (err){ toast(err.message); return false; }
-              toast("Déclaration annulée, motif consigné."); rendre(); }}]);
+              try {
+                return alors(DB.annulerEvenement(e.id, corps.querySelector("#mo").value),
+                  () => { toast("Déclaration annulée, motif consigné."); rendre(); }); }
+              catch (err){ toast(err.message); return false; } }}]);
       };
       bar.appendChild(bx);
       tb.querySelector("tbody").appendChild(tr);
@@ -7654,13 +7697,13 @@ function formEvenement(u, sites, monSite){
     { label:"Déclarer", classe:"btn--primary", onClick: () => {
         const v = (id) => corps.querySelector("#" + id).value;
         try {
-          DB.declarerEvenement(v("ev-site"), {
+          return alors(DB.declarerEvenement(v("ev-site"), {
             date: v("ev-date"), nature: v("ev-nature"), gravite: v("ev-grav"),
             type: v("ev-type"), zone: v("ev-zone"),
             jours_arret: v("ev-jours"), circonstances: v("ev-circ")
-          }, u.id);
+          }, u.id),
+            () => { toast("Événement déclaré. Les taux de la période sont à jour."); rendre(); });
         } catch (e){ toast(e.message); return false; }
-        toast("Événement déclaré. Les taux de la période sont à jour."); rendre();
       }}
   ]);
 }
@@ -7685,12 +7728,12 @@ function formAction(ev){
     { label:"Annuler" },
     { label:"Ajouter", classe:"btn--primary", onClick: () => {
         try {
-          DB.ajouterAction({ evenement: ev.id, etablissement: ev.etablissement,
+          return alors(DB.ajouterAction({ evenement: ev.id, etablissement: ev.etablissement,
             quoi: corps.querySelector("#ac-quoi").value,
             responsable: corps.querySelector("#ac-resp").value,
-            echeance: corps.querySelector("#ac-ech").value });
+            echeance: corps.querySelector("#ac-ech").value }),
+            () => { toast("Action ajoutée au plan."); rendre(); });
         } catch (e){ toast(e.message); return false; }
-        toast("Action ajoutée au plan."); rendre();
       }}
   ]);
 }
@@ -8180,9 +8223,10 @@ function formIndicateurs(u, cid, et){
   modal(`${et.nom}, ${et.ville}`, corps, [
     { label: "Annuler", classe: "btn--ghost" },
     { label: "Enregistrer", classe: "btn--primary", onClick: () => {
-        try { DB.saisirIndicateurs(cid, et.id, lire(), u.id,
-                corps.querySelector("#i-com").value);
-              toast("Saisie enregistrée. Elle attend une approbation."); rendre(); }
+        try {
+          return alors(DB.saisirIndicateurs(cid, et.id, lire(), u.id,
+                         corps.querySelector("#i-com").value),
+                       () => { toast("Saisie enregistrée. Elle attend une approbation."); rendre(); }); }
         /* La fenêtre reste ouverte : sinon la saisie est perdue et le message
            d'erreur avec elle. */
         catch (err){ toast(err.message); return false; }
@@ -8207,8 +8251,9 @@ function reaffecter(u, g){
   modal("Rattacher à un autre site", corps, [
     { label: "Annuler", classe: "btn--ghost" },
     { label: "Rattacher", classe: "btn--primary", onClick: () => {
-        try { DB.confirmerAffectation(g.id, corps.querySelector("#ra-et").value);
-              toast("Rattachement enregistré."); rendre(); }
+        try {
+          return alors(DB.confirmerAffectation(g.id, corps.querySelector("#ra-et").value),
+                       () => { toast("Rattachement enregistré."); rendre(); }); }
         catch (e){ toast(e.message); }
       } }
   ]);
@@ -8322,7 +8367,9 @@ function tableauSite(u){
       <td style="text-align:right;white-space:nowrap"></td></tr>`);
     const ok = h(`<button class="btn btn--primary btn--sm">Il travaille ici</button>`);
     ok.onclick = () => {
-      try { DB.confirmerAffectation(g.id, et.id); toast("Rattachement confirmé."); rendre(); }
+      try {
+        alors(DB.confirmerAffectation(g.id, et.id),
+              () => { toast("Rattachement confirmé."); rendre(); }); }
       catch (e){ toast(e.message); }
     };
     const autre = h(`<button class="btn btn--quiet btn--sm" style="margin-left:6px">Autre site</button>`);
@@ -9020,11 +9067,13 @@ function vueDonsAsso(u){
           du reçu fiscal, que vous seule émettez.</p></div>`);
         modal("Confirmer " + i.reference, corps, [
           { label:"Ce virement n'est jamais arrivé", onClick: () => {
-              DB.abandonnerIntentionDon(i.id, "non reçu"); toast("Intention retirée."); rendre(); }},
+              return alors(DB.abandonnerIntentionDon(i.id, "non reçu"),
+                () => { toast("Intention retirée."); rendre(); }); }},
           { label:"Confirmer", classe:"btn--primary", onClick: () => {
-              try { DB.confirmerDonRecu(i.id, { montant: Number(corps.querySelector("#m").value) }); }
-              catch (e){ toast(e.message); return false; }
-              toast("Don confirmé, points crédités."); rendre(); }}]);
+              try {
+                return alors(DB.confirmerDonRecu(i.id, { montant: Number(corps.querySelector("#m").value) }),
+                  () => { toast("Don confirmé, points crédités."); rendre(); }); }
+              catch (e){ toast(e.message); return false; } }}]);
       };
       tr.lastElementChild.appendChild(b);
       t.querySelector("tbody").appendChild(tr);
@@ -9063,10 +9112,10 @@ function vueDonsAsso(u){
       { label:"Annuler" },
       { label:"Enregistrer", classe:"btn--primary", onClick: () => {
           try {
-            DB.enregistrerIban(u.org, { iban: corps.querySelector("#ib").value,
-              bic: corps.querySelector("#bc").value, titulaire: corps.querySelector("#ti").value });
-          } catch (e){ toast(e.message); return false; }
-          toast("Compte enregistré."); rendre(); }}]);
+            return alors(DB.enregistrerIban(u.org, { iban: corps.querySelector("#ib").value,
+              bic: corps.querySelector("#bc").value, titulaire: corps.querySelector("#ti").value }),
+              () => { toast("Compte enregistré."); rendre(); });
+          } catch (e){ toast(e.message); return false; } }}]);
   };
 
   /* Connecter le compte. En production, le bouton envoie vers la mire
@@ -9114,10 +9163,12 @@ function vueDonsAsso(u){
     modal("Connecter HelloAsso", corps, [
       { label:"Annuler" },
       { label:"Connecter", classe:"btn--primary", onClick: () => {
-          try { DB.lierHelloAsso(u.org, corps.querySelector("#ha-slug").value); }
-          catch (e){ toast(e.message); return false; }
-          toast("Compte connecté. Vos donateurs peuvent payer par carte.");
-          rendre(); }}]);
+          try {
+            return alors(DB.lierHelloAsso(u.org, corps.querySelector("#ha-slug").value), () => {
+              toast("Compte connecté. Vos donateurs peuvent payer par carte.");
+              rendre();
+            }); }
+          catch (e){ toast(e.message); return false; } }}]);
   });
 
   el.querySelector("#delierHa")?.addEventListener("click", () => {
@@ -9128,8 +9179,10 @@ function vueDonsAsso(u){
        s'il est renseigné.</p>`,
       [{ label:"Annuler" },
        { label:"Déconnecter", classe:"btn--primary", onClick: () => {
-           try { DB.delierHelloAsso(u.org); } catch (e){ toast(e.message); return false; }
-           toast("Compte déconnecté."); rendre(); }}]);
+           try {
+             return alors(DB.delierHelloAsso(u.org),
+               () => { toast("Compte déconnecté."); rendre(); });
+           } catch (e){ toast(e.message); return false; } }}]);
   });
 
   el.querySelector("#majMandat").onclick = () => {
@@ -9140,7 +9193,8 @@ function vueDonsAsso(u){
          vous les conservez six ans (article L. 102 B du livre des procédures fiscales).</p>`,
         [{ label:"Annuler" },
          { label:"Révoquer", classe:"btn--primary", onClick: () => {
-             DB.revoquerMandatRecus(u.org); toast("Mandat révoqué."); rendre(); }}]);
+             return alors(DB.revoquerMandatRecus(u.org),
+               () => { toast("Mandat révoqué."); rendre(); }); }}]);
       return;
     }
     const r = DB.reglagesRecus(u.org);
@@ -9158,11 +9212,11 @@ function vueDonsAsso(u){
       { label:"Annuler" },
       { label:"Donner mandat", classe:"btn--primary", onClick: () => {
           try {
-            DB.accepterMandatRecus(u.org, { par: u.id,
+            return alors(DB.accepterMandatRecus(u.org, { par: u.id,
               nom: corps.querySelector("#n").value.trim(),
-              qualite: corps.querySelector("#qa").value.trim() });
-          } catch (e){ toast(e.message); return false; }
-          toast("Mandat enregistré."); rendre(); }}]);
+              qualite: corps.querySelector("#qa").value.trim() }),
+              () => { toast("Mandat enregistré."); rendre(); });
+          } catch (e){ toast(e.message); return false; } }}]);
   };
 
   return el;

@@ -39,6 +39,7 @@ language plpgsql security definer set search_path = '' as $$
 declare
   v_ent uuid := private.mon_entreprise();
   v_siret text := nullif(regexp_replace(coalesce(p_siret, ''), '[^0-9]', '', 'g'), '');
+  v_deb date; v_fin date;
 begin
   -- L'effectif de la société ne peut pas descendre sous la somme de ses sites.
   -- `creer_etablissement` et `modifier_etablissement` appliquent la règle dans
@@ -65,6 +66,20 @@ begin
   end if;
   if p_ca is not null and p_ca < 0 then
     raise exception 'Un chiffre d''affaires ne peut pas être négatif' using errcode = '22023';
+  end if;
+  -- Les deux bornes d'exercice se tiennent. Poser la nouvelle date de début sans
+  -- la nouvelle date de fin laissait `coalesce` remettre l'ancienne : la
+  -- contrainte de table refusait la ligne, et l'écran rendait une erreur 23514
+  -- illisible sur un formulaire où rien ne semblait faux. On calcule donc les
+  -- deux valeurs EFFECTIVES — exactement comme l'`update` plus bas les calcule —
+  -- et on refuse avec une phrase que quelqu'un peut lire.
+  select e.exercice_debut, e.exercice_fin into v_deb, v_fin
+    from public.entreprise e where e.id = v_ent;
+  v_deb := case when p_efface_vides then p_exercice_debut else coalesce(p_exercice_debut, v_deb) end;
+  v_fin := case when p_efface_vides then p_exercice_fin   else coalesce(p_exercice_fin, v_fin) end;
+  if v_deb is not null and v_fin is not null and v_fin <= v_deb then
+    raise exception 'La fin de l''exercice doit suivre son début : corrigez les deux dates ensemble'
+      using errcode = '22023';
   end if;
 
   update public.entreprise e set
@@ -1626,5 +1641,45 @@ begin
      where n.nspname = 'public' and c.relkind = 'v' and ro.rolname <> 'riseva_definer'
   loop
     execute format('alter view %s owner to riseva_definer', v.nom);
+  end loop;
+end $$;
+
+-- ------------------------------------------------- signatures abandonnées
+-- PostgreSQL n'identifie pas une fonction par son nom mais par sa SIGNATURE.
+-- `create or replace function public.maj_entreprise(... , p_referent_mail text)`
+-- sur une fonction qui en prenait sept ne remplace RIEN : il en crée une
+-- seconde. L'ancienne survit, garde son `grant execute`, et PostgREST peut très
+-- bien continuer de l'appeler — ou refuser l'appel pour ambiguïté, ce qui est
+-- encore le meilleur cas parce qu'au moins ça se voit.
+--
+-- Sur une base neuve — celle que la recette installe — le problème n'existe pas.
+-- Il n'apparaît que sur une base de PRODUCTION qu'on met à jour, c'est-à-dire
+-- exactement là où il coûte le plus cher : la moitié des corrections d'une
+-- journée n'arrive jamais chez le client, sans une seule erreur nulle part.
+--
+-- Aucune fonction de ce schéma n'a de surcharge voulue : deux signatures pour un
+-- même nom sont donc toujours un reste d'une version précédente. On garde la plus
+-- récente — celle que ce déploiement vient d'écrire — et on retire les autres.
+do $$
+declare f record;
+begin
+  for f in
+    select p.oid::regprocedure as sig, p.proname
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname in ('public','private')
+       and p.prokind = 'f'
+       and exists (
+         select 1 from pg_proc q join pg_namespace m on m.oid = q.pronamespace
+          where m.nspname = n.nspname and q.proname = p.proname and q.oid > p.oid)
+  loop
+    -- Sans `cascade` : si une vue ou une contrainte s'appuie encore dessus, on
+    -- veut le savoir, pas emporter la dépendance en silence.
+    begin
+      execute format('drop function %s', f.sig);
+      raise notice 'signature abandonnée retirée : %', f.sig;
+    exception when others then
+      raise notice 'signature abandonnée conservée (dépendance) : % — %', f.sig, sqlerrm;
+    end;
   end loop;
 end $$;

@@ -1575,7 +1575,14 @@ begin
   -- Déjà émis : un don ne porte qu'un reçu, et le rejouer n'en crée pas un second.
   if exists (select 1 from public.recu r where r.don = p_don) then return; end if;
 
-  select count(*) + 1 into v_suite from public.recu r where r.association = v_a.id;
+  -- Du plus grand suffixe DÉJÀ ÉMIS, pas d'un comptage. `count(*) + 1` retombe
+  -- sur un numéro déjà pris dès qu'il existe un trou dans la série — un préfixe
+  -- changé en cours d'année, une reprise à 47 — et `on conflict do nothing`
+  -- avalait alors l'échec en silence : le don restait éternellement sans reçu, et
+  -- la tâche de nuit repassait dessus chaque nuit sans jamais rien produire.
+  select coalesce(max((regexp_match(r.numero, '([0-9]+)\s*$'))[1]::integer), 0) + 1
+    into v_suite
+    from public.recu r where r.association = v_a.id;
   v_num := v_a.recu_prefixe || lpad(v_suite::text, 4, '0');
   insert into public.recu (don, association, numero, modele)
   values (p_don, v_a.id, v_num,
@@ -1600,11 +1607,16 @@ begin
      or (private.mon_association() is distinct from p_association and not private.est_admin()) then
     raise exception 'Réservé à l''association bénéficiaire' using errcode = '42501';
   end if;
+  -- Bornée. Une association qui active ses reçus après trois ans d'encaissements
+  -- a des milliers de dons à rattraper : sans limite, la requête dépasse le
+  -- délai du serveur et le bouton ne fait jamais rien. Deux cents à la fois, et
+  -- l'écran redit combien il en reste.
   for d in
     select don.id from public.don
      where don.association = p_association and don.etat = 'confirme'
        and not exists (select 1 from public.recu r where r.don = don.id)
      order by don.confirme_le
+     limit 200
   loop
     perform private.emettre_recu_si_pret(d.id);
     if exists (select 1 from public.recu r where r.don = d.id) then v_n := v_n + 1; end if;

@@ -370,9 +370,12 @@ begin
   -- site, et les colonnes codées — nature, gravité, type, jours d'arrêt — ne
   -- désignent personne. Ce qui s'efface, c'est le résidu personnel : la zone,
   -- les circonstances rédigées à la main, et qui a déclaré.
+  -- Cinq ans à compter de la FIN DE L'EXERCICE considéré, pas au jour près : un
+  -- seuil glissant anonymisait un événement de mars quelques mois avant son
+  -- échéance légale. On garde donc l'exercice en cours et les cinq précédents.
   update public.evenement_securite e
      set zone = null, circonstances = null, declare_par = null
-   where e.date < (current_date - interval '5 years')
+   where e.date < (date_trunc('year', current_date) - interval '5 years')
      and (e.zone is not null or e.circonstances is not null or e.declare_par is not null);
   get diagnostics v_n = row_count;
   if v_n > 0 then

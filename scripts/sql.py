@@ -118,6 +118,25 @@ def installation_production():
           + ("" if okv else f"  [{malv}]"))
     ok = ok and okv
 
+    # Une fonction n'est pas identifiée par son nom mais par sa SIGNATURE :
+    # ajouter un paramètre à un `create or replace` crée une SECONDE fonction, et
+    # l'ancienne survit avec son `grant`. Sur une base neuve on ne le voit pas ;
+    # sur une base de production mise à jour, la moitié d'une journée de
+    # corrections peut ne jamais arriver chez le client. Aucune surcharge n'est
+    # voulue ici : deux signatures pour un nom sont toujours un reste.
+    r = psql("-t -A -f -", base=base, entree=
+        "select coalesce(string_agg(x.proname || ' (' || x.n || ')', ', '), '') from ("
+        "  select p.proname, count(*) as n from pg_proc p "
+        "  join pg_namespace ns on ns.oid = p.pronamespace "
+        "  where ns.nspname in ('public','private') and p.prokind = 'f' "
+        "  group by ns.nspname, p.proname having count(*) > 1) x;")
+    surcharges = (r.stdout or "").strip()
+    oks = surcharges == ""
+    print(("  ok   " if oks else "  RATÉ ")
+          + "aucune fonction ne traîne une signature abandonnée"
+          + ("" if oks else f"  [{surcharges}]"))
+    ok = ok and oks
+
     # Ce qu'une installation de production doit contenir, et ce qu'elle ne doit
     # SURTOUT pas contenir. Le jour de son ouverture, un client ne doit voir
     # aucun chiffre qu'il n'a pas écrit : ni entreprise, ni association, ni
