@@ -512,7 +512,12 @@ to authenticated;
 -- qui détient la clé de service et vérifie la signature du prestataire, peut
 -- appeler celle-ci.
 grant execute on function
-  public.confirmer_don(text, text, uuid, numeric, public.origine_don, uuid)
+  public.confirmer_don(text, text, uuid, numeric, public.origine_don, uuid),
+  -- La fonction Edge d'effacement l'appelle avec la clé de service, APRÈS avoir
+  -- vérifié l'identité de la personne avec la clé publique. Sans ce droit, le
+  -- droit à l'effacement de notre politique de confidentialité n'était pas
+  -- exerçable : la fonction répondait « permission denied ».
+  public.supprimer_salarie(uuid)
 to service_role;
 
 -- Le lien de réponse envoyé aux associations n'est pas ouvert au public : c'est la

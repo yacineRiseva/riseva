@@ -1343,10 +1343,22 @@ begin
 end $$;
 
 -- Lire la liaison. Rendue au seul role de service : c'est le jeton.
+-- Le verrou est ici, et pas ailleurs. La lecture du jeton et sa réécriture
+-- étaient deux appels séparés : deux donateurs simultanés lisaient le MÊME jeton
+-- de rafraîchissement, HelloAsso invalidait l'ancien au premier échange, le
+-- second recevait un 401 — et selon l'ordre d'écriture, c'est un jeton mort qui
+-- restait en base. Plus aucun don par carte jusqu'à ce que l'association
+-- réautorise, sans que personne ne comprenne pourquoi.
+--
+-- `for update` sérialise les deux donateurs : le second attend, relit le jeton
+-- neuf, et repart avec. Le verrou tient jusqu'à la fin de la transaction ; la
+-- fonction Edge appelle donc `helloasso_rafraichir_jeton` immédiatement après.
 create or replace function public.helloasso_lien(p_association uuid)
 returns table (slug text, jeton text)
 language sql security definer set search_path = '' as $$
-  select l.slug, l.jeton from private.helloasso_lien l where l.association = p_association;
+  select l.slug, l.jeton from private.helloasso_lien l
+   where l.association = p_association
+   for update;
 $$;
 
 -- HelloAsso rend un jeton neuf a chaque rafraichissement : celui d'avant cesse

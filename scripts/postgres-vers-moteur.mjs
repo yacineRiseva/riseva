@@ -62,8 +62,15 @@ dit("le plafond par format est appliqué comme en démonstration",
 const g = ents.find(e => e.groupe);
 if (g){
   const c = DB.consolideGroupe(g.groupe);
+  /* On compare aux sites DE CE GROUPE, pas au nombre total d'établissements de
+     la base : dès qu'une deuxième société existe — et la recette en crée une,
+     celle qui s'inscrit toute seule — les deux nombres n'ont plus de raison
+     d'être égaux, et l'assertion tombait sans qu'aucune consolidation soit
+     fausse. */
+  const attendus = ents.filter(e => e.groupe === g.groupe)
+    .reduce((n, e) => n + DB.etablissements(e.id).length, 0);
   dit("la consolidation de groupe fonctionne sur la vraie base",
-    c && c.sites.length === lignes.etablissement.length, JSON.stringify(c && c.sites.length));
+    c && c.sites.length === attendus, `${c && c.sites.length} vs ${attendus}`);
   dit("le consolidé reste un rapport de sommes",
     !c.effectif || Math.abs(c.parSalarie - c.points / c.effectif) < 1e-9);
 }

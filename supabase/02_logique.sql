@@ -1586,12 +1586,27 @@ end $$;
 
 -- Suppression définitive : Riseva seule, et après elle il ne reste que des
 -- agrégats. `mission.salarie` passe à NULL grâce au ON DELETE SET NULL.
+-- L'effacement d'une personne. Deux appelants légitimes, et un seul avait le
+-- droit : Riseva depuis son écran, et la fonction Edge `effacement` au nom de la
+-- personne elle-même. Cette dernière s'exécute avec la clé de service, où
+-- `auth.uid()` est NULL — `est_admin()` rendait donc faux, et la fonction levait
+-- « Réservé à Riseva ». Le droit à l'effacement décrit dans notre politique de
+-- confidentialité n'a jamais fonctionné une seule fois.
+--
+-- La fonction Edge a DÉJÀ vérifié l'identité de l'appelant avec la clé publique
+-- avant d'arriver ici : c'est le bon endroit pour le faire, la clé de service ne
+-- doit jamais servir à décider qui parle. On accepte donc l'appel de
+-- `service_role`, et de personne d'autre.
 create or replace function public.supprimer_salarie(p_profil uuid)
 returns void
 language plpgsql security definer set search_path = '' as $$
 begin
-  if not private.est_admin() then
-    raise exception 'Réservé à Riseva' using errcode = '42501';
+  if not private.est_admin() and current_setting('role', true) is distinct from 'service_role'
+     and auth.uid() is not null then
+    raise exception 'Réservé à Riseva ou à la personne concernée' using errcode = '42501';
+  end if;
+  if not private.est_admin() and auth.uid() is not null and auth.uid() <> p_profil then
+    raise exception 'On n''efface que son propre compte' using errcode = '42501';
   end if;
   delete from private.appartenance a where a.profil = p_profil;
   delete from public.profil p where p.id = p_profil;
