@@ -2464,6 +2464,18 @@ function vueAbonnement(u){
   </section>`);
 
   const el = h(`<div class="stack" style="--gap:var(--s5)">
+    ${!c.signe_le ? `<section class="card card--flat" style="background:var(--paper-sunk);border-color:transparent">
+      <div class="between" style="flex-wrap:wrap;gap:var(--s4)">
+        <div><h3 style="font-size:var(--t-lg)">Votre contrat n'est pas encore signé</h3>
+        <p class="muted" style="font-size:var(--t-sm);margin-top:4px;max-width:70ch">
+          Vous avez ouvert votre compte vous-même : rien ne vous a été facturé, et
+          rien ne le sera tant que vous n'aurez pas signé. Vous pouvez déclarer vos
+          sites, inviter vos équipes et préparer votre collecte. Ce qui attend la
+          signature, c'est l'envoi des affiches et votre place au classement
+          public — un classement qui nomme ne porte que des clients.</p></div>
+        <a class="btn btn--primary" href="/#prix" style="align-self:flex-start">Voir le tarif</a>
+      </div>
+    </section>` : ""}
     ${f.enRetard.length ? `<section class="card card--flat" style="background:var(--danger-bg);border-color:transparent">
       <div class="between" style="flex-wrap:wrap;gap:var(--s4)">
         <div><h3 style="font-size:var(--t-lg);color:var(--danger)">${f.enRetard.length} facture${f.enRetard.length > 1 ? "s" : ""} en retard</h3>
@@ -2475,7 +2487,8 @@ function vueAbonnement(u){
     </section>` : ""}
 
     <div class="kpis">
-      ${kpi("Abonnement", eur(c.montant_ht) + " HT", esc(sa.nom), "", "kpi--tete grain")}
+      ${kpi("Abonnement", c.signe_le ? eur(c.montant_ht) + " HT" : "à signer",
+            c.signe_le ? esc(sa.nom) : "aucun montant engagé", "", "kpi--tete grain")}
       ${kpi("Places", si.pris + " / " + si.total, si.restants + " disponibles")}
       ${kpi("Fin de saison", jours + " j", dateFR(sa.fin))}
       ${kpi("Reste à régler", eur(f.du), f.du ? "prochaine échéance" : "tout est à jour")}
