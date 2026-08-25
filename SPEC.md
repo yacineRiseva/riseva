@@ -221,7 +221,10 @@ Aucun mot de passe ne transite par Riseva : l'authentification se fait par lien 
 
 ## 4. Les annonces
 
-Publiées par une association. Trois types, et trois seulement en v1 :
+Publiées par une association. Sept types, barémés en base et versionnés par saison. Les trois
+premiers sont ceux du premier jour ; les quatre autres — bénévolat journée, mécénat de
+compétences, parrainage et adoption d'animal — sont en service depuis, et cette section a été
+corrigée le 25/08/2026 pour dire ce que le produit fait vraiment :
 
 | Type | Code | Points (v1) |
 |---|---|---|

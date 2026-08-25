@@ -369,7 +369,14 @@ declare v_ent uuid := private.mon_entreprise(); v_i public.invitation;
 begin
   select * into v_i from public.invitation i where i.id = p_invitation;
   if not found then raise exception 'Lien inconnu' using errcode = '42704'; end if;
-  if v_i.entreprise <> v_ent or private.mon_role() not in ('entreprise_admin', 'site_referent') then
+  -- `is distinct from`, et le rôle testé positivement. Avec `<>` et `not in`, un
+  -- compte authentifié SANS appartenance rendait `v_ent` et `mon_role()` à NULL :
+  -- l'expression valait NULL, le `if` ne se déclenchait pas, et la révocation
+  -- passait. N'importe quel compte connaissant l'identifiant d'un lien pouvait
+  -- donc couper l'inscription d'une entreprise qui n'était pas la sienne.
+  if v_ent is null
+     or v_i.entreprise is distinct from v_ent
+     or coalesce(private.mon_role(), '') not in ('entreprise_admin', 'site_referent') then
     raise exception 'Réservé à votre société' using errcode = '42501';
   end if;
   -- Un referent de site ne revoque que les liens de SON site. La policy de
@@ -947,7 +954,7 @@ $$;
 
 create or replace function public.joindre_piece(
   p_objet text, p_cible uuid, p_chemin text, p_nom text,
-  p_type text, p_taille integer, p_empreinte text default null)
+  p_type text, p_taille integer, p_empreinte text)
 returns uuid
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -964,6 +971,12 @@ begin
   end if;
   if v_ent is null then
     raise exception 'Réservé aux comptes d''entreprise' using errcode = '42501';
+  end if;
+  -- L'empreinte fait la preuve. Sans elle, la pièce dit seulement qu'un fichier
+  -- existe : elle ne dit plus que celui qu'on télécharge est celui qui a été
+  -- déposé. Le paramètre était optionnel, la colonne nullable.
+  if p_empreinte is null or p_empreinte !~ '^[0-9a-f]{64}$' then
+    raise exception 'Une pièce se dépose avec son empreinte SHA-256' using errcode = '22023';
   end if;
 
   -- Le rattachement se vérifie objet par objet : c'est le seul endroit où l'on

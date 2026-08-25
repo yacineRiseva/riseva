@@ -3235,9 +3235,19 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       onglets.push({
         nom: "Ratios",
         lignes: [["Indicateur", "Valeur", "Unité", "Formule", "Calculé sur tous les sites", "Note"],
+          /* Un taux dont le numérateur et le dénominateur ne portent pas sur les
+             mêmes sites ne sort PAS du fichier. À l'écran il porte un astérisque
+             et la phrase « à ne pas publier tel quel » ; un classeur, lui, part
+             chez un acheteur sans l'astérisque et sans la phrase. La colonne
+             « calculé sur tous les sites » ne suffit pas : personne ne lit une
+             colonne pour décider s'il peut croire le chiffre d'à côté. */
           ...r.ratios.map(x => [x.libelle,
-            x.valeur === null ? null : Math.round(x.valeur * 100) / 100,
-            x.unite || "", x.formule, x.surTousLesSites ? "oui" : "non", x.note])]
+            x.valeur === null || x.surTousLesSites === false
+              ? null : Math.round(x.valeur * 100) / 100,
+            x.unite || "", x.formule, x.surTousLesSites ? "oui" : "non",
+            x.surTousLesSites === false
+              ? "non calculé : numérateur et dénominateur ne portent pas sur les mêmes sites"
+              : x.note])]
       });
       onglets.push({
         nom: "Définitions",
@@ -5158,9 +5168,17 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const ms = toutes.filter(m => m.etat === "validee");
       const enAttenteMs = toutes.filter(m => m.etat === "validee_auto");
       const e = api.entreprise(eid) || {};
-      const coutJour = e.cout_jour_moyen || 300;
-      const coutHeure = e.cout_heure_charge || (coutJour / FISCAL.heures_jour);
-      const coutDemiJournee = coutJour / 2;
+      /* Pas de 300 € inventé. Le coût journalier chargé est une donnée de
+         l'entreprise : posé d'office, il fabriquait une valorisation fiscale sur
+         un montant que personne n'avait déclaré, et l'écran l'affichait comme un
+         chiffre à reporter. Sans lui, le mécénat de compétences ne se valorise
+         pas — il vaut `null`, et l'écran dit ce qui manque. */
+      const coutJour = Number(e.cout_jour_moyen) > 0 ? Number(e.cout_jour_moyen) : null;
+      const coutConnu = coutJour !== null || Number(e.cout_heure_charge) > 0;
+      const coutHeure = Number(e.cout_heure_charge) > 0
+        ? Number(e.cout_heure_charge)
+        : (coutJour === null ? null : coutJour / FISCAL.heures_jour);
+      const coutDemiJournee = coutJour === null ? null : coutJour / 2;
 
       const parSalarie = {};
       let donsSalaries = 0, donsEntreprise = 0, demiJourneesTT = 0, demiJourneesPerso = 0;
@@ -5194,8 +5212,11 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         const reelles = Number(m.heures) > 0;
         if (!reelles) heuresEstimees = true;
         const heures = reelles ? Number(m.heures) : heuresPour(a.type, m.quantite);
-        const cout = reelles ? heures * coutHeure
-                             : heures / FISCAL.heures_demi_journee * coutDemiJournee;
+        /* Sans coût déclaré, on compte les heures et on ne valorise rien : un
+           euro inventé dans une assiette fiscale est pire qu'une case vide. */
+        const cout = !coutConnu ? 0
+          : (reelles ? heures * coutHeure
+                     : heures / FISCAL.heures_demi_journee * coutDemiJournee);
         const asso = api.association(a.asso) || {};
         const sal = api.utilisateur(m.salarie) || {};
         const ligne = parSalarie[m.salarie] || (parSalarie[m.salarie] = {
@@ -5312,6 +5333,10 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         competencesBrut, competencesRetenu, detailSalaries,
         ecreteParSalarie: competencesBrut - competencesRetenu,
         plafondSalarie: plafondSal,
+        /* Vrai quand l'entreprise n'a déclaré ni coût journalier ni coût horaire :
+           les heures sont comptées, la valorisation vaut zéro, et l'écran doit le
+           dire au lieu d'afficher un montant. */
+        coutInconnu: !coutConnu,
         assiette, plafondCalculable, versementsExercice,
         plafondEntreprise, assietteRetenue, reportable, reduction,
         /* Ce que la réduction vaudrait si rien d'autre n'avait été versé cette année.
@@ -6439,6 +6464,13 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         portee, entreprise: e, saison: s.saison,
         points: api.pointsDe(eid).retenu, rang: api.rangDe(eid), total: s.entreprises.length,
         missions: ms.length, parType, euros,
+        /* Confirmées et clôturées d'office ne se totalisent pas sous le même mot.
+           Le rapport rendait un seul nombre, que l'écran présentait comme
+           « confirmées par les associations » : une absence de réponse pendant
+           quatorze jours devenait, dans un document lu en réunion CSE, un accord
+           attribué à quelqu'un qui ne l'a jamais donné. */
+        missionsConfirmees: ms.filter(m => m.etat === "validee").length,
+        missionsSansReponse: ms.filter(m => m.etat === "validee_auto").length,
         salariesEngages: salaries.filter(u => api.pointsVisiblesEmployeur(u.id) > 0).length,
         salariesTotal: salaries.length,
         trimestres: api.trimestres(eid),

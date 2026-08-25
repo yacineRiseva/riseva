@@ -3155,7 +3155,7 @@ function vueParametres(u){
           </div>
           <div class="row" style="gap:var(--s4)">
             <div class="field" style="flex:1"><label>Coût journalier moyen chargé d'un salarié</label>
-              <input class="input" id="cout" type="number" min="0" value="${e.cout_jour_moyen || 300}">
+              <input class="input" id="cout" type="number" min="0" value="${e.cout_jour_moyen ?? ""}" placeholder="par exemple 300">
               <p class="hint">Rémunération brute plus charges, divisée par 220 jours ouvrés.
                 Sert à valoriser une demi-journée quand les heures réelles ne sont pas saisies.</p></div>
             <div class="field" style="flex:1"><label>Coût horaire chargé</label>
@@ -3244,7 +3244,9 @@ function vueParametres(u){
       DB.majEntreprise(u.org, {
         nom: v("nom").trim() || e.nom, siret: v("siret").trim(), secteur: v("secteur").trim(),
         adresse: v("adresse").trim(), referent: v("ref").trim(), referent_mail: v("refmail").trim(),
-        ca: Number(v("ca")) || 0, cout_jour_moyen: Number(v("cout")) || 300,
+        ca: Number(v("ca")) || 0, /* Une case vide n'est pas 300 € : sans coût déclaré, le mécénat de
+                 compétences ne se valorise pas, et l'écran le dit. */
+      cout_jour_moyen: v("cout").trim() === "" ? null : Number(v("cout")),
         /* Une case vide n'est pas un zéro : « je n'ai rien versé ailleurs » et « je n'ai
            pas répondu » n'ont pas les mêmes conséquences sur le plafond. */
         cout_heure_charge: v("couth").trim() === "" ? null : Number(v("couth")),
@@ -5171,7 +5173,9 @@ function vueMecenat(u){
           <tr><td>Mécénat de compétences, au coût de revient<br>
               <span class="muted" style="font-size:var(--t-xs)">${nb(v.heuresTT)} heures sur
               ${v.salariesConcernes} salarié${v.salariesConcernes > 1 ? "s" : ""}, valorisées
-              ${v.heuresEstimees ? `sur la base journalière déclarée (${eur(v.coutDemiJournee)}
+              ${v.coutInconnu
+                ? `non valorisées : aucun coût journalier ni horaire n'est déclaré`
+                : v.heuresEstimees ? `sur la base journalière déclarée (${eur(v.coutDemiJournee)}
               la demi-journée)` : `au coût horaire chargé de ${eur(v.coutHeure)}`}</span></td>
               <td class="tnum" style="text-align:right">${eur(v.competencesBrut)}</td></tr>
           ${v.ecreteParSalarie ? `<tr><td class="muted">Au-delà du plafond de ${eur(v.plafondSalarie)} par salarié</td>
@@ -5372,7 +5376,7 @@ function vueMecenat(u){
      leur valorisation au coût de revient et le total de l'assiette. Elle est destinée à votre
      comptabilité et aux associations bénéficiaires, qui doivent la contresigner.</p>
      <p class="hint" style="margin-top:var(--s4)">Le coût journalier moyen actuellement retenu est
-     de ${eur(e.cout_jour_moyen || 300)}. Vous pouvez le corriger dans les paramètres de l'entreprise.</p>`,
+     de ${e.cout_jour_moyen ? eur(e.cout_jour_moyen) : "— non déclaré"}. Vous pouvez le renseigner dans les paramètres de l'entreprise.</p>`,
     [{ label:"Fermer" },
      { label:"Imprimer", classe:"btn--primary", onClick: () => setTimeout(() => window.print(), 300) }]);
 
@@ -5388,7 +5392,7 @@ function vueMecenat(u){
        "Quantité", "Valorisation"],
       ms.map(m => { const a = DB.annonceDe(m), sal = DB.utilisateur(m.salarie);
         const val = estTemps(a.type) && a.temps_travail
-          ? m.quantite * v.coutDemiJournee
+          ? m.quantite * (v.coutDemiJournee || 0)
           : (estArgent(a.type) ? m.quantite : 0);
         return [a.titre, (DB.association(a.asso) || {}).nom, BAREME[a.type].label,
                 a.temps_travail ? "oui" : "non", sal ? sal.nom : "", m.date, m.quantite, val]; }));
@@ -5410,7 +5414,7 @@ function ouvrirConvention(u, m){
   const asso = DB.association(a.asso);
   const sal = DB.utilisateur(m.salarie);
   const v = DB.valorisationMecenat(u.org);
-  const valorisation = m.quantite * v.coutDemiJournee;
+  const valorisation = m.quantite * (v.coutDemiJournee || 0);
   const champ = (x) => x || `<span class="v">[à compléter]</span>`;
   const art = (n, titre, corps) =>
     `<h2>Article ${n}, ${titre}</h2>${corps}`;
@@ -5564,7 +5568,7 @@ function ouvrirConvention(u, m){
     de revient. Les estimations affichées par Riseva, les heures planifiées et les points de
     classement sont sans valeur fiscale.</div>
     <table>
-      <tr><td>Coût journalier chargé retenu</td><td>${eur(e.cout_jour_moyen || 300)}</td></tr>
+      <tr><td>Coût journalier chargé retenu</td><td>${e.cout_jour_moyen ? eur(e.cout_jour_moyen) : "non déclaré"}</td></tr>
       <tr><td>Demi-journées prévues</td><td>${m.quantite}</td></tr>
       <tr><td>Valorisation prévisionnelle</td><td><strong>${eur(valorisation)}</strong></td></tr>
       <tr><td>Plafond par salarié et par exercice</td><td>${eur(v.plafondSalarie)}, soit trois fois
@@ -7783,7 +7787,12 @@ function apercuRapportCSE(eid, meta){
         meta.genere_le ? `, arrêté le ${dateFR(meta.genere_le)}` : ""}.</p>
     <div class="kpis">
       ${kpi("Points retenus", nb(r.points), "après écrêtage par format")}
-      ${kpi("Missions validées", nb(r.missions), "confirmées par les associations")}
+      ${kpi("Missions comptées", nb(r.missions),
+            r.missionsSansReponse
+              ? `dont ${nb(r.missionsConfirmees)} confirmée${r.missionsConfirmees > 1 ? "s" : ""} `
+                + `par les associations et ${nb(r.missionsSansReponse)} close${
+                    r.missionsSansReponse > 1 ? "s" : ""} sans réponse`
+              : "toutes confirmées par les associations")}
       ${kpi("Salariés engagés", nb(r.salariesEngages) + " / " + nb(r.salariesTotal), "sur la saison")}
       ${kpi("Associations soutenues", nb(r.associations), "structures distinctes")}
     </div>

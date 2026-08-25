@@ -206,8 +206,12 @@ du client, et l'écran la lui pose.
 
 ## 6. Annonces et missions
 
-**E-6.1** — Trois types d'annonce, et trois seulement en v1 : don financier, bénévolat
-demi-journée, don de matériel.
+**E-6.1** — Sept types d'annonce, et sept seulement : bénévolat demi-journée, bénévolat
+journée, mécénat de compétences, parrainage d'animal, adoption d'animal, don de matériel, don
+financier. La spécification n'en portait que trois ; le produit en construit sept depuis
+plusieurs mois, chacun barémé en base et versionné par saison. **Le cahier suit le code, pas
+l'inverse** : quatre formats en service et jamais spécifiés, c'était le cahier qui avait tort.
+Corrigé le 25/08/2026. Tout huitième format passe par une entrée datée de `DECISIONS.md`.
 
 **E-6.2** — L'association choisit le type, la quantité et la description. **Elle ne choisit
 jamais les points** : le barème est imposé par la plateforme.
@@ -407,9 +411,17 @@ promettre que la facture y sera adressée.**
 **E-10.7** — Deux circuits, **aucun ne passe par Riseva** : HelloAsso (carte) et le virement
 direct. Le virement est le socle.
 
-**E-10.8** — Riseva ne détient **aucune clé d'API d'association**. L'adresse du formulaire
-HelloAsso est contrainte au domaine `helloasso.com` en HTTPS, dans le navigateur **et** par
-contrainte en base.
+**E-10.8** — Riseva ne détient **aucune clé d'API que l'association lui aurait confiée**, et
+ne lui demande jamais d'en saisir une. L'adresse du formulaire HelloAsso est contrainte au
+domaine `helloasso.com` en HTTPS, dans le navigateur **et** par contrainte en base.
+
+Ce que Riseva détient, en revanche, et il faut l'écrire : quand une association connecte son
+compte, elle **délègue** par autorisation OAuth. Riseva conserve alors un jeton de
+rafraîchissement qui lui permet d'ouvrir une intention de paiement sur le compte de collecte de
+cette association — jamais d'en retirer des fonds. La délégation est révocable par l'association
+à tout moment, depuis Riseva comme depuis HelloAsso. Un jeton de délégation révocable n'est pas
+une clé d'API remise en clair, mais ce n'est pas rien non plus, et le cahier ne peut pas laisser
+croire qu'il n'existe pas. Précisé le 25/08/2026.
 
 **E-10.9** — Le donateur vire directement, avec une référence émise par Riseva
 (`RSV-XXXX-XXXX`), qui permet à l'association de rapprocher la ligne de son relevé.
@@ -757,6 +769,37 @@ pendant qu'on appuie dessus.**
 **E-20.5** — **Un champ qu'un écran demande doit avoir une colonne, une RPC qui la prend, et un
 mappeur qui la rend sous le même nom.** Trois maillons ; il suffit qu'un manque pour que
 l'utilisateur écrive dans le vide en lisant « enregistré ».
+
+---
+
+## 20 bis. Ce qui reste ouvert au 25/08/2026
+
+Ces cinq points sont **connus, datés et assumés**. Ils ne sont pas des oublis : les écrire ici
+vaut mieux que de laisser croire qu'ils sont tenus.
+
+**O-1 — Versions des observations approuvées (E-8.3).** Corriger une valeur approuvée incrémente
+un compteur et réécrit la ligne : l'ancienne valeur n'est pas conservée. Il manque une table
+d'historique. Tant qu'elle n'existe pas, le produit ne doit pas promettre de restituer une
+version antérieure.
+
+**O-2 — Dictionnaire figé avec la campagne (E-8.10).** Les définitions sont recomposées à la
+lecture depuis le catalogue courant : une définition corrigée aujourd'hui réécrit le
+dictionnaire d'une campagne close. Il manque un instantané posé à la clôture.
+
+**O-3 — Rapport scellé restitué depuis la base (E-9.1, E-9.3).** La base scelle bien le contenu ;
+l'écran le reconstruit depuis l'état courant. Un rapport arrêté peut donc bouger à l'affichage,
+et le drapeau `retenu_additif` — qui explique pourquoi quatre trimestres ne font pas l'annuel —
+n'atteint pas l'écran.
+
+**O-4 — Heures réellement effectuées (E-11.8).** La valorisation du mécénat de compétences
+retombe toujours sur la durée conventionnelle : il n'existe ni colonne, ni saisie, ni écran
+d'émargement pour les heures réelles. L'écran l'écrit à côté du chiffre — c'est E-11.9, et elle
+est tenue — mais la valorisation au coût de revient au prorata du temps n'est pas atteignable.
+
+**O-5 — Scellement et dernière mission déclarée (E-9.2).** Le rapport se scelle à la fin de la
+période augmentée du délai, sans regarder la date de déclaration de la dernière mission. Une
+mission déclarée très en retard peut donc être encore dans ses quatorze jours au moment du
+scellement.
 
 ---
 

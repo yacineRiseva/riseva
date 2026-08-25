@@ -360,6 +360,21 @@ begin
     v_total := v_total + v_n;
   end if;
 
+  -- Les signalements. Le produit annonce publiquement qu'ils sont conservés douze
+  -- mois ; rien ne les purgeait. Ils portent l'auteur du signalement et ses
+  -- précisions en texte libre, c'est-à-dire des données personnelles, et une
+  -- durée annoncée qui n'est exécutée nulle part n'est pas une durée de
+  -- conservation, c'est une phrase dans une politique.
+  delete from public.signalement s
+   where s.cree_le < now() - interval '12 months'
+     and s.decide_le is not null;
+  get diagnostics v_n = row_count;
+  if v_n > 0 then
+    insert into private.journal_purge (ensemble, lignes, motif)
+    values ('signalement', v_n, 'durée de conservation échue');
+    v_total := v_total + v_n;
+  end if;
+
   -- Le registre de sécurité était le seul ensemble sans échéance : ses lignes
   -- restaient telles quelles indéfiniment, texte libre compris. Une donnée
   -- personnelle ne se conserve pas sans terme, et le registre des accidents
@@ -416,7 +431,12 @@ begin
   -- Edge en traite deux cents par passage : un seul appel par nuit suffisait
   -- tant que le réseau était petit, et laissait ensuite un retard qui ne se
   -- résorbait jamais — le rappel « à trois jours » arrivait à trois semaines.
-  select count(*) into v_attente from public.envoi where etat = 'a_envoyer';
+  -- Les ÉCHECS comptent aussi. La fonction d'envoi reprend délibérément les
+  -- lignes en `echec` sous trois tentatives — un 429 passager du prestataire —,
+  -- mais le déclencheur ne les voyait pas : s'il ne restait qu'un message en
+  -- échec, plus aucun appel ne partait, et il restait bloqué là pour toujours.
+  select count(*) into v_attente from public.envoi
+   where etat in ('a_envoyer','echec') and tentatives < 3;
   if v_attente = 0 then return 0; end if;
   v_lots := least(25, ceil(v_attente / 200.0)::integer);
 

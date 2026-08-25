@@ -385,3 +385,34 @@ la personne la mieux placée pour le constater.**
 
 La règle : **avant de notifier une décision, vérifier qu'elle a un effet.** Une
 décision de modération qui ne modère rien est pire qu'une absence de décision.
+
+## Le cahier des charges, et ce qu'il a trouvé
+
+*25/08/2026.* Écrire le cahier des charges — 199 exigences numérotées, six critères de
+réception — puis le soumettre au code a produit plus de défauts qu'aucun audit précédent. Pas
+parce que le code était moins bon : parce qu'une exigence numérotée se vérifie, alors qu'une
+intention se raconte.
+
+Quatre défauts en sont sortis qui rendaient le produit **inutilisable en production**, et
+qu'aucune recette ne pouvait voir puisqu'elles tournent toutes sur le jeu de démonstration :
+
+1. **Aucune saisie d'indicateurs n'était enregistrable.** L'écran envoyait la valeur d'un champ,
+   c'est-à-dire une chaîne ; la base n'accepte que des nombres. Toute la collecte — campagnes,
+   approbation, écarts, rapport, dictionnaire — était inatteignable chez un vrai client.
+2. **Le classement n'existait pas.** Le navigateur le dérivait des sociétés que la RLS le laisse
+   lire : la sienne. La cohorte comptait une ligne, et l'écran annonçait « classement non
+   publié » pour toujours. La fonction qui calcule le vrai classement existait depuis le premier
+   jour et n'était appelée nulle part.
+3. **Le chiffre d'affaires, le coût journalier moyen, le SIRET et l'adresse étaient lisibles par
+   chaque salarié**, en une requête. Une policy protège les lignes, jamais les colonnes.
+4. **Un lien CSE pouvait arracher un compte à un autre client.** Deux des trois portes d'entrée
+   refusaient un compte déjà rattaché ; la troisième écrasait l'appartenance.
+
+La règle qui en sort : **une exigence sans identifiant ne se vérifie pas.** Tant qu'une règle
+vit dans une phrase au milieu d'un document, elle est vraie pour celui qui l'a écrite. Numérotée,
+elle devient une question à laquelle le code répond oui ou non.
+
+Et une seconde, plus dure : **le cahier suit le code quand c'est le cahier qui a tort.** Sept
+formats d'annonce tournent depuis des mois, la spécification en promettait trois. On ne retire
+pas quatre formats pour faire plaisir à un document : on corrige le document, et on date la
+correction.

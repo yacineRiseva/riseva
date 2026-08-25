@@ -2735,7 +2735,7 @@ begin
   -- designe quand meme.
   begin
     perform public.joindre_piece('observation', v_obs,
-      'ailleurs/facture.pdf', 'facture.pdf', 'application/pdf', 1000, null);
+      'ailleurs/facture.pdf', 'facture.pdf', 'application/pdf', 1000, repeat('b', 64));
     perform pg_temp.dit('un chemin hors de son espace est refuse', false);
   exception when others then
     perform pg_temp.dit('un chemin hors de son espace est refuse', true);
@@ -2745,7 +2745,7 @@ begin
   -- telecharge par le siege est une chaine d'infection interne complete.
   begin
     perform public.joindre_piece('observation', v_obs,
-      v_ent::text || '/preuves/x.exe', 'x.exe', 'application/x-msdownload', 1000, null);
+      v_ent::text || '/preuves/x.exe', 'x.exe', 'application/x-msdownload', 1000, repeat('c', 64));
     perform pg_temp.dit('un format non prevu est refuse', false);
   exception when others then
     perform pg_temp.dit('un format non prevu est refuse', true);
@@ -2760,7 +2760,7 @@ begin
   if v_autre is not null then
     begin
       perform public.joindre_piece('observation', v_autre,
-        v_ent::text || '/preuves/vol.pdf', 'vol.pdf', 'application/pdf', 1000, null);
+        v_ent::text || '/preuves/vol.pdf', 'vol.pdf', 'application/pdf', 1000, repeat('d', 64));
       perform pg_temp.dit('on ne joint rien au chiffre d''une autre entreprise', false);
     exception when others then
       perform pg_temp.dit('on ne joint rien au chiffre d''une autre entreprise', true);
@@ -2790,7 +2790,7 @@ begin
   if v_autre is not null then
     v_p := public.joindre_piece('observation', v_autre,
              v_ent::text || '/preuves/releve.pdf', 'releve.pdf',
-             'application/pdf', 4000, null);
+             'application/pdf', 4000, repeat('e', 64));
     begin
       perform public.retirer_piece(v_p);
       perform pg_temp.dit('une preuve approuvee ne se retire plus', false);

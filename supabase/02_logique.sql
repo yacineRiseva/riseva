@@ -1783,8 +1783,14 @@ create or replace function public.supprimer_salarie(p_profil uuid)
 returns void
 language plpgsql security definer set search_path = '' as $$
 begin
-  if not private.est_admin() and current_setting('role', true) is distinct from 'service_role'
-     and auth.uid() is not null then
+  -- Trois appelants légitimes, et trois seulement : Riseva, la fonction Edge
+  -- d'effacement au nom du service, et LA PERSONNE ELLE-MÊME. Le troisième cas
+  -- manquait à ce premier garde : il levait pour tout appel authentifié ordinaire,
+  -- ce qui rendait le second `if` — « on n'efface que son propre compte » —
+  -- inatteignable, et le droit à l'effacement dépendant d'un intermédiaire.
+  if not private.est_admin()
+     and current_setting('role', true) is distinct from 'service_role'
+     and auth.uid() is distinct from p_profil then
     raise exception 'Réservé à Riseva ou à la personne concernée' using errcode = '42501';
   end if;
   if not private.est_admin() and auth.uid() is not null and auth.uid() <> p_profil then
@@ -2871,7 +2877,18 @@ language sql stable security definer set search_path = '' as $$
   )
   select p.type_evenement, count(*)::int
     from perimetre p
+   -- DEUX planchers, et ils ne comptent pas la même chose. Cinq ÉVÉNEMENTS ne
+   -- sont pas cinq PERSONNES : le même salarié peut en déclarer cinq, et le
+   -- registre ne conserve aucune identité qui permettrait de le savoir. Ce qui
+   -- borne le risque, c'est la taille du périmètre — dans une société de quatre
+   -- personnes, « trois accidents de manutention » désigne quelqu'un quel que
+   -- soit le nombre d'événements. La fonction n'exigeait que le premier.
    where (select count(*) from perimetre) >= 5
+     and coalesce(
+           (select e.effectif from public.entreprise e where e.id = p_societe),
+           (select sum(et.effectif)::int from public.etablissement et
+             where et.societe = p_societe and et.ferme_le is null),
+           0) >= 5
    group by p.type_evenement
    order by count(*) desc
 $$;
@@ -3482,6 +3499,15 @@ begin
           or private.dans_mon_groupe(p_entreprise)
           or private.est_admin()) then
     raise exception 'Réservé à votre entreprise' using errcode = '42501';
+  end if;
+  -- Et pas le CSE. Le raisonnement écrit plus bas — « l'appelant est
+  -- l'entreprise elle-même, qui voit déjà la liste nominative trois écrans plus
+  -- loin » — ne vaut que pour l'entreprise. Un élu, lui, ne voit aucune liste
+  -- nominative, et « 1 engagé sur 3 » est exactement l'agrégat sous plancher que
+  -- le produit lui promet de ne jamais rendre. `mon_entreprise()` est renseignée
+  -- pour un compte CSE : sans cette ligne, il passait le garde ci-dessus.
+  if private.mon_role() = 'cse' then
+    raise exception 'Cet écran n''est pas ouvert au CSE' using errcode = '42501';
   end if;
 
   return query

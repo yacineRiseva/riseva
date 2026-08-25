@@ -1302,7 +1302,11 @@ create table piece_jointe (
   nom           text not null check (length(nom) between 1 and 200),
   type_mime     text not null,
   taille        integer not null check (taille > 0 and taille <= 10485760),
-  empreinte     text check (empreinte ~ '^[0-9a-f]{64}$'),
+  -- `not null`. C'est l'empreinte qui fait la preuve : elle dit que le fichier
+  -- qu'on télécharge aujourd'hui est celui qui a été déposé ce jour-là. Une
+  -- pièce sans empreinte prouve seulement qu'un fichier existe — et la colonne
+  -- était nullable, donc une preuve pouvait entrer sans rien prouver.
+  empreinte     text not null check (empreinte ~ '^[0-9a-f]{64}$'),
   depose_par    uuid references profil(id) on delete set null,
   depose_le     timestamptz not null default now(),
   retire_le     timestamptz,
