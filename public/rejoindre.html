@@ -22,7 +22,8 @@
      au seuil sur toute base autre que la demonstration. -->
 <script src="/app/config.js" onerror="void 0"></script>
 <script type="module">
-import { DB, BAREME, demarrerVierge, connecterSupabase } from "/app/data.js";
+import { DB, BAREME, demarrerVierge, connecterSupabase,
+         envoyerLienConnexion, sessionAuth } from "/app/data.js";
 import { h, esc, nb, toast } from "/app/ui.js";
 
 const params = new URLSearchParams(location.search);
@@ -97,7 +98,33 @@ function erreur(titre, texte){
   </div>`));
 }
 
-if (!code)        erreur("Il manque le code", "Demandez à votre entreprise le lien d'inscription complet, il se termine par un code.");
+/* Le retour du lien de connexion. La personne revient ici authentifiee, avec le
+   code et son nom dans l'adresse : c'est maintenant, et seulement maintenant,
+   que le rattachement a l'entreprise se fait. */
+async function finirInscription(){
+  const nom = params.get("nom") || "";
+  const sess = await sessionAuth();
+  if (!sess || !sess.user){
+    erreur("Le lien a expiré",
+      "Il ne sert qu'une fois et reste valable une heure. Redemandez-en un depuis le lien "
+      + "d'inscription de votre entreprise.");
+    return;
+  }
+  try {
+    await DB.rejoindre(code, nom, sess.user.email);
+  } catch (err){
+    /* Deja rattache : ce n'est pas une erreur, c'est quelqu'un qui a clique deux
+       fois sur son lien. On l'envoie sur son tableau de bord. */
+    if (!/déjà|deja/i.test(err.message || "")){
+      erreur("Le compte n'a pas pu être ouvert", err.message || "Réessayez dans un instant.");
+      return;
+    }
+  }
+  location.href = "/app/#/annonces";
+}
+
+if (params.get("suite") === "1" && code){ finirInscription(); }
+else if (!code)   erreur("Il manque le code", "Demandez à votre entreprise le lien d'inscription complet, il se termine par un code.");
 else if (!inv)    erreur("Ce code n'existe pas", "Vérifiez le lien, ou demandez à votre entreprise de vous le renvoyer.");
 else if (!inv.active) erreur("Ce lien a été désactivé", "Votre entreprise l'a révoqué. Elle peut vous en fournir un nouveau.");
 /* Le quota de places compte les salariés. Un accès de référent ou de CSE n'en
@@ -249,10 +276,50 @@ else {
     </form>
   </div>`));
 
-  boite.querySelector("#f").addEventListener("submit", (e) => {
+  boite.querySelector("#f").addEventListener("submit", async (e) => {
     e.preventDefault();
     const nom = boite.querySelector("#nom").value.trim();
     const mail = boite.querySelector("#mail").value.trim();
+    const bouton = boite.querySelector("#f button[type=submit]") || boite.querySelector("#f .btn");
+
+    /* En production, ouvrir le compte demande une session : la fonction Postgres
+       qui rattache un salarie a son entreprise lit `auth.uid()`, et sans session
+       elle refuse. Ce qui se passait avant : l'appel partait quand meme, la
+       promesse rejetee etait avalee par un `catch` vide, et l'ecran annoncait
+       « Compte cree » alors qu'aucun compte n'existait et qu'aucun courriel
+       n'etait parti. Il n'y a pas de defaut plus couteux que celui-la : la
+       personne croit son compte ouvert et n'a aucune raison de recommencer.
+
+       Le chemin correct tient en deux temps. Le lien de connexion part d'abord ;
+       au retour, la session existe, et c'est a ce moment que le rattachement se
+       fait. Le code du lien voyage dans l'adresse de retour, donc rien n'est
+       perdu si la personne ouvre son courriel sur un autre appareil. */
+    if (DB.mode === "supabase"){
+      if (bouton) bouton.disabled = true;
+      try {
+        const retour = location.origin + location.pathname
+          + "?code=" + encodeURIComponent(code)
+          + "&nom=" + encodeURIComponent(nom) + "&suite=1";
+        await envoyerLienConnexion(mail, { retour });
+        boite.innerHTML = "";
+        boite.appendChild(h(`<div>
+          <span class="badge badge--info" style="height:28px"><span class="dot"></span>Lien envoyé</span>
+          <h1 style="margin-top:var(--s5);font-size:var(--t-h2)">Ouvrez votre boîte</h1>
+          <p class="muted" style="margin-top:var(--s4)">
+            Un lien de connexion vient d'être envoyé à <b>${esc(mail)}</b>. Cliquez dessus et
+            votre compte sera ouvert. Le lien est valable une heure et ne sert qu'une fois.</p>
+          <p class="hint" style="margin-top:var(--s5)">Rien n'est encore enregistré tant que
+            vous n'avez pas cliqué : votre place vous attend.</p>
+        </div>`));
+      } catch (err){
+        toast(err.message || "Le lien n'a pas pu être envoyé.");
+        if (bouton) bouton.disabled = false;
+      }
+      return;
+    }
+
+    /* En demonstration, il n'y a pas de courriel : le compte s'ouvre tout de
+       suite et l'ecran ne promet aucun envoi. */
     let r;
     try { r = DB.rejoindre(code, nom, mail); }
     catch (err){ toast(err.message); return; }
@@ -262,8 +329,7 @@ else {
       <span class="badge badge--ok" style="height:28px"><span class="dot"></span>Compte créé</span>
       <h1 style="margin-top:var(--s5);font-size:var(--t-h2)">Bienvenue ${esc(nom.split(" ")[0])}</h1>
       <p class="muted" style="margin-top:var(--s4)">
-        Vous faites maintenant partie de l'équipe ${esc(r.entreprise.nom)} sur Riseva.
-        Un lien de connexion vous a été envoyé sur ${esc(mail)}.</p>
+        Vous faites maintenant partie de l'équipe ${esc(r.entreprise.nom)} sur Riseva.</p>
       <a class="btn btn--primary btn--lg" style="margin-top:var(--s8)" href="/app/#/annonces">
         Voir les annonces</a>
     </div>`));

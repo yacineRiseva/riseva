@@ -589,6 +589,10 @@ grant usage on schema private to riseva_definer;
 -- SECURITY DEFINER — elles ne doivent rien pouvoir faire d'autre que calculer —
 -- donc elles n'appartiennent pas à `riseva_definer` et la table rase du début
 -- leur a retiré l'EXECUTE de tout le monde. On le rend, à ce seul rôle.
+grant execute on function private.trimestres(date, date) to riseva_definer;
+grant execute on function private.clore_campagne_effet(uuid) to riseva_definer;
+grant execute on function private.points_bruts(uuid, uuid, date, date) to riseva_definer;
+grant execute on function private.realisations_brutes(uuid, uuid, uuid, date, date) to riseva_definer;
 grant execute on function private.luhn_ok(text) to riseva_definer;
 grant execute on function private.verdict_registre(public.association, jsonb) to riseva_definer;
 grant execute on function private.mots_utiles(text) to riseva_definer;

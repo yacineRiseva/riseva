@@ -6188,6 +6188,73 @@ export function demoDemandee(){
   catch { return false; }
 }
 
+/* ---------------------------------------------------------------------- */
+/* L'AUTHENTIFICATION                                                       */
+/*                                                                          */
+/* Ce qui manquait, et ce que ca rendait faux. L'ecran de connexion promet   */
+/* « nous vous envoyons un lien de connexion » depuis le premier jour, et    */
+/* aucun appel a `signInWithOtp` n'existait dans le depot. En demonstration  */
+/* ca ne se voyait pas : la connexion retrouve le compte dans la liste en    */
+/* memoire et pose un identifiant dans le navigateur. En production, ce meme */
+/* code posait un identifiant que Postgres n'a jamais vu : aucune session,   */
+/* donc aucun jeton, donc la RLS ne rend rien. L'ecran de connexion etait    */
+/* une facade, et la page de rejointe annoncait « compte cree » sans qu'un   */
+/* compte existe nulle part.                                                */
+/*                                                                          */
+/* Le mot de passe, lui, n'existe pas et c'est un choix : un lien a usage    */
+/* unique envoye par courriel. Il n'y a donc pas de mot de passe a perdre,   */
+/* pas de mot de passe a voler dans notre base, et rien a hacher chez nous.  */
+/* Supabase Auth garde l'empreinte du lien et fait expirer la session ;      */
+/* notre code ne voit jamais qu'un jeton, et ne l'ecrit nulle part.          */
+
+let clientAuth = null;
+
+/* Le client d'authentification, meme quand la couche de donnees n'est pas
+   branchee : la page de rejointe et l'ecran de connexion en ont besoin avant
+   d'avoir la moindre donnee a lire. */
+export async function clientDAuth(config = null){
+  if (clientAuth) return clientAuth;
+  const c = config || (typeof window !== "undefined" ? window.RISEVA_CONFIG : null);
+  if (!c || !c.url || !c.anonKey) return null;
+  const { createClient } = await chargerPilote();
+  clientAuth = createClient(c.url, c.anonKey);
+  return clientAuth;
+}
+
+/* Demander le lien. `emailRedirectTo` ramene la personne sur l'ecran d'ou elle
+   est partie : un salarie qui vient d'un lien d'inscription doit revenir sur ce
+   lien-la, code compris, sinon il se retrouve authentifie et sans entreprise. */
+export async function envoyerLienConnexion(email, { retour = null } = {}){
+  const c = await clientDAuth();
+  if (!c) throw new Error("Cette installation n'a pas de configuration serveur.");
+  const { error } = await c.auth.signInWithOtp({
+    email: String(email || "").trim().toLowerCase(),
+    options: { emailRedirectTo: retour || location.href }
+  });
+  if (error) throw new Error(error.message);
+  return true;
+}
+
+/* La session, s'il y en a une. Le jeton n'est pas recopie sur `window` : un
+   jeton pose sur un global enumerable se lit en une ligne depuis n'importe quel
+   script tiers charge par la page. On le redemande au moment de s'en servir. */
+export async function sessionAuth(){
+  const c = await clientDAuth();
+  if (!c) return null;
+  const { data } = await c.auth.getSession();
+  return data && data.session ? data.session : null;
+}
+
+export async function jetonAuth(){
+  const s = await sessionAuth();
+  return s ? s.access_token : null;
+}
+
+export async function seDeconnecter(){
+  const c = await clientDAuth();
+  if (c) { try { await c.auth.signOut(); } catch (e) { /* deja parti */ } }
+}
+
 export async function connecterSupabase(config, { client: injecte = null } = {}){
   if (demoDemandee()){
     /* On ne touche pas a `impl` : il porte deja le moteur de demonstration. La
@@ -6218,13 +6285,10 @@ export async function connecterSupabase(config, { client: injecte = null } = {})
   /* Le jeton de la session, mis a disposition des appels aux fonctions Edge.
      C'est le meme que celui que la bibliotheque envoie deja a chaque requete :
      il ne sort pas de l'onglet, et il expire avec la session. */
-  try {
-    const { data } = await client.auth.getSession();
-    if (data && data.session) window.RISEVA_JETON = data.session.access_token;
-    client.auth.onAuthStateChange((_e, sess) => {
-      window.RISEVA_JETON = sess ? sess.access_token : null;
-    });
-  } catch (e) { /* pas de session : les fonctions Edge refuseront, et c'est juste */ }
+  /* Le client d'authentification et celui des donnees sont le meme objet : deux
+     clients, ce seraient deux sessions, et la seconde ne saurait rien de la
+     premiere. */
+  clientAuth = client;
   const dos = creerSupabase(client);
   /* On charge avant de vérifier : tant que l'état n'est pas là, la couche n'a
      que ses écritures et la vérification ci-dessous se plaindrait à tort. */

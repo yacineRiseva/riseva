@@ -125,14 +125,15 @@ end $$;
 -- de n'importe quel identifiant, et le classement publie ces mêmes entiers sur
 -- ses lignes anonymisées. Une jointure sur deux nombres levait le masque de
 -- toute la moitié basse — l'anonymat tenait à un affichage, pas à une frontière.
-create or replace function public.points_entreprise(p_entreprise uuid, p_saison uuid)
+-- Le calcul lui-même, sans frontière, et borné par des dates : sans ces bornes
+-- un rapport trimestriel rendait le score de toute la saison, et les quatre
+-- trimestres d'une année affichaient quatre fois le même chiffre.
+create or replace function private.points_bruts(
+  p_entreprise uuid, p_saison uuid,
+  p_du date default null, p_au date default null)
 returns table (type public.type_annonce, brut bigint, retenu bigint)
 language sql stable security definer set search_path = '' as $$
-  with autorise as (
-    select p_entreprise = private.mon_entreprise()
-        or private.dans_mon_groupe(p_entreprise)
-        or private.est_admin() as ok
-  ), par_type as (
+  with par_type as (
     select a.type, sum(m.points)::bigint as pts
       from public.mission m
       join public.annonce a on a.id = m.annonce
@@ -140,11 +141,22 @@ language sql stable security definer set search_path = '' as $$
        and a.saison = p_saison
        and m.etat in ('validee','validee_auto')
        and m.origine = 'entreprise'
+       and (p_du is null or m.date_mission >= p_du)
+       and (p_au is null or m.date_mission <= p_au)
      group by a.type
   ), total as (select coalesce(sum(pts), 0)::bigint as brut from par_type)
   select p.type, p.pts, greatest(0, least(p.pts, t.brut - p.pts))::bigint
-    from par_type p cross join total t, autorise
-   where autorise.ok
+    from par_type p cross join total t
+$$;
+
+create or replace function public.points_entreprise(p_entreprise uuid, p_saison uuid)
+returns table (type public.type_annonce, brut bigint, retenu bigint)
+language sql stable security definer set search_path = '' as $$
+  select b.type, b.brut, b.retenu
+    from private.points_bruts(p_entreprise, p_saison) b
+   where p_entreprise = private.mon_entreprise()
+      or private.dans_mon_groupe(p_entreprise)
+      or private.est_admin()
 $$;
 
 -- Le classement, en un seul agrégat. L'ancienne version rappelait plusieurs
@@ -275,9 +287,15 @@ $$;
 
 -- ---------------------------------------------------------------- réalisations
 -- Confirmé et estimé, séparés jusqu'au bout.
-create or replace function public.realisations(
+-- La mesure, sans frontière. Elle est privée pour une raison précise : une
+-- tâche planifiée n'a pas d'identité, `mon_entreprise()` y vaut NULL, et la
+-- garde d'autorisation lui rendait donc zéro ligne. Le rapport nocturne
+-- publiait ainsi des zéros pour toutes les entreprises, chaque nuit, sans
+-- qu'aucune erreur ne soit levée. La garde vit maintenant dans la fonction
+-- publique juste en dessous, et le calcul n'existe qu'ici.
+create or replace function private.realisations_brutes(
   p_entreprise uuid default null, p_association uuid default null,
-  p_saison uuid default null)
+  p_saison uuid default null, p_du date default null, p_au date default null)
 returns table (unite public.unite_realisation, confirme numeric, estime numeric,
                missions bigint, sans_reponse bigint)
 language sql stable security definer set search_path = '' as $$
@@ -300,13 +318,25 @@ language sql stable security definer set search_path = '' as $$
      and (p_entreprise  is null or m.entreprise = p_entreprise)
      and (p_association is null or a.association = p_association)
      and (p_saison      is null or a.saison = p_saison)
-     -- Le total du réseau est public ; le détail d'une entreprise nommée ne
-     -- l'est pas. Un visiteur ne peut donc pas cibler une entreprise.
-     and (p_entreprise is null
-          or p_entreprise = private.mon_entreprise()
-          or private.dans_mon_groupe(p_entreprise)
-          or private.est_admin())
+     and (p_du is null or m.date_mission >= p_du)
+     and (p_au is null or m.date_mission <= p_au)
    group by a.impact_unite
+$$;
+
+-- Le total du réseau est public ; le détail d'une entreprise nommée ne l'est
+-- pas. Un visiteur ne peut donc pas cibler une entreprise.
+create or replace function public.realisations(
+  p_entreprise uuid default null, p_association uuid default null,
+  p_saison uuid default null)
+returns table (unite public.unite_realisation, confirme numeric, estime numeric,
+               missions bigint, sans_reponse bigint)
+language sql stable security definer set search_path = '' as $$
+  select r.unite, r.confirme, r.estime, r.missions, r.sans_reponse
+    from private.realisations_brutes(p_entreprise, p_association, p_saison) r
+   where p_entreprise is null
+      or p_entreprise = private.mon_entreprise()
+      or private.dans_mon_groupe(p_entreprise)
+      or private.est_admin()
 $$;
 
 -- ---------------------------------------------------------------- sièges
@@ -327,12 +357,26 @@ declare
   v_ent uuid := private.mon_entreprise();
   v_code text;
   v_indice text;
+  v_sieges integer;
 begin
   if v_ent is null or private.mon_role() <> 'entreprise_admin' then
     raise exception 'Réservé à l''administrateur de l''entreprise' using errcode = '42501';
   end if;
   if p_places is null or p_places <= 0 or p_places > 100000 then
     raise exception 'Nombre de places invalide' using errcode = '22023';
+  end if;
+  -- Et pas plus que ce que le contrat porte. L'ecran promet que le lien « ne
+  -- pourra jamais depasser le nombre de places de votre abonnement » ; la
+  -- fonction acceptait dix mille places sur un contrat de deux sieges. Le
+  -- plafond reel s'appliquait ensuite, en silence, a l'inscription du
+  -- troisieme salarie : l'admin decouvrait la regle par un refus au lieu de la
+  -- lire au moment ou il choisit.
+  select coalesce(a.sieges, 0) into v_sieges
+    from public.abonnement a
+   where a.entreprise = v_ent and a.saison = private.saison_ouverte();
+  if v_sieges > 0 and p_places > v_sieges then
+    raise exception 'Votre abonnement ouvre % place(s) : le lien ne peut pas en promettre %',
+      v_sieges, p_places using errcode = '23514';
   end if;
   if p_jours is null or p_jours <= 0 or p_jours > 365 then
     raise exception 'Durée invalide' using errcode = '22023';
@@ -342,8 +386,16 @@ begin
               encode(extensions.gen_random_bytes(16), 'base64'), '+', '-'), '/', '_'), '=', '');
   v_indice := substr(v_code, 1, 6);
 
+  -- On coupe l'ancien lien de l'entreprise, et lui seul. Sans ces trois
+  -- conditions, regenerer le lien des salaries desactivait aussi l'invitation
+  -- nominative d'un elu du CSE ou d'un referent de site qui ne l'avait pas
+  -- encore utilisee : la personne cliquait sur son lien et lisait « lien
+  -- invalide », sans que personne n'ait voulu le lui retirer. Le moteur du
+  -- navigateur filtrait deja correctement ; celui-ci non.
   update public.invitation i set active = false
-   where i.entreprise = v_ent and i.active;
+   where i.entreprise = v_ent and i.active
+     and not i.pour_referent and not coalesce(i.pour_cse, false)
+     and i.etablissement is null;
 
   insert into public.invitation (entreprise, empreinte, indice, places, cree_par, expire_le)
   values (v_ent, extensions.digest(v_code, 'sha256'), v_indice, p_places,
@@ -888,11 +940,24 @@ begin
     raise exception 'Aucun abonnement actif pour la saison en cours' using errcode = '42501';
   end if;
 
-  select coalesce(max(s.numero), 0) + 1 into v_num
-    from public.affectation_siege s where s.abonnement = v_abo.id;
-  if v_num > least(v_abo.sieges, v_inv.places) then
+  -- Le plafond compte les sieges OCCUPES, pas le plus grand numero jamais
+  -- attribue. La difference n'est pas theorique : une entreprise de deux sieges
+  -- dont un salarie part libere bien sa place (`pseudonymiser_salarie` pose
+  -- `liberee_le`), et le suivant se voyait pourtant refuser l'entree avec
+  -- « toutes les places sont prises ». Une place payee et rendue ne se
+  -- revendait jamais. `inviter_salarie` comptait deja de la bonne facon : deux
+  -- regles pour un meme quota, c'est une de trop.
+  --
+  -- Le numero, lui, reste le maximum plus un : il sert a l'unicite et a la
+  -- tracabilite, il ne dit rien de ce qui reste.
+  select count(*) into v_num
+    from public.affectation_siege s
+   where s.abonnement = v_abo.id and s.liberee_le is null;
+  if v_num >= least(v_abo.sieges, v_inv.places) then
     raise exception 'Toutes les places sont prises' using errcode = '23514';
   end if;
+  select coalesce(max(s.numero), 0) + 1 into v_num
+    from public.affectation_siege s where s.abonnement = v_abo.id;
 
   insert into public.profil (id, nom) values (v_uid, split_part(v_email, '@', 1))
     on conflict (id) do nothing;
@@ -2758,4 +2823,48 @@ begin
     (select count(*)::int from att),
     (select percentile_cont(0.5) within group (order by att.jours)::int from att),
     (select count(*)::int from att where att.jours > 90);
+end $$;
+
+-- ------------------------------------------------- découpage de la saison
+-- Quatre trimestres taillés dans la saison elle-même, jamais dans le calendrier
+-- civil : une saison qui commence en septembre n'a pas de premier trimestre en
+-- janvier. Le dernier est borné par la fin de saison, faute de quoi un rapport
+-- couvrirait des semaines qui n'appartiennent plus à la période.
+create or replace function private.trimestres(p_debut date, p_fin date)
+returns table (periode text, debut date, fin date)
+language sql immutable parallel safe set search_path = '' as $$
+  select 'T' || n,
+         (p_debut + make_interval(months => 3 * (n - 1)))::date,
+         least(p_fin, (p_debut + make_interval(months => 3 * n) - interval '1 day')::date)
+    from generate_series(1, 4) as n
+   where (p_debut + make_interval(months => 3 * (n - 1)))::date <= p_fin
+$$;
+
+-- ------------------------------------------------------- clôture de collecte
+-- L'effet d'une clôture, séparé de l'autorisation de clôturer. Deux appelants
+-- le demandent : l'administrateur qui clôt à la main, et la tâche planifiée qui
+-- clôt à l'échéance. Écrire la règle deux fois, c'était accepter qu'un jour les
+-- deux clôtures ne produisent plus le même état.
+--
+-- Les sites qui n'ont pas répondu sont clos SANS RÉPONSE, pas comblés avec la
+-- période précédente. Un chiffre absent reste absent : c'est la règle qui rend
+-- le rapport défendable.
+create or replace function private.clore_campagne_effet(p_campagne uuid)
+returns void
+language plpgsql security definer set search_path = '' as $$
+declare v_c public.campagne_indicateurs;
+begin
+  select * into v_c from public.campagne_indicateurs c where c.id = p_campagne;
+  if not found or v_c.close_le is not null then return; end if;
+
+  insert into public.observation_indicateur (campagne, etablissement, etat, valeurs)
+  select p_campagne, et.id, 'clos_sans_reponse', '{}'::jsonb
+    from public.etablissement et
+    join public.entreprise e on e.id = et.societe
+   where ((v_c.groupe is not null and e.groupe = v_c.groupe)
+          or (v_c.groupe is null and e.id = v_c.entreprise))
+     and not exists (select 1 from public.observation_indicateur o
+                      where o.campagne = p_campagne and o.etablissement = et.id);
+
+  update public.campagne_indicateurs c set close_le = now() where c.id = p_campagne;
 end $$;

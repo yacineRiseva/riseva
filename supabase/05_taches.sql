@@ -115,6 +115,11 @@ end $$;
 -- Un rapport arrêté qui reste dans la base n'a servi à personne. La tâche crée
 -- une ligne d'envoi par rapport scellé, une seule fois : c'est l'index unique
 -- sur la clé qui le garantit, pas un `if` dans cette fonction.
+--
+-- La clé porte l'identifiant du rapport, pas le couple entreprise+période. Avec
+-- l'ancienne clé, le rapport annuel de la deuxième saison portait la même que
+-- celui de la première : `on conflict do nothing` l'absorbait en silence et le
+-- client ne recevait plus jamais de rapport après sa première année.
 create or replace function private.tache_envoi_rapports()
 returns integer
 language plpgsql security definer set search_path = '' as $$
@@ -122,7 +127,7 @@ declare v_n integer;
 begin
   with candidats as (
     select r.id, r.entreprise, r.periode,
-           'rapport:' || r.entreprise || ':' || r.periode as cle,
+           'rapport:' || r.id as cle,
            (select p.profil from private.appartenance p
              where p.entreprise = r.entreprise and p.role = 'entreprise_admin' and p.actif
              order by p.maj_le limit 1) as destinataire
@@ -131,7 +136,8 @@ begin
   )
   insert into public.envoi (cle, type, entreprise, destinataire_profil, sujet, detail, date, etat)
   select c.cle, 'rapport', c.entreprise, c.destinataire,
-         'Rapport ' || c.periode,
+         case when c.periode = 'annuel' then 'Votre rapport annuel est disponible'
+              else 'Votre rapport ' || c.periode || ' est disponible' end,
          'Période scellée, disponible dans votre espace.',
          current_date,
          case when c.destinataire is null then 'sans_destinataire' else 'a_envoyer' end
@@ -145,44 +151,157 @@ end $$;
 -- Un rapport ne se scelle qu'une fois les validations closes. Le sceller à la
 -- fin du trimestre le fige incomplet : quatorze jours de missions manquent, et
 -- `on conflict do nothing` garantissait qu'on ne les ajouterait jamais.
+--
+-- Quatre trimestres et un annuel, écrits par la même boucle. Le site vitrine
+-- promet des rapports trimestriels ; cette tâche n'écrivait que `'annuel'`, et
+-- la promesse n'était donc tenue qu'une fois par an.
+--
+-- Le calcul passe par `private.points_bruts` et non par `public.points_entreprise` :
+-- cette dernière porte une garde d'autorisation, une tâche planifiée n'a pas
+-- d'identité, et la garde lui rendait donc zéro ligne. Tous les rapports
+-- produits par le moteur étaient à zéro, sans qu'aucune erreur ne le signale.
 create or replace function private.tache_rapports()
 returns integer
 language plpgsql security definer set search_path = '' as $$
 declare
   r record;
+  t record;
   v_n integer := 0;
-  v_fin date;
-  v_scellable boolean;
 begin
   for r in
-    select ab.entreprise, ab.saison, ab.effectif_reference, s.fin, s.delai_validation_jours
+    select ab.entreprise, ab.saison, ab.effectif_reference,
+           s.debut, s.fin, s.delai_validation_jours
       from public.abonnement ab
       join public.saison s on s.id = ab.saison
      where s.etat in ('ouverte','close')
   loop
-    v_fin := r.fin;
-    v_scellable := current_date > v_fin + r.delai_validation_jours;
+    -- Deux jeux de dates, et ce n'est pas un doublon. `du`/`au` sont ce que le
+    -- rapport AFFICHE ; `borne_du`/`borne_au` sont ce qu'il COMPTE. Le premier
+    -- trimestre n'a pas de borne basse et le dernier pas de borne haute, sinon
+    -- une mission datée hors du calendrier de la saison — un décalage de saisie,
+    -- une annonce reportée — n'entrerait dans aucun trimestre : la somme des
+    -- quatre ne ferait plus l'annuel, et personne ne saurait où sont passés les
+    -- points manquants. L'annuel, lui, n'a que la saison pour frontière.
+    for t in
+      select 'annuel'::text as periode, r.debut as du, r.fin as au,
+             null::date as borne_du, null::date as borne_au
+       union all
+      select q.periode, q.debut, q.fin,
+             case when q.periode = 'T1' then null else q.debut end,
+             case when q.fin >= r.fin then null else q.fin end
+        from private.trimestres(r.debut, r.fin) q
+    loop
+      -- Un trimestre qui n'a pas commencé n'a pas de rapport : une page vide
+      -- datée du futur n'est pas un document, c'est du bruit dans une liste.
+      -- L'annuel, lui, existe dès l'ouverture de la saison : c'est le document
+      -- qui se remplit sous les yeux du client, et le voir à zéro le premier
+      -- jour est exact, pas trompeur.
+      continue when t.periode <> 'annuel' and t.du > current_date;
 
-    insert into public.rapport (entreprise, saison, periode, methode_version,
-                                bareme_gele, effectif_reference, contenu, scelle_le, maj_le)
-    select r.entreprise, r.saison, 'annuel', 'v1',
-           (select jsonb_object_agg(b.type, b.points) from public.bareme b where b.saison = r.saison),
-           r.effectif_reference,
-           jsonb_build_object(
-             'retenu', (select coalesce(sum(pe.retenu), 0)
-                          from public.points_entreprise(r.entreprise, r.saison) pe),
-             'brut',   (select coalesce(sum(pe.brut), 0)
-                          from public.points_entreprise(r.entreprise, r.saison) pe),
-             'realisations', (select coalesce(jsonb_object_agg(x.unite, x.confirme), '{}'::jsonb)
-                                from public.realisations(r.entreprise, null, r.saison) x)),
-           case when v_scellable then now() end, now()
-    on conflict (entreprise, saison, periode) do update
-       set contenu = excluded.contenu,
-           bareme_gele = excluded.bareme_gele,
-           effectif_reference = excluded.effectif_reference,
-           maj_le = now(),
-           scelle_le = coalesce(public.rapport.scelle_le, excluded.scelle_le)
-     where public.rapport.scelle_le is null;   -- un rapport scellé ne bouge plus
+      insert into public.rapport (entreprise, saison, periode, methode_version,
+                                  bareme_gele, effectif_reference, contenu, scelle_le, maj_le)
+      select r.entreprise, r.saison, t.periode, 'v1',
+             (select jsonb_object_agg(b.type, b.points) from public.bareme b where b.saison = r.saison),
+             r.effectif_reference,
+             jsonb_build_object(
+               'du', t.du, 'au', t.au,
+               'retenu', (select coalesce(sum(pb.retenu), 0)
+                            from private.points_bruts(r.entreprise, r.saison, t.borne_du, t.borne_au) pb),
+               'brut',   (select coalesce(sum(pb.brut), 0)
+                            from private.points_bruts(r.entreprise, r.saison, t.borne_du, t.borne_au) pb),
+               'realisations', (select coalesce(jsonb_object_agg(x.unite, x.confirme), '{}'::jsonb)
+                                  from private.realisations_brutes(
+                                         r.entreprise, null, r.saison,
+                                         t.borne_du, t.borne_au) x)),
+             case when current_date > t.au + r.delai_validation_jours then now() end, now()
+      on conflict (entreprise, saison, periode) do update
+         set contenu = excluded.contenu,
+             bareme_gele = excluded.bareme_gele,
+             effectif_reference = excluded.effectif_reference,
+             maj_le = now(),
+             scelle_le = coalesce(public.rapport.scelle_le, excluded.scelle_le)
+       where public.rapport.scelle_le is null;   -- un rapport scellé ne bouge plus
+      v_n := v_n + 1;
+    end loop;
+  end loop;
+  return v_n;
+end $$;
+
+-- ------------------------------------------------------ relances de collecte
+-- Ce que la page « outil RSE » promet : les relances partent toutes seules. Le
+-- code ne les écrivait nulle part — aucune ligne de la base ne portait le type
+-- `'relance'`, et le chef de projet RSE relançait donc ses sites à la main,
+-- exactement comme avant Riseva.
+--
+-- Deux rappels, à sept jours puis à deux jours de l'échéance. Pas davantage :
+-- au-delà on n'obtient pas un chiffre, on obtient un filtre de messagerie.
+-- Chaque rappel a sa clé, donc rejouer la journée n'envoie rien deux fois.
+--
+-- Le destinataire est le référent du site, à défaut l'administrateur de la
+-- société : relancer le siège pour un site qui a son propre référent, c'est
+-- faire remonter le travail d'un cran à chaque rappel.
+create or replace function private.tache_relances_collecte()
+returns integer
+language plpgsql security definer set search_path = '' as $$
+declare v_n integer;
+begin
+  with rappels as (select * from (values (7), (2)) as r(jour)),
+  attendus as (
+    select c.id as campagne, c.libelle, et.id as etablissement, et.nom as site,
+           e.id as entreprise, r.jour,
+           coalesce(
+             (select p.profil from private.appartenance p
+               where p.etablissement = et.id and p.role = 'site_referent' and p.actif
+               order by p.maj_le limit 1),
+             (select p.profil from private.appartenance p
+               where p.entreprise = e.id and p.role = 'entreprise_admin' and p.actif
+               order by p.maj_le limit 1)) as destinataire
+      from public.campagne_indicateurs c
+      join public.entreprise e
+        on (c.groupe is not null and e.groupe = c.groupe)
+        or (c.groupe is null and e.id = c.entreprise)
+      join public.etablissement et on et.societe = e.id
+     cross join rappels r
+     where c.close_le is null
+       and current_date >= c.echeance - r.jour
+       and current_date <= c.echeance
+       -- Un site qui a déjà répondu n'est pas relancé. `attendu` en fait partie :
+       -- la ligne existe, mais elle ne porte encore aucun chiffre.
+       and not exists (select 1 from public.observation_indicateur o
+                        where o.campagne = c.id and o.etablissement = et.id
+                          and o.etat in ('declare','approuve'))
+  )
+  insert into public.envoi (cle, type, entreprise, destinataire_profil,
+                            sujet, detail, date, etat)
+  select 'relance:' || a.campagne || ':' || a.etablissement || ':' || a.jour,
+         'relance', a.entreprise, a.destinataire,
+         case when a.jour = 2 then 'Dernier rappel : vos indicateurs sont attendus'
+              else 'Vos indicateurs sont attendus dans une semaine' end,
+         left(a.libelle || ' — ' || a.site, 400),
+         current_date,
+         case when a.destinataire is null then 'sans_destinataire' else 'a_envoyer' end
+    from attendus a
+  on conflict (cle) do nothing;
+  get diagnostics v_n = row_count;
+  return v_n;
+end $$;
+
+-- --------------------------------------------------- clôture des collectes
+-- La doctrine — un site muet est clos SANS RÉPONSE, jamais comblé — était
+-- correctement écrite dans `clore_campagne`, et rien ne l'appelait. Une campagne
+-- dont l'échéance était passée restait ouverte indéfiniment, et le rapport
+-- attendait un chiffre qui ne viendrait plus.
+create or replace function private.tache_cloture_campagnes()
+returns integer
+language plpgsql security definer set search_path = '' as $$
+declare c record; v_n integer := 0;
+begin
+  for c in
+    select id from public.campagne_indicateurs
+     where close_le is null and echeance < current_date
+     order by echeance
+  loop
+    perform private.clore_campagne_effet(c.id);
     v_n := v_n + 1;
   end loop;
   return v_n;
@@ -240,14 +359,20 @@ returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare v jsonb;
 begin
+  -- L'ordre n'est pas décoratif : on clôt les collectes échues avant d'arrêter
+  -- les rapports, et on arrête les rapports avant de les envoyer. Envoyer avant
+  -- d'arrêter, c'était attendre la nuit suivante pour poster un rapport scellé
+  -- le soir même — et l'ancien ordre faisait exactement cela.
   v := jsonb_build_object(
-    'validations_auto', private.tache_validation_auto(),
-    'annonces_fermees', private.tache_fermeture_annonces(),
+    'validations_auto',    private.tache_validation_auto(),
+    'annonces_fermees',    private.tache_fermeture_annonces(),
     'intentions_expirees', private.tache_intentions_expirees(),
     'demandes_validation', private.tache_demandes_validation(),
-    'rapports_envoyes', private.tache_envoi_rapports(),
-    'rapports',         private.tache_rapports(),
-    'purges',           private.tache_retention());
+    'relances_collecte',   private.tache_relances_collecte(),
+    'campagnes_closes',    private.tache_cloture_campagnes(),
+    'rapports',            private.tache_rapports(),
+    'rapports_envoyes',    private.tache_envoi_rapports(),
+    'purges',              private.tache_retention());
   insert into public.moteur_journal (tache, fait) values ('moteur', v);
   return v;
 end $$;
@@ -267,7 +392,10 @@ end $$;
 
 revoke all on function
   private.tache_validation_auto(), private.tache_fermeture_annonces(),
-  private.tache_rapports(), private.tache_retention(), private.moteur()
+  private.tache_intentions_expirees(), private.tache_demandes_validation(),
+  private.tache_relances_collecte(), private.tache_cloture_campagnes(),
+  private.tache_rapports(), private.tache_envoi_rapports(),
+  private.tache_retention(), private.moteur()
 from public, anon, authenticated;
 
 -- Les fonctions créées ici sont elles aussi SECURITY DEFINER : elles doivent

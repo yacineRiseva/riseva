@@ -1,4 +1,5 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, DELAI_VALIDATION_JOURS, FISCAL, cerfaPour, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, KITS_SAISON, ETATS_EXPEDITION, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, demoDemandee, brancherEvenements, estArgent, estTemps, estPrive, heuresPour,
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, DELAI_VALIDATION_JOURS, FISCAL, cerfaPour, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, KITS_SAISON, ETATS_EXPEDITION, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, demoDemandee, envoyerLienConnexion, sessionAuth, jetonAuth,
+  seDeconnecter, brancherEvenements, estArgent, estTemps, estPrive, heuresPour,
   RUBRIQUES, rubrique, rubriquesDe, saisisDe, calculesDe, sectionsDe,
   demarrerVierge } from "./data.js";
 import { qrSvg } from "./qr.js";
@@ -206,16 +207,48 @@ function vueConnexion(){
      est immédiate, et rien n'est promis qui ne se produise. En production, la
      même action demande un lien à Supabase. */
   const msg = el.querySelector("#loginMsg");
-  const entrer = () => {
+  const bouton = el.querySelector("#loginGo");
+  const entrer = async () => {
     const mail = el.querySelector("#loginMail").value.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(mail)){
       msg.style.color = "var(--danger, #B4564A)";
       msg.textContent = "Cette adresse ne semble pas complète."; return;
     }
+
+    /* En production, on demande vraiment le lien. C'est ce que l'ecran promet
+       depuis toujours, et ce que le code ne faisait pas : il cherchait le
+       compte dans la liste chargee et posait un identifiant dans le navigateur.
+       En production cet identifiant ne vaut rien — Postgres n'a jamais vu de
+       session, donc aucun jeton, donc la RLS ne rend rien et l'application
+       s'ouvre sur du vide. Un ecran de connexion qui ne connecte pas est pire
+       qu'un ecran de connexion absent : il fait croire que le compte existe.
+
+       On ne dit jamais si l'adresse est connue ou non : repondre « aucun compte
+       avec cette adresse » sur une page publique, c'est offrir un annuaire de
+       qui travaille ou non chez un client. Le message est le meme dans les deux
+       cas, et seul celui qui possede la boite recoit quelque chose. */
+    if (DB.mode === "supabase"){
+      bouton.disabled = true;
+      msg.style.color = "var(--ink-600)";
+      msg.textContent = "Envoi du lien...";
+      try {
+        await envoyerLienConnexion(mail, { retour: location.origin + "/app/" });
+        msg.style.color = "var(--ok-texte, var(--ink-600))";
+        msg.textContent = "Si un compte existe avec cette adresse, un lien de connexion "
+          + "vient d'y être envoyé. Il est valable une heure et ne sert qu'une fois.";
+      } catch (e){
+        msg.style.color = "var(--danger, #B4564A)";
+        msg.textContent = e.message || "Le lien n'a pas pu être envoyé.";
+      } finally { bouton.disabled = false; }
+      return;
+    }
+
+    /* En demonstration, il n'y a pas de courriel a envoyer : le geste est le
+       meme, la reponse est immediate, et rien n'est promis qui ne se produise. */
     const u = (DB.utilisateurs() || []).find(x => (x.email || "").toLowerCase() === mail);
     if (!u){
       msg.style.color = "var(--danger, #B4564A)";
-      msg.textContent = "Aucun compte avec cette adresse. Créez-en un juste en dessous.";
+      msg.textContent = "Aucun compte avec cette adresse dans la démonstration.";
       return;
     }
     setSession(u.id); location.hash = "#/tableau"; rendre();
@@ -392,7 +425,14 @@ function coquille(u, vue, titre, actions = "", periode = DB.saison().nom){
       <div class="content" id="slot"></div>
     </div>
   </div>`);
-  el.querySelector("#out").onclick = () => { setSession(null); location.hash = ""; rendre(); };
+  /* Se deconnecter coupe la session du serveur, pas seulement l'affichage.
+     Oublier le compte dans l'onglet en laissant le jeton valide, c'est laisser
+     la porte ouverte sur un poste partage. */
+  el.querySelector("#out").onclick = async () => {
+    setSession(null);
+    if (DB.mode === "supabase"){ try { await seDeconnecter(); } catch (e) { /* deja parti */ } }
+    location.hash = ""; rendre();
+  };
   const cote = el.querySelector(".side");
   el.querySelector("#burger").onclick = () => cote.classList.toggle("is-open");
 
@@ -8452,13 +8492,16 @@ function ouvrirPaiementCarte(intention, asso, annonce){
   if (DB.mode === "supabase"){
     const base = (window.RISEVA_CONFIG || {}).url || "";
     toast("Ouverture de la page de paiement...");
-    fetch(`${base}/functions/v1/helloasso/don`, {
+    /* Le jeton se demande au moment de s'en servir, il ne traine pas sur
+       `window` : un jeton pose sur un global se lit en une ligne depuis
+       n'importe quel script tiers charge par la page. */
+    jetonAuth().then(jeton => fetch(`${base}/functions/v1/helloasso/don`, {
       method: "POST",
       headers: { "content-type": "application/json",
-                 authorization: `Bearer ${(window.RISEVA_JETON || "")}` },
+                 authorization: `Bearer ${jeton || ""}` },
       body: JSON.stringify({ annonce: annonce.id, montant: intention.montant,
                              origine: intention.origine })
-    }).then(r => r.json()).then(r => {
+    })).then(r => r.json()).then(r => {
       if (r.redirection) location.href = r.redirection;
       else toast(r.erreur || "Le paiement n'a pas pu être ouvert.");
     }).catch(() => toast("Le paiement n'a pas pu être ouvert."));
@@ -9568,6 +9611,26 @@ function ouvrirCompteDepuisVitrine(){
   if (vierge){ demarrerVierge(); }
   else if (window.RISEVA_CONFIG) {
     try { await connecterSupabase(window.RISEVA_CONFIG); } catch (e) { console.warn(e); }
+
+    /* Le retour du lien de connexion. La bibliotheque a deja lu le fragment de
+       l'adresse et pose la session ; ce qui manque, c'est de faire le lien
+       entre cette session et le profil que l'interface manipule. Sans cela,
+       quelqu'un revient authentifie et retombe sur l'ecran de connexion, ce qui
+       est la facon la plus sure de lui faire redemander un lien en boucle. */
+    try {
+      const sess = await sessionAuth();
+      if (sess && sess.user){
+        const u = (DB.utilisateurs() || []).find(
+          x => x.id === sess.user.id
+            || (x.email || "").toLowerCase() === (sess.user.email || "").toLowerCase());
+        if (u) setSession(u.id);
+        /* L'adresse porte encore le jeton dans son fragment : on la nettoie,
+           un jeton n'a rien a faire dans une barre d'adresse ni dans un
+           historique de navigation. */
+        if (location.hash.includes("access_token"))
+          history.replaceState(null, "", location.pathname + location.search + "#/tableau");
+      }
+    } catch (e) { console.warn(e); }
   }
   if (!vierge) ouvrirCompteDepuisVitrine();
   rendre();

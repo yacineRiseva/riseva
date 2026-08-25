@@ -495,6 +495,58 @@ begin
     (select scelle_le from public.rapport limit 1) is null);
 end $$;
 
+-- Ce que le site vitrine promet : « un rapport chaque trimestre, un rapport
+-- annuel, sans que personne ait à les demander ». La tâche n'écrivait que
+-- l'annuel. Et elle passait par `points_entreprise`, dont la garde
+-- d'autorisation rend zéro ligne à une tâche planifiée : tous les rapports du
+-- moteur étaient à zéro, chaque nuit, sans qu'aucune erreur ne le dise.
+--
+-- La saison de démonstration est à venir : elle ne peut rien dire d'un
+-- trimestre clos. On en pose donc une, révolue, avec son abonnement.
+do $$
+declare
+  v_s uuid;
+  v_e uuid := '22222222-2222-4222-8222-222222222222';
+  v_debut date := (date_trunc('year', current_date - interval '2 years'))::date;
+begin
+  insert into public.saison (nom, debut, fin, etat)
+  values ('Saison révolue', v_debut,
+          (v_debut + interval '1 year' - interval '1 day')::date, 'close')
+  returning id into v_s;
+  insert into public.bareme (saison, type, points, unite)
+    select v_s, b.type, b.points, b.unite
+      from public.bareme b where b.saison = (select id from public.saison where etat = 'ouverte');
+  insert into public.abonnement (entreprise, saison, montant_ht, sieges, effectif_reference)
+  values (v_e, v_s, 3500, 50, 120);
+
+  perform private.tache_rapports();
+  perform pg_temp.dit('les quatre trimestres sortent tout seuls',
+    (select count(*) from public.rapport where saison = v_s and periode ~ '^T[1-4]$') = 4);
+  perform pg_temp.dit('l''annuel sort avec eux',
+    exists (select 1 from public.rapport where saison = v_s and periode = 'annuel'));
+  perform pg_temp.dit('un trimestre couvre trois mois, pas la saison entière',
+    (select contenu->>'au' from public.rapport where saison = v_s and periode = 'T1')
+      < (select contenu->>'du' from public.rapport where saison = v_s and periode = 'T2'));
+  perform pg_temp.dit('un trimestre échu est scellé, il ne bougera plus',
+    (select count(*) from public.rapport where saison = v_s and scelle_le is null) = 0);
+  perform private.tache_rapports();
+  perform pg_temp.dit('rejouer la journée ne produit pas un second jeu',
+    (select count(*) from public.rapport where saison = v_s) = 5);
+end $$;
+
+-- La régression qui comptait : un rapport produit par le moteur porte les points
+-- réellement acquis, et non zéro. Le moteur n'a pas d'identité ; si le calcul
+-- repasse un jour par une fonction gardée, ce test tombe.
+do $$
+declare v_saison uuid := (select id from public.saison where etat = 'ouverte');
+begin
+  perform private.tache_rapports();
+  perform pg_temp.dit('le rapport du moteur porte les points, pas des zéros',
+    (select (contenu->>'brut')::bigint from public.rapport
+      where saison = v_saison and periode = 'annuel'
+        and entreprise = '22222222-2222-4222-8222-222222222222') > 0);
+end $$;
+
 \echo ''
 \echo 'Groupe, sociétés, établissements'
 -- Un groupe consolide, il ne fusionne pas. Appartenir au même groupe ne donne
@@ -2045,6 +2097,74 @@ begin
   reset role;
 end $$;
 reset role;
+
+\echo ''
+\echo 'Les relances de collecte, et la clôture à l''échéance'
+-- Trois promesses de la page « outil RSE », qu'aucune ligne de code ne tenait :
+-- les relances partent seules, un site qui a répondu n'est plus relancé, et une
+-- campagne dont l'échéance est passée se clôt sans que personne y pense.
+do $$
+declare
+  v_e uuid := '22222222-2222-4222-8222-222222222222';
+  v_et uuid;
+  v_sites integer;
+  v_c1 uuid; v_c2 uuid; v_c3 uuid;
+begin
+  select count(*) into v_sites from public.etablissement where societe = v_e;
+  select id into v_et from public.etablissement where societe = v_e order by nom limit 1;
+
+  -- Échéance dans sept jours : le premier rappel est dû aujourd'hui.
+  insert into public.campagne_indicateurs (entreprise, periode, libelle, debut, fin, echeance)
+  values (v_e, 'ess-J7', 'Collecte à sept jours',
+          current_date - 40, current_date - 10, current_date + 7)
+  returning id into v_c1;
+  perform private.tache_relances_collecte();
+  perform pg_temp.dit('la relance à sept jours part toute seule',
+    (select count(*) from public.envoi where cle like 'relance:' || v_c1 || ':%') = v_sites);
+  perform pg_temp.dit('elle désigne quelqu''un, ou dit qu''elle n''a personne',
+    not exists (select 1 from public.envoi where type = 'relance'
+                 and etat = 'a_envoyer' and destinataire_profil is null));
+  perform private.tache_relances_collecte();
+  perform pg_temp.dit('rejouer la journée ne relance pas deux fois',
+    (select count(*) from public.envoi where cle like 'relance:' || v_c1 || ':%') = v_sites);
+
+  -- Échéance dans deux jours : les deux rappels sont dus. Un site a répondu.
+  insert into public.campagne_indicateurs (entreprise, periode, libelle, debut, fin, echeance)
+  values (v_e, 'ess-J2', 'Collecte à deux jours',
+          current_date - 40, current_date - 10, current_date + 2)
+  returning id into v_c2;
+  insert into public.observation_indicateur
+    (campagne, etablissement, etat, valeurs, saisi_par, saisi_le)
+  values (v_c2, v_et, 'declare', '{}'::jsonb,
+          'aaaaaaaa-0000-4000-8000-000000000001', now());
+  perform private.tache_relances_collecte();
+  perform pg_temp.dit('un site qui a répondu n''est plus relancé',
+    not exists (select 1 from public.envoi
+                 where cle like 'relance:' || v_c2 || ':' || v_et || ':%'));
+  perform pg_temp.dit('les autres le sont deux fois : à sept jours, puis à deux',
+    (select count(*) from public.envoi where cle like 'relance:' || v_c2 || ':%')
+      = 2 * (v_sites - 1));
+
+  -- Échéance passée : la campagne se clôt, et le silence des sites est écrit
+  -- comme un silence — jamais comblé avec la période précédente.
+  insert into public.campagne_indicateurs (entreprise, periode, libelle, debut, fin, echeance)
+  values (v_e, 'ess-echue', 'Collecte échue',
+          current_date - 60, current_date - 30, current_date - 1)
+  returning id into v_c3;
+  perform private.tache_cloture_campagnes();
+  perform pg_temp.dit('une campagne échue se clôt toute seule',
+    (select close_le is not null from public.campagne_indicateurs where id = v_c3));
+  perform pg_temp.dit('un site muet est clos SANS RÉPONSE, pas comblé',
+    (select count(*) from public.observation_indicateur
+      where campagne = v_c3 and etat = 'clos_sans_reponse') = v_sites);
+  perform pg_temp.dit('aucune valeur n''a été inventée au passage',
+    not exists (select 1 from public.observation_indicateur
+                 where campagne = v_c3 and valeurs <> '{}'::jsonb));
+  perform pg_temp.dit('rejouer ne reclôt rien',
+    private.tache_cloture_campagnes() = 0);
+  perform pg_temp.dit('une campagne close ne se relance plus',
+    (select count(*) from public.envoi where cle like 'relance:' || v_c3 || ':%') = 0);
+end $$;
 
 \echo ''
 \echo 'Le coffre de preuves'

@@ -508,19 +508,11 @@ begin
       v_c.fin using errcode = '22023';
   end if;
 
-  -- Les sites qui n'ont pas repondu sont clos SANS REPONSE, pas combles avec la
-  -- periode precedente. Un chiffre absent reste absent : c'est la regle qui rend
-  -- le rapport defendable. Le perimetre suit celui de la campagne.
-  insert into public.observation_indicateur (campagne, etablissement, etat, valeurs)
-  select p_campagne, et.id, 'clos_sans_reponse', '{}'::jsonb
-    from public.etablissement et
-    join public.entreprise e on e.id = et.societe
-   where ((v_c.groupe is not null and e.groupe = v_c.groupe)
-          or (v_c.groupe is null and e.id = v_c.entreprise))
-     and not exists (select 1 from public.observation_indicateur o
-                      where o.campagne = p_campagne and o.etablissement = et.id);
-
-  update public.campagne_indicateurs c set close_le = now() where c.id = p_campagne;
+  -- L'effet lui-meme est ecrit une seule fois, dans `private.clore_campagne_effet` :
+  -- la tache planifiee qui clot a l'echeance doit produire exactement le meme
+  -- etat que cette fonction-ci, et deux copies d'une regle finissent toujours
+  -- par diverger.
+  perform private.clore_campagne_effet(p_campagne);
 end $$;
 
 -- ---------------------------------------------------------------- Riseva seul
