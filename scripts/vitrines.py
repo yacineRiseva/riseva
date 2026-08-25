@@ -1118,6 +1118,7 @@ def mini_ecran(onglet, lignes, jauge, legende):
 def verre_carte(qui, question, reponse, visuel, ecrans):
     """Une carte de verre : qui pose la question, la question, la reponse."""
     return f"""      <article class="verre verre-carte verre-anim">
+        <i class="verre-lumiere" aria-hidden="true"></i>
         <i class="verre-eclat" aria-hidden="true"></i>
         <span class="verre-puce mono">{qui}</span>
         <h3>{question}</h3>
@@ -1148,6 +1149,7 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss verre-sect">
         "« je vais voir ».")}
 
     <div class="verre verre-tete verre-anim">
+      <i class="verre-lumiere" aria-hidden="true"></i>
       <i class="verre-eclat" aria-hidden="true"></i>
       <p>Une saison d'un an, un écran par métier, et <b>la même donnée du site
         jusqu'au rapport</b>. Rien n'est ressaisi, et rien n'est estimé sans que

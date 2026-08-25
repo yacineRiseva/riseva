@@ -3744,6 +3744,10 @@ body{
     inset 0 1px 0 rgba(242,240,233,.20),
     /* le retour sombre du bas : sans lui, le panneau flotte sans poids */
     inset 0 -1px 0 rgba(11,38,32,.45),
+    /* L'occlusion : un vrai bord biseaute assombrit l'interieur juste sous
+       l'arete. Sans elle le panneau est une vitre ; avec elle, il a une
+       epaisseur. Cela ne coute aucune couche de plus. */
+    inset 0 0 22px -4px rgba(11,38,32,.55),
     0 30px 64px -40px rgba(11,38,32,.9);
 }
 /* L'angle de la lumiere sur l'arete. Declare pour que le navigateur le
@@ -3751,12 +3755,35 @@ body{
    n'est pas interpolable, et une valeur ecrite par le script produirait un saut
    au lieu d'un glissement. */
 @property --verre-arc{ syntax:"<angle>"; inherits:false; initial-value:210deg; }
+/* Et les deux coordonnees du reflet de surface. Les declarer sert a deux
+   choses, et la seconde est la vraie : une propriete personnalisee NON declaree
+   herite, donc l'ecrire sur un panneau invalide tout son sous-arbre a chaque
+   image du pointeur ; declaree `inherits:false`, elle n'invalide que la
+   peinture de l'element. Trois cartes qui portent chacune une maquette de
+   quinze lignes, c'est la difference entre un reflet gratuit et un reflet qui
+   se paie en images perdues. */
+@property --mx{ syntax:"<length>"; inherits:false; initial-value:0px; }
+@property --my{ syntax:"<length>"; inherits:false; initial-value:0px; }
+
+/* Et c'est pour la MEME raison que la lumiere du panneau est portee par un
+   element vide plutot que par les pseudo-elements du panneau lui-meme. Une
+   propriete declaree `inherits:false` n'est pas visible depuis un
+   pseudo-element du panneau : elle y reprendrait sa valeur initiale, et le
+   reflet ne bougerait jamais. La declarer heritable la ferait fonctionner,
+   mais chaque image du pointeur invaliderait alors le style des quarante
+   noeuds de la carte. Un element vide resout les deux : il porte les
+   variables, il porte les deux pseudo-elements, et il n'a pas de sous-arbre a
+   invalider. */
+.verre-lumiere{
+  position:absolute; inset:0; border-radius:inherit;
+  pointer-events:none; z-index:2;
+}
 
 /* L'arete speculaire : un degrade d'un pixel, en masque, sans image ni SVG.
    Le bord d'un vrai verre n'a pas la meme couleur en haut et en bas — il prend
    la lumiere d'un cote et l'ombre de l'autre. Une bordure unie n'a jamais
    ressemble a du verre. */
-.verre::before{
+.verre-lumiere::before{
   content:""; position:absolute; inset:0; border-radius:inherit; padding:1px;
   /* Conique, et non lineaire : un degrade lineaire donne au bord deux zones
      claires opposees, ce qu'aucune source de lumiere reelle ne produit. Un
@@ -3771,9 +3798,11 @@ body{
     rgba(242,240,233,.05)  0deg,
     rgba(242,240,233,.42) 48deg,
     rgba(242,240,233,.09) 112deg,
-    rgba(61,130,173,.16) 176deg,
+    rgba(61,130,173,.16) 174deg,
+    rgba(61,130,173,.06) 179deg,
     rgba(242,240,233,.06) 244deg,
-    rgba(201,242,75,.26)  312deg,
+    rgba(201,242,75,.26)  310deg,
+    rgba(201,242,75,.10)  315deg,
     rgba(242,240,233,.05) 360deg);
   -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -3783,13 +3812,14 @@ body{
 /* Le reflet qui suit le pointeur. Deux variables, mises a jour une fois par
    image, pour toute la section : un ecouteur par carte ferait le meme effet et
    trente fois le travail. */
-.verre::after{
+.verre-lumiere::after{
   content:""; position:absolute; inset:0; border-radius:inherit;
-  background:radial-gradient(420px circle at var(--mx,50%) var(--my,0%),
+  background:radial-gradient(420px circle at var(--mx) var(--my),
     rgba(242,240,233,.16), rgba(242,240,233,0) 62%);
   opacity:0; transition:opacity .45s ease; pointer-events:none; z-index:1;
 }
-.verre:hover::after, .verre:focus-within::after{ opacity:1; }
+.verre:hover .verre-lumiere::after,
+.verre:focus-within .verre-lumiere::after{ opacity:1; }
 
 @supports not ((backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px))){
   /* Pas de verre rate : un aplat assume vaut mieux qu'un flou qui ne floute
@@ -3862,7 +3892,7 @@ body{
 .mini-barre{
   display:flex; align-items:center; gap:6px;
   padding:9px 12px; background:rgba(11,38,32,.5);
-  font-size:11px; letter-spacing:.04em; color:var(--moss);
+  font-size:12px; letter-spacing:.04em; color:var(--moss);
 }
 .mini-barre i{
   width:7px; height:7px; border-radius:50%; background:rgba(223,230,208,.32);
@@ -3875,7 +3905,9 @@ body{
 }
 .mini-ligne span:first-child{ color:var(--moss); }
 .mini-etat{
-  padding:3px 9px; border-radius:999px; font-size:11px; white-space:nowrap;
+  /* Douze pixels au minimum, ici comme ailleurs : une maquette illisible ne
+     montre pas un ecran, elle montre qu'il y a un ecran. */
+  padding:3px 9px; border-radius:999px; font-size:12px; white-space:nowrap;
 }
 .mini-etat--ok{ background:rgba(201,242,75,.16); color:var(--lime); }
 .mini-etat--attente{ background:rgba(201,127,30,.22); color:#F0C07A; }
@@ -3991,7 +4023,7 @@ body{
      une animation, et c'est precisement ce que le reglage demande d'eviter. */
   .verre-champ i{ animation:none; }
   .js .verre-anim{ opacity:1; transform:none; animation:none; transition:none; }
-  .verre::after{ display:none; }
+  .verre-lumiere::after{ display:none; }
   .verre-eclat{ display:none; }
   .verre-lianes .rib{ animation:none; }
   .js .verre-anim .mini-jauge i{ transform:none; transition:none; }

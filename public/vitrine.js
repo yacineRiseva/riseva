@@ -785,28 +785,53 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
   var sect = document.querySelector('.verre-sect');
   if(!sect) return;
   if(matchMedia('(prefers-reduced-motion:reduce)').matches) return;
-  var panneaux = [].slice.call(sect.querySelectorAll('.verre'));
+  /* Ce ne sont pas les panneaux qu'on ecrit, mais leur calque de lumiere : un
+     element vide, sans sous-arbre a invalider. Voir le commentaire de
+     `.verre-lumiere` dans la feuille de style. */
+  var panneaux = [].slice.call(sect.querySelectorAll('.verre-lumiere'));
   if(!panneaux.length) return;
+
+  /* Les geometries sont mesurees UNE fois, pas a chaque mouvement du pointeur.
+     Un `getBoundingClientRect()` pendant un `pointermove` demande au navigateur
+     une mise en page a jour, soixante fois par seconde, pour des cartes qui
+     n'ont pas bouge d'un pixel. On garde donc la position dans la PAGE, plus le
+     defilement qu'il y avait au moment de la mesure : la position a l'ecran
+     s'en deduit par une soustraction. */
+  var boites = null, mesureA = 0;
+
+  function mesurer(){
+    mesureA = window.scrollY || window.pageYOffset;
+    boites = panneaux.map(function(el){
+      var r = el.getBoundingClientRect();
+      return { g:r.left, h:r.top, l:r.width, t:r.height };
+    });
+  }
+  addEventListener('resize', function(){ boites = null; }, { passive:true });
 
   var x = 0, y = 0, prevu = false;
 
   function peindre(){
     prevu = false;
-    var rects = [], i;
-    for(i = 0; i < panneaux.length; i++) rects.push(panneaux[i].getBoundingClientRect());
-    for(i = 0; i < panneaux.length; i++){
-      var r = rects[i];
+    if(!boites) mesurer();
+    var dy = (window.scrollY || window.pageYOffset) - mesureA;
+    for(var i = 0; i < panneaux.length; i++){
+      var b = boites[i], haut = b.h - dy;
       /* Hors de l'ecran, le reflet n'existe pour personne. */
-      if(r.bottom < 0 || r.top > innerHeight) continue;
-      panneaux[i].style.setProperty('--mx', (x - r.left).toFixed(1) + 'px');
-      panneaux[i].style.setProperty('--my', (y - r.top).toFixed(1) + 'px');
-      /* La meme lumiere pour l'arete. `atan2` rend zero vers la droite et
-         croit vers le bas ; un degrade conique part du haut et tourne dans le
-         sens des aiguilles, d'ou le quart de tour. Les 48 degres retranches
-         placent la zone claire du degrade, et non son origine, du cote du
-         pointeur. */
-      var ang = Math.atan2(y - (r.top + r.height / 2),
-                           x - (r.left + r.width / 2)) * 180 / Math.PI;
+      if(haut + b.t < 0 || haut > innerHeight) continue;
+      panneaux[i].style.setProperty('--mx', (x - b.g).toFixed(1) + 'px');
+      panneaux[i].style.setProperty('--my', (y - haut).toFixed(1) + 'px');
+      /* La meme lumiere pour l'arete, et sur TOUS les panneaux, pas seulement
+         sur celui qu'on survole : une source de lumiere qui n'eclairerait que
+         la carte sous le curseur ne serait pas une source de lumiere. C'est
+         gratuit parce que `--mx`, `--my` et `--verre-arc` sont declarees
+         `inherits:false` : les ecrire ne repeint que l'element.
+
+         `atan2` rend zero vers la droite et croit vers le bas ; un degrade
+         conique part du haut et tourne dans le sens des aiguilles, d'ou le
+         quart de tour. Les 48 degres retranches placent la zone claire du
+         degrade, et non son origine, du cote du pointeur. */
+      var ang = Math.atan2(y - (haut + b.t / 2),
+                           x - (b.g + b.l / 2)) * 180 / Math.PI;
       panneaux[i].style.setProperty('--verre-arc', (ang + 42).toFixed(0) + 'deg');
     }
   }
@@ -818,6 +843,16 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
     x = e.clientX; y = e.clientY;
     if(!prevu){ prevu = true; requestAnimationFrame(peindre); }
   }, { passive: true });
+
+  /* L'eclat ne sert qu'une fois. Le laisser en place, c'est laisser un calque
+     translucide au-dessus d'un element filtre : le navigateur doit le
+     recomposer chaque fois que le panneau se repeint, pour un element devenu
+     invisible. On le retire des qu'il a fini de passer. */
+  [].slice.call(sect.querySelectorAll('.verre-eclat')).forEach(function(el){
+    el.addEventListener('animationend', function(){
+      if(el.parentNode) el.parentNode.removeChild(el);
+    });
+  });
 })();
 
 (function(){
