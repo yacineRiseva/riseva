@@ -6508,6 +6508,10 @@ const versEtat = {
     dons_hors_riseva: null, report_anterieur: null,
     siren: r.siren, siret: r.siret, adresse: r.adresse,
     lat: r.lat, lon: r.lon, groupe: r.groupe || null,
+    /* Demandée en lecture, jamais recopiée : l'objectif que l'administrateur
+       avait posé n'apparaissait nulle part, et l'écran retombait sur la valeur
+       suggérée en se disant « non choisi » à chaque rechargement. */
+    objectif_mobilises: r.objectif_mobilises ?? null,
     /* Renseigné plus bas depuis `mes_domaines()` : la liste vit dans le schéma
        privé et n'en sort que pour l'entreprise qu'elle concerne. */
     domaines: [],
@@ -6534,7 +6538,12 @@ const versEtat = {
     resume: r.resume, adresse: r.adresse, lat: r.lat, lon: r.lon,
     valide: r.valide, suspendue: r.suspendue, site: r.site, photo: r.photo,
     helloasso_slug: r.helloasso_slug || null, helloasso_lie_le: r.helloasso_lie_le || null,
-    verifiee_le: r.verifiee_le, verifiee_jusqua: r.verifiee_jusqua,
+    /* La colonne s'appelle `a_reverifier_le`, et elle est bien demandée en
+       lecture — mais elle était posée sous le nom `verifiee_jusqua`, qui
+       n'existe nulle part. Aucune association n'était donc jamais signalée « à
+       revérifier », alors que ce contrôle annuel est le fondement de ce qu'on
+       promet aux entreprises sur les reçus fiscaux. */
+    verifiee_le: r.verifiee_le, a_reverifier_le: r.a_reverifier_le || null,
     iban: r.iban, bic: r.bic, titulaire_compte: r.titulaire_compte,
     mandat_recus: r.mandat_recus_le
       ? { version: r.mandat_recus_version, nom: r.mandat_recus_nom,
@@ -6543,6 +6552,10 @@ const versEtat = {
     recus: {
       actif: r.recus_actif, eligible_mecenat: r.eligible_mecenat,
       signataire: r.signataire, qualite: r.qualite, prefixe: r.recu_prefixe,
+      /* Le prochain numéro se DÉDUIT des reçus déjà émis : le poser à 1 en dur
+         faisait réafficher « 1 » à une association qui en était à 47, et
+         l'exposait à réémettre des numéros déjà utilisés. Renseigné plus bas,
+         une fois les reçus connus. */
       prochain_numero: 1
     }
   }),
@@ -6608,6 +6621,10 @@ const versEtat = {
     recus: {
       actif: r.recus_actif, eligible_mecenat: (base.recus || {}).eligible_mecenat,
       signataire: r.signataire, qualite: r.qualite, prefixe: r.recu_prefixe,
+      /* Le prochain numéro se DÉDUIT des reçus déjà émis : le poser à 1 en dur
+         faisait réafficher « 1 » à une association qui en était à 47, et
+         l'exposait à réémettre des numéros déjà utilisés. Renseigné plus bas,
+         une fois les reçus connus. */
       prochain_numero: 1
     }
   }),
@@ -6646,7 +6663,17 @@ const versEtat = {
           /* Le texte vient de la base, jamais d'une recomposition côté client :
              c'est celui qui a été accepté, pas celui qu'on écrirait aujourd'hui. */
           texte: r.consentement_texte || null } : null,
-    valeur_declaree: r.valeur_declaree ?? null, nature: r.nature || undefined
+    valeur_declaree: r.valeur_declaree ?? null, nature: r.nature || undefined,
+    /* Cinq colonnes du registre des dons de matériel se perdaient ici : la
+       catégorie comptable, la référence de l'actif, la date de sortie, le
+       justificatif et l'attestation d'effacement des données. Elles existent en
+       base et revenaient dans la requête. Le registre AGEC affichait « à
+       préciser » sur des lignes que le client avait pourtant remplies. */
+    categorie: r.categorie_comptable || null,
+    reference: r.reference_actif || null,
+    sortieLe: r.sortie_le || null,
+    justificatif: r.justificatif || null,
+    effacementDonnees: r.effacement_donnees ?? null
   }),
   invitation: (r, sieges = []) => ({
     id: r.id, entreprise: r.entreprise, etablissement: r.etablissement || null,
@@ -6675,6 +6702,14 @@ const versEtat = {
     etat: r.close_le ? "close" : "ouverte"
   }),
   observation: (r) => ({
+    /* `commentaire` et `ecarts` se perdaient. L'explication d'une variation
+       forte suit pourtant la valeur jusque dans le rapport : c'est elle qui
+       répond, un an plus tard, à la seule question que posera un acheteur devant
+       une courbe qui saute. Le tableau « Variations expliquées par les sites »
+       était vide en permanence, et le référent qui corrigeait une valeur
+       retrouvait son champ vierge — sans quoi la saisie est refusée au-delà de
+       30 % d'écart. */
+    commentaire: r.commentaire ?? null, ecarts: r.ecarts || [],
     id: r.id, campagne: r.campagne, etablissement: r.etablissement, etat: r.etat,
     version: r.version, valeurs: r.valeurs || {},
     saisi_par: r.saisi_par, saisi_le: r.saisi_le ? String(r.saisi_le).slice(0, 10) : null,
@@ -6683,8 +6718,21 @@ const versEtat = {
   }),
   acces: (r) => ({ id: r.id, entreprise: r.entreprise, utilisateur: r.profil,
                    quoi: r.quoi, code: r.indice, date: String(r.cree_le).slice(0, 10) }),
-  signalement: (r) => ({ id: r.id, annonce: r.annonce, motif: r.motif,
-    precisions: r.precisions, etat: r.etat, decision: r.decision,
+  /* Quatre champs manquaient, et la table n'a PAS de colonne `etat` : l'écran de
+     modération filtrait sur `etat === "recu"`, ne trouvait jamais rien, et
+     annonçait « Aucun signalement en attente » quel qu'en soit le nombre. Le
+     bouton « Décider » n'apparaissait sur aucune ligne — c'est-à-dire que
+     l'obligation de décision motivée de l'article 16 du DSA n'était pas tenable
+     en production. L'état se déduit : décidé ou non. */
+  signalement: (r, annoncesLues = []) => ({
+    id: r.id, annonce: r.annonce, motif: r.motif,
+    association: (annoncesLues.find(a => a.id === r.annonce) || {}).association || null,
+    par: r.auteur || null,
+    precisions: r.precisions,
+    etat: r.decide_le ? "traite" : "recu",
+    recu_le: String(r.cree_le).slice(0, 10),
+    decide_le: r.decide_le ? String(r.decide_le).slice(0, 10) : null,
+    decision: r.decision,
     motivation: r.motivation, date: String(r.cree_le).slice(0, 10) })
 };
 
@@ -6713,7 +6761,8 @@ async function chargerEtat(client){
          evenements, actionsCorrectives,
          abonnements, factures, preinscriptions, reglagesAsso,
          reglagesProfil, piecesJointes,
-         envois, expeditions, sourcing, sieges, rapportsBase] = await Promise.all([
+         envois, expeditions, sourcing, sieges, rapportsBase,
+         journalMoteur, recus, rubriquesCampagne] = await Promise.all([
     /* SIX tables n'ont que des droits COLONNE, jamais un droit de table : ce
        sont celles qui portent une donnée qu'un salarié n'a pas à lire — le
        chiffre d'affaires, l'empreinte d'une invitation, les circonstances d'un
@@ -6771,7 +6820,18 @@ async function chargerEtat(client){
     /* Les rapports arrêtés en base. Le moteur dérive lui-même la liste des
        périodes ; ce qu'il ne peut pas deviner, c'est lequel a déjà été envoyé.
        On lit donc la table pour recoller l'envoi à sa période. */
-    lire("rapport")
+    lire("rapport"),
+    lire("moteur_journal"),
+    /* Les reçus déjà émis. Une seule chose s'en déduit ici, et elle compte : le
+       prochain numéro. Le poser à 1 en dur faisait réafficher « 1 » à une
+       association qui en était à 47. */
+    lire("recu"),
+    /* Ce que chaque collecte demande, rubrique par rubrique. Sans cette table,
+       `rubriquesDe` retombait sur TOUTES les rubriques : un groupe qui ouvrait
+       une collecte sur « social + sécurité » voyait ses référents recevoir un
+       formulaire de trente-sept champs — exactement ce que le mécanisme des
+       rubriques existe pour éviter. */
+    lire("campagne_rubrique")
   ]);
 
   const saison = saisons.find(x => x.etat === "ouverte") || saisons[0] || null;
@@ -6793,6 +6853,7 @@ async function chargerEtat(client){
      données porte les rôles, marchait parfaitement. */
   let identite = null;
   let domaines = [];
+  let equipe = [];
   if (moi){
     try {
       const { data } = await client.rpc("mon_profil");
@@ -6805,6 +6866,14 @@ async function chargerEtat(client){
       const { data } = await client.rpc("mes_domaines");
       domaines = Array.isArray(data) ? data : [];
     } catch (e){ domaines = []; }
+    /* Mon équipe : le rôle et le site de mes collègues. Les noms arrivaient bien,
+       le rattachement non — et tout ce qui filtre sur le rôle rendait donc une
+       liste vide. « Personne pour l'instant » sur l'écran Équipe d'un client de
+       deux cents personnes. */
+    try {
+      const { data } = await client.rpc("mon_equipe");
+      equipe = Array.isArray(data) ? data : [];
+    } catch (e){ equipe = []; }
   }
 
   return {
@@ -6826,7 +6895,18 @@ async function chargerEtat(client){
     associations: associations.map(a => {
       const r = reglagesAsso.find(x => x.id === a.id);
       const base = versEtat.association(a);
-      return r ? { ...base, ...versEtat.reglagesAssociation(r, base) } : base;
+      const fiche = r ? { ...base, ...versEtat.reglagesAssociation(r, base) } : base;
+      /* Le prochain numéro de reçu, déduit de ceux déjà émis. */
+      if (fiche.recus){
+        /* Le numéro est un texte : « QV-2027-047 ». On ne garde que sa fin
+           chiffrée — un préfixe qui change en cours d'année ne doit pas faire
+           repartir la série à zéro. */
+        const n = recus.filter(x => x.association === a.id)
+                       .reduce((m, x) => Math.max(m,
+                          Number((String(x.numero).match(/(\d+)\s*$/) || [])[1]) || 0), 0);
+        fiche.recus = { ...fiche.recus, prochain_numero: n + 1 };
+      }
+      return fiche;
     }),
     annonces: annonces.map(versEtat.annonce),
     missions: missions.map(versEtat.mission),
@@ -6838,15 +6918,27 @@ async function chargerEtat(client){
        `profil` aurait ouverte a tous les collegues. */
     utilisateurs: [...profils.map(r => ({
       id: r.id, nom: r.nom, email: r.id === (moi && moi.id) ? (moi.email || null) : null,
-      /* Le rôle des AUTRES ne la regarde pas, et il reste donc nul : c'est la
-         frontière, pas un oubli. Le sien vient de `mon_profil()`. */
-      role: identite && r.id === identite.id ? identite.role : null,
-      org: identite && r.id === identite.id
-             ? (identite.entreprise || identite.association || null) : null,
-      etablissement: identite && r.id === identite.id ? identite.etablissement : null,
-      groupe: identite && r.id === identite.id ? identite.groupe : null,
-      actif: identite && r.id === identite.id ? identite.actif !== false : true,
-      anonyme: false,
+      /* Le rôle vient de `mon_equipe()` pour mes collègues, de `mon_profil()`
+         pour moi. Hors de ma société, il reste nul : c'est la frontière, pas un
+         oubli — un compte d'association ou d'une autre société n'a aucune raison
+         de m'apparaître avec un rôle. */
+      ...(() => {
+        const e = equipe.find(x => x.id === r.id);
+        if (e) return {
+          role: e.role, org: identite ? identite.entreprise : null,
+          etablissement: e.etablissement, groupe: identite ? identite.groupe : null,
+          actif: e.actif !== false, anonyme: !!e.pseudonymise,
+          retire_le: e.retire_le ? String(e.retire_le).slice(0, 10) : null
+        };
+        if (identite && r.id === identite.id) return {
+          role: identite.role,
+          org: identite.entreprise || identite.association || null,
+          etablissement: identite.etablissement, groupe: identite.groupe,
+          actif: identite.actif !== false, anonyme: false
+        };
+        return { role: null, org: null, etablissement: null, groupe: null,
+                 actif: true, anonyme: false };
+      })(),
       prefs: (reglagesProfil.find(x => x.id === r.id) || {}).preferences || undefined
     })),
     /* La personne connectée, si la table des profils ne l'a pas rendue. Une
@@ -6861,12 +6953,25 @@ async function chargerEtat(client){
       actif: identite.actif !== false, anonyme: false
     }] : [])],
     invitations: invitations.map(r => versEtat.invitation(r, sieges)),
-    campagnes: campagnes.map(versEtat.campagne),
+    campagnes: campagnes.map(c => ({
+      ...versEtat.campagne(c),
+      /* Une campagne sans aucune ligne demande tout : c'est le comportement des
+         collectes ouvertes avant que les rubriques existent, et la règle est la
+         même des deux côtés. */
+      rubriques: rubriquesCampagne.filter(x => x.campagne === c.id).map(x => x.rubrique)
+    })),
     observations: observations.map(versEtat.observation),
     acces: acces.map(versEtat.acces),
-    signalements: signalements.map(versEtat.signalement),
+    signalements: signalements.map(r => versEtat.signalement(r, annonces)),
     intentions: intentions.map(versEtat.intention),
-    controles: controles.map(versEtat.controle),
+    /* Trié explicitement. `dernierControle` prend le PREMIER de la liste et
+       suppose « le plus récent d'abord » — ce que le moteur de démonstration
+       garantit par construction et que la base ne garantit pas du tout. Le
+       dossier d'une association pouvait afficher comme dernier contrôle un
+       verdict « introuvable » de six mois plus tôt, et se dire périmé alors
+       qu'un contrôle venait d'être fait. */
+    controles: controles.map(versEtat.controle)
+      .sort((a, b) => String(b.le || "").localeCompare(String(a.le || ""))),
     evenements: evenements.map(versEtat.evenement),
     actions: actionsCorrectives.map(versEtat.action),
     /* Un « contrat » cote moteur, c'est un abonnement et ses factures. La forme
@@ -6883,6 +6988,13 @@ async function chargerEtat(client){
       cible: p.observation || p.mission || p.don,
       nom: p.nom, type: p.type_mime, taille: p.taille, empreinte: p.empreinte,
       chemin: p.chemin, contenu: null,
+      /* `conserve` se déduisait de `contenu !== null`, toujours faux en
+         production : l'écran remplaçait donc le bouton de téléchargement par
+         « fichier non conservé en démonstration » — dans une vraie base, sur une
+         facture que le client venait de déposer. Le chemin de production, un
+         lien signé, était inatteignable. Ce qui compte n'est pas d'avoir le
+         contenu sous la main, c'est qu'il existe quelque part. */
+      conserve: !!p.chemin,
       depose_par: p.depose_par, depose_le: p.depose_le, retire_le: null
     })),
     /* Ce qui est réellement parti. La clé de la base porte l'identifiant du
@@ -6920,7 +7032,14 @@ async function chargerEtat(client){
       par: z.par, le: String(z.le).slice(0, 10),
       traite_le: z.traite_le ? String(z.traite_le).slice(0, 10) : null
     })),
-    moteur_journal: [], rapports_generes: [],
+    /* Le journal du moteur. Il était posé vide en dur : l'écran « Moteur » de
+       Riseva n'affichait donc jamais rien en production, alors que la table est
+       remplie chaque nuit. La base range `{tache, fait:{...}, cree_le}` ; l'écran
+       lit les compteurs à plat. On aplatit ici. */
+    moteur_journal: journalMoteur.map(x => ({
+      le: String(x.cree_le).slice(0, 10), ...(x.fait || {})
+    })),
+    rapports_generes: [],
     classement_recalcule_le: null
   };
 }
@@ -6960,6 +7079,10 @@ function versOffre(r){
     /* La liste nominative des associations à rappeler n'est pas rendue par la
        base : c'est notre carnet d'adresses, pas celui du client. Il voit
        combien, pas lesquelles. */
+    /* La base ne rend délibérément pas les noms des associations à relancer :
+       c'est un agrégat, pas un annuaire. L'écran écrivait quand même
+       « … ne publient rien en ce moment : . » — une phrase visiblement tronquée
+       à chaque site concerné. Il sait maintenant que la liste peut être vide. */
     aRelancer: [], aRelancerTotal: r.a_relancer,
     exemples: []
   };
@@ -6993,7 +7116,13 @@ function versAdoption(r, moteur){
   }
   const e = moteur ? moteur.entreprise : null;
   return {
-    entreprise: e, sites: moteur ? moteur.etablissements() : [],
+    entreprise: e,
+    /* `etablissements()` prend l'identifiant de la SOCIÉTÉ. Appelée sans
+       argument, elle comparait `x.societe === undefined` et rendait un tableau
+       vide : sur l'écran qui sert précisément à trouver OÙ ça bloque, un groupe
+       multi-sites ne pouvait descendre à aucun site — seul « toute la société »
+       était proposé, et le plancher d'anonymat masquait alors l'entonnoir. */
+    sites: moteur && e ? moteur.etablissements(e.id) : [],
     etablissement: null,
     marches, rupture,
     lisible: !!r.lisible, plancher: r.plancher,
@@ -7234,7 +7363,12 @@ function creerSupabase(client){
       rpc("declarer_valeur_materiel", { p_mission: mid,
         p_valeur: champs.valeur ?? null, p_categorie: champs.categorie ?? null,
         p_nature: champs.nature ?? null, p_reference: champs.reference ?? null,
-        p_sortie_le: champs.sortie_le ?? null, p_justificatif: champs.justificatif ?? null,
+        /* L'écran envoie `sortieLe` en chameau, comme le moteur de démonstration
+           l'attend. L'adaptateur ne lisait que `sortie_le` : la date de sortie de
+           l'actif était TOUJOURS nulle en production, sur un registre qui doit
+           justement dire quand le bien est sorti du bilan. On accepte les deux. */
+        p_sortie_le: champs.sortieLe ?? champs.sortie_le ?? null,
+        p_justificatif: champs.justificatif ?? null,
         p_effacement: champs.effacement ?? null })),
     expedier: (eid, kit, { suivi = null } = {}) => ecrire(() =>
       rpc("expedier_kit", { p_entreprise: eid, p_kit: kit, p_suivi: suivi })),
@@ -7284,7 +7418,11 @@ function creerSupabase(client){
        Le navigateur ne la declenche pas : il retombait sur le moteur en memoire,
        et l'ecran annoncait des validations automatiques et des envois que le
        serveur n'avait jamais faits. */
-    moteur: () => ({ validations_auto: 0, annonces_closes: 0, relances: 0,
+    /* Les noms des compteurs sont ceux du serveur, pas d'autres : l'écran lisait
+       `annonces_fermees` et recevait `annonces_closes`, ce qui affichait
+       « undefined fermeture(s) ». Deux vocabulaires pour la même chose, c'est
+       une divergence de plus à chaque écran. */
+    moteur: () => ({ validations_auto: 0, annonces_fermees: 0, relances_collecte: 0,
                      le: null, cote: "serveur" }),
 
     rouvrirAnnonce: (aid) => ecrire(() => rpc("rouvrir_annonce", { p_annonce: aid })),

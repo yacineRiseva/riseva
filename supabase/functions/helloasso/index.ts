@@ -151,8 +151,20 @@ Deno.serve(async (req) => {
         code_challenge_method: "S256",
         state: etat
       });
-      return new Response(null, { status: 302,
-        headers: { location: `${AUTH}/authorize?${q}` } });
+      /* Deux façons de répondre, parce que deux façons d'appeler. Une
+         navigation de premier niveau ne porte AUCUN en-tête `Authorization` :
+         l'écran faisait `location.href = …/helloasso/lier`, la route exigeait le
+         porteur, et l'association recevait une page blanche avec
+         `{"erreur":"Connexion requise"}`. Aucune n'a jamais pu lier son compte,
+         ce qui rendait toute cette fonction inatteignable.
+
+         On appelle donc en `fetch` avec le jeton, on reçoit l'adresse en JSON,
+         et c'est le navigateur qui va dessus. La redirection reste servie pour
+         qui arrive autrement. */
+      const cible = `${AUTH}/authorize?${q}`;
+      if ((req.headers.get("accept") || "").includes("application/json"))
+        return json({ autorisation: cible });
+      return new Response(null, { status: 302, headers: { location: cible } });
     }
 
     /* --- 2. HelloAsso nous renvoie le code ------------------------------ */
@@ -257,6 +269,14 @@ Deno.serve(async (req) => {
       if (url.searchParams.get("etat") === "erreur")
         return versApp("/annonces", "Le paiement n'a pas abouti. Rien n'a été débité.");
 
+      /* Déjà enregistré : on sort AVANT `accesPour`. Chaque passage par cette
+         fonction fait tourner le jeton de rafraîchissement HelloAsso de
+         l'association ; un donateur qui recharge sa page de remerciement le
+         faisait tourner à chaque fois, pour rien, et deux rotations concurrentes
+         cassent la liaison. */
+      if (i.etat === "recue")
+        return versApp("/activite", "Merci, votre don était déjà enregistré.");
+
       /* On ne croit pas le navigateur sur parole : l'état du paiement se relit
          chez HelloAsso, avec notre jeton. Une redirection est une intention, pas
          une preuve. */
@@ -270,12 +290,22 @@ Deno.serve(async (req) => {
         ["Authorized", "Registered"].includes(p.state));
       if (!paye) return versApp("/annonces", "Le paiement n'est pas encore confirmé.");
 
-      /* `confirmer_don` est idempotente : un retour rejoué ne crée pas un
-         deuxième don, il ressort le premier. */
-      const { error } = await sb.rpc("confirmer_don", {
-        p_fournisseur: "helloasso", p_reference: String(i.helloasso_intent),
-        p_annonce: i.annonce, p_montant: i.montant, p_origine: i.origine,
-        p_salarie: i.salarie
+      /* Le montant ENCAISSÉ, pas le montant annoncé. HelloAsso rend le total
+         réellement réglé dans la même réponse ; on enregistrait pourtant ce que
+         le navigateur avait demandé. Toute divergence — paiement partiel,
+         montant modifié chez eux — partait dans les points de la mission, puis
+         dans le reçu fiscal, pièce sur laquelle l'association encourt l'amende
+         de l'article 1740 A du CGI. */
+      const encaisse = Number(ci.order?.amount?.total ?? 0) / 100;
+      if (!(encaisse > 0)) return versApp("/annonces", "Le paiement n'est pas encore confirmé.");
+
+      /* Une seule écriture pour le don ET l'intention. Séparées, un don payé par
+         carte laissait son intention « annoncée » : l'association la retrouvait
+         dans ses virements attendus, confirmait la réception, et un second don
+         était créé — deux cents euros encaissés, quatre cents déclarés. */
+      const { error } = await sb.rpc("confirmer_don_carte", {
+        p_intention: i.id, p_fournisseur: "helloasso",
+        p_reference: String(i.helloasso_intent), p_montant: encaisse
       });
       if (error) return versApp("/annonces", error.message);
       return versApp("/activite", "Merci, votre don est enregistré.");

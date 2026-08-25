@@ -83,7 +83,15 @@ Deno.serve(async (req) => {
     return cadre("Cette mission a-t-elle eu lieu ?", `
       <p>Le salarié a déclaré cette mission comme faite. Votre réponse fait foi :
       c'est elle qui est reprise dans les rapports de l'entreprise.</p>
-      <form method="post" action="${echappe(url.pathname)}">
+      <!-- L'adresse d'envoi est ABSOLUE, sans le paramètre du jeton (il repart
+           dans un champ caché). Un chemin relatif valait `/valider-mission`,
+           sans le préfixe `/functions/v1` que la passerelle retire avant de nous
+           passer la main : le formulaire postait vers une adresse servie par la
+           passerelle API, pas par cette fonction, et l'association recevait un
+           404 après avoir cliqué. Aucune des trois réponses n'arrivait jamais.
+           La CSP `form-action 'self'` empêchait de surcroît toute correction
+           côté navigateur. -->
+      <form method="post" action="${echappe(url.origin + url.pathname)}">
         <input type="hidden" name="j" value="${echappe(jeton)}">
         <button class="oui" name="r" value="oui" type="submit">Réalisée comme prévu
           <small>Le nombre annoncé est retenu tel quel.</small></button>
@@ -135,6 +143,13 @@ Deno.serve(async (req) => {
       return message("C'est noté",
         "La mission est refusée, aucun point n'a été attribué, et le besoin est "
         + "réouvert dans vos annonces.");
+    case "chiffre_invraisemblable":
+      return message("Ce nombre nous surprend",
+        "Il est plus de dix fois supérieur à ce que l'annonce laissait attendre. "
+        + "C'est peut-être exact, et dans ce cas écrivez-nous : nous le "
+        + "corrigerons nous-mêmes. Mais un rapport une fois arrêté ne se rouvre "
+        + "pas, alors nous préférons vous le redemander qu'y inscrire une faute "
+        + "de frappe.", 400);
     case "chiffre_manquant":
       return message("Il manque le nombre",
         "Vous avez indiqué « réalisée partiellement » sans dire combien. Revenez au "

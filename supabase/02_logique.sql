@@ -2501,6 +2501,15 @@ begin
      and (p_realise is null or p_realise < 0) then
     return 'chiffre_manquant';
   end if;
+  -- Une borne haute. « 180 » tapé au lieu de « 18 » gonflait une réalisation
+  -- dans un rapport que la tâche nocturne scelle définitivement quinze jours
+  -- plus tard, et personne ne rouvre un rapport scellé. Dix fois l'attendu est
+  -- déjà très généreux : au-delà, c'est une faute de frappe, et on préfère
+  -- redemander.
+  if p_reponse = 'partiel' and v_a.impact_unite is not null
+     and p_realise > 10 * greatest(round(v_m.quantite * v_a.impact_par_unite), 1) then
+    return 'chiffre_invraisemblable';
+  end if;
 
   if p_reponse = 'non' then
     update public.mission m
@@ -2513,10 +2522,16 @@ begin
     update public.mission m
        set etat = 'validee', tranchee_le = clock_timestamp(),
            jeton_utilise_le = clock_timestamp(),
+           -- « Comme prévu » retient le nombre ANNONCÉ, comme le dit le bouton.
+           -- Le `coalesce(round(p_realise), …)` retenait le chiffre tapé dans le
+           -- champ voisin : une association qui saisit un nombre puis valide au
+           -- clavier soumet le premier bouton du formulaire, c'est-à-dire
+           -- « comme prévu », et son chiffre entrait quand même — sous un
+           -- libellé qui promettait l'inverse.
            realise_confirme = case
              when v_a.impact_unite is null then null
              when p_reponse = 'partiel'    then round(p_realise)
-             else coalesce(round(p_realise), round(m.quantite * v_a.impact_par_unite)) end
+             else round(m.quantite * v_a.impact_par_unite) end
      where m.id = v_m.id;
   end if;
   return p_reponse;

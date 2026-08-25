@@ -2307,6 +2307,43 @@ begin
 end $$;
 reset role;
 
+-- L'équipe : sans elle, l'application ne connaissait le rôle de PERSONNE d'autre
+-- que la personne connectée, et tout écran qui filtre sur le rôle rendait une
+-- liste vide chez un vrai client.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
+do $$
+begin
+  perform pg_temp.dit('une administratrice voit son équipe, avec les rôles',
+    (select count(*) from public.mon_equipe()) >= 4
+    and exists (select 1 from public.mon_equipe() e where e.role = 'salarie')
+    and exists (select 1 from public.mon_equipe() e where e.role = 'site_referent'));
+  perform pg_temp.dit('et chacun porte son site',
+    exists (select 1 from public.mon_equipe() e where e.etablissement is not null));
+  -- Théo est administrateur d'une AUTRE société : il ne doit pas y figurer.
+  perform pg_temp.dit('personne d''une autre société n''y figure',
+    not exists (select 1 from public.mon_equipe() e
+                 where e.id = 'aaaaaaaa-0000-4000-8000-000000000007'));
+end $$;
+-- Un accès CSE lit des chiffres, pas une liste de personnes.
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000009', false);
+select set_config('request.jwt.claim.email', 'cse@vaudrey-ciments.fr', false);
+do $$
+begin
+  perform pg_temp.dit('le CSE ne reçoit aucune liste nominative',
+    (select count(*) from public.mon_equipe()) = 0);
+end $$;
+-- Une association non plus.
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000003', false);
+select set_config('request.jwt.claim.email', 'elise@quatrevents.org', false);
+do $$
+begin
+  perform pg_temp.dit('une association ne lit l''équipe de personne',
+    (select count(*) from public.mon_equipe()) = 0);
+end $$;
+reset role;
+
 \echo ''
 \echo 'Les relances de collecte, et la clôture à l''échéance'
 -- Trois promesses de la page « outil RSE », qu'aucune ligne de code ne tenait :

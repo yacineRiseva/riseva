@@ -628,6 +628,42 @@ begin
   return v_id;
 end $$;
 
+-- ------------------------------------------ un don par carte, en un seul geste
+-- `confirmer_don` crée le don et la mission ; elle ne touche pas à l'intention.
+-- Le chemin virement, lui, la solde. Résultat : un don payé PAR CARTE laissait
+-- son intention en « annoncée », l'association la voyait dans sa liste de
+-- virements attendus, cliquait « j'ai bien reçu » — et un SECOND don était créé,
+-- avec ses points et son reçu, pour de l'argent encaissé une seule fois. Deux
+-- cents euros versés, quatre cents déclarés. À défaut de ce double comptage, la
+-- tâche de nuit finissait par marquer l'intention « abandonnée, sans virement à
+-- l'échéance », ce qui est faux pour un paiement carte abouti.
+--
+-- Les deux écritures sont donc faites ensemble, ici, et pas par deux allers-
+-- retours réseau qu'une coupure peut séparer.
+create or replace function public.confirmer_don_carte(
+  p_intention uuid, p_fournisseur text, p_reference text, p_montant numeric)
+returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare v_i public.intention_don; v_don uuid;
+begin
+  select * into v_i from public.intention_don i where i.id = p_intention for update;
+  if not found then raise exception 'Intention introuvable' using errcode = '42704'; end if;
+
+  -- Idempotente comme `confirmer_don` : un retour rejoué ne crée pas un deuxième
+  -- don, il ressort le premier.
+  if v_i.etat = 'recue' then
+    return v_i.mission;
+  end if;
+
+  v_don := public.confirmer_don(p_fournisseur, p_reference, v_i.annonce,
+                                p_montant, v_i.origine, v_i.salarie);
+  update public.intention_don i
+     set etat = 'recue', montant_recu = p_montant, confirme_le = now(),
+         mission = (select d.mission from public.don d where d.id = v_don)
+   where i.id = p_intention;
+  return v_don;
+end $$;
+
 -- ------------------------------------------- le RIB d'UNE association, à la fois
 -- La fiche publique d'une association affiche son RIB : c'est le principe même
 -- du don par virement, et l'association le publie déjà sur son propre site.
@@ -698,6 +734,37 @@ language sql stable security definer set search_path = '' as $$
  where i.empreinte = extensions.digest(p_code, 'sha256')
 $$;
 
+-- --------------------------------------------------------------- mon équipe
+-- Le rôle, le site et l'état de chaque personne de MA société. Ces colonnes
+-- vivent dans le schéma privé et n'en sortent pas : ouvrir `appartenance` à
+-- `authenticated` donnerait à chaque salarié l'organigramme de toute la base.
+--
+-- Sans cette fonction, l'application recevait bien les NOMS de ses collègues —
+-- la policy de `profil` les rend — mais aucun rôle, aucune société, aucun site :
+-- `chargerEtat` les posait à `null`. Toutes les dérivations qui filtrent sur le
+-- rôle rendaient donc une liste vide. L'écran Équipe d'un client de deux cents
+-- personnes affichait « Personne pour l'instant » et « 0 place occupée », la
+-- carte du CSE disait toujours « pas ouvert », aucun bouton « nommer
+-- administrateur » n'apparaissait sur personne, et le rapport annuel comptait
+-- un salarié. La démonstration, dont le jeu de données porte les rôles,
+-- marchait parfaitement.
+--
+-- Elle ne rend que MA société : ni les autres sociétés du groupe — un groupe
+-- consolide des agrégats, jamais des identités — ni qui que ce soit d'ailleurs.
+-- Un compte CSE en est exclu : il lit des chiffres, pas une liste de personnes.
+create or replace function public.mon_equipe()
+returns table (id uuid, nom text, role public.role_utilisateur,
+               etablissement uuid, actif boolean, pseudonymise boolean,
+               retire_le timestamptz)
+language sql stable security definer set search_path = '' as $$
+  select p.id, p.nom, a.role, a.etablissement, a.actif, a.pseudonymise, a.retire_le
+    from private.appartenance a
+    join public.profil p on p.id = a.profil
+   where private.mon_entreprise() is not null
+     and private.mon_role() in ('entreprise_admin','site_referent','salarie')
+     and a.entreprise = private.mon_entreprise()
+$$;
+
 -- ------------------------------------------------------------- qui suis-je
 -- Le rôle d'une personne, son entreprise, son site, son groupe. Ces colonnes
 -- vivent dans le schéma privé et n'en sortent pas : ouvrir `appartenance` à
@@ -753,13 +820,15 @@ grant execute on function
   public.valider_association(uuid),
   public.suspendre_association(uuid, text),
   public.ouvrir_compte_association(text, text, text, text),
-  public.mon_profil()
+  public.mon_profil(),
+  public.mon_equipe()
 to authenticated;
 
 -- La porte d'entrée est ouverte à qui n'est pas encore connecté : c'est tout
 -- l'objet d'un lien d'inscription.
 grant execute on function public.resoudre_invitation(text) to anon, authenticated;
 grant execute on function public.coordonnees_don(uuid) to anon, authenticated;
+grant execute on function public.confirmer_don_carte(uuid, text, text, numeric) to service_role;
 
 -- La préinscription vient du site public : c'est la seule écriture ouverte à qui
 -- n'est pas connecté. Elle n'écrit que dans sa propre table, ne lit rien, et ne

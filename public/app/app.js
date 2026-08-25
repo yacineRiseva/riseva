@@ -2216,11 +2216,32 @@ function vueEquipe(u){
     </div>`);
     modal("Ajouter un salarié", corps, [
       { label:"Annuler" },
-      { label:"Envoyer l'invitation", classe:"btn--primary", onClick: () => {
+      /* En production, cette fonction ne poste AUCUN courriel : elle rend un
+         lien nominatif, à usage unique, verrouillé sur l'adresse saisie — et ce
+         lien était jeté. L'administrateur lisait « Invitation envoyée », la
+         personne ne recevait rien, et le seul exemplaire lisible du code venait
+         d'être perdu. Les deux autres parcours nominatifs — CSE, référent —
+         affichaient bien leur lien ; celui-ci était le seul oublié. */
+      { label:"Créer l'invitation", classe:"btn--primary", onClick: async () => {
           const n = corps.querySelector("#n").value.trim(), e = corps.querySelector("#e").value.trim();
           if (!n || !e){ toast("Nom et email sont nécessaires."); return false; }
-          try { DB.inviterSalarie(eid, n, e); } catch (err){ toast(err.message); return false; }
-          toast("Invitation envoyée."); rendre();
+          try {
+            const r = await DB.inviterSalarie(eid, n, e);
+            const code = typeof r === "string" ? r : (r && r.code);
+            if (code){
+              const url = lienPublic(`/rejoindre.html?code=${encodeURIComponent(code)}`);
+              corps.innerHTML = "";
+              corps.appendChild(h(`<div class="stack" style="--gap:var(--s4)">
+                <p class="hint" style="margin-bottom:6px">À envoyer à ${esc(n)}, et à cette
+                  personne seule. Ce lien n'accepte que ${esc(e)} et ne se réaffichera pas :</p>
+                <div class="copyline"><input class="input" readonly
+                  aria-label="Lien d'invitation" value="${esc(url)}"></div>
+              </div>`));
+              toast("Invitation prête. Copiez le lien maintenant.");
+              return false;   /* la fenêtre reste ouverte : le lien est dedans */
+            }
+            toast("Invitation créée."); rendre();
+          } catch (err){ toast(err.message || "L'invitation n'a pas pu être créée."); return false; }
         }}
     ]);
   };
@@ -4686,8 +4707,12 @@ function vueModeration(){
             ${sg.precisions ? `« ${esc(sg.precisions)} »` : ""}</p>
           <div class="field"><label>Décision</label>
             <select class="select" id="dec">
-              <option value="conserve">Conserver l'annonce</option>
+              <!-- « conserve » n'existait pas côté base : elle n'accepte que
+                   retire, maintenu ou modifie. Cette décision-là aurait été
+                   refusée par une contrainte au moment de l'enregistrer. -->
+              <option value="maintenu">Maintenir l'annonce</option>
               <option value="retire">Retirer l'annonce</option>
+              <option value="modifie">Demander une modification</option>
             </select></div>
           <div class="field"><label>Motivation, communiquée à l'auteur du signalement et à l'association</label>
             <textarea class="textarea" id="mot" placeholder="Ce qui a été vérifié, et pourquoi cette décision."></textarea></div>
@@ -5459,8 +5484,18 @@ function vueRecus(u){
           <div class="field" style="flex:1"><label>Préfixe de numérotation</label>
             <input class="input" id="pref" value="${esc(r.prefixe || "")}" placeholder="QV-2027-"></div>
           <div class="field" style="width:180px"><label>Prochain numéro</label>
-            <input class="input" id="num" type="number" min="1" value="${r.prochain_numero || 1}"></div>
+            <!-- En lecture seule, et déduit. Le champ était saisissable, la
+                 valeur n'était transmise à aucune fonction, aucune colonne ne
+                 l'accueillait : une association qui reprenait sa numérotation à
+                 47 la voyait revenir à 1 à chaque ouverture de l'écran, et
+                 risquait d'émettre des reçus portant des numéros déjà utilisés.
+                 Le prochain numéro se déduit de ceux déjà émis, et c'est la
+                 seule façon de ne jamais en réutiliser un. -->
+            <input class="input" id="num" type="number" value="${r.prochain_numero || 1}"
+              readonly aria-readonly="true" style="background:var(--paper-sunk)"></div>
         </div>
+        <p class="hint">Le prochain numéro suit ceux déjà émis : il ne se règle pas à la
+          main, pour qu'aucun numéro ne soit jamais utilisé deux fois.</p>
         <label class="checkline"><input type="checkbox" id="actif" ${r.actif ? "checked" : ""}>
           <span>Émettre automatiquement un reçu à chaque don encaissé.</span></label>
       </div>
@@ -5506,7 +5541,7 @@ function vueRecus(u){
       signataire: el.querySelector("#sig").value.trim(),
       qualite: el.querySelector("#qual").value.trim(),
       prefixe: el.querySelector("#pref").value.trim(),
-      prochain_numero: Number(el.querySelector("#num").value) || 1
+      /* Plus transmis : il est déduit des reçus déjà émis. */
     });
     toast(DB.recusPrets(aid) ? "Réglages enregistrés, l'émission est active."
                              : "Enregistré. L'émission reste inactive tant qu'il manque un réglage.");
@@ -5552,7 +5587,13 @@ function vuePreferences(u){
         désigne personne. Votre <strong style="color:var(--ink)">prénom</strong>, lui, n'apparaît
         que si vous le décidez ici.</p>
       <label class="checkline" style="margin-top:var(--s5)">
-        <input type="checkbox" id="visp" ${u.visible_pairs ? "checked" : ""}>
+        <input type="checkbox" id="visp" ${
+        /* Les reglages d'une personne arrivent sous `prefs` en production et a
+           plat en demonstration. L'ecran ne lisait que la forme a plat : un
+           salarie qui avait accepte d'etre visible retrouvait la case decochee a
+           chaque visite, et en enregistrant sans la recocher repassait
+           reellement a `false`. Un reglage de vie privee qui bascule tout seul. */
+        (u.visible_pairs || (u.prefs && u.prefs.visible_pairs)) ? "checked" : ""}>
         <span><strong>Mes collègues peuvent voir que je participe</strong><br>
           <span class="muted" style="font-size:var(--t-xs)">Votre prénom seul, et seulement pour
           les salariés de votre entreprise. Jamais votre nom, jamais pour une autre entreprise,
@@ -7810,19 +7851,24 @@ function formCampagne(u, gid, derniere){
 
   modal("Nouvelle collecte", corps, [
     { label: "Annuler", classe: "btn--ghost" },
-    { label: "Ouvrir la collecte", classe: "btn--primary", onClick: () => {
+    /* La RPC rend un uuid, le moteur de démonstration un objet : `c.id` valait
+       `undefined` en production et `sessionStorage` recevait la chaîne
+       « undefined ». Le responsable RSE était renvoyé sur une collecte
+       introuvable et devait la rechoisir à la main. */
+    { label: "Ouvrir la collecte", classe: "btn--primary", onClick: async () => {
         try {
-          const c = DB.ouvrirCampagne({ groupe: gid,
+          const c = await DB.ouvrirCampagne({ groupe: gid,
             libelle: corps.querySelector("#c-lib").value,
             periode: corps.querySelector("#c-per").value,
             debut: corps.querySelector("#c-deb").value,
             fin: corps.querySelector("#c-fin").value,
             echeance: corps.querySelector("#c-ech").value,
             rubriques: cases() });
-          sessionStorage.setItem("riseva.campagne", c.id);
+          const cid = typeof c === "string" ? c : (c && c.id);
+          if (cid) sessionStorage.setItem("riseva.campagne", cid);
           toast("Collecte ouverte. Chaque site la voit maintenant sur son écran.");
           rendre();
-        } catch (err){ toast(err.message); return false; }
+        } catch (err){ toast(err.message || "La collecte n'a pas pu être ouverte."); return false; }
       } }
   ]);
 }
@@ -8272,9 +8318,9 @@ function formValeurMateriel(x){
   corps.querySelector("#vm-cat").addEventListener("change", maj);
   modal("Valoriser un don de matériel", corps, [
     { label: "Annuler", classe: "btn--ghost" },
-    { label: "Enregistrer", classe: "btn--primary", onClick: () => {
+    { label: "Enregistrer", classe: "btn--primary", onClick: async () => {
         try {
-          DB.declarerValeurMateriel(x.mission, {
+          await DB.declarerValeurMateriel(x.mission, {
             valeur: corps.querySelector("#vm-val").value,
             categorie: corps.querySelector("#vm-cat").value || null,
             nature: corps.querySelector("#vm-nat").value,
@@ -8284,7 +8330,7 @@ function formValeurMateriel(x){
             effacement: corps.querySelector("#vm-eff").checked
           });
           toast("Registre mis à jour."); rendre();
-        } catch (e){ toast(e.message); }
+        } catch (e){ toast(e.message || "Le registre n'a pas pu être mis à jour."); }
       } }
   ]);
 }
@@ -8558,15 +8604,25 @@ function ouvrirDon(a, u){
   modal("Don à " + asso.nom, corps, [
     { label:"Annuler" },
     { label: parCarte ? "Payer par carte" : "Obtenir la référence", classe:"btn--primary",
-      onClick: () => {
+      /* `async` et `await`. En production l'écriture est un aller-retour : `i`
+         était une promesse, `bonDeVirement` lisait `i.montant` et `i.reference`
+         sur un objet qui n'en avait pas, et le donateur repartait avec un bon de
+         virement SANS référence et SANS montant. Son virement arrivait à
+         l'association sans rien à rapprocher, et n'était jamais crédité. Le
+         paiement par carte, lui, partait avec `montant: undefined`. */
+      onClick: async () => {
         const orig = corps.querySelector("#orig");
         const origine = orig ? orig.value : "salarie";
         let i;
         try {
-          i = DB.declarerIntentionDon({ annonce: a.id, montant: Number(q.value),
+          i = await DB.declarerIntentionDon({ annonce: a.id, montant: Number(q.value),
             origine, salarie: u.id,
             entreprise: origine === "entreprise" ? u.org : null });
-        } catch (e){ toast(e.message); return false; }
+        } catch (e){ toast(e.message || "Le don n'a pas pu être enregistré."); return false; }
+        if (!i || !i.reference){
+          toast("Le don n'a pas pu être enregistré. Réessayez dans un instant.");
+          return false;
+        }
         if (parCarte){ ouvrirPaiementCarte(i, asso, a); return; }
         modal("Votre virement à " + asso.nom, bonDeVirement(i, asso),
           [{ label:"C'est noté", classe:"btn--primary", onClick: () => rendre() }]);
@@ -8816,10 +8872,22 @@ function vueDonsAsso(u){
      l'organisation et on ecrit la liaison, en disant que c'est une simulation.
      Un parcours qu'on ne peut pas traverser en entier est un parcours qu'on ne
      peut pas montrer. */
-  el.querySelector("#lierHa")?.addEventListener("click", () => {
+  el.querySelector("#lierHa")?.addEventListener("click", async () => {
     if (DB.mode === "supabase"){
+      /* Une navigation de premier niveau ne porte pas de jeton : la fonction
+         répondait « Connexion requise » et l'association tombait sur une page
+         blanche. On demande donc l'adresse d'autorisation avec le jeton, puis on
+         y va. */
       const base = (window.RISEVA_CONFIG || {}).url || "";
-      location.href = `${base}/functions/v1/helloasso/lier?retour=/dons`;
+      try {
+        const jeton = await jetonAuth();
+        const r = await fetch(`${base}/functions/v1/helloasso/lier?retour=/dons`, {
+          headers: { "Authorization": `Bearer ${jeton}`, "Accept": "application/json" }
+        });
+        const d = await r.json();
+        if (!r.ok || !d.autorisation) throw new Error(d.erreur || "Autorisation impossible.");
+        location.href = d.autorisation;
+      } catch (e){ toast(e.message || "HelloAsso n'a pas répondu."); }
       return;
     }
     const corps = h(`<div class="stack" style="--gap:var(--s4)">
@@ -8948,13 +9016,21 @@ function blocRegistre(asso, { admin = false, apres = null } = {}){
     const barre = carte.querySelector(".row:last-child");
     const b = h(`<button class="btn btn--sm ${admin ? "btn--primary" : "btn--forest"}">${
       admin ? "Retenir ce contrôle" : "C'est nous : remplir ma fiche"}</button>`);
-    b.onclick = () => {
-      if (!asso.siren && f.siren) DB.enregistrerNumeros(asso.id, { siren: f.siren });
-      const ct = DB.controlerEnregistrement(asso.id, { fiche: f, par: (moi() || {}).id || null });
-      toast(ct.bloquant
-        ? "Contrôle enregistré : il signale un écart à lever."
-        : "Contrôle enregistré, fiche complétée.");
-      apres ? apres(ct) : rendre();
+    /* `await`, et on relit le verdict depuis l'état rechargé. La RPC rend un
+       uuid, pas l'objet de contrôle : `ct.bloquant` était `undefined`, et
+       l'administrateur lisait toujours « fiche complétée » — y compris quand le
+       registre signalait une association fermée ou un RNA divergent, c'est-à-dire
+       exactement le cas pour lequel ce contrôle existe. */
+    b.onclick = async () => {
+      try {
+        if (!asso.siren && f.siren) await DB.enregistrerNumeros(asso.id, { siren: f.siren });
+        await DB.controlerEnregistrement(asso.id, { fiche: f, par: (moi() || {}).id || null });
+        const ct = DB.dernierControle(asso.id) || {};
+        toast(ct.bloquant
+          ? "Contrôle enregistré : il signale un écart à lever."
+          : "Contrôle enregistré, fiche complétée.");
+        apres ? apres(ct) : rendre();
+      } catch (e){ toast(e.message || "Le contrôle n'a pas pu être enregistré."); }
     };
     barre.appendChild(b);
     return carte;
@@ -8984,9 +9060,13 @@ function blocRegistre(asso, { admin = false, apres = null } = {}){
         <div class="row" style="margin-top:var(--s3)"></div></div>`);
       if (admin){
         const b = h(`<button class="btn btn--ghost btn--sm">Consigner la panne</button>`);
-        b.onclick = () => { const ct = DB.controlerEnregistrement(asso.id,
-            { panne:true, par:(moi() || {}).id || null });
-          toast("Panne consignée : le contrôle reste à faire."); apres ? apres(ct) : rendre(); };
+        b.onclick = async () => {
+          try {
+            await DB.controlerEnregistrement(asso.id, { panne:true, par:(moi() || {}).id || null });
+            toast("Panne consignée : le contrôle reste à faire.");
+            apres ? apres(DB.dernierControle(asso.id) || {}) : rendre();
+          } catch (e){ toast(e.message || "La panne n'a pas pu être consignée."); }
+        };
         bloc.querySelector(".row").appendChild(b);
       }
       res.appendChild(bloc); return;
@@ -8998,9 +9078,13 @@ function blocRegistre(asso, { admin = false, apres = null } = {}){
         <div class="row" style="margin-top:var(--s3)"></div></div>`);
       if (admin){
         const b = h(`<button class="btn btn--ghost btn--sm">Consigner « introuvable »</button>`);
-        b.onclick = () => { const ct = DB.controlerEnregistrement(asso.id,
-            { fiche:null, par:(moi() || {}).id || null });
-          toast("Contrôle enregistré."); apres ? apres(ct) : rendre(); };
+        b.onclick = async () => {
+          try {
+            await DB.controlerEnregistrement(asso.id, { fiche:null, par:(moi() || {}).id || null });
+            toast("Contrôle enregistré.");
+            apres ? apres(DB.dernierControle(asso.id) || {}) : rendre();
+          } catch (e){ toast(e.message || "Le contrôle n'a pas pu être enregistré."); }
+        };
         bloc.querySelector(".row").appendChild(b);
       }
       res.appendChild(bloc); return;
@@ -9284,8 +9368,9 @@ function offreLocaleBloc(u, sites){
         ${o.aRelancerTotal ? `<p class="hint">
           <strong style="color:var(--ink)">${nb(o.aRelancerTotal)} association${
             o.aRelancerTotal > 1 ? "s vérifiées" : " vérifiée"} à moins de ${nb(o.rayon)} km
-          ${o.aRelancerTotal > 1 ? "ne publient" : "ne publie"} rien en ce moment</strong> :
-          ${o.aRelancer.map(x => esc(x.nom)).join(", ")}. Une association qui ne publie pas
+          ${o.aRelancerTotal > 1 ? "ne publient" : "ne publie"} rien en ce moment</strong>${
+            o.aRelancer.length ? " : " + o.aRelancer.map(x => esc(x.nom)).join(", ") : ""
+          }. Une association qui ne publie pas
           n'a presque jamais dit non, elle n'a pas eu le temps d'écrire l'annonce. C'est à
           nous de l'appeler.</p>` : ""}
         ` : `<p class="hint" style="margin-top:var(--s3)">L'adresse de ce site n'est pas
