@@ -2551,6 +2551,26 @@ select pg_temp.refuse('on n''écrit pas dans la collecte d''un autre client',
      current_setting(''riseva.et2'')::uuid, ''{}''::jsonb)');
 reset role;
 
+-- --- Le registre ne reçoit pas de diagnostic ------------------------------
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000005', false);
+select set_config('request.jwt.claim.email', 'karim@vaudrey-ciments.fr', false);
+select pg_temp.refuse('le registre refuse une description de la blessure',
+  'select public.declarer_evenement(''e7000000-0000-4000-8000-000000000002'',
+     current_date - 3, ''travail'', ''avec_arret'', ''manutention'', ''Quai'', 4,
+     ''Fracture du poignet en soulevant une palette.'')');
+do $$
+begin
+  perform public.declarer_evenement('e7000000-0000-4000-8000-000000000002',
+    current_date - 3, 'travail', 'avec_arret', 'manutention', 'Quai', 4,
+    'Palette mal arrimee, glissement pendant la reprise a deux.');
+  perform pg_temp.dit('mais il accepte la circonstance, qui est ce qui sert a agir', true);
+exception when others then
+  perform pg_temp.dit('mais il accepte la circonstance, qui est ce qui sert a agir', false);
+  raise notice 'declarer_evenement : %', sqlerrm;
+end $$;
+reset role;
+
 -- --- La modération, article 16 du DSA ------------------------------------
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);

@@ -654,6 +654,12 @@ n'a donc pas à en demander l'agrément.
 
          HELLOASSO_CLIENT_ID
          HELLOASSO_CLIENT_SECRET
+         RETOUR_SECRET            = un autre mot de passe long, au hasard
+
+     `RETOUR_SECRET` sert à signer l'adresse de retour d'un paiement, pour que
+     personne ne puisse rejouer le retour d'un don qui ne le concerne pas.
+     Inventez-en un différent de celui de l'étape G.6, et ne le réutilisez
+     nulle part.
 
   3. Redéployez la fonction `helloasso`.
 

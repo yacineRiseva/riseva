@@ -5405,6 +5405,27 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
        cette société. « Meunier » est un métier avant d'être un patronyme, on ne
        compare donc qu'à cette liste, et seulement au-delà de quatre lettres pour
        ne pas rejeter « Le Mans » à cause d'un salarié qui s'appelle Le. */
+    /* Le DIAGNOSTIC, que `traceDePersonne` ne voyait pas : elle attrapait un nom,
+       une adresse, un numéro — et « fracture du poignet » passait. Le siège de
+       la lésion et sa nature sont des données de santé de l'article 9 du RGPD,
+       et le registre promet en toutes lettres de ne pas les héberger. Même liste
+       qu'en base, `private.trace_de_sante`. On n'y met ni « main », ni « dos »,
+       ni « pied » : ce sont des mots ordinaires du travail, et les refuser
+       rendrait le champ inutilisable. */
+    traceDeSante(texte){
+      const t = " " + normaliserNom(String(texte || "")).toLowerCase() + " ";
+      if (!t.trim()) return null;
+      for (const mot of ["fracture","fractures","entorse","entorses","luxation","luxations",
+        "brulure","brulures","plaie","plaies","hematome","hematomes","contusion","contusions",
+        "lombalgie","sciatique","hernie","commotion","traumatisme","traumatismes",
+        "intoxication","syncope","suture","sutures","amputation","tendinite",
+        "elongation","dechirure","ecchymose","lesion","lesions","diagnostic",
+        "radiographie","cicatrice"]){
+        if (new RegExp("(^|[^a-z0-9])" + mot + "([^a-z0-9]|$)").test(t))
+          return `une description de la blessure (« ${mot} »)`;
+      }
+      return null;
+    },
     traceDePersonne(texte, etid){
       /* Deux lectures du même texte, et il faut les deux : les motifs à ponctuation
          se cherchent sur le texte tel quel (normaliserNom mange le « @ » et les
@@ -5452,7 +5473,8 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
          refuse de stocker. On refuse la ligne plutôt que de la nettoyer en
          silence : nettoyer apprendrait que le champ accepte tout, puisqu'il ne
          dit rien. Même règle qu'en base (private.trace_de_personne). */
-      const trace = api.traceDePersonne(circ, etid) || api.traceDePersonne(zone, etid);
+      const trace = api.traceDePersonne(circ, etid) || api.traceDePersonne(zone, etid)
+                 || api.traceDeSante(circ) || api.traceDeSante(zone);
       if (trace)
         throw new Error("Ce registre ne reçoit ni identité ni donnée de santé, et votre texte "
           + `contient ${trace}. Décrivez la situation, pas la personne.`);

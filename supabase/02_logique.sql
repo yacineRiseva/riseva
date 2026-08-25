@@ -2188,6 +2188,40 @@ $$;
 -- en donnée de santé. On ne compare donc qu'à cette liste, et seulement pour des
 -- noms d'au moins quatre lettres, pour ne pas rejeter un site « Le Mans » à
 -- cause d'un salarié qui s'appelle Le.
+-- Ce que le champ « circonstances » ne doit jamais recevoir : un DIAGNOSTIC.
+-- `trace_de_personne` attrapait bien une identité — un nom, une adresse, un
+-- numéro — mais « fracture du poignet » passait sans encombre. Or le siège de la
+-- lésion et sa nature sont des données de santé au sens de l'article 9 du RGPD,
+-- et le registre promet en toutes lettres de ne pas les héberger. Une promesse
+-- que le champ contredit à chaque saisie n'est pas une promesse.
+--
+-- Ce n'est pas une garantie, c'est un garde-fou : il attrape ce qu'on écrit sans
+-- y penser, et il l'explique. La liste est volontairement courte et sans
+-- ambiguïté — on ne met ni « main », ni « dos », ni « pied », qui sont des mots
+-- ordinaires du travail (« à main levée », « chute de plain-pied »), et dont le
+-- refus rendrait le champ inutilisable.
+create or replace function private.trace_de_sante(p_texte text)
+returns text
+language plpgsql immutable parallel safe set search_path = '' as $$
+declare
+  v_t text := ' ' || public.sans_accents(lower(coalesce(p_texte, ''))) || ' ';
+  v_mot text;
+begin
+  if btrim(v_t) = '' then return null; end if;
+  foreach v_mot in array array[
+    'fracture','fractures','fracture','entorse','entorses','luxation','luxations',
+    'brulure','brulures','plaie','plaies','hematome','hematomes','contusion','contusions',
+    'lombalgie','sciatique','hernie','commotion','traumatisme','traumatismes',
+    'intoxication','syncope','suture','sutures','amputation','tendinite',
+    'elongation','dechirure','ecchymose','lesion','lesions','diagnostic',
+    'radiographie','cicatrice','points de suture'] loop
+    if v_t ~ ('(^|[^[:alnum:]])' || v_mot || '([^[:alnum:]]|$)') then
+      return 'une description de la blessure (« ' || v_mot || ' »)';
+    end if;
+  end loop;
+  return null;
+end $$;
+
 create or replace function private.trace_de_personne(p_texte text, p_etablissement uuid)
 returns text
 language plpgsql stable security definer set search_path = '' as $$
@@ -2237,7 +2271,9 @@ begin
   declare v_trace text;
   begin
     v_trace := coalesce(private.trace_de_personne(p_circonstances, p_etablissement),
-                        private.trace_de_personne(p_zone, p_etablissement));
+                        private.trace_de_personne(p_zone, p_etablissement),
+                        private.trace_de_sante(p_circonstances),
+                        private.trace_de_sante(p_zone));
     if v_trace is not null then
       raise exception 'Ce registre ne reçoit ni identité ni donnée de santé, et votre texte contient %. Décrivez la situation, pas la personne.', v_trace
         using errcode = '22023';

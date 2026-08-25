@@ -42,9 +42,14 @@ const sb = createClient(
 /* Signature du retour de paiement. Le secret ne quitte jamais la fonction ; la
    signature est tronquée à 32 caractères hexadécimaux — 128 bits, très au-delà
    de ce qu'un rejeu peut deviner. */
-const SECRET_RETOUR = Deno.env.get("RETOUR_SECRET")
-  ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+/* Un secret À PART, jamais la clé de service. Le repli sur celle-ci faisait
+   d'elle une clé de signature exposée à un oracle : n'importe qui pouvait
+   demander la signature d'une valeur de son choix en ouvrant un paiement, et
+   accumuler des couples (message, signature) produits avec la clé qui ouvre
+   toute la base. Absent, on refuse de signer plutôt que de signer mal. */
+const SECRET_RETOUR = Deno.env.get("RETOUR_SECRET") ?? "";
 async function signer(valeur: string): Promise<string> {
+  if (!SECRET_RETOUR) throw new Error("RETOUR_SECRET manquant : le retour de paiement ne peut pas être signé.");
   const cle = await crypto.subtle.importKey(
     "raw", new TextEncoder().encode(SECRET_RETOUR),
     { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
