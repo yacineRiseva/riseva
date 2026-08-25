@@ -333,6 +333,14 @@ create table association (
   lat       double precision check (lat between -90 and 90),
   lon       double precision check (lon between -180 and 180),
   site      text check (length(site) <= 240),
+  -- L'adresse à laquelle un visiteur de la page publique peut écrire. La page la
+  -- lisait depuis le premier jour ; la colonne n'existait pas, donc le bouton
+  -- « Les contacter » n'apparaissait sur AUCUNE page réelle — il n'existait que
+  -- dans le jeu de démonstration. Une association mise en ligne sans moyen de la
+  -- joindre, c'est une vitrine qui ne sert à rien.
+  contact_public text check (contact_public is null
+                             or (length(contact_public) <= 240
+                                 and contact_public ~ '^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$')),
   -- La photo que l'association publie sur sa fiche. Une liste d'associations
   -- sans images se parcourt sans s'arrêter, et un salarié qui ne s'arrête pas
   -- ne s'engage sur rien. Elle est stockée telle quelle, en data-URI réduite

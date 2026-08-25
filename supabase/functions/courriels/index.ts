@@ -185,9 +185,17 @@ async function traiter(f: { id: string; type: string; sujet: string; detail: str
        milieu d'un mot ne vaut pas motivation. */
     const { data: prep, error: e2 } = await sb.rpc("preparer_moderation", { p_envoi: f.id });
     const d = Array.isArray(prep) ? prep[0] : prep;
-    if (e2 || !d) {
+    if (e2) {
       await sb.rpc("marquer_envoi", { p_envoi: f.id, p_etat: "echec" });
       return "echec";
+    }
+    if (!d) {
+      /* La source a disparu, ou l'envoi n'est plus éligible. Marquer « échec »
+         ferait consommer trois tentatives à une ligne qui ne partira jamais, et
+         elle resterait ensuite invisible : `sans_destinataire` est l'état
+         terminal honnête, et le journal des envois le montre. */
+      await sb.rpc("marquer_envoi", { p_envoi: f.id, p_etat: "sans_destinataire" });
+      return "sansAdresse";
     }
     html = corpsModeration(f.sujet, d as never);
   } else {

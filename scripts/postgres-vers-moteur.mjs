@@ -6,7 +6,7 @@
  * la traduction suive, ce fichier le dit — pas le client.
  */
 import { readFileSync } from "node:fs";
-import { DB, connecterSupabase } from "../public/app/data.js";
+import { DB, connecterSupabase, seed } from "../public/app/data.js";
 
 const lignes = JSON.parse(readFileSync("/tmp/riseva-db.json", "utf8"));
 
@@ -84,6 +84,61 @@ if (camp){
   dit("les taux se calculent sur les valeurs de la base",
     ind && (ind.calcules.tf1 === null || typeof ind.calcules.tf1 === "number"),
     JSON.stringify(ind && ind.calcules));
+}
+
+/* ------------------------------------------------------------------ */
+/* La forme des objets, moteur contre moteur                           */
+/* ------------------------------------------------------------------ */
+/* Le défaut le plus coûteux de ce produit ne se voit sur aucun écran : le MÊME
+   code de dérivation sert le jeu de démonstration et la base réelle, et il suffit
+   qu'un mappeur oublie un champ, le nomme autrement ou le pose en dur pour qu'un
+   écran juste en démonstration soit faux chez un client — sans erreur, sans trace.
+   La recette d'écran ne peut pas l'attraper : elle tourne sur la démonstration,
+   qui a toujours le champ.
+   On compare donc les DEUX formes, collection par collection : tout champ présent
+   sur un objet de la démonstration doit exister sur l'objet correspondant chargé
+   depuis Postgres. L'inverse n'est pas une faute — la production porte des champs
+   que la démonstration n'a pas besoin d'inventer. */
+{
+  const etat = DB.etat();
+  /* `id` mis à part : les identifiants de démonstration sont des chaînes courtes.
+     Les champs listés ici sont ceux dont on sait qu'ils n'ont PAS d'équivalent en
+     base et qui sont documentés comme tels dans le mappeur. */
+  const tolere = {
+    /* `reseau` marque, dans le jeu de démonstration seul, les comptes et les
+       missions des AUTRES entreprises du réseau, fabriqués pour que « Tous
+       ensemble » ait quelque chose à additionner. En production, ces lignes sont
+       réelles : le marqueur n'a pas d'objet. */
+    utilisateurs: ["email", "reseau"],
+    associations: ["reseaux", "recus_actif"],
+    entreprises: [],
+    invitations: ["code", "email", "nom"],
+    missions: ["don", "reseau"],
+    annonces: [],
+    campagnes: [], observations: [], etablissements: [], groupes: [],
+    contrats: [], evenements: [], actions: [], acces: [], intentions: [],
+    preinscriptions: [], controles: [], signalements: [], envois: [],
+    expeditions: [], sourcing: [], pieces: [], recus_emis: []
+  };
+  const cles = (o) => Object.keys(o || {});
+  let manquants = [];
+  Object.keys(tolere).forEach(nom => {
+    const dem = seed[nom], prod = etat[nom];
+    if (!Array.isArray(dem) || !dem.length) return;
+    if (!Array.isArray(prod) || !prod.length) return;
+    /* L'union des clés de la démonstration : un objet du jeu peut être plus
+       complet qu'un autre, et c'est le champ le plus riche qui fait la forme. */
+    const attendues = new Set();
+    dem.forEach(o => cles(o).forEach(k => attendues.add(k)));
+    const vues = new Set();
+    prod.forEach(o => cles(o).forEach(k => vues.add(k)));
+    [...attendues].forEach(k => {
+      if (!vues.has(k) && !(tolere[nom] || []).includes(k))
+        manquants.push(`${nom}.${k}`);
+    });
+  });
+  dit("aucun champ du jeu de démonstration ne disparaît en production",
+    manquants.length === 0, manquants.join(", "));
 }
 
 /* Ce qu'un salarié ne peut pas lire ne doit pas casser le moteur : la RLS

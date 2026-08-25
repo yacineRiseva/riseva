@@ -473,20 +473,32 @@ returns integer
 language plpgsql security definer set search_path = '' as $$
 declare d record; v_n integer := 0;
 begin
+  -- La jointure sur `association` n'est pas une optimisation : sans elle, la
+  -- requête ramenait d'abord les dons les plus anciens, dont la plupart
+  -- appartiennent à des associations qui n'ont jamais activé l'émission. Ces
+  -- dons-là ne sortent JAMAIS du lot : passé cinq cents, la tâche repassait
+  -- chaque nuit sur les mêmes et n'atteignait plus jamais les dons récents.
+  -- L'association qui venait de signer son mandat n'était donc jamais rattrapée.
+  -- Les six conditions sont les mêmes que dans `emettre_recu_si_pret`.
   for d in
     select don.id from public.don
+      join public.association a on a.id = don.association
      where don.etat = 'confirme'
+       and a.recus_actif and a.eligible_mecenat
+       and a.signataire is not null and a.qualite is not null
+       and a.recu_prefixe is not null and a.mandat_recus_le is not null
        and not exists (select 1 from public.recu r where r.don = don.id)
      order by don.confirme_le
      limit 500
   loop
     perform private.emettre_recu_si_pret(d.id);
-    v_n := v_n + 1;
+    -- On compte ce qui est RÉELLEMENT sorti, pas ce qu'on a examiné. Le compteur
+    -- global — « tous les reçus émis dans l'heure » — ramassait aussi ceux des
+    -- confirmations de paiement et du bouton de rattrapage : le journal du moteur
+    -- affichait un nombre non nul une nuit où la tâche n'avait rien fait, ce qui
+    -- masquait exactement la panne décrite ci-dessus.
+    if exists (select 1 from public.recu r where r.don = d.id) then v_n := v_n + 1; end if;
   end loop;
-  -- Ce qu'on compte, c'est ce qui a RÉELLEMENT été émis cette nuit, pas le
-  -- nombre de dons examinés : la plupart le sont pour rien, les réglages de leur
-  -- association restant incomplets.
-  select count(*) into v_n from public.recu r where r.emis_le > now() - interval '1 hour';
   return v_n;
 end $$;
 

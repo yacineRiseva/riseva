@@ -1592,7 +1592,12 @@ returns integer
 language plpgsql security definer set search_path = '' as $$
 declare d record; v_n integer := 0;
 begin
-  if private.mon_association() is distinct from p_association and not private.est_admin() then
+  -- `null is distinct from null` est FAUX : sans le premier test, un appel avec
+  -- `p_association => null` traversait la garde. Il ne fuyait rien — la boucle ne
+  -- matchait aucune ligne — mais une garde qui laisse passer par accident finit
+  -- par laisser passer autre chose.
+  if p_association is null
+     or (private.mon_association() is distinct from p_association and not private.est_admin()) then
     raise exception 'Réservé à l''association bénéficiaire' using errcode = '42501';
   end if;
   for d in
@@ -1740,6 +1745,7 @@ create or replace function public.decider_signalement(
 returns void
 language plpgsql security definer set search_path = '' as $$
 declare v_auteur uuid; v_annonce uuid; v_asso uuid; v_rev integer; v_dest uuid;
+        v_identique boolean;
 begin
   if not private.est_admin() then
     raise exception 'Réservé à Riseva' using errcode = '42501';
@@ -1750,6 +1756,14 @@ begin
   if p_decision is null or p_decision not in ('retire','maintenu','modifie') then
     raise exception 'Décision inconnue' using errcode = '22023';
   end if;
+  -- Rejouer la MÊME décision ne renotifie personne : la clé porte un numéro de
+  -- révision, donc `on conflict do nothing` ne protège plus de rien, et deux
+  -- clics envoyaient deux fois la même déclaration de motifs au signalant et à
+  -- l'association.
+  select (sg.decide_le is not null and sg.decision = p_decision
+          and sg.motivation is not distinct from p_motivation)
+    into v_identique
+    from public.signalement sg where sg.id = p_signalement;
   update public.signalement s
      set decision = p_decision, motivation = p_motivation, decide_le = now()
    where s.id = p_signalement
@@ -1768,6 +1782,10 @@ begin
     update public.annonce a set etat = 'close'
      where a.id = v_annonce and a.etat = 'ouverte';
   end if;
+
+  -- Après la fermeture de l'annonce, pas avant : une décision rejouée doit
+  -- pouvoir rattraper un retrait qui n'avait pas pris.
+  if coalesce(v_identique, false) then return; end if;
 
   select a.association into v_asso from public.annonce a where a.id = v_annonce;
 
@@ -2873,7 +2891,8 @@ end $$;
 create or replace function public.maj_association(
   p_resume text default null, p_cause text default null, p_ville text default null,
   p_site text default null, p_photo text default null,
-  p_effacer_photo boolean default false)
+  p_effacer_photo boolean default false, p_contact_public text default null,
+  p_effacer_contact boolean default false)
 returns void
 language plpgsql security definer set search_path = '' as $$
 declare v_asso uuid := private.mon_association();
@@ -2896,7 +2915,23 @@ begin
     raise exception 'Une photo est un fichier image ou une adresse https' using errcode = '22023';
   end if;
 
+  -- Sur la valeur TRIMÉE : c'est elle qu'on stocke, et une adresse collée avec
+  -- une espace en tête était refusée alors qu'elle s'affichait correcte.
+  if p_contact_public is not null and btrim(p_contact_public) <> ''
+     and btrim(p_contact_public) !~ '^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$' then
+    raise exception 'L''adresse de contact n''est pas une adresse électronique'
+      using errcode = '22023';
+  end if;
+
   update public.association a set
+    -- Effaçable. Le `coalesce` seul rendait l'adresse éternelle : une association
+    -- qui avait publié par erreur la boîte personnelle de sa trésorière vidait le
+    -- champ, lisait « votre page est à jour », et l'adresse restait en ligne pour
+    -- tout visiteur. En démonstration l'effacement marchait — donc rien ne le
+    -- signalait avant la production.
+    contact_public = case when p_effacer_contact or p_contact_public is not null
+                          then nullif(btrim(coalesce(p_contact_public, '')), '')
+                          else a.contact_public end,
     resume = coalesce(nullif(btrim(coalesce(p_resume, '')), ''), a.resume),
     cause  = coalesce(nullif(btrim(coalesce(p_cause, '')), ''), a.cause),
     ville  = coalesce(nullif(btrim(coalesce(p_ville, '')), ''), a.ville),

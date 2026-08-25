@@ -96,12 +96,13 @@ create policy entreprise_privee on public.entreprise for select to authenticated
 -- qui n'en rend qu'une seule à la fois.
 grant select (id, nom, nom_juridique, rna, siren, cause, ville, resume, adresse,
               lat, lon, site, photo, valide, suspendue, verifiee_le, a_reverifier_le,
-              eligible_mecenat, helloasso, helloasso_slug, helloasso_lie_le, cree_le)
+              eligible_mecenat, helloasso, helloasso_slug, helloasso_lie_le,
+              contact_public, cree_le)
   on public.association to anon;
 grant select (id, nom, nom_juridique, rna, siren, cause, ville, resume, adresse,
               lat, lon, site, photo, valide, suspendue, verifiee_le, a_reverifier_le,
               eligible_mecenat, helloasso, helloasso_slug, helloasso_lie_le,
-              iban, bic, titulaire_compte, cree_le)
+              contact_public, iban, bic, titulaire_compte, cree_le)
   on public.association to authenticated;
 create policy association_lecture on public.association for select to anon, authenticated
   using ((valide and not suspendue) or id = private.mon_association() or private.est_admin());
@@ -460,7 +461,7 @@ grant execute on function
                          boolean, public.unite_realisation, numeric),
   public.fermer_annonce(uuid),
   public.regler_logo(text),
-  public.maj_association(text, text, text, text, text, boolean),
+  public.maj_association(text, text, text, text, text, boolean, text, boolean),
   public.offre_locale(uuid),
   public.offre_par_site(uuid),
   public.signaler_zone(uuid, text),

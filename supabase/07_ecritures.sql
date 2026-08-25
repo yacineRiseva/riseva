@@ -26,13 +26,13 @@ create or replace function public.maj_entreprise(
   -- fonction ne les prenait même pas en paramètre. Résultat, `plafondCalculable`
   -- restait faux chez tout client de production et le plafond de l'article
   -- 238 bis n'était jamais appliqué. Contrairement aux autres, ils s'EFFACENT :
-  -- `p_efface_fiscal` permet de remettre à null un montant saisi par erreur,
+  -- `p_efface_vides` permet de remettre à null un montant saisi par erreur,
   -- parce que « zéro don hors Riseva » et « je ne sais pas » ne donnent pas le
   -- même plafond, et que le produit refuse d'affirmer le premier pour l'autre.
   p_cout_heure_charge numeric default null,
   p_exercice_debut date default null, p_exercice_fin date default null,
   p_dons_hors_riseva numeric default null, p_report_anterieur numeric default null,
-  p_efface_fiscal boolean default false,
+  p_efface_vides boolean default false,
   p_referent_nom text default null, p_referent_mail text default null)
 returns void
 language plpgsql security definer set search_path = '' as $$
@@ -78,18 +78,26 @@ begin
     -- sites. Il ne sert PAS de dénominateur au classement : celui-là est figé
     -- dans l'abonnement, hors de portée du client.
     effectif        = coalesce(p_effectif, e.effectif),
-    cout_heure_charge = case when p_efface_fiscal then p_cout_heure_charge
+    -- `p_efface_vides` dit que le FORMULAIRE COMPLET des paramètres a été soumis :
+    -- une case laissée vide y est alors une décision, pas une absence, et doit
+    -- effacer. Sans ce drapeau, un champ rempli par erreur — l'adresse
+    -- personnelle d'un référent parti, un montant de dons faux — ne pouvait plus
+    -- jamais être retiré : le `coalesce` le faisait revenir à chaque
+    -- enregistrement, et l'écran disait « enregistré ».
+    cout_heure_charge = case when p_efface_vides then p_cout_heure_charge
                              else coalesce(p_cout_heure_charge, e.cout_heure_charge) end,
-    exercice_debut  = case when p_efface_fiscal then p_exercice_debut
+    exercice_debut  = case when p_efface_vides then p_exercice_debut
                            else coalesce(p_exercice_debut, e.exercice_debut) end,
-    exercice_fin    = case when p_efface_fiscal then p_exercice_fin
+    exercice_fin    = case when p_efface_vides then p_exercice_fin
                            else coalesce(p_exercice_fin, e.exercice_fin) end,
-    dons_hors_riseva = case when p_efface_fiscal then p_dons_hors_riseva
+    dons_hors_riseva = case when p_efface_vides then p_dons_hors_riseva
                             else coalesce(p_dons_hors_riseva, e.dons_hors_riseva) end,
-    report_anterieur = case when p_efface_fiscal then p_report_anterieur
+    report_anterieur = case when p_efface_vides then p_report_anterieur
                             else coalesce(p_report_anterieur, e.report_anterieur) end,
-    referent_nom    = coalesce(nullif(btrim(coalesce(p_referent_nom, '')), ''), e.referent_nom),
-    referent_mail   = coalesce(nullif(btrim(coalesce(p_referent_mail, '')), ''), e.referent_mail)
+    referent_nom    = case when p_efface_vides then nullif(btrim(coalesce(p_referent_nom, '')), '')
+                           else coalesce(nullif(btrim(coalesce(p_referent_nom, '')), ''), e.referent_nom) end,
+    referent_mail   = case when p_efface_vides then nullif(btrim(coalesce(p_referent_mail, '')), '')
+                           else coalesce(nullif(btrim(coalesce(p_referent_mail, '')), ''), e.referent_mail) end
   where e.id = v_ent;
 end $$;
 
@@ -1110,7 +1118,7 @@ create or replace function public.signer_contrat(
   p_le date default null)
 returns void
 language plpgsql security definer set search_path = '' as $$
-declare v_saison uuid := private.saison_ouverte(); v_pris integer;
+declare v_saison uuid := private.saison_ouverte(); v_pris integer; v_abo uuid;
 begin
   if not private.est_admin() then
     raise exception 'Réservé à Riseva' using errcode = '42501';
@@ -1121,10 +1129,24 @@ begin
   if p_montant_ht is null or p_montant_ht < 0 then
     raise exception 'Un montant ne peut pas être négatif' using errcode = '22023';
   end if;
+  if p_palier is not null and p_palier not in ('tpe','pme','eti','ge','ge2','ge3') then
+    raise exception 'Palier inconnu : %', p_palier using errcode = '22023';
+  end if;
+  select a.id into v_abo from public.abonnement a
+   where a.entreprise = p_entreprise and a.saison = v_saison;
+  if v_abo is null then
+    raise exception 'Aucun abonnement à signer pour cette entreprise sur la saison ouverte'
+      using errcode = '42704';
+  end if;
   -- On ne descend pas sous ce qui est déjà occupé : réduire les places en dessous
   -- des comptes existants laisserait des salariés inscrits sur des sièges qui
   -- n'existent plus, et personne ne saurait lesquels retirer.
-  v_pris := private.sieges_pris(p_entreprise);
+  --
+  -- `sieges_pris` prend un ABONNEMENT, pas une entreprise. Lui passer l'un pour
+  -- l'autre ne lève rien — les deux sont des uuid — et la fonction rendait
+  -- silencieusement zéro : la garde ne se déclenchait jamais, et un contrat à
+  -- dix places pouvait être enregistré sur une société qui en occupait quarante.
+  v_pris := private.sieges_pris(v_abo);
   if p_sieges < v_pris then
     raise exception '% places sont déjà occupées : le contrat ne peut pas en ouvrir moins',
       v_pris using errcode = '23514';
@@ -1135,11 +1157,7 @@ begin
     palier     = coalesce(p_palier, a.palier),
     fondateur  = coalesce(p_fondateur, a.fondateur),
     signe_le   = coalesce(p_le, current_date)
-   where a.entreprise = p_entreprise and a.saison = v_saison;
-  if not found then
-    raise exception 'Aucun abonnement à signer pour cette entreprise sur la saison ouverte'
-      using errcode = '42704';
-  end if;
+   where a.id = v_abo;
 end $$;
 
 -- L'ouverture d'un compte entreprise, après signature. Elle crée la société, son

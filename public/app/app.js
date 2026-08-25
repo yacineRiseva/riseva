@@ -1,4 +1,4 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, DELAI_VALIDATION_JOURS, FISCAL, cerfaPour, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, KITS_SAISON, ETATS_EXPEDITION, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, demoDemandee, envoyerLienConnexion, sessionAuth, jetonAuth,
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, DELAI_VALIDATION_JOURS, FISCAL, cerfaPour, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, palierPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, KITS_SAISON, ETATS_EXPEDITION, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, demoDemandee, envoyerLienConnexion, sessionAuth, jetonAuth,
   seDeconnecter, brancherEvenements, estArgent, estTemps, estPrive, heuresPour,
   RUBRIQUES, rubrique, rubriquesDe, saisisDe, calculesDe, sectionsDe,
   demarrerVierge, leJour } from "./data.js";
@@ -3929,6 +3929,15 @@ function vuePageAsso(u){
         </div>
         <div class="field"><label for="pa-site">Votre site, si vous en avez un</label>
           <input class="input" id="pa-site" value="${esc(a.site || "")}" placeholder="https://"></div>
+        <!-- Le bouton « Les contacter » de la page publique lisait ce champ
+             depuis le premier jour, et aucun écran ne permettait de le remplir :
+             il n'apparaissait donc sur aucune page réelle. -->
+        <div class="field"><label for="pa-mail">Adresse à laquelle on peut vous écrire</label>
+          <input class="input" id="pa-mail" type="email" value="${esc(a.contact_public || "")}"
+            placeholder="contact@votre-association.fr">
+          <p class="hint">Elle apparaît sur votre page publique, derrière un bouton
+            « Les contacter ». Sans elle, un salarié qui vous découvre n'a aucun moyen
+            de vous joindre.</p></div>
       </div>
       <div class="row" style="margin-top:var(--s6);gap:var(--s3)">
         <button class="btn btn--primary btn--sm" id="pa-save">Enregistrer</button>
@@ -4009,7 +4018,8 @@ function vuePageAsso(u){
         resume: res.value,
         cause: el.querySelector("#pa-cause").value,
         ville: el.querySelector("#pa-ville").value,
-        site: el.querySelector("#pa-site").value
+        site: el.querySelector("#pa-site").value,
+        contact_public: el.querySelector("#pa-mail").value
       });
       toast("Votre page est à jour.");
       rendre();
@@ -4099,7 +4109,9 @@ function vueAdminEntreprises(){
               <input class="input" id="sg" type="number" min="${si.pris || 1}"
                 value="${e.effectif || si.total}"></div>
             <div class="field" style="flex:1"><label>Montant HT de la saison</label>
-              <input class="input" id="mt" type="number" min="0" step="10" value="0"></div>
+              <input class="input" id="mt" type="number" min="0" step="10"
+                value="${devisPour({ effectif: e.effectif || 0,
+                                     sites: DB.etablissements(e.id).length || 1 }).ht}"></div>
           </div>
           <label class="checkline"><input type="checkbox" id="fd">
             <span>Tarif fondateur</span></label>
@@ -4111,7 +4123,12 @@ function vueAdminEntreprises(){
            { label:"Enregistrer", classe:"btn--primary", onClick: async (md) => {
                const sg = Math.round(Number(md.querySelector("#sg").value) || 0);
                const mt = Math.round(Number(md.querySelector("#mt").value) || 0);
+               /* Le palier n'est pas décoratif : un montant sans la règle qui l'a
+                  produit est indéfendable six mois plus tard, et c'est exactement
+                  ce que dit le schéma. Il se déduit de l'effectif, au même endroit
+                  que la grille publique. */
                try { await DB.signerContrat(e.id, { sieges: sg, montant_ht: mt,
+                                                    palier: palierPour(e.effectif || 0).id,
                                                     fondateur: md.querySelector("#fd").checked }); }
                catch (err){ toast(err.message); return false; }
                toast("Contrat enregistré, " + sg + " places ouvertes."); rendre(); }}]);
@@ -4799,10 +4816,20 @@ function vueModeration(){
         </div>`);
         modal("Décider du signalement", corps, [
           { label:"Annuler" },
-          { label:"Notifier la décision", classe:"btn--primary", onClick: () => {
+          { label:"Notifier la décision", classe:"btn--primary", onClick: async () => {
+              /* `await` : l'écriture est un aller-retour réseau en production, et
+                 le serveur refuse une motivation de moins de dix caractères. Sans
+                 lui, la modale se fermait sur « Décision notifiée » alors que rien
+                 n'avait été écrit — ni la décision, ni les deux courriels que les
+                 articles 16 et 17 du DSA imposent. */
+              const mot = corps.querySelector("#mot").value.trim();
+              if (mot.length < 10){
+                toast("Une décision doit être motivée, le règlement l'exige : "
+                      + "dix caractères au moins.");
+                return false;
+              }
               try {
-                DB.deciderSignalement(sg.id, corps.querySelector("#dec").value,
-                  corps.querySelector("#mot").value);
+                await DB.deciderSignalement(sg.id, corps.querySelector("#dec").value, mot);
               } catch (e){ toast(e.message); return false; }
               toast("Décision notifiée."); rendre();
             }}

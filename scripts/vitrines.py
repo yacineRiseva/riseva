@@ -1771,7 +1771,7 @@ ARGENT_ASSO = f"""<section id="argent" class="band-moss">
           de reversement, ni plafond.</p>
         <p>Le don s'enregistre dès que HelloAsso ramène le donateur sur Riseva, juste après
           le paiement : le donateur n'a aucune référence à recopier. S'il ferme sa page avant
-          ce retour, le paiement est bien encaissé chez HelloAsso — il apparaît sur votre
+          ce retour, le paiement est bien encaissé chez HelloAsso : il apparaît sur votre
           compte là-bas, et vous l'ajoutez ici en une ligne.</p>
         <p class="mono">Pas encore de compte HelloAsso ? En ouvrir un est gratuit et prend
           quelques minutes. En attendant, le virement reste possible.</p>

@@ -1303,7 +1303,12 @@ const J = (n) => { const d = new Date(...ANCRE_DEMO); d.setDate(d.getDate() + n)
 /* ------------------------------------------------------------------ */
 /* Jeu de démonstration                                                */
 /* ------------------------------------------------------------------ */
-const seed = {
+/* Exporté pour une seule raison : la recette compare la FORME des objets du jeu
+   de démonstration à celle que produisent les mappeurs de production. Deux
+   moteurs qui dérivent le même écran doivent voir les mêmes champs ; une
+   divergence de nom ou d'absence est un défaut qu'aucun test d'écran ne voit,
+   parce que la démonstration, elle, a toujours le champ. */
+export const seed = {
   /* La saison de démonstration est celle qui tourne, pas celle qu'on vend. Un
      client connecté est au milieu de son année ; le site public, lui, prend les
      préinscriptions pour la suivante. Afficher « Saison 2027 » au-dessus
@@ -3815,6 +3820,21 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const jrs = api.joursAvantFinSaison();
       if (jrs <= 60) s.entreprises.forEach(e => j.push({ date:s.saison.fin, type:"fin_saison",
         vers:e.nom, sujet:`Votre saison Riseva se termine dans ${jrs} jours`, etat:"programmé" }));
+      /* La FILE RÉELLE. Tout ce qui précède est reconstruit depuis l'état ; la
+         table `envoi`, elle, porte ce que la nuit a effectivement enfilé et ce
+         que la fonction d'envoi a effectivement fait — rapports, rappels de
+         collecte, reçus, décisions de modération. L'écran affirme « si un message
+         n'apparaît pas ici, c'est qu'il ne part pas », et ces quatre familles-là
+         n'y apparaissaient jamais : elles partent pourtant, et une décision de
+         modération qui part sans trace vérifiable est exactement ce que le DSA
+         demande de pouvoir montrer. */
+      s.envois.forEach(e => j.push({
+        date: e.date, type: e.type,
+        vers: e.destinataire
+              || (e.association ? (api.association(e.association) || {}).nom : null)
+              || (e.entreprise ? (api.entreprise(e.entreprise) || {}).nom : null)
+              || "sans destinataire",
+        sujet: e.sujet, etat: e.etat || "à envoyer" }));
       return j.sort((x, y) => String(y.date).localeCompare(String(x.date)));
     },
 
@@ -4664,7 +4684,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
        Ce qu'elle ne touche pas, et pourquoi : sa denomination et ses numeros
        viennent du registre public et ne se corrigent que par un controle ; sa
        validation reste une decision de Riseva. Le reste lui appartient. */
-    majAssociation(aid, { resume, cause, ville, site, photo } = {}){
+    majAssociation(aid, { resume, cause, ville, site, photo, contact_public } = {}){
       const a = api.association(aid);
       if (!a) throw new Error("Association inconnue");
       if (resume !== undefined){
@@ -4678,6 +4698,12 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         a.resume = r;
       }
       if (cause !== undefined) a.cause = String(cause).trim().slice(0, 60);
+      if (contact_public !== undefined){
+        const m = String(contact_public).trim();
+        if (m && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(m))
+          throw new Error("L'adresse de contact n'est pas une adresse électronique.");
+        a.contact_public = m || null;
+      }
       if (ville !== undefined){
         const v = String(ville).trim();
         if (!v) throw new Error("La ville est nécessaire : c'est elle qui vous met "
@@ -5288,8 +5314,13 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
          supérieur ou égal au vrai : une association dont un réglage manque
          encaisse et n'émet rien, et aurait déclaré des reçus qui n'existent pas.
          On compte donc les reçus, et on dit séparément ce qui reste à émettre. */
+      /* Borné à l'exercice, parce que c'est ce que l'écran affiche et ce que
+         l'article 222 bis demande : le montant et le nombre de reçus de
+         L'EXERCICE. Sans ce filtre, une association en était à son deuxième
+         exercice et recopiait le cumul des deux. */
+      const dans = (d) => d && d >= s.saison.debut && d <= s.saison.fin;
       let montant = 0, nombre = 0;
-      s.recus_emis.filter(r => r.association === aid).forEach(r => {
+      s.recus_emis.filter(r => r.association === aid && dans(r.le)).forEach(r => {
         montant += Number(r.montant) || 0; nombre++;
       });
       const enAttente = api.missions({ asso: aid })
@@ -6787,6 +6818,7 @@ const versEtat = {
     resume: r.resume, adresse: r.adresse, lat: r.lat, lon: r.lon,
     valide: r.valide, suspendue: r.suspendue, site: r.site, photo: r.photo,
     helloasso_slug: r.helloasso_slug || null, helloasso_lie_le: r.helloasso_lie_le || null,
+    contact_public: r.contact_public || null,
     /* La colonne s'appelle `a_reverifier_le`, et elle est bien demandée en
        lecture — mais elle était posée sous le nom `verifiee_jusqua`, qui
        n'existe nulle part. Aucune association n'était donc jamais signalée « à
@@ -6918,11 +6950,19 @@ const versEtat = {
        justificatif et l'attestation d'effacement des données. Elles existent en
        base et revenaient dans la requête. Le registre AGEC affichait « à
        préciser » sur des lignes que le client avait pourtant remplies. */
-    categorie: r.categorie_comptable || null,
-    reference: r.reference_actif || null,
-    sortieLe: r.sortie_le || null,
+    /* Et sous LE MÊME NOM que dans le jeu de démonstration. Elles étaient
+       traduites en `categorie` / `reference` / `sortieLe` / `effacementDonnees`,
+       alors que `registreMateriel` lit `m.categorie_comptable`,
+       `m.reference_actif`, `m.sortie_le` et `m.effacement_donnees` : les cinq
+       colonnes revenaient bien de la base, se posaient sur l'objet, et le
+       registre AGEC affichait quand même « à préciser » sur des lignes que le
+       client avait remplies. Un mappeur qui renomme un champ que la dérivation
+       lit sous son ancien nom ne perd rien en apparence et tout en pratique. */
+    categorie_comptable: r.categorie_comptable || null,
+    reference_actif: r.reference_actif || null,
+    sortie_le: r.sortie_le || null,
     justificatif: r.justificatif || null,
-    effacementDonnees: r.effacement_donnees ?? null
+    effacement_donnees: r.effacement_donnees ?? null
   }),
   invitation: (r, sieges = []) => ({
     id: r.id, entreprise: r.entreprise, etablissement: r.etablissement || null,
@@ -6948,6 +6988,8 @@ const versEtat = {
   campagne: (r) => ({
     id: r.id, groupe: r.groupe, entreprise: r.entreprise, periode: r.periode,
     libelle: r.libelle, debut: r.debut, fin: r.fin, echeance: r.echeance,
+    /* La date d'ouverture, sous le nom que porte la démonstration. */
+    ouverte_le: r.cree_le ? String(r.cree_le).slice(0, 10) : null,
     etat: r.close_le ? "close" : "ouverte"
   }),
   observation: (r) => ({
@@ -7034,7 +7076,7 @@ async function chargerEtat(client){
     lire("association", "id, nom, nom_juridique, rna, siren, cause, ville, resume, adresse, "
                       + "lat, lon, site, photo, valide, suspendue, verifiee_le, a_reverifier_le, "
                       + "eligible_mecenat, helloasso, helloasso_slug, helloasso_lie_le, "
-                      + "iban, bic, titulaire_compte, cree_le"),
+                      + "contact_public, iban, bic, titulaire_compte, cree_le"),
     lire("annonce"), lire("mission"),
     lire("profil", "id, nom"),
     lire("invitation", "id, entreprise, etablissement, pour_referent, pour_cse, "
@@ -7196,7 +7238,22 @@ async function chargerEtat(client){
         return { role: null, org: null, etablissement: null, groupe: null,
                  actif: true, anonyme: false };
       })(),
-      prefs: (reglagesProfil.find(x => x.id === r.id) || {}).preferences || undefined
+      prefs: (reglagesProfil.find(x => x.id === r.id) || {}).preferences || undefined,
+      /* Deux champs que la démonstration porte et que la production n'avait pas.
+         `cree_le` n'est pas la date du compte Auth — elle n'est pas lisible d'ici
+         — mais celle de la PRISE DE SIÈGE, c'est-à-dire l'entrée de la personne
+         dans l'entreprise : c'est exactement ce que l'écran Adoption mesure. Sans
+         elle, « délai avant la première mission » et « en attente depuis » étaient
+         vides en production, et le seul écran qui dit OÙ ça bloque ne disait rien.
+         `visible_pairs` vit dans les préférences côté base ; on le remonte à plat
+         pour que les deux moteurs voient un seul champ, pas deux formes. */
+      cree_le: (() => {
+        const a = sieges.filter(x => x.profil === r.id)
+                        .sort((x, y) => String(x.prise_le).localeCompare(String(y.prise_le)))[0];
+        return a && a.prise_le ? String(a.prise_le).slice(0, 10) : null;
+      })(),
+      visible_pairs: !!((reglagesProfil.find(x => x.id === r.id) || {})
+                        .preferences || {}).visible_pairs
     })),
     /* La personne connectée, si la table des profils ne l'a pas rendue. Une
        policy peut très bien lui refuser la ligne des autres et la sienne du
@@ -7485,7 +7542,8 @@ function creerSupabase(client){
     majAssociation: (aid, ch) => ecrire(() => rpc("maj_association", {
       p_resume: ch.resume ?? null, p_cause: ch.cause ?? null, p_ville: ch.ville ?? null,
       p_site: ch.site ?? null, p_photo: ch.photo === undefined ? null : (ch.photo || ""),
-      p_effacer_photo: ch.photo !== undefined && !ch.photo })),
+      p_effacer_photo: ch.photo !== undefined && !ch.photo,
+      p_contact_public: ch.contact_public ?? null })),
     creerInvitationReferent: (etid, nom, email) => ecrire(() =>
       rpc("creer_invitation_referent", { p_etablissement: etid, p_nom: nom, p_mail: email })),
     allouerQuota: (etid, places) => ecrire(() =>
@@ -7574,6 +7632,7 @@ function creerSupabase(client){
     emettreRecusEnAttente: (aid) => ecrire(() =>
       rpc("emettre_recus_en_attente", { p_association: aid })),
 
+
     /* ---- Le reste des ecritures ----
        Elles etaient absentes, et leur absence ne se voyait pas : le Proxy de fin
        de fichier retombait sur le moteur en memoire, l'ecran confirmait
@@ -7652,16 +7711,20 @@ function creerSupabase(client){
       p_effectif: champs.effectif ?? null,
       /* Le dossier fiscal. Ces cinq champs partaient jusqu'ici dans le vide :
          l'écran les saisissait, la RPC ne les prenait pas, la table n'avait pas
-         les colonnes. `p_efface_fiscal` dit que le formulaire fiscal a été
-         soumis, donc qu'un champ vidé doit redevenir null — sinon un montant
-         saisi par erreur ne pourrait plus jamais être retiré. */
+         les colonnes. `p_efface_vides` dit que le FORMULAIRE COMPLET des
+         paramètres a été soumis, donc qu'un champ vidé y est une décision et
+         doit redevenir null — sinon une adresse personnelle ou un montant saisi
+         par erreur ne pourrait plus jamais être retiré. On ne le pose que si
+         TOUTES les clés du formulaire sont là : le poser sur trois clés
+         effaçait les quatre autres dès qu'un écran n'en envoyait qu'une. */
       p_cout_heure_charge: champs.cout_heure_charge ?? null,
       p_exercice_debut: champs.exercice_debut ?? null,
       p_exercice_fin: champs.exercice_fin ?? null,
       p_dons_hors_riseva: champs.dons_hors_riseva ?? null,
       p_report_anterieur: champs.report_anterieur ?? null,
-      p_efface_fiscal: "dons_hors_riseva" in champs || "report_anterieur" in champs
-                       || "exercice_debut" in champs,
+      p_efface_vides: ["cout_heure_charge", "exercice_debut", "exercice_fin",
+                       "dons_hors_riseva", "report_anterieur", "referent",
+                       "referent_mail"].every(k => k in champs),
       p_referent_nom: champs.referent ?? null,
       p_referent_mail: champs.referent_mail ?? null })),
     majDomaines: (eid, liste) => ecrire(() =>
