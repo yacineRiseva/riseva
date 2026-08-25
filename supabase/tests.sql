@@ -2551,6 +2551,34 @@ select pg_temp.refuse('on n''écrit pas dans la collecte d''un autre client',
      current_setting(''riseva.et2'')::uuid, ''{}''::jsonb)');
 reset role;
 
+-- --- Trois comparaisons qui laissaient passer ce qu'elles devaient arrêter --
+-- `NULL <> x` vaut NULL, pas « vrai » : un `if` bâti dessus ne s'exécute jamais,
+-- et c'est toujours dans le cas limite — celui où le contrôle sert — qu'il
+-- disparaît.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
+select pg_temp.refuse('un lien ne promet jamais plus que ce que le contrat porte',
+  'select public.creer_invitation(99999, 30)');
+reset role;
+
+-- L'effectif de la société est le dénominateur de tout le classement : on ne
+-- répartit pas ce qu'on n'a pas compté.
+-- « Atelier Gmail » a été ouverte avec 5 salariés : on la remet à zéro, hors
+-- rôle, pour éprouver le cas où rien n'est déclaré.
+do $$
+begin
+  update public.entreprise set effectif = 0
+   where id = (select a.entreprise from private.appartenance a
+                where a.profil = 'aaaaaaaa-0000-4000-8000-00000000001b');
+end $$;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-00000000001b', false);
+select set_config('request.jwt.claim.email', 'quelqun@gmail.com', false);
+select pg_temp.refuse('on ne declare pas un site quand la societe n''a pas compte ses salaries',
+  'select public.creer_etablissement(''Nulle part'', ''Ailleurs'', null, 3, null)');
+reset role;
+
 -- --- Le reçu fiscal part tout seul, ou ne part pas du tout ---------------
 -- L'écran des réglages promet « émettre automatiquement un reçu à chaque don
 -- encaissé », et rien n'appelait jamais la fonction qui les émet.

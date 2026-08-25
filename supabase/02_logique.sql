@@ -423,9 +423,14 @@ begin
   select coalesce(a.sieges, 0) into v_sieges
     from public.abonnement a
    where a.entreprise = v_ent and a.saison = private.saison_ouverte();
-  if v_sieges > 0 and p_places > v_sieges then
+  -- `coalesce`, et une comparaison qui refuse aussi le cas nul. La condition
+  -- `v_sieges > 0 and ...` se contentait d'être fausse quand l'abonnement n'avait
+  -- pas de sièges — ou quand il n'y avait aucun abonnement pour la saison — et
+  -- la fonction acceptait alors un lien de cent mille places. Le plafond n'était
+  -- appliqué que lorsqu'il n'était pas nécessaire.
+  if coalesce(v_sieges, 0) < p_places then
     raise exception 'Votre abonnement ouvre % place(s) : le lien ne peut pas en promettre %',
-      v_sieges, p_places using errcode = '23514';
+      coalesce(v_sieges, 0), p_places using errcode = '23514';
   end if;
   if p_jours is null or p_jours <= 0 or p_jours > 365 then
     raise exception 'Durée invalide' using errcode = '22023';
@@ -568,14 +573,21 @@ begin
     raise exception 'Ce SIRET est déjà déclaré sur un autre site' using errcode = '22023';
   end if;
 
+  -- Une société qui n'a pas déclaré son effectif ne peut pas répartir ce qu'elle
+  -- n'a pas compté. Le contrôle était encapsulé dans `if effectif > 0` : à zéro
+  -- ou à NULL, la condition était fausse et le garde-fou sauté, ce qui laissait
+  -- créer des sites aux effectifs arbitraires — et l'effectif de référence est
+  -- le dénominateur de tout le classement.
   select e.effectif into v_total from public.entreprise e where e.id = v_ent;
-  if coalesce(v_total, 0) > 0 then
-    select coalesce(sum(et.effectif), 0) into v_place
-      from public.etablissement et where et.societe = v_ent;
-    if v_place + v_effectif > v_total then
-      raise exception 'Votre société déclare % salariés et % sont déjà répartis',
-        v_total, v_place using errcode = '22023';
-    end if;
+  if coalesce(v_total, 0) <= 0 then
+    raise exception 'Déclarez d''abord l''effectif de votre société : c''est lui qu''on répartit entre les sites'
+      using errcode = '22023';
+  end if;
+  select coalesce(sum(et.effectif), 0) into v_place
+    from public.etablissement et where et.societe = v_ent;
+  if v_place + v_effectif > v_total then
+    raise exception 'Votre société déclare % salariés et % sont déjà répartis',
+      v_total, v_place using errcode = '22023';
   end if;
 
   insert into public.etablissement (societe, nom, ville, siret, effectif, adresse)
@@ -631,14 +643,16 @@ begin
       raise exception 'Un effectif ne peut pas être négatif' using errcode = '22023';
     end if;
     select e.effectif into v_total from public.entreprise e where e.id = v_ent;
-    if coalesce(v_total, 0) > 0 then
-      select coalesce(sum(et.effectif), 0) into v_autres
-        from public.etablissement et
-       where et.societe = v_ent and et.id <> p_etablissement;
-      if v_autres + p_effectif > v_total then
-        raise exception 'Votre société déclare % salariés : il en reste % à placer',
-          v_total, v_total - v_autres using errcode = '22023';
-      end if;
+    if coalesce(v_total, 0) <= 0 then
+      raise exception 'Déclarez d''abord l''effectif de votre société : c''est lui qu''on répartit entre les sites'
+        using errcode = '22023';
+    end if;
+    select coalesce(sum(et.effectif), 0) into v_autres
+      from public.etablissement et
+     where et.societe = v_ent and et.id <> p_etablissement;
+    if v_autres + p_effectif > v_total then
+      raise exception 'Votre société déclare % salariés : il en reste % à placer',
+        v_total, v_total - v_autres using errcode = '22023';
     end if;
   end if;
 
@@ -896,7 +910,14 @@ begin
                    where e.id = v_ent and e.groupe = c.groupe)))) then
     raise exception 'Cette collecte n''est pas celle de votre périmètre' using errcode = '42501';
   end if;
-  if v_role = 'site_referent' and private.mon_etablissement() <> p_etablissement then
+  -- `is distinct from`, pas `<>`. Un référent de site dont l'appartenance ne
+  -- porte AUCUN site — un profil incomplet, un rattachement pas encore fait —
+  -- avait `mon_etablissement()` à NULL ; `NULL <> p_etablissement` s'évalue à
+  -- NULL, le `if` était sauté, et il saisissait pour n'importe quel site de la
+  -- société. Le contrôle le plus important de cette fonction ne s'exécutait pas
+  -- dans le seul cas où il servait vraiment.
+  if v_role = 'site_referent'
+     and private.mon_etablissement() is distinct from p_etablissement then
     raise exception 'Vous ne saisissez que pour votre site' using errcode = '42501';
   end if;
   if not exists (select 1 from public.campagne_indicateurs c
@@ -1115,14 +1136,24 @@ begin
   -- appartenance eteinte : `actif = false`, `pseudonymise = true`. `mon_profil()`
   -- ne rendait rien, et l'application s'ouvrait sur du blanc pour quelqu'un qui
   -- venait pourtant de recreer son compte. Revenir, c'est redevenir actif.
+  -- Quelqu'un qui appartient DÉJÀ, ailleurs et activement, ne se rattache pas
+  -- deux fois : on refuse, et on le dit. La condition `entreprise = excluded`
+  -- faisait pire que refuser — l'`update` échouait en silence, la fonction
+  -- continuait, et une place PAYANTE de la nouvelle entreprise était consommée
+  -- pour quelqu'un qui restait rattaché à l'ancienne.
+  if exists (select 1 from private.appartenance a
+              where a.profil = v_uid and a.actif
+                and a.entreprise is distinct from v_inv.entreprise) then
+    raise exception 'Ce compte appartient déjà à une autre organisation. Demandez-lui de vous retirer avant de rejoindre celle-ci.'
+      using errcode = '22023';
+  end if;
   insert into private.appartenance (profil, role, entreprise, etablissement)
   values (v_uid, 'salarie', v_inv.entreprise, v_inv.etablissement)
     on conflict (profil) do update
        set role = 'salarie', entreprise = excluded.entreprise,
            etablissement = excluded.etablissement,
            actif = true, pseudonymise = false, retire_le = null, maj_le = now()
-     where private.appartenance.entreprise = excluded.entreprise
-       and not private.appartenance.actif;
+     where not private.appartenance.actif;
 
   -- Le siege, lui, porte `unique (abonnement, profil)` : un revenant, ou
   -- quelqu'un qui ouvre deux fois son propre lien, heurtait la contrainte et
