@@ -184,6 +184,27 @@ create table entreprise (
   effectif  integer check (effectif >= 0),
   ca                numeric(15,2) check (ca >= 0),   -- integer déborde au-delà de 2,1 Md€
   cout_jour_moyen   numeric(10,2) check (cout_jour_moyen >= 0),
+  -- Cinq colonnes qui n'existaient nulle part, et que l'écran « Mécénat »
+  -- demandait pourtant à l'entreprise de remplir depuis le premier jour. Sans
+  -- elles, `maj_entreprise` jetait les quatre champs saisis, `plafondCalculable`
+  -- restait FAUX pour tout client de production, et l'écran retombait
+  -- silencieusement sur une « estimation maximale » — c'est-à-dire que le
+  -- plafond de l'article 238 bis n'était JAMAIS appliqué chez un vrai client.
+  -- Le coût horaire chargé sert la même chose du côté du mécénat de compétences.
+  cout_heure_charge numeric(10,2) check (cout_heure_charge >= 0),
+  exercice_debut    date,
+  exercice_fin      date,
+  dons_hors_riseva  numeric(15,2) check (dons_hors_riseva >= 0),
+  report_anterieur  numeric(15,2) check (report_anterieur >= 0),
+  -- La personne que Riseva appelle chez ce client. Deux champs de plus que
+  -- l'écran « Paramètres » demandait et qui n'atterrissaient nulle part : le
+  -- client les saisissait, cliquait « Enregistrer », et les retrouvait vides au
+  -- rechargement suivant. `etablissement` a les siens depuis le début ; la
+  -- société n'en avait pas.
+  referent_nom   text check (length(referent_nom) <= 160),
+  referent_mail  text check (length(referent_mail) <= 240),
+  constraint entreprise_exercice check (
+    exercice_debut is null or exercice_fin is null or exercice_fin > exercice_debut),
   siren     text check (siren ~ '^[0-9]{9}$'  and private.luhn_ok(siren)),
   siret     text check (siret ~ '^[0-9]{14}$' and private.luhn_ok(siret)),
   adresse   text check (length(adresse) <= 240),

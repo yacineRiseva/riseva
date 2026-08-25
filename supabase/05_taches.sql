@@ -459,6 +459,37 @@ begin
   return v_n;
 end $$;
 
+-- ---------------------------------------------------------------- reçus
+-- Le rattrapage des reçus fiscaux.
+--
+-- `emettre_recu_si_pret` n'est appelée qu'à l'instant où un don est confirmé.
+-- Une association qui complète ses réglages APRÈS avoir encaissé — ce qui est le
+-- cas normal, puisqu'on encaisse d'abord et qu'on s'occupe des reçus ensuite —
+-- gardait donc ses dons antérieurs sans reçu pour toujours : aucun écran
+-- n'offrait le geste, aucune tâche ne repassait. Ces montants sortaient de sa
+-- déclaration annuelle et ses donateurs n'avaient rien à joindre à la leur.
+create or replace function private.tache_recus()
+returns integer
+language plpgsql security definer set search_path = '' as $$
+declare d record; v_n integer := 0;
+begin
+  for d in
+    select don.id from public.don
+     where don.etat = 'confirme'
+       and not exists (select 1 from public.recu r where r.don = don.id)
+     order by don.confirme_le
+     limit 500
+  loop
+    perform private.emettre_recu_si_pret(d.id);
+    v_n := v_n + 1;
+  end loop;
+  -- Ce qu'on compte, c'est ce qui a RÉELLEMENT été émis cette nuit, pas le
+  -- nombre de dons examinés : la plupart le sont pour rien, les réglages de leur
+  -- association restant incomplets.
+  select count(*) into v_n from public.recu r where r.emis_le > now() - interval '1 hour';
+  return v_n;
+end $$;
+
 -- ---------------------------------------------------------------- moteur
 create or replace function private.moteur()
 returns jsonb
@@ -480,7 +511,7 @@ begin
   declare
     v_noms text[] := array['validations_auto','annonces_fermees','intentions_expirees',
                            'demandes_validation','relances_collecte','campagnes_closes',
-                           'rapports','rapports_envoyes','purges',
+                           'rapports','rapports_envoyes','recus','purges',
                            'verdicts_sortants','courriels'];
     v_nom text;
     v_n integer;
@@ -496,6 +527,7 @@ begin
           when 'campagnes_closes'    then private.tache_cloture_campagnes()
           when 'rapports'            then private.tache_rapports()
           when 'rapports_envoyes'    then private.tache_envoi_rapports()
+          when 'recus'               then private.tache_recus()
           when 'purges'              then private.tache_retention()
           when 'verdicts_sortants'   then private.tache_verdicts_sortants()
           when 'courriels'           then private.tache_courriels()
@@ -537,7 +569,7 @@ revoke all on function
   private.tache_relances_collecte(), private.tache_cloture_campagnes(),
   private.tache_rapports(), private.tache_envoi_rapports(),
   private.tache_retention(), private.tache_courriels(),
-  private.tache_verdicts_sortants(), private.moteur()
+  private.tache_verdicts_sortants(), private.tache_recus(), private.moteur()
 from public, anon, authenticated;
 
 -- Les fonctions créées ici sont elles aussi SECURITY DEFINER : elles doivent

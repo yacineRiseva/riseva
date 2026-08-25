@@ -2823,7 +2823,11 @@ function ouvrirPreuve(u){
                  + " du seuil ; Riseva ne le sait pas et ne l'applique pas. Estimation, non"
                  + " déclaration : votre expert-comptable arrête le chiffre."
                : "60 % de l'assiette retenue. Estimation, non déclaration : votre expert-comptable arrête le chiffre.")
-            : "60 % de la seule assiette connue de Riseva, plafond non appliqué. Non utilisable pour la déclaration.")}
+            : (v.trancheReduiteMax
+               ? "60 % jusqu'à deux millions d'euros de versements, 40 % au-delà (article 238 bis),"
+                 + " sur la seule assiette connue de Riseva, plafond non appliqué."
+                 + " Non utilisable pour la déclaration."
+               : "60 % de la seule assiette connue de Riseva, plafond non appliqué. Non utilisable pour la déclaration."))}
     </tbody>
   </table>
 
@@ -4062,19 +4066,59 @@ function tableauAdmin(){
 
 function vueAdminEntreprises(){
   const el = h(`<section class="card"><div class="tableau"><table class="table"><thead><tr>
-    <th>Entreprise</th><th>Secteur</th><th>Places</th><th>Points</th><th>Rang</th>
+    <th>Entreprise</th><th>Secteur</th><th>Places</th><th>Contrat</th><th>Points</th><th>Rang</th><th></th>
   </tr></thead><tbody></tbody></table></div></section>`);
   const tb = el.querySelector("tbody");
   DB.classement().forEach(e => {
     const si = DB.sieges(e.id);
-    tb.appendChild(h(`<tr>
+    const c = DB.contrat(e.id) || {};
+    const tr = h(`<tr>
       <td><strong>${esc(e.nom)}</strong><br><span class="muted" style="font-size:var(--t-xs)">${esc(e.ville)}, ${nb(e.effectif)} salariés</span></td>
       <td class="muted">${esc(e.secteur)}</td>
-      <td style="width:22%"><div class="between" style="font-size:var(--t-xs);margin-bottom:5px">
+      <td style="width:20%"><div class="between" style="font-size:var(--t-xs);margin-bottom:5px">
           <span class="muted tnum">${si.pris} / ${si.total}</span></div>
         <div class="bar"><i style="width:${si.total ? (si.pris / si.total) * 100 : 0}%"></i></div></td>
+      <td>${c.signe_le
+        ? `<span class="badge badge--ok" title="signé le ${esc(dateCourte(c.signe_le))}">${eur(c.montant_ht || 0)} HT</span>`
+        : `<span class="badge badge--warn">essai</span>`}</td>
       <td class="tnum"><strong>${nb(DB.pointsDe(e.id).retenu)}</strong></td>
-      <td class="tnum">${e.rang}</td></tr>`));
+      <td class="tnum">${e.rang}</td>
+      <td style="text-align:right"></td></tr>`);
+    /* Le geste qui manquait. Un compte ouvert en libre-service démarre avec les
+       places de l'essai ; sans cet écran, signer un contrat obligeait à recréer
+       la société en double — en abandonnant ses salariés et ses missions. */
+    if (!c.signe_le){
+      const b = h(`<button class="btn btn--forest btn--sm">Enregistrer la signature</button>`);
+      b.onclick = () => {
+        const corps = h(`<div class="stack" style="--gap:var(--s4)">
+          <p class="muted">Ce compte a été ouvert en libre-service : ${nb(si.total)} places,
+            aucun montant. Enregistrer la signature ouvre les places convenues et fait entrer
+            l'entreprise au classement public.</p>
+          <div class="row" style="gap:var(--s4);align-items:stretch">
+            <div class="field" style="flex:1"><label>Places au contrat</label>
+              <input class="input" id="sg" type="number" min="${si.pris || 1}"
+                value="${e.effectif || si.total}"></div>
+            <div class="field" style="flex:1"><label>Montant HT de la saison</label>
+              <input class="input" id="mt" type="number" min="0" step="10" value="0"></div>
+          </div>
+          <label class="checkline"><input type="checkbox" id="fd">
+            <span>Tarif fondateur</span></label>
+          <p class="hint">${nb(si.pris)} place${si.pris > 1 ? "s sont" : " est"} déjà occupée${
+            si.pris > 1 ? "s" : ""} : le contrat ne peut pas en ouvrir moins.</p>
+        </div>`);
+        modal("Signature du contrat, " + e.nom, corps,
+          [{ label:"Annuler" },
+           { label:"Enregistrer", classe:"btn--primary", onClick: async (md) => {
+               const sg = Math.round(Number(md.querySelector("#sg").value) || 0);
+               const mt = Math.round(Number(md.querySelector("#mt").value) || 0);
+               try { await DB.signerContrat(e.id, { sieges: sg, montant_ht: mt,
+                                                    fondateur: md.querySelector("#fd").checked }); }
+               catch (err){ toast(err.message); return false; }
+               toast("Contrat enregistré, " + sg + " places ouvertes."); rendre(); }}]);
+      };
+      tr.lastElementChild.appendChild(b);
+    }
+    tb.appendChild(tr);
   });
   return el;
 }
@@ -4858,6 +4902,11 @@ function vueJournal(){
     mission_validee: "Mission confirmée",
     validation_auto: "Validation sans retour",
     association_validee: "Association validée",
+    moderation: "Décision de modération",
+    rapport: "Rapport de période",
+    relance: "Rappel de collecte",
+    recu: "Reçu fiscal",
+    recap: "Récapitulatif",
     quota: "Alerte de places",
     recap_hebdo: "Récapitulatif hebdomadaire",
     fin_saison: "Fin de saison"
@@ -4985,7 +5034,11 @@ function vueMecenat(u){
                  ? `${Math.round(FISCAL.taux_reduction * 100)} % sur ${eur(v.assiettePleine)}, `
                    + `${Math.round(FISCAL.taux_reduit * 100)} % sur ${eur(v.assietteReduite)}`
                  : `${Math.round(FISCAL.taux_reduction * 100)} % de ${eur(v.assietteRetenue)}`)
-              : `${Math.round(FISCAL.taux_reduction * 100)} % de ${eur(v.assiette)}, plafond non appliqué`,
+              : (v.trancheReduiteMax
+                 ? `${Math.round(FISCAL.taux_reduction * 100)} % sur ${eur(v.assiettePleineMax)}, `
+                   + `${Math.round(FISCAL.taux_reduit * 100)} % sur ${eur(v.assietteReduiteMax)}, `
+                   + `plafond non appliqué`
+                 : `${Math.round(FISCAL.taux_reduction * 100)} % de ${eur(v.assiette)}, plafond non appliqué`),
             "", "kpi--tete grain")}
       ${kpi("Mécénat de compétences", eur(v.competencesRetenu),
             `${nb(v.heuresTT)} heure${v.heuresTT > 1 ? "s" : ""} sur le temps de travail, `
@@ -5035,9 +5088,20 @@ function vueMecenat(u){
               <td class="tnum" style="text-align:right">${eurOuNon(v.plafondEntreprise)}</td></tr>
           <tr><td class="muted">Excédent reporté sur les exercices suivants</td>
               <td class="tnum" style="text-align:right">${eurOuNon(v.reportable)}</td></tr>
+          <!-- Le taux écrit ici doit être celui qui a servi. Il disait « 60 % »
+               à trois centimètres d'un montant que le bloc du haut annonçait
+               calculé 60/40 : deux taux contradictoires sous le même chiffre. -->
           <tr><td><strong>${v.plafondCalculable
-                ? `Réduction d'impôt de l'entreprise, ${Math.round(FISCAL.taux_reduction * 100)} %`
-                : "Estimation maximale potentielle, plafond non appliqué"}</strong></td>
+                ? (v.trancheReduite
+                   ? `Réduction d'impôt de l'entreprise, ${Math.round(FISCAL.taux_reduction * 100)} %`
+                     + ` puis ${Math.round(FISCAL.taux_reduit * 100)} % au-delà de`
+                     + ` ${eur(FISCAL.seuil_taux_reduit)} de versements`
+                   : `Réduction d'impôt de l'entreprise, ${Math.round(FISCAL.taux_reduction * 100)} %`)
+                : (v.trancheReduiteMax
+                   ? `Estimation maximale potentielle, ${Math.round(FISCAL.taux_reduction * 100)} %`
+                     + ` puis ${Math.round(FISCAL.taux_reduit * 100)} % au-delà de`
+                     + ` ${eur(FISCAL.seuil_taux_reduit)}, plafond non appliqué`
+                   : "Estimation maximale potentielle, plafond non appliqué")}</strong></td>
               <td class="tnum" style="text-align:right"><strong style="color:var(--forest-800)">${
                 v.plafondCalculable ? eur(v.reduction) : eur(v.estimationMax)}</strong></td></tr>
         </tbody></table></div>
@@ -5577,12 +5641,22 @@ function vueRecus(u){
             <strong class="tnum">${recap.nombre}</strong></div>
           <div class="between"><span class="muted">Exercice</span><span>${esc(recap.saison)}</span></div>
         </div>
+        <!-- Deux causes, deux phrases. « Il manque un réglage » était affirmé dans
+             les deux cas : une association dont tout était en règle lisait qu'il
+             lui manquait quelque chose, allait le chercher, et ne trouvait rien. -->
         ${recap.aEmettre ? `<p class="hint" style="margin-top:var(--s4)">
           ${nb(recap.aEmettre)} don${recap.aEmettre > 1 ? "s" : ""} confirmé${
             recap.aEmettre > 1 ? "s" : ""} (${eur(recap.montantAEmettre)}) n'${
-            recap.aEmettre > 1 ? "ont" : "a"} pas encore donné lieu à un reçu : il manque un
-          réglage ci-dessus. ${recap.aEmettre > 1 ? "Ces montants ne figurent" : "Ce montant ne figure"}
-          pas dans la déclaration tant qu'aucun reçu n'est délivré.</p>` : ""}
+            recap.aEmettre > 1 ? "ont" : "a"} pas encore donné lieu à un reçu ${
+            DB.recusPrets(aid)
+              ? `: ${recap.aEmettre > 1 ? "ils datent" : "il date"} d'avant l'activation de
+                 l'émission. Le bouton ci-dessous ${recap.aEmettre > 1 ? "les" : "le"} rattrape.`
+              : `: il manque un réglage ci-dessus.`}
+          ${recap.aEmettre > 1 ? "Ces montants ne figurent" : "Ce montant ne figure"}
+          pas dans la déclaration tant qu'aucun reçu n'est délivré.</p>
+        ${DB.recusPrets(aid) ? `<button class="btn btn--forest btn--block"
+          style="margin-top:var(--s4)" id="rattr">Émettre les ${nb(recap.aEmettre)} reçu${
+            recap.aEmettre > 1 ? "s" : ""} manquant${recap.aEmettre > 1 ? "s" : ""}</button>` : ""}` : ""}
         <button class="btn btn--ghost btn--block" style="margin-top:var(--s6)" id="csvR">Exporter le détail des dons</button>
       </section>
     </div>
@@ -5601,6 +5675,14 @@ function vueRecus(u){
                              : "Enregistré. L'émission reste inactive tant qu'il manque un réglage.");
     rendre();
   };
+  /* Le geste de rattrapage. La nuit le fait aussi, côté base ; l'association ne
+     devrait pas avoir à attendre demain matin pour un reçu qu'elle doit joindre
+     aujourd'hui. */
+  el.querySelector("#rattr")?.addEventListener("click", async () => {
+    try { await DB.emettreRecusEnAttente(aid); }
+    catch (e){ toast(e.message); return; }
+    toast("Reçus émis."); rendre();
+  });
   el.querySelector("#csvR").onclick = () => {
     const ms = DB.missions({ asso: aid })
                  .filter(m => estArgent((DB.annonceDe(m) || {}).type)
@@ -7694,7 +7776,11 @@ function vueCSE(u){
       style="background:var(--warn-bg);border-color:transparent">
       <h3 style="font-size:var(--t-lg)">Événements de sécurité</h3>
       <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
-        ${secu.motif_seuil === "effectif"
+        ${secu.motif_seuil === "effectif_inconnu"
+          ? `L'effectif de la société n'est renseigné nulle part : sans lui, on ne peut pas
+             savoir si un décompte par type désigne quelqu'un, et on ne restitue donc rien.
+             Votre employeur le renseigne dans ses paramètres.`
+          : secu.motif_seuil === "effectif"
           ? `Moins de ${d.seuil} salariés dans la société : le détail n'est pas restitué, quel
              que soit le nombre d'événements. À cet effectif, un décompte par type désigne
              quelqu'un.`

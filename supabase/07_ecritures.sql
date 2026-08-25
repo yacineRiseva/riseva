@@ -21,7 +21,19 @@
 create or replace function public.maj_entreprise(
   p_nom text default null, p_secteur text default null, p_siret text default null,
   p_adresse text default null, p_ca numeric default null,
-  p_cout_jour_moyen numeric default null, p_effectif integer default null)
+  p_cout_jour_moyen numeric default null, p_effectif integer default null,
+  -- Le dossier fiscal. Ces cinq-là étaient saisis à l'écran et jetés ici : la
+  -- fonction ne les prenait même pas en paramètre. Résultat, `plafondCalculable`
+  -- restait faux chez tout client de production et le plafond de l'article
+  -- 238 bis n'était jamais appliqué. Contrairement aux autres, ils s'EFFACENT :
+  -- `p_efface_fiscal` permet de remettre à null un montant saisi par erreur,
+  -- parce que « zéro don hors Riseva » et « je ne sais pas » ne donnent pas le
+  -- même plafond, et que le produit refuse d'affirmer le premier pour l'autre.
+  p_cout_heure_charge numeric default null,
+  p_exercice_debut date default null, p_exercice_fin date default null,
+  p_dons_hors_riseva numeric default null, p_report_anterieur numeric default null,
+  p_efface_fiscal boolean default false,
+  p_referent_nom text default null, p_referent_mail text default null)
 returns void
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -65,7 +77,19 @@ begin
     -- L'effectif déclaré sert au plafond de mécénat et à la répartition des
     -- sites. Il ne sert PAS de dénominateur au classement : celui-là est figé
     -- dans l'abonnement, hors de portée du client.
-    effectif        = coalesce(p_effectif, e.effectif)
+    effectif        = coalesce(p_effectif, e.effectif),
+    cout_heure_charge = case when p_efface_fiscal then p_cout_heure_charge
+                             else coalesce(p_cout_heure_charge, e.cout_heure_charge) end,
+    exercice_debut  = case when p_efface_fiscal then p_exercice_debut
+                           else coalesce(p_exercice_debut, e.exercice_debut) end,
+    exercice_fin    = case when p_efface_fiscal then p_exercice_fin
+                           else coalesce(p_exercice_fin, e.exercice_fin) end,
+    dons_hors_riseva = case when p_efface_fiscal then p_dons_hors_riseva
+                            else coalesce(p_dons_hors_riseva, e.dons_hors_riseva) end,
+    report_anterieur = case when p_efface_fiscal then p_report_anterieur
+                            else coalesce(p_report_anterieur, e.report_anterieur) end,
+    referent_nom    = coalesce(nullif(btrim(coalesce(p_referent_nom, '')), ''), e.referent_nom),
+    referent_mail   = coalesce(nullif(btrim(coalesce(p_referent_mail, '')), ''), e.referent_mail)
   where e.id = v_ent;
 end $$;
 
@@ -566,8 +590,12 @@ begin
   -- avoir rien regardé. Ça n'exclut pas les petites : `controler_association`
   -- accepte une association sans SIREN et conclut « absent », ce qui est une
   -- réponse datée et conservée. Ce qu'on exige, c'est d'avoir regardé.
+  -- `cree_le` départage : `le` est une DATE, et deux contrôles du même jour
+  -- étaient à égalité — l'index rendait alors l'ancien d'abord. Un contrôle
+  -- bloquant refait dans la foulée, et corrigé, ne débloquait rien avant le
+  -- lendemain, alors que les deux messages ci-dessous disent « refaites-le ».
   select c.bloquant into v_bloquant from public.controle_association c
-   where c.association = p_association order by c.le desc limit 1;
+   where c.association = p_association order by c.le desc, c.cree_le desc limit 1;
   if not found then
     raise exception 'Aucun contrôle au registre n''a été consigné : faites-le avant la mise en ligne'
       using errcode = '22023';
@@ -806,7 +834,8 @@ $$;
 grant select on public.profil_reglages to authenticated;
 
 grant execute on function
-  public.maj_entreprise(text, text, text, text, numeric, numeric, integer),
+  public.maj_entreprise(text, text, text, text, numeric, numeric, integer,
+                        numeric, date, date, numeric, numeric, boolean, text, text),
   public.maj_domaines(text[]),
   public.regler_visibilite(text),
   public.regler_objectif_saison(integer),
@@ -1061,6 +1090,58 @@ begin
   update public.facture f set payee_le = coalesce(p_le, current_date) where f.id = v_id;
 end $$;
 
+-- La signature d'un contrat sur un compte DÉJÀ OUVERT.
+--
+-- Elle manquait, et son absence était un piège. Un compte ouvert en libre-service
+-- démarre avec l'abonnement de l'essai : dix places, zéro euro, aucune date de
+-- signature. `creer_compte_entreprise`, juste en dessous, ne pouvait pas servir à
+-- le convertir — elle CRÉE une société et un abonnement, et `abonnement` porte
+-- `unique (entreprise, saison)`. Autrement dit, une entreprise de six cents
+-- personnes pouvait signer, payer, et rester à dix places pour toute la saison,
+-- pendant que l'écran lui promettait le contraire. La seule issue aurait été de
+-- recréer la société en double, en abandonnant ses salariés et ses missions.
+--
+-- Ce qu'elle NE touche PAS : `effectif_reference`. Il a été figé à l'ouverture,
+-- c'est le dénominateur du classement normalisé, et le laisser bouger après coup
+-- reviendrait à laisser réécrire un classement déjà publié.
+create or replace function public.signer_contrat(
+  p_entreprise uuid, p_montant_ht numeric, p_sieges integer,
+  p_palier text default null, p_fondateur boolean default false,
+  p_le date default null)
+returns void
+language plpgsql security definer set search_path = '' as $$
+declare v_saison uuid := private.saison_ouverte(); v_pris integer;
+begin
+  if not private.est_admin() then
+    raise exception 'Réservé à Riseva' using errcode = '42501';
+  end if;
+  if p_sieges is null or p_sieges < 1 then
+    raise exception 'Un contrat ouvre au moins une place' using errcode = '22023';
+  end if;
+  if p_montant_ht is null or p_montant_ht < 0 then
+    raise exception 'Un montant ne peut pas être négatif' using errcode = '22023';
+  end if;
+  -- On ne descend pas sous ce qui est déjà occupé : réduire les places en dessous
+  -- des comptes existants laisserait des salariés inscrits sur des sièges qui
+  -- n'existent plus, et personne ne saurait lesquels retirer.
+  v_pris := private.sieges_pris(p_entreprise);
+  if p_sieges < v_pris then
+    raise exception '% places sont déjà occupées : le contrat ne peut pas en ouvrir moins',
+      v_pris using errcode = '23514';
+  end if;
+  update public.abonnement a set
+    montant_ht = p_montant_ht,
+    sieges     = p_sieges,
+    palier     = coalesce(p_palier, a.palier),
+    fondateur  = coalesce(p_fondateur, a.fondateur),
+    signe_le   = coalesce(p_le, current_date)
+   where a.entreprise = p_entreprise and a.saison = v_saison;
+  if not found then
+    raise exception 'Aucun abonnement à signer pour cette entreprise sur la saison ouverte'
+      using errcode = '42704';
+  end if;
+end $$;
+
 -- L'ouverture d'un compte entreprise, après signature. Elle crée la société, son
 -- abonnement pour la saison ouverte, et fige l'effectif de référence du
 -- classement : c'est le seul moment où ce nombre s'écrit, et il ne bouge plus.
@@ -1144,7 +1225,7 @@ declare
   -- tout le produit, gratuitement et pour toute la saison. Dix places suffisent
   -- pour faire tourner une première mission avec une équipe, et pas pour équiper
   -- une entreprise de six cents personnes sans jamais signer. La signature du
-  -- contrat porte les places au nombre convenu ; c'est `creer_entreprise`, du
+  -- contrat porte les places au nombre convenu ; c'est `signer_contrat`, du
   -- côté de Riseva, qui l'écrit.
   v_essai constant integer := 10;
 begin
@@ -1231,7 +1312,8 @@ grant execute on function
   public.marquer_facture_payee(text, date),
   public.ouvrir_compte_entreprise(text, integer, text, text, text),
   public.mes_domaines(),
-  public.creer_compte_entreprise(text, integer, text, text, numeric, integer, text, boolean)
+  public.creer_compte_entreprise(text, integer, text, text, numeric, integer, text, boolean),
+  public.signer_contrat(uuid, numeric, integer, text, boolean, date)
 to authenticated;
 
 do $$

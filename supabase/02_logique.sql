@@ -1583,6 +1583,30 @@ begin
   on conflict do nothing;
 end $$;
 
+-- Le rattrapage, à la demande. L'association ne devrait pas avoir à attendre la
+-- nuit pour un reçu qu'elle doit joindre aujourd'hui. Même effet que
+-- `private.tache_recus`, même garde que `emettre_recu` : c'est l'association
+-- bénéficiaire, et elle seule, qui émet ses reçus.
+create or replace function public.emettre_recus_en_attente(p_association uuid)
+returns integer
+language plpgsql security definer set search_path = '' as $$
+declare d record; v_n integer := 0;
+begin
+  if private.mon_association() is distinct from p_association and not private.est_admin() then
+    raise exception 'Réservé à l''association bénéficiaire' using errcode = '42501';
+  end if;
+  for d in
+    select don.id from public.don
+     where don.association = p_association and don.etat = 'confirme'
+       and not exists (select 1 from public.recu r where r.don = don.id)
+     order by don.confirme_le
+  loop
+    perform private.emettre_recu_si_pret(d.id);
+    if exists (select 1 from public.recu r where r.don = d.id) then v_n := v_n + 1; end if;
+  end loop;
+  return v_n;
+end $$;
+
 create or replace function public.emettre_recu(p_don uuid)
 returns text
 language plpgsql security definer set search_path = '' as $$
@@ -1715,7 +1739,7 @@ create or replace function public.decider_signalement(
   p_signalement uuid, p_decision text, p_motivation text)
 returns void
 language plpgsql security definer set search_path = '' as $$
-declare v_auteur uuid;
+declare v_auteur uuid; v_annonce uuid; v_asso uuid; v_rev integer; v_dest uuid;
 begin
   if not private.est_admin() then
     raise exception 'Réservé à Riseva' using errcode = '42501';
@@ -1723,31 +1747,109 @@ begin
   if p_motivation is null or length(btrim(p_motivation)) < 10 then
     raise exception 'Une décision de modération se motive' using errcode = '23514';
   end if;
+  if p_decision is null or p_decision not in ('retire','maintenu','modifie') then
+    raise exception 'Décision inconnue' using errcode = '22023';
+  end if;
   update public.signalement s
      set decision = p_decision, motivation = p_motivation, decide_le = now()
    where s.id = p_signalement
-   returning s.auteur into v_auteur;
+   returning s.auteur, s.annonce into v_auteur, v_annonce;
   if not found then
     raise exception 'Signalement introuvable' using errcode = '42501';
   end if;
-  -- Article 16 du règlement sur les services numériques : la personne qui a
-  -- signalé et dont on connaît les coordonnées est informée SANS RETARD INDU de
-  -- la décision et des voies de recours. Le commentaire au-dessus promettait
-  -- cet envoi depuis le premier jour ; il n'existait pas. Écrire la motivation
-  -- dans une colonne que le signalant ne lit jamais, ce n'est pas l'informer.
+
+  -- « Retirer » RETIRE. La fonction ne touchait que la colonne `decision`, et
+  -- rien dans la base ne lisait cette colonne : Riseva tranchait « retirée » et
+  -- l'annonce restait ouverte, visible, offerte aux engagements — pendant qu'on
+  -- s'apprêtait à écrire au signalant qu'elle avait été retirée. Une décision de
+  -- modération qui ne modère rien est pire qu'une absence de décision : elle
+  -- ment par écrit à la personne la mieux placée pour le constater.
+  if p_decision = 'retire' then
+    update public.annonce a set etat = 'close'
+     where a.id = v_annonce and a.etat = 'ouverte';
+  end if;
+
+  select a.association into v_asso from public.annonce a where a.id = v_annonce;
+
+  -- Articles 16 et 17 du règlement sur les services numériques. Le 16 veut que
+  -- le notifiant qui a laissé ses coordonnées soit informé sans retard indu de
+  -- la décision ET des voies de recours ; le 17 veut que le destinataire affecté
+  -- — l'association dont l'annonce est en cause — reçoive une déclaration des
+  -- motifs. Les deux partaient dans une colonne que ni l'un ni l'autre ne lit.
+  --
+  -- La clé porte le NUMÉRO DE RÉVISION, pas seulement le signalement : une
+  -- décision peut être révisée après réclamation, et une clé fixe avec
+  -- `on conflict do nothing` aurait fait taire la révision — ou pire, envoyé
+  -- l'ancienne motivation le lendemain d'une décision contraire.
+  select count(*) + 1 into v_rev from public.envoi e
+   where e.cle like 'moderation:' || p_signalement || ':%';
+
   if v_auteur is not null then
     insert into public.envoi (cle, type, destinataire_profil, sujet, detail, date, etat)
-    values ('moderation:' || p_signalement,
+    values ('moderation:' || p_signalement || ':signalant:' || v_rev,
             'moderation', v_auteur,
             case p_decision
               when 'retire'   then 'Votre signalement : l''annonce a été retirée'
               when 'modifie'  then 'Votre signalement : l''annonce a été modifiée'
               else                 'Votre signalement : l''annonce est maintenue'
             end,
-            left(btrim(p_motivation), 380),
+            'décision de modération',
             current_date, 'a_envoyer')
     on conflict (cle) do nothing;
   end if;
+
+  if v_asso is not null then
+    -- Le référent de l'association, désigné et pas déduit : la fonction Edge ne
+    -- sait résoudre une adresse que depuis un profil, et une ligne sans profil
+    -- serait marquée « sans destinataire » sans que personne ne le sache.
+    select ap.profil into v_dest from private.appartenance ap
+     where ap.association = v_asso and ap.actif order by ap.maj_le limit 1;
+    insert into public.envoi (cle, type, association, destinataire_profil,
+                              sujet, detail, date, etat)
+    values ('moderation:' || p_signalement || ':association:' || v_rev,
+            'moderation', v_asso, v_dest,
+            case p_decision
+              when 'retire'   then 'Une de vos annonces a été retirée'
+              when 'modifie'  then 'Une de vos annonces doit être modifiée'
+              else                 'Une de vos annonces a été signalée, et elle est maintenue'
+            end,
+            'décision de modération',
+            current_date,
+            case when v_dest is null then 'sans_destinataire' else 'a_envoyer' end)
+    on conflict (cle) do nothing;
+  end if;
+end $$;
+
+-- La motivation complète, lue au moment de l'envoi et pas recopiée dans le
+-- courriel enfilé. `envoi.detail` plafonne à quatre cents caractères ; une
+-- déclaration de motifs sérieuse en fait mille, et une motivation coupée au
+-- milieu d'un mot ne vaut pas motivation. Le modèle est celui de
+-- `preparer_demande_validation` : la fonction Edge, qui détient la clé de
+-- service, vient chercher le texte entier à l'instant où le message part.
+create or replace function public.preparer_moderation(p_envoi uuid)
+returns table (destinataire uuid, pour_asso boolean, decision text,
+               motivation text, annonce text, association text)
+language plpgsql security definer set search_path = '' as $$
+declare v_e public.envoi; v_sig uuid;
+begin
+  if current_setting('role', true) is distinct from 'service_role'
+     and not private.est_admin() then
+    raise exception 'Réservé au service d''envoi' using errcode = '42501';
+  end if;
+  select * into v_e from public.envoi e
+   where e.id = p_envoi and e.type = 'moderation'
+     and e.etat in ('a_envoyer','echec');
+  if not found then return; end if;
+  -- « moderation:<uuid>:<qui>:<revision> » : on reprend l'identifiant au milieu.
+  v_sig := (split_part(v_e.cle, ':', 2))::uuid;
+  return query
+    select v_e.destinataire_profil,
+           split_part(v_e.cle, ':', 3) = 'association',
+           sg.decision, sg.motivation, an.titre, a.nom
+      from public.signalement sg
+      join public.annonce an on an.id = sg.annonce
+      join public.association a on a.id = an.association
+     where sg.id = v_sig;
 end $$;
 
 -- ---------------------------------------------------------------- vue publique
@@ -2693,8 +2795,15 @@ returns table (jeton text, titre text, entreprise text, salarie text,
 language plpgsql security definer set search_path = '' as $$
 declare v_e public.envoi;
 begin
+  -- `echec` aussi. La fonction Edge reprend les lignes en échec — un 429
+  -- passager de Resend — mais celle-ci les refusait : elle ne rendait rien, la
+  -- fonction Edge lisait ce vide comme « la mission a été tranchée entre-temps »
+  -- et marquait `sans_destinataire`, état terminal. Un seul incident réseau
+  -- suffisait donc à ce que l'association ne soit JAMAIS interrogée, et la
+  -- mission se clôturait « estimée » sans que personne n'ait été sollicité.
   select * into v_e from public.envoi e
-   where e.id = p_envoi and e.type = 'demande_validation' and e.etat = 'a_envoyer'
+   where e.id = p_envoi and e.type = 'demande_validation'
+     and e.etat in ('a_envoyer','echec')
    for update;
   if not found then
     return;

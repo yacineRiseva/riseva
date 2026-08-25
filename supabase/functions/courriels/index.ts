@@ -129,19 +129,27 @@ const corpsRapport = (d: { sujet: string; detail: string | null }) => `
    et dont on connaît les coordonnées doit être informée de la décision ET des
    voies de recours. Le second point n'est pas décoratif : sans lui, informer ne
    suffit pas au texte. */
-const corpsModeration = (d: { sujet: string; detail: string | null }) => `
+const corpsModeration = (
+  sujet: string,
+  d: { pour_asso: boolean; motivation: string; annonce: string; association: string },
+) => `
   <p>Bonjour,</p>
-  <p><strong>${echappe(d.sujet)}</strong></p>
-  <p>Votre signalement a été examiné par une personne, pas par un automate. Voici la
-  motivation de la décision&nbsp;:</p>
+  <p><strong>${echappe(sujet)}</strong></p>
+  <p>${d.pour_asso
+    ? `L'annonce «&nbsp;${echappe(d.annonce)}&nbsp;» a été signalée et examinée par une
+       personne, pas par un automate.`
+    : `Votre signalement sur l'annonce «&nbsp;${echappe(d.annonce)}&nbsp;»
+       (${echappe(d.association)}) a été examiné par une personne, pas par un automate.`}
+  Voici la motivation de la décision&nbsp;:</p>
   <blockquote style="margin:18px 0;padding:12px 18px;border-left:3px solid #1F5C4A;
-    background:#F4F7F5;color:#25352F">${echappe(d.detail ?? "")}</blockquote>
+    background:#F4F7F5;color:#25352F">${echappe(d.motivation ?? "")}</blockquote>
   <p>Si cette décision vous paraît mal fondée, vous pouvez demander son réexamen en
   répondant à ce message. Vous pouvez aussi saisir un organe de règlement extrajudiciaire
   des litiges certifié, ou le juge&nbsp;: aucune de ces voies ne vous est fermée par la
   décision ci-dessus.</p>
-  <p style="color:#8A9A93;font-size:13px">Ce message vous est adressé parce que vous avez
-  signalé une annonce sur Riseva.</p>`;
+  <p style="color:#8A9A93;font-size:13px">${d.pour_asso
+    ? "Ce message vous est adressé parce que cette annonce est publiée par votre association."
+    : "Ce message vous est adressé parce que vous avez signalé une annonce sur Riseva."}</p>`;
 
 /* Une file, un rédacteur. `demande_validation` est la seule qui demande un jeton
    à usage unique, et donc un aller-retour de plus avec la base. */
@@ -172,7 +180,16 @@ async function traiter(f: { id: string; type: string; sujet: string; detail: str
   } else if (f.type === "relance") {
     html = corpsRelance(f);
   } else if (f.type === "moderation") {
-    html = corpsModeration(f);
+    /* La motivation complète est lue ici, pas recopiée dans la file : `detail`
+       plafonne à quatre cents caractères, et une déclaration de motifs coupée au
+       milieu d'un mot ne vaut pas motivation. */
+    const { data: prep, error: e2 } = await sb.rpc("preparer_moderation", { p_envoi: f.id });
+    const d = Array.isArray(prep) ? prep[0] : prep;
+    if (e2 || !d) {
+      await sb.rpc("marquer_envoi", { p_envoi: f.id, p_etat: "echec" });
+      return "echec";
+    }
+    html = corpsModeration(f.sujet, d as never);
   } else {
     html = corpsRapport(f);
   }

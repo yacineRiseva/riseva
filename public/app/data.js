@@ -3573,7 +3573,18 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
              du perimetre : dans une societe de quatre personnes, « trois
              accidents de manutention » designe quelqu'un quel que soit le nombre
              d'evenements. On exige donc les deux, et l'ecran dit lequel manque. */
-          const effectif = e.effectif || sal.length;
+          /* Le repli ne peut PAS être `sal.length` : un compte CSE ne reçoit
+             aucune liste nominative — `mon_equipe()` l'exclut, et c'est voulu —
+             donc `salaries()` rend zéro pour le seul rôle qui appelle cet écran.
+             On replie sur la somme des effectifs de sites, qui, elle, existe
+             pour un compte CSE. Et si aucun effectif n'est connu nulle part, on
+             ne prétend pas qu'il est sous le seuil : on dit qu'il manque. */
+          const effSites = sites.reduce((n, x) => n + (x.effectif || 0), 0);
+          const effectif = e.effectif || effSites || null;
+          if (effectif === null)
+            return { sous_seuil: true, pareto: [], total: sy.total,
+                     motif_seuil: "effectif_inconnu",
+                     sites_sans_registre: sy.sites_sans_registre };
           if (sy.total.evenements < seuil || effectif < seuil)
             return { sous_seuil: true, pareto: [], total: sy.total,
                      motif_seuil: effectif < seuil ? "effectif" : "evenements",
@@ -4355,19 +4366,36 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         const a = api.annonce(sg.annonce);
         if (a){ a.etat = "close"; a.retiree_moderation = true; }
       }
-      /* La motivation n'est pas une note interne : l'article 16 du DSA veut que
-         le signalant dont on connait les coordonnees soit informe sans retard
-         indu de la decision ET des voies de recours. Elle dormait dans une
-         colonne que personne ne lui montrait jamais. */
-      if (sg.par && !s.envois.some(x => x.cle === `moderation:${sg.id}`)){
-        const u = api.utilisateur(sg.par);
-        s.envois.unshift({ id: id("en"), cle: `moderation:${sg.id}`, type: "moderation",
-          entreprise: u ? u.org : null, destinataire: u ? (u.email || u.nom) : null,
+      /* La motivation n'est pas une note interne. L'article 16 du DSA veut que le
+         signalant dont on connait les coordonnees soit informe sans retard indu
+         de la decision ET des voies de recours ; l'article 17 veut que
+         l'association dont l'annonce est en cause recoive une declaration des
+         motifs. Les deux dormaient dans une colonne que ni l'un ni l'autre ne
+         lit. La cle porte le NUMERO DE REVISION : une decision revisee apres
+         reclamation doit repartir, et une cle fixe l'aurait fait taire. */
+      const rev = s.envois.filter(x => String(x.cle).startsWith(`moderation:${sg.id}:`)).length + 1;
+      const an = api.annonce(sg.annonce);
+      const asso = an ? api.association(an.asso) : null;
+      const u = sg.par ? api.utilisateur(sg.par) : null;
+      if (u){
+        s.envois.unshift({ id: id("en"), cle: `moderation:${sg.id}:signalant:${rev}`,
+          type: "moderation", entreprise: u.org || null,
+          destinataire: u.email || u.nom || null,
           sujet: decision === "retire" ? "Votre signalement : l'annonce a été retirée"
                : decision === "modifie" ? "Votre signalement : l'annonce a été modifiée"
                : "Votre signalement : l'annonce est maintenue",
-          detail: sg.motivation.slice(0, 380),
-          date: leJour(), etat: u ? "à envoyer" : "sans destinataire" });
+          detail: "décision de modération", date: leJour(), etat: "à envoyer" });
+      }
+      if (asso){
+        const ref = s.utilisateurs.find(x => x.role === "association" && x.org === asso.id);
+        s.envois.unshift({ id: id("en"), cle: `moderation:${sg.id}:association:${rev}`,
+          type: "moderation", association: asso.id,
+          destinataire: ref ? (ref.email || ref.nom) : null,
+          sujet: decision === "retire" ? "Une de vos annonces a été retirée"
+               : decision === "modifie" ? "Une de vos annonces doit être modifiée"
+               : "Une de vos annonces a été signalée, et elle est maintenue",
+          detail: "décision de modération", date: leJour(),
+          etat: ref ? "à envoyer" : "sans destinataire" });
       }
       return sg;
     },
@@ -4520,6 +4548,35 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
     /* ------------------------------------------------------------------ */
     contrat: (eid) => s.contrats.find(c => c.entreprise === eid) || null,
     contrats: () => s.contrats,
+
+    /* La signature d'un contrat sur un compte déjà ouvert. Elle manquait, et son
+       absence enfermait le libre-service : un compte ouvert seul démarre avec
+       les places de l'essai, et rien ne savait les relever. La seule issue était
+       de recréer la société en double, sans ses salariés ni ses missions.
+       L'effectif de référence, lui, ne bouge pas : c'est le dénominateur du
+       classement, figé à l'ouverture. */
+    signerContrat(eid, { sieges, montant_ht = 0, palier = null,
+                         fondateur = false, le = null } = {}){
+      const e = api.entreprise(eid);
+      if (!e) throw new Error("Entreprise inconnue");
+      const places = Math.round(Number(sieges) || 0);
+      if (places < 1) throw new Error("Un contrat ouvre au moins une place");
+      const pris = api.sieges(eid).pris;
+      if (places < pris)
+        throw new Error(pris + " place" + (pris > 1 ? "s sont" : " est") + " déjà occupée"
+          + (pris > 1 ? "s" : "") + " : le contrat ne peut pas en ouvrir moins.");
+      e.sieges = places; e.essai = false;
+      let c = api.contrat(eid);
+      if (!c){
+        c = { entreprise: eid, statut: "actif", debut: s.saison.debut, fin: s.saison.fin };
+        s.contrats.push(c);
+      }
+      c.signe_le = le || leJour();
+      c.montant_ht = Math.round(Number(montant_ht) || 0);
+      if (palier) c.palier = palier;
+      c.fondateur = !!fondateur;
+      return c;
+    },
 
     /* Le devis d'une entreprise, calculé à partir de ce qu'elle est : son
        effectif et ses sites. Jamais saisi à la main dans un contrat — un prix
@@ -5131,6 +5188,10 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
          la place de l'expert-comptable, mais elle doit le dire. */
       const trancheReduite = plafondCalculable && tr.reduit > 0;
       const trMax = tranches(0, assiette);
+      /* Le même drapeau pour l'estimation. Sans lui, l'écran écrivait « 60 % de
+         X » sous un montant calculé 60/40 : le lecteur refaisait le calcul et
+         trouvait autre chose, sur la page qui s'appelle « dossier de preuve ». */
+      const trancheReduiteMax = trMax.reduit > 0;
 
       return {
         donsSalaries, donsEntreprise, demiJourneesTT, demiJourneesPerso,
@@ -5147,9 +5208,10 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         /* Ce que la tranche haute a coûté par rapport à un 60 % uniforme : sans
            ce chiffre, personne ne comprend pourquoi la réduction n'est pas
            l'assiette multipliée par soixante pour cent. */
-        trancheReduite,
+        trancheReduite, trancheReduiteMax,
         assiettePleine: plafondCalculable ? tr.plein : null,
         assietteReduite: plafondCalculable ? tr.reduit : null,
+        assiettePleineMax: trMax.plein, assietteReduiteMax: trMax.reduit,
         salariesConcernes: detailSalaries.length,
         /* Missions closes sans retour : hors assiette, mais dites. */
         enAttente,
@@ -5190,16 +5252,34 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       if (!api.recusPrets(aid)) return null;
       if (s.recus_emis.some(r => r.mission === m.id)) return null;
       const a = api.association(aid) || {};
-      const suite = s.recus_emis.filter(r => r.association === aid).length + 1;
+      /* Le numéro suit ceux DÉJÀ ÉMIS, y compris ceux émis avant Riseva. Compter
+         les seules lignes de `recus_emis` faisait repartir la série à 1 chez une
+         association qui en était à 47, puis réécrivait son compteur à 2 — c'est
+         exactement ce que le champ en lecture seule de l'écran promet
+         d'empêcher, et c'est l'amende de l'article 1740 A qui est au bout. */
+      const dejaEmis = s.recus_emis.filter(r => r.association === aid).length;
+      const suite = Math.max(Number((a.recus || {}).prochain_numero) || 1, dejaEmis + 1);
+      /* `cerfaPour` lève sur une origine inconnue plutôt que de retomber sur un
+         modèle : délivrer le formulaire des particuliers pour un don d'entreprise
+         est précisément la faute que l'article 1740 A sanctionne. Et l'origine se
+         lit par `estDonPersonnel`, seul endroit qui connaisse aussi la forme
+         héritée `pour_le_compte_de` que produit le mappeur de production. */
       const r = { id: id("rc"), mission: m.id, association: aid,
                   numero: String((a.recus || {}).prefixe || "") + String(suite).padStart(4, "0"),
-                  modele: m.origine === "entreprise" ? "16216*03" : "11580*05",
+                  modele: cerfaPour(api.estDonPersonnel(m) ? "salarie" : "entreprise").numero,
                   montant: Number(m.quantite) || 0, le: leJour() };
       s.recus_emis.unshift(r);
       if (a.recus) a.recus.prochain_numero = suite + 1;
       return r;
     },
     recusEmis: (aid) => s.recus_emis.filter(r => !aid || r.association === aid),
+    /* Le rattrapage à la demande, côté démonstration. Même effet que la RPC. */
+    emettreRecusEnAttente(aid){
+      let n = 0;
+      api.missions({ asso: aid }).filter(m => m.etat === "validee")
+        .forEach(m => { if (api.emettreRecuSiPret(m)) n++; });
+      return n;
+    },
     /* Récapitulatif à reporter dans la déclaration annuelle des dons, obligatoire
        depuis 2021 : montant global des dons portés sur les reçus, et nombre de reçus. */
     recapRecus(aid){
@@ -5836,7 +5916,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
        auditer inquiète plus qu'elle ne rassure. */
     moteur(aujourdhui = leJour()){
       const fait = { validations_auto:0, annonces_fermees:0, intentions_expirees:0,
-                     rapports:0, classement:false, le: aujourdhui };
+                     rapports:0, recus_emis:0, classement:false, le: aujourdhui };
 
       /* 1. Une association qui ne répond pas ne doit pas bloquer le client.
             Quatorze jours après la déclaration, la mission est comptée. */
@@ -5889,7 +5969,17 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         .forEach(i => { i.etat = "abandonnee"; i.motif = "sans virement à l'échéance";
                         fait.intentions_expirees++; });
 
-      /* 5. Le classement est recalculé chaque lundi. On ne stocke pas de rang :
+      /* 5. Le rattrapage des reçus. Un reçu ne s'émet qu'à l'instant où le don est
+            confirmé : une association qui complète ses réglages APRÈS avoir
+            encaissé — le cas normal, on encaisse d'abord — gardait ses dons
+            antérieurs sans reçu pour toujours. Ces montants sortaient de sa
+            déclaration annuelle et ses donateurs n'avaient rien à joindre à la
+            leur. La même tâche existe côté base, `private.tache_recus`. */
+      s.missions.filter(m => m.etat === "validee").forEach(m => {
+        if (api.emettreRecuSiPret(m)) fait.recus_emis++;
+      });
+
+      /* 6. Le classement est recalculé chaque lundi. On ne stocke pas de rang :
             il se déduit des points, ce qui évite tout écart entre l'affiché et le réel. */
       s.classement_recalcule_le = aujourdhui;
       fait.classement = true;
@@ -6594,7 +6684,9 @@ const ECRITURES = [
   "reglerObjectifSaison", "reglerVisibilite", "rejoindre", "retirerSalarie",
   "retirerPiece", "retrograderAdmin", "revoquerInvitation", "revoquerMandatRecus",
   "rouvrirAnnonce",
-  "saisirIndicateurs", "signaler", "signalerZone", "supprimerAnnonce", "supprimerSalarie",
+  "emettreRecusEnAttente",
+  "saisirIndicateurs", "signaler", "signalerZone", "signerContrat",
+  "supprimerAnnonce", "supprimerSalarie",
   "suspendreAcces", "suspendreAssociation", "validerAssociation", "validerMission"
 ];
 
@@ -6649,17 +6741,20 @@ const versEtat = {
        bas, une fois les abonnements lus. */
     sieges: r.effectif, ca: r.ca ? Number(r.ca) : null,
     cout_jour_moyen: r.cout_jour_moyen ? Number(r.cout_jour_moyen) : null,
-    /* Cinq colonnes qui n'existent dans AUCUN fichier du schéma : le coût
-       horaire chargé, les bornes d'exercice, les dons faits hors Riseva et le
-       report antérieur de mécénat. Elles étaient lues, valaient toujours `null`,
-       et les écrans basculaient en silence sur une estimation. Le jeu de
-       démonstration les porte, la base non : c'est un chantier ouvert, pas une
-       donnée perdue. On le dit ici plutôt que de laisser croire au contraire.
-       Tant que la base ne les porte pas, l'écran de mécénat estime, et il le
-       dit déjà. */
-    cout_heure_charge: null,
-    exercice_debut: null, exercice_fin: null,
-    dons_hors_riseva: null, report_anterieur: null,
+    /* Les cinq colonnes du dossier fiscal. Elles étaient posées à `null` en dur
+       parce que le schéma ne les portait pas : l'entreprise remplissait les
+       quatre champs de l'écran « Mécénat », `maj_entreprise` les jetait, et
+       `plafondCalculable` restait faux pour TOUT client de production — le
+       plafond de l'article 238 bis n'était donc jamais appliqué chez personne,
+       et l'écran basculait en silence sur une estimation. Les colonnes existent
+       maintenant ; on les lit. */
+    cout_heure_charge: r.cout_heure_charge != null ? Number(r.cout_heure_charge) : null,
+    exercice_debut: r.exercice_debut || null,
+    exercice_fin: r.exercice_fin || null,
+    dons_hors_riseva: r.dons_hors_riseva != null ? Number(r.dons_hors_riseva) : null,
+    report_anterieur: r.report_anterieur != null ? Number(r.report_anterieur) : null,
+    referent: r.referent_nom || null,
+    referent_mail: r.referent_mail || null,
     siren: r.siren, siret: r.siret, adresse: r.adresse,
     lat: r.lat, lon: r.lon, groupe: r.groupe || null,
     /* Demandée en lecture, jamais recopiée : l'objectif que l'administrateur
@@ -6929,6 +7024,9 @@ async function chargerEtat(client){
        On énumère donc, et la liste doit rester identique à celle de 03_rls.sql. */
     lire("saison"), lire("bareme"),
     lire("entreprise", "id, nom, secteur, ville, effectif, ca, cout_jour_moyen, "
+                     + "cout_heure_charge, exercice_debut, exercice_fin, "
+                     + "dons_hors_riseva, report_anterieur, "
+                     + "referent_nom, referent_mail, "
                      + "siren, siret, adresse, lat, lon, groupe, visibilite, logo, "
                      + "objectif_mobilises"),
     lire("groupe"),
@@ -7473,6 +7571,8 @@ function creerSupabase(client){
     donsPersonnelsAgregesServeur: (saison) =>
       rpc("dons_personnels_agreges", { p_saison: saison }),
     emettreRecu: (don) => ecrire(() => rpc("emettre_recu", { p_don: don })),
+    emettreRecusEnAttente: (aid) => ecrire(() =>
+      rpc("emettre_recus_en_attente", { p_association: aid })),
 
     /* ---- Le reste des ecritures ----
        Elles etaient absentes, et leur absence ne se voyait pas : le Proxy de fin
@@ -7549,7 +7649,21 @@ function creerSupabase(client){
       p_nom: champs.nom ?? null, p_secteur: champs.secteur ?? null,
       p_siret: champs.siret ?? null, p_adresse: champs.adresse ?? null,
       p_ca: champs.ca ?? null, p_cout_jour_moyen: champs.cout_jour_moyen ?? null,
-      p_effectif: champs.effectif ?? null })),
+      p_effectif: champs.effectif ?? null,
+      /* Le dossier fiscal. Ces cinq champs partaient jusqu'ici dans le vide :
+         l'écran les saisissait, la RPC ne les prenait pas, la table n'avait pas
+         les colonnes. `p_efface_fiscal` dit que le formulaire fiscal a été
+         soumis, donc qu'un champ vidé doit redevenir null — sinon un montant
+         saisi par erreur ne pourrait plus jamais être retiré. */
+      p_cout_heure_charge: champs.cout_heure_charge ?? null,
+      p_exercice_debut: champs.exercice_debut ?? null,
+      p_exercice_fin: champs.exercice_fin ?? null,
+      p_dons_hors_riseva: champs.dons_hors_riseva ?? null,
+      p_report_anterieur: champs.report_anterieur ?? null,
+      p_efface_fiscal: "dons_hors_riseva" in champs || "report_anterieur" in champs
+                       || "exercice_debut" in champs,
+      p_referent_nom: champs.referent ?? null,
+      p_referent_mail: champs.referent_mail ?? null })),
     majDomaines: (eid, liste) => ecrire(() =>
       rpc("maj_domaines", { p_domaines: liste || [] })),
     reglerVisibilite: (eid, valeur) => ecrire(() =>
@@ -7661,6 +7775,11 @@ function creerSupabase(client){
     },
     signalerZone: (etid, motif = null) => ecrire(() =>
       rpc("signaler_zone", { p_etablissement: etid, p_motif: motif })),
+    signerContrat: (eid, { sieges, montant_ht = 0, palier = null,
+                           fondateur = false, le = null } = {}) => ecrire(() =>
+      rpc("signer_contrat", { p_entreprise: eid, p_montant_ht: Number(montant_ht) || 0,
+                              p_sieges: Math.round(Number(sieges) || 0), p_palier: palier,
+                              p_fondateur: !!fondateur, p_le: le })),
     adoption: async ({ entreprise = null, etablissement = null } = {}) => {
       const r = await rpc("adoption", { p_entreprise: entreprise,
                                         p_etablissement: etablissement });
