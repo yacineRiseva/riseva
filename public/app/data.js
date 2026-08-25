@@ -3568,9 +3568,17 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       e.domaines = liste.map(d => d.trim().toLowerCase().replace(/^@/, "")).filter(Boolean);
       return e.domaines;
     },
+    /* Aucun domaine déclaré : PERSONNE n'entre. C'est la règle du serveur
+       (`rejoindre_entreprise` refuse dès qu'aucune ligne ne correspond) ; ici
+       elle disait l'inverse — « aucune restriction, tout le monde entre » — et
+       les deux moteurs se contredisaient sur le seul contrôle d'accès du
+       produit. Un client lisait « Ouvert à tous » sur son écran, diffusait son
+       lien, et chacun de ses salariés se voyait répondre « Cette adresse
+       n'appartient pas à l'entreprise » sans qu'aucun écran ne dise pourquoi.
+       Une liste vide est une porte fermée, pas une porte sans serrure. */
     domaineAutorise(eid, email){
       const l = api.domaines(eid);
-      if (!l.length) return true;                    // aucune restriction déclarée
+      if (!l.length) return false;
       const d = String(email || "").split("@")[1];
       return !!d && l.includes(d.toLowerCase());
     },
@@ -6421,13 +6429,22 @@ async function chargerPilote(){
 const versEtat = {
   entreprise: (r) => ({
     id: r.id, nom: r.nom, secteur: r.secteur, ville: r.ville, visibilite: r.visibilite || "auto",
-    effectif: r.effectif, sieges: r.effectif, ca: r.ca ? Number(r.ca) : null,
+    effectif: r.effectif,
+    /* Les places achetées vivent sur l'abonnement, pas sur l'effectif déclaré.
+       Les confondre faisait afficher « 520 places » à une société de 520
+       salariés qui en avait acheté 500, facturer 520 sur l'écran d'abonnement,
+       et refuser le 501e salarié sans que rien ne l'ait annoncé. Renseigné plus
+       bas, une fois les abonnements lus. */
+    sieges: r.effectif, ca: r.ca ? Number(r.ca) : null,
     cout_jour_moyen: r.cout_jour_moyen ? Number(r.cout_jour_moyen) : null,
     cout_heure_charge: r.cout_heure_charge ? Number(r.cout_heure_charge) : null,
     exercice_debut: r.exercice_debut || null, exercice_fin: r.exercice_fin || null,
     dons_hors_riseva: r.dons_hors_riseva ?? null, report_anterieur: r.report_anterieur ?? null,
     siren: r.siren, siret: r.siret, adresse: r.adresse,
-    lat: r.lat, lon: r.lon, groupe: r.groupe || null, domaines: [],
+    lat: r.lat, lon: r.lon, groupe: r.groupe || null,
+    /* Renseigné plus bas depuis `mes_domaines()` : la liste vit dans le schéma
+       privé et n'en sort que pour l'entreprise qu'elle concerne. */
+    domaines: [],
     logo: r.logo || null
   }),
   groupe: (r) => ({ id: r.id, nom: r.nom, societe_mere: r.societe_mere,
@@ -6565,10 +6582,25 @@ const versEtat = {
           texte: r.consentement_texte || null } : null,
     valeur_declaree: r.valeur_declaree ?? null, nature: r.nature || undefined
   }),
-  invitation: (r) => ({
+  invitation: (r, sieges = []) => ({
     id: r.id, entreprise: r.entreprise, etablissement: r.etablissement || null,
-    pour_referent: !!r.pour_referent, nom: r.destinataire_nom, email: r.destinataire_mail,
-    code: r.indice, places: r.places, utilisees: 0, active: r.active,
+    pour_referent: !!r.pour_referent,
+    /* `pour_cse` se perdait ici. `invitationActive` teste `!i.pour_cse`, qui vaut
+       vrai sur `undefined` : l'écran Équipe pouvait donc afficher le lien
+       NOMINATIF d'un élu du CSE — une place, verrouillée sur son adresse —
+       comme « le lien à diffuser à vos salariés ». */
+    pour_cse: !!r.pour_cse,
+    nom: r.destinataire_nom, email: r.destinataire_mail,
+    /* PAS de code. `indice` n'est que les six premiers caractères du code réel,
+       et la base l'expose justement parce qu'il ne permet rien. Le publier sous
+       le nom de `code` mettait dans le lien diffusé à tout l'effectif une valeur
+       qui n'ouvre rien : `rejoindre_entreprise` hache ce qu'on lui donne, l'indice
+       ne correspond à aucune empreinte, et le parcours salarié était mort. Le
+       vrai code n'est lisible qu'une fois, au retour de `creer_invitation`. */
+    code: null, indice: r.indice,
+    places: r.places,
+    utilisees: sieges.filter(s => s.invitation === r.id && !s.liberee_le).length,
+    active: r.active,
     cree_le: String(r.cree_le).slice(0, 10), expire_le: String(r.expire_le).slice(0, 10)
   }),
   campagne: (r) => ({
@@ -6609,7 +6641,7 @@ async function chargerEtat(client){
          evenements, actionsCorrectives,
          abonnements, factures, preinscriptions, reglagesAsso,
          reglagesProfil, piecesJointes,
-         envois, expeditions, sourcing, rapportsBase] = await Promise.all([
+         envois, expeditions, sourcing, sieges, rapportsBase] = await Promise.all([
     lire("saison"), lire("bareme"), lire("entreprise"), lire("groupe"),
     lire("etablissement"), lire("association"), lire("annonce"), lire("mission"),
     lire("profil"), lire("invitation"), lire("campagne_indicateurs"),
@@ -6632,6 +6664,10 @@ async function chargerEtat(client){
        également. En démonstration tout marchait : le jeu de démonstration, lui,
        porte les trois listes. */
     lire("envoi"), lire("expedition"), lire("sourcing"),
+    /* Les sièges occupés. Sans eux, « Inscriptions par ce lien » affichait
+       éternellement 0, la page d'inscription annonçait toutes les places libres
+       sur un lien épuisé, et le refus n'arrivait qu'après l'envoi du courriel. */
+    lire("affectation_siege"),
     /* Les rapports arrêtés en base. Le moteur dérive lui-même la liste des
        périodes ; ce qu'il ne peut pas deviner, c'est lequel a déjà été envoyé.
        On lit donc la table pour recoller l'envoi à sa période. */
@@ -6656,18 +6692,32 @@ async function chargerEtat(client){
      pour personne en production — alors que la démonstration, dont le jeu de
      données porte les rôles, marchait parfaitement. */
   let identite = null;
+  let domaines = [];
   if (moi){
     try {
       const { data } = await client.rpc("mon_profil");
       identite = Array.isArray(data) ? data[0] || null : data || null;
     } catch (e){ identite = null; }
+    /* Les domaines de messagerie de mon entreprise. Ils ne sortent que pour
+       elle, et l'écran Équipe en dépend : sans eux il affichait le badge rouge
+       « Ouvert à tous » à un client dont la base était pourtant verrouillée. */
+    try {
+      const { data } = await client.rpc("mes_domaines");
+      domaines = Array.isArray(data) ? data : [];
+    } catch (e){ domaines = []; }
   }
 
   return {
     saison: { id: saison.id, nom: saison.nom, debut: saison.debut, fin: saison.fin,
               etat: saison.etat, prix_min: saison.prix_min, prix_max: saison.prix_max,
               acompte: saison.acompte },
-    entreprises: entreprises.map(versEtat.entreprise),
+    entreprises: entreprises.map(r => {
+      const e = versEtat.entreprise(r);
+      const ab = abonnements.find(x => x.entreprise === r.id && x.saison === saison.id);
+      if (ab && ab.sieges) e.sieges = ab.sieges;
+      if (identite && identite.entreprise === r.id) e.domaines = domaines;
+      return e;
+    }),
     groupes: groupes.map(versEtat.groupe),
     etablissements: etablissements.map(versEtat.etablissement),
     /* Les réglages de reçus d'une association ne sont plus dans la table qu'elle
@@ -6710,7 +6760,7 @@ async function chargerEtat(client){
       etablissement: identite.etablissement, groupe: identite.groupe,
       actif: identite.actif !== false, anonyme: false
     }] : [])],
-    invitations: invitations.map(versEtat.invitation),
+    invitations: invitations.map(r => versEtat.invitation(r, sieges)),
     campagnes: campagnes.map(versEtat.campagne),
     observations: observations.map(versEtat.observation),
     acces: acces.map(versEtat.acces),
@@ -6906,10 +6956,35 @@ function creerSupabase(client){
       return moteur;
     },
 
-    rejoindre: (code) => ecrire(() => rpc("rejoindre_entreprise", { p_code: code })),
+    rejoindre: (code, nom) => ecrire(() =>
+      rpc("rejoindre_entreprise", { p_code: code, p_nom: nom || null })),
+    /* Résoudre un lien d'entrée AVANT toute connexion. La table `invitation`
+       n'est lisible que par l'administrateur : la page d'inscription la
+       consultait quand même, recevait une table vide, et répondait « Ce code
+       n'existe pas » à chaque salarié. */
+    resoudreInvitation: async (code) => {
+      const { data, error } = await client.rpc("resoudre_invitation", { p_code: code });
+      if (error) throw new Error(error.message);
+      const r = Array.isArray(data) ? data[0] : data;
+      if (!r) return null;
+      return {
+        entreprise: r.entreprise, entreprise_nom: r.entreprise_nom,
+        etablissement: r.etablissement, etablissement_nom: r.etablissement_nom,
+        etablissement_ville: r.etablissement_ville, etablissement_quota: r.etablissement_quota,
+        pour_referent: !!r.pour_referent, pour_cse: !!r.pour_cse,
+        nom: r.destinataire_nom, email: r.destinataire_mail,
+        places: r.places, utilisees: r.utilisees, restantes: r.restantes,
+        restantes_abonnement: r.restantes_abonnement,
+        active: !!r.active, expire_le: r.expire_le, domaines: r.domaines || []
+      };
+    },
     accepterInvitationReferent: (code) => ecrire(() => rpc("rejoindre_comme_referent", { p_code: code })),
-    creerInvitation: (eid, places, etablissement) => ecrire(() =>
-      rpc("creer_invitation", { p_places: places, p_jours: 60 })),
+    /* Elle rend le CODE, une seule fois : la base n'en garde que l'empreinte, et
+       aucun écran ne pourra le relire. C'est à l'appelant de le montrer tout de
+       suite — ce que les deux appelants ne faisaient pas. */
+    creerInvitation: (eid, places, etablissement = null) => ecrire(() =>
+      rpc("creer_invitation", { p_places: places, p_jours: 60,
+                                p_etablissement: etablissement || null })),
     reglerLogo: (eid, valeur) => ecrire(() => rpc("regler_logo", { p_logo: valeur || null })),
     majAssociation: (aid, ch) => ecrire(() => rpc("maj_association", {
       p_resume: ch.resume ?? null, p_cause: ch.cause ?? null, p_ville: ch.ville ?? null,
@@ -7133,9 +7208,15 @@ function creerSupabase(client){
     creerCompteAssociation: ({ association, ville, resume, nom } = {}) => ecrire(() =>
       rpc("ouvrir_compte_association", { p_nom: association, p_ville: ville,
                                          p_resume: resume || null, p_contact: nom || null })),
-    creerCompteEntreprise: ({ entreprise, effectif, secteur, ville } = {}) => ecrire(() =>
-      rpc("creer_compte_entreprise", { p_nom: entreprise, p_effectif: Number(effectif) || 0,
-                                       p_secteur: secteur || null, p_ville: ville || null })),
+    /* Une entreprise qui s'inscrit elle-même. L'ancienne liaison appelait la
+       fonction de Riseva, qui exige `est_admin()` : le bouton « Créer un compte
+       entreprise » finissait donc TOUJOURS sur « Réservé à Riseva ». Celle-ci
+       ouvre le compte au nom de la personne connectée, la nomme administratrice,
+       et rend le premier lien d'inscription de ses salariés. */
+    creerCompteEntreprise: ({ entreprise, effectif, secteur, ville, nom } = {}) => ecrire(() =>
+      rpc("ouvrir_compte_entreprise", { p_nom: entreprise, p_effectif: Number(effectif) || 0,
+                                        p_secteur: secteur || null, p_ville: ville || null,
+                                        p_contact: nom || null })),
     majContrat: (eid, champs = {}) => ecrire(() => rpc("maj_contrat", {
       p_plateforme: champs.plateforme_reception ?? null,
       p_annuaire: champs.annuaire_id ?? null })),

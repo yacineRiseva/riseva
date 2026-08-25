@@ -437,7 +437,7 @@ create policy moteur_lecture on public.moteur_journal for select
 -- Rien n'est exécutable par défaut ; on rend nommément.
 grant execute on function
   public.rejoindre_entreprise(text, text),
-  public.creer_invitation(integer, integer),
+  public.creer_invitation(integer, integer, uuid),
   public.engager_mission(uuid, numeric, text, boolean),
   public.declarer_mission(uuid, numeric),
   public.trancher_mission(uuid, boolean, numeric),

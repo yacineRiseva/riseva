@@ -350,17 +350,53 @@ $$;
 -- Seize octets tirés du générateur cryptographique, présentés une seule fois,
 -- stockés uniquement sous forme de condensat. Le préfixe visible sert à
 -- reconnaître le lien dans l'interface, jamais à le deviner.
-create or replace function public.creer_invitation(p_places integer, p_jours integer default 60)
+--
+-- Un lien peut porter sur un SITE. Le paramètre n'existait pas : l'écran d'un
+-- établissement proposait pourtant « Créer le lien de mon site », et l'appel
+-- produisait un lien général à l'échelle de la société, dimensionné sur le quota
+-- d'un seul site — qui révoquait au passage le lien collectif de toute
+-- l'entreprise. Un référent de site, lui, se voyait répondre « Réservé à
+-- l'administrateur » : la fonctionnalité n'existait pas côté serveur.
+create or replace function public.creer_invitation(
+  p_places integer, p_jours integer default 60, p_etablissement uuid default null)
 returns text
 language plpgsql security definer set search_path = '' as $$
 declare
   v_ent uuid := private.mon_entreprise();
+  v_role public.role_utilisateur := private.mon_role();
   v_code text;
   v_indice text;
   v_sieges integer;
+  v_quota integer;
 begin
-  if v_ent is null or private.mon_role() <> 'entreprise_admin' then
+  if v_ent is null then
     raise exception 'Réservé à l''administrateur de l''entreprise' using errcode = '42501';
+  end if;
+  if p_etablissement is null then
+    if v_role <> 'entreprise_admin' then
+      raise exception 'Réservé à l''administrateur de l''entreprise' using errcode = '42501';
+    end if;
+  else
+    -- Le site doit appartenir à ma société, et je dois être soit son référent,
+    -- soit l'administrateur de la société. Un référent ne pilote QUE son site.
+    if not exists (select 1 from public.etablissement et
+                    where et.id = p_etablissement and et.societe = v_ent) then
+      raise exception 'Ce site n''appartient pas à votre société' using errcode = '42501';
+    end if;
+    if v_role = 'site_referent' then
+      if private.mon_etablissement() is distinct from p_etablissement then
+        raise exception 'Vous ne pilotez pas ce site' using errcode = '42501';
+      end if;
+    elsif v_role <> 'entreprise_admin' then
+      raise exception 'Réservé à l''administrateur ou au référent du site' using errcode = '42501';
+    end if;
+    -- Le quota du site est une ressource finie : le premier site servi ne mange
+    -- pas les places des autres.
+    select et.quota into v_quota from public.etablissement et where et.id = p_etablissement;
+    if coalesce(v_quota, 0) > 0 and p_places > v_quota then
+      raise exception 'Ce site dispose de % place(s) : le lien ne peut pas en promettre %',
+        v_quota, p_places using errcode = '23514';
+    end if;
   end if;
   if p_places is null or p_places <= 0 or p_places > 100000 then
     raise exception 'Nombre de places invalide' using errcode = '22023';
@@ -395,7 +431,10 @@ begin
   update public.invitation i set active = false
    where i.entreprise = v_ent and i.active
      and not i.pour_referent and not coalesce(i.pour_cse, false)
-     and i.etablissement is null
+     -- Le lien d'un site ne coupe que celui du même site, et le lien général ne
+     -- coupe que le lien général : sinon créer le lien de Marseille éteignait
+     -- celui de toute l'entreprise.
+     and i.etablissement is not distinct from p_etablissement
      -- Et pas davantage les invitations NOMINATIVES de salaries, que
      -- `inviter_salarie` cree sans aucun de ces deux drapeaux. Un
      -- administrateur qui avait envoye dix invitations personnelles puis
@@ -403,8 +442,9 @@ begin
      -- trace. Une invitation nominative se reconnait a son destinataire.
      and i.destinataire_mail is null;
 
-  insert into public.invitation (entreprise, empreinte, indice, places, cree_par, expire_le)
-  values (v_ent, extensions.digest(v_code, 'sha256'), v_indice, p_places,
+  insert into public.invitation (entreprise, etablissement, empreinte, indice, places,
+                                cree_par, expire_le)
+  values (v_ent, p_etablissement, extensions.digest(v_code, 'sha256'), v_indice, p_places,
           auth.uid(), now() + make_interval(days => p_jours));
 
   insert into public.acces (entreprise, profil, quoi, indice)
@@ -1034,8 +1074,11 @@ begin
     on conflict (id) do update set nom = excluded.nom
    where public.profil.nom is null or public.profil.nom = '';
   -- Le rôle est imposé ici. Le client ne le propose même pas.
-  insert into private.appartenance (profil, role, entreprise)
-  values (v_uid, 'salarie', v_inv.entreprise)
+  -- Le site du lien devient le site du salarie. Sans cela, un lien cree par le
+  -- referent de Marseille rattachait ses recrues a personne, et le siege devait
+  -- confirmer un a un des rattachements qu'il ne connaissait pas.
+  insert into private.appartenance (profil, role, entreprise, etablissement)
+  values (v_uid, 'salarie', v_inv.entreprise, v_inv.etablissement)
     on conflict (profil) do nothing;
 
   insert into public.affectation_siege (abonnement, numero, profil, invitation)

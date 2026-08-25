@@ -31,10 +31,14 @@ const code = params.get("code") || "";
 
 /* Le meme choix de moteur que l'application, dans le meme ordre. `?vierge=1`
    traverse aussi cette page : la recette du premier jour passe par ici. */
+let panne = null;
 if (params.has("vierge")) demarrerVierge();
 else if (window.RISEVA_CONFIG){
+  /* Un echec de branchement laissait le moteur de DEMONSTRATION en place : la
+     page repondait alors avec les codes du jeu de demonstration, c'est-a-dire
+     n'importe quoi. Mieux vaut dire la panne. */
   try { await connecterSupabase(window.RISEVA_CONFIG); }
-  catch (e){ console.warn(e); }
+  catch (e){ console.warn(e); panne = e; }
 }
 const root = document.getElementById("root");
 
@@ -80,13 +84,87 @@ const el = cadre();
 root.appendChild(el);
 const boite = el.querySelector("#boite");
 
-const inv = DB.invitationParCode(code);
-const ent = inv ? DB.entreprise(inv.entreprise) : null;
-const restantesLien = inv ? inv.places - inv.utilisees : 0;
-/* Un lien de site consomme le quota de son site, pas celui du pot commun : sinon
-   le premier établissement servi mange les places des autres. */
-const etab = inv && inv.etablissement ? DB.etablissement(inv.etablissement) : null;
-const si = inv ? DB.sieges(inv.entreprise, { etablissement: inv.etablissement || null }) : null;
+/* Résoudre le code. En production la table `invitation` n'est lisible que par
+   l'administrateur — c'est correct, elle porte des adresses — et cette page la
+   consultait quand même : elle recevait une table vide et répondait « Ce code
+   n'existe pas » à TOUS les salariés. Le seul chemin prévu pour faire entrer
+   quelqu'un était mort au seuil. Une fonction dédiée, ouverte à qui n'est pas
+   connecté, rend maintenant le strict nécessaire : le nom de l'entreprise, le
+   site, les places restantes et les domaines acceptés. */
+let inv = null, ent = null, etab = null, restantesLien = 0, restantesAbo = 0, domaines = [];
+if (DB.mode === "supabase"){
+  try { inv = await DB.resoudreInvitation(code); } catch (e){ inv = null; }
+  if (inv){
+    ent = { nom: inv.entreprise_nom };
+    etab = inv.etablissement
+      ? { id: inv.etablissement, nom: inv.etablissement_nom,
+          ville: inv.etablissement_ville, quota: inv.etablissement_quota } : null;
+    restantesLien = inv.restantes;
+    restantesAbo = inv.restantes_abonnement;
+    domaines = inv.domaines || [];
+  }
+} else {
+  const i = DB.invitationParCode(code);
+  if (i){
+    inv = { ...i, entreprise_nom: (DB.entreprise(i.entreprise) || {}).nom };
+    ent = DB.entreprise(i.entreprise);
+    etab = i.etablissement ? DB.etablissement(i.etablissement) : null;
+    restantesLien = i.places - i.utilisees;
+    const si = DB.sieges(i.entreprise, { etablissement: i.etablissement || null });
+    restantesAbo = si ? si.restants : 0;
+    domaines = DB.domaines(i.entreprise);
+  }
+}
+
+/* Accepter un accès nominatif — élu du CSE, référent de site. Les deux branches
+   appelaient leur écriture de façon SYNCHRONE ; en production ces méthodes
+   rendent une promesse, `u.nom.split(" ")` levait donc une TypeError hors du
+   try/catch, la page écrivait une session vide, la promesse partait sans jeton
+   et personne n'écoutait son rejet. L'élu et le référent voyaient un écran
+   figé, sans un mot. Le chemin est le même que celui du salarié : on envoie le
+   lien de connexion, et le rattachement se fait au retour. */
+function accepter(role, mail, nom){
+  const bouton = boite.querySelector("button[type=submit]");
+  if (DB.mode === "supabase"){
+    if (bouton) bouton.disabled = true;
+    const retour = location.origin + location.pathname
+      + "?code=" + encodeURIComponent(code)
+      + "&nom=" + encodeURIComponent(nom || "")
+      + "&role=" + encodeURIComponent(role) + "&suite=1";
+    envoyerLienConnexion(mail, { retour }).then(() => {
+      boite.innerHTML = "";
+      boite.appendChild(h(`<div>
+        <span class="badge badge--info" style="height:28px"><span class="dot"></span>Lien envoyé</span>
+        <h1 style="margin-top:var(--s5);font-size:var(--t-h2)">Ouvrez votre boîte</h1>
+        <p class="muted" style="margin-top:var(--s4)">
+          Un lien de connexion vient d'être envoyé à <b>${esc(mail)}</b>. Cliquez dessus et
+          votre accès sera ouvert. Le lien est valable une heure et ne sert qu'une fois.</p>
+      </div>`));
+    }).catch((err) => {
+      toast(err.message || "Le lien n'a pas pu être envoyé.");
+      if (bouton) bouton.disabled = false;
+    });
+    return;
+  }
+  /* En démonstration, l'accès s'ouvre à l'instant. */
+  let u;
+  try { u = role === "cse" ? DB.accepterInvitationCSE(code) : DB.accepterInvitationReferent(code); }
+  catch (err){ toast(err.message); return; }
+  try { localStorage.setItem("riseva.session", JSON.stringify({ uid: u.id })); } catch (e){}
+  boite.innerHTML = "";
+  boite.appendChild(h(`<div>
+    <span class="badge badge--ok" style="height:28px"><span class="dot"></span>${
+      role === "cse" ? "Accès ouvert" : "Compte créé"}</span>
+    <h1 style="margin-top:var(--s5);font-size:var(--t-h2)">Bienvenue ${
+      esc(String(u.nom || nom || "").split(" ")[0])}</h1>
+    <p class="muted" style="margin-top:var(--s4)">${role === "cse"
+      ? `Vous lisez les chiffres de ${esc(inv.entreprise_nom || "")}. Rien à saisir, rien à valider.`
+      : `Vous pilotez ${esc((etab || {}).nom || "")}, ${esc((etab || {}).ville || "")}. Première chose
+         à faire : créer le lien d'inscription de vos salariés.`}</p>
+    <a class="btn btn--primary btn--lg" style="margin-top:var(--s8)" href="/app/#/tableau">
+      Ouvrir mon tableau de bord</a>
+  </div>`));
+}
 
 function erreur(titre, texte){
   boite.innerHTML = "";
@@ -103,7 +181,14 @@ function erreur(titre, texte){
    que le rattachement a l'entreprise se fait. */
 async function finirInscription(){
   const nom = params.get("nom") || "";
+  const role = params.get("role") || "salarie";
   const sess = await sessionAuth();
+  /* Le jeton est encore dans le fragment de l'adresse. La bibliotheque l'a lu ;
+     il n'a plus rien a faire ni dans la barre d'adresse, ni dans l'historique,
+     ni dans `document.URL` que n'importe quel script de la page peut lire.
+     L'application le nettoie depuis toujours ; cette page, non. */
+  if (location.hash.includes("access_token"))
+    history.replaceState(null, "", location.pathname + location.search);
   if (!sess || !sess.user){
     erreur("Le lien a expiré",
       "Il ne sert qu'une fois et reste valable une heure. Redemandez-en un depuis le lien "
@@ -111,26 +196,30 @@ async function finirInscription(){
     return;
   }
   try {
-    await DB.rejoindre(code, nom, sess.user.email);
+    if (role === "cse") await DB.accepterInvitationCSE(code);
+    else if (role === "referent") await DB.accepterInvitationReferent(code);
+    else await DB.rejoindre(code, nom, sess.user.email);
   } catch (err){
     /* Deja rattache : ce n'est pas une erreur, c'est quelqu'un qui a clique deux
        fois sur son lien. On l'envoie sur son tableau de bord. */
-    if (!/déjà|deja/i.test(err.message || "")){
+    if (!/déjà|deja|appartient/i.test(err.message || "")){
       erreur("Le compte n'a pas pu être ouvert", err.message || "Réessayez dans un instant.");
       return;
     }
   }
-  location.href = "/app/#/annonces";
+  location.href = role === "salarie" ? "/app/#/annonces" : "/app/#/tableau";
 }
 
-if (params.get("suite") === "1" && code){ finirInscription(); }
+if (panne) erreur("Nous ne joignons pas nos serveurs",
+  "Rien n'est perdu : réessayez dans un instant, votre place vous attend.");
+else if (params.get("suite") === "1" && code){ finirInscription(); }
 else if (!code)   erreur("Il manque le code", "Demandez à votre entreprise le lien d'inscription complet, il se termine par un code.");
 else if (!inv)    erreur("Ce code n'existe pas", "Vérifiez le lien, ou demandez à votre entreprise de vous le renvoyer.");
-else if (!inv.active) erreur("Ce lien a été désactivé", "Votre entreprise l'a révoqué. Elle peut vous en fournir un nouveau.");
+else if (!inv.active) erreur("Ce lien n'est plus valable", "Votre entreprise l'a révoqué, ou il a expiré. Elle peut vous en fournir un nouveau.");
 /* Le quota de places compte les salariés. Un accès de référent ou de CSE n'en
    consomme pas : refuser un élu parce que l'entreprise a rempli ses sièges
    reviendrait à lui faire payer des comptes qu'il n'utilise pas. */
-else if (!inv.pour_cse && !inv.pour_referent && (restantesLien <= 0 || si.restants <= 0))
+else if (!inv.pour_cse && !inv.pour_referent && (restantesLien <= 0 || restantesAbo <= 0))
                   erreur("Toutes les places sont prises", "L'abonnement de votre entreprise est complet. Parlez-en à la personne qui gère Riseva chez vous.");
 /* L'accès du CSE : nominatif lui aussi, et en lecture seule. On dit ce qu'il ouvre
    et surtout ce qu'il n'ouvre pas, un élu qui découvrirait après coup qu'il ne voit
@@ -175,19 +264,7 @@ else if (inv.pour_cse){
     if (mail !== String(inv.email || "").toLowerCase()){
       toast("Ce lien a été émis pour une autre adresse."); return;
     }
-    let u;
-    try { u = DB.accepterInvitationCSE(code); }
-    catch (err){ toast(err.message); return; }
-    try { localStorage.setItem("riseva.session", JSON.stringify({ uid: u.id })); } catch {}
-    boite.innerHTML = "";
-    boite.appendChild(h(`<div>
-      <span class="badge badge--ok" style="height:28px"><span class="dot"></span>Accès ouvert</span>
-      <h1 style="margin-top:var(--s5);font-size:var(--t-h2)">Bienvenue ${esc(u.nom.split(" ")[0])}</h1>
-      <p class="muted" style="margin-top:var(--s4)">
-        Vous lisez les chiffres de ${esc(ent.nom)}. Rien à saisir, rien à valider.</p>
-      <a class="btn btn--primary btn--lg" style="margin-top:var(--s8)" href="/app/#/tableau">
-        Ouvrir mon accès</a>
-    </div>`));
+    accepter("cse", mail, boite.querySelector("#cnom").value.trim());
   });
 }
 /* Un lien de référent est nominatif : il porte le nom et l'adresse de la personne
@@ -226,20 +303,7 @@ else if (inv.pour_referent){
     if (mail !== String(inv.email || "").toLowerCase()){
       toast("Ce lien a été émis pour une autre adresse."); return;
     }
-    let u;
-    try { u = DB.accepterInvitationReferent(code); }
-    catch (err){ toast(err.message); return; }
-    try { localStorage.setItem("riseva.session", JSON.stringify({ uid: u.id })); } catch {}
-    boite.innerHTML = "";
-    boite.appendChild(h(`<div>
-      <span class="badge badge--ok" style="height:28px"><span class="dot"></span>Compte créé</span>
-      <h1 style="margin-top:var(--s5);font-size:var(--t-h2)">Bienvenue ${esc(u.nom.split(" ")[0])}</h1>
-      <p class="muted" style="margin-top:var(--s4)">
-        Vous pilotez ${esc(etab.nom)}, ${esc(etab.ville)}. Première chose à faire : créer le lien
-        d'inscription de vos salariés.</p>
-      <a class="btn btn--primary btn--lg" style="margin-top:var(--s8)" href="/app/#/tableau">
-        Ouvrir mon tableau de bord</a>
-    </div>`));
+    accepter("referent", mail, boite.querySelector("#rnom").value.trim());
   });
 }
 else {
@@ -253,9 +317,11 @@ else {
         <input class="input" id="nom" required autocomplete="name"></div>
       <div class="field"><label for="mail">Email professionnel</label>
         <input class="input" id="mail" type="email" required autocomplete="email">
-        ${DB.domaines(inv.entreprise).length
-          ? `<p class="hint">Ce lien n'accepte que les adresses en @${DB.domaines(inv.entreprise).join(", @")}.</p>`
-          : ""}</div>
+        ${domaines.length
+          ? `<p class="hint">Ce lien n'accepte que les adresses en @${esc(domaines.join(", @"))}.</p>`
+          : `<p class="hint" style="color:var(--danger, #B4564A)">Votre entreprise n'a encore
+             déclaré aucun domaine de messagerie : tant que ce n'est pas fait, aucune
+             inscription n'est possible. Signalez-le à la personne qui vous a envoyé ce lien.</p>`}</div>
       <!-- Pas de case « j'accepte » : la base légale retenue est l'intérêt légitime,
            pas le consentement. Un consentement qu'on ne peut pas refuser sans perdre
            l'accès n'est pas un consentement libre, le demander quand même, c'est se

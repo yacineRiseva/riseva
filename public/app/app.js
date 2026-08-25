@@ -129,6 +129,38 @@ const MENUS = {
    les six appels a le transporter pour rien. */
 let annonceConnexion = null;
 
+/* ------------------------------------------------------------------ */
+/* Les codes d'invitation, vus une fois                                */
+/* ------------------------------------------------------------------ */
+/* La base ne garde qu'une empreinte du code : `creer_invitation` le rend une
+   seule fois, et plus personne ne pourra le relire — c'est ce qui fait qu'un
+   lien volé en base ne vaut rien. L'écran, lui, reconstruisait le lien à partir
+   de l'état rechargé, où la colonne lisible n'est PAS le code mais l'`indice` de
+   six caractères. Le lien diffusé à tout l'effectif était donc un lien mort :
+   `rejoindre_entreprise` hache ce qu'on lui donne, et six caractères ne
+   correspondent à aucune empreinte.
+
+   On retient donc, le temps de la visite et en mémoire seulement, le code qu'on
+   vient de créer. Quand on ne l'a pas, on le dit au lieu d'afficher une adresse
+   qui ne mène nulle part. */
+const codesVus = new Map();
+const cleCode = (entreprise, etablissement = null, pour = "") =>
+  `${entreprise}:${etablissement || ""}:${pour}`;
+function retenirCode(cle, code){ if (code) codesVus.set(cle, String(code)); }
+/* Le code lisible d'une invitation, ou `null`. En démonstration l'état porte le
+   code : le moteur en mémoire n'a pas de raison de le cacher, et la recette
+   traverse le parcours d'inscription de bout en bout. */
+function codeDe(inv){
+  if (!inv) return null;
+  if (inv.code) return inv.code;
+  return codesVus.get(cleCode(inv.entreprise, inv.etablissement,
+                              inv.pour_referent ? "referent" : inv.pour_cse ? "cse" : "")) || null;
+}
+function lienDe(inv, suffixe = ""){
+  const c = codeDe(inv);
+  return c ? lienPublic(`/rejoindre.html?code=${encodeURIComponent(c)}${suffixe}`) : "";
+}
+
 function vueConnexion(){
   /* Les cinq accès de la démonstration. Sur une installation neuve, aucun
      d'entre eux n'existe : l'écran les filtre au lieu de tomber sur le premier
@@ -300,15 +332,12 @@ function vueConnexion(){
     </div>`);
     modal("Créer un compte entreprise", c, [
       { label:"Annuler" },
-      { label:"Créer le compte", classe:"btn--primary", onClick: () => {
+      { label:"Créer le compte", classe:"btn--primary", onClick: async () => {
           const v = (k) => c.querySelector("#" + k).value.trim();
           if (!v("ent") || !v("nom") || !v("mail")){ toast("Entreprise, nom et email sont nécessaires."); return false; }
-          const r = DB.creerCompteEntreprise({ entreprise:v("ent"), effectif:v("eff"),
-            nom:v("nom"), email:v("mail"), secteur:v("sec"), ville:v("vil") });
-          setSession(r.utilisateur.id);
-          location.hash = "#/equipe";
-          rendre();
-          toast("Compte créé. Voici votre lien d'inscription.");
+          const d = { type:"entreprise", entreprise:v("ent"), effectif:v("eff"),
+                      nom:v("nom"), mail:v("mail"), secteur:v("sec"), ville:v("vil") };
+          return await lancerOuverture(d);
         }}
     ]);
   };
@@ -328,15 +357,12 @@ function vueConnexion(){
     </div>`);
     modal("Inscrire mon association", c, [
       { label:"Annuler" },
-      { label:"Envoyer", classe:"btn--primary", onClick: () => {
+      { label:"Envoyer", classe:"btn--primary", onClick: async () => {
           const v = (k) => c.querySelector("#" + k).value.trim();
           if (!v("asso") || !v("nom") || !v("mail")){ toast("Association, nom et email sont nécessaires."); return false; }
-          const r = DB.creerCompteAssociation({ association:v("asso"), cause:v("cause"),
-            ville:v("vil"), resume:v("res"), nom:v("nom"), email:v("mail") });
-          setSession(r.utilisateur.id);
-          location.hash = "#/tableau";
-          rendre();
-          toast("Compte créé. Votre fiche attend la validation de Riseva.");
+          const d = { type:"association", asso:v("asso"), cause:v("cause"),
+                      ville:v("vil"), resume:v("res"), nom:v("nom"), mail:v("mail") };
+          return await lancerOuverture(d);
         }}
     ]);
   };
@@ -556,8 +582,13 @@ function tableauEntreprise(u){
     vers:"#/abonnement", ton:"alerte" });
   if (DB.administrateurs(eid).length < 2) aFaire.push({ texte:
     "Un seul administrateur : nommez-en un second", vers:"#/equipe", ton:"info" });
+  /* Aucun domaine déclaré ne veut pas dire « ouvert à tous » : la règle est
+     l'inverse, personne ne peut s'inscrire. C'est le premier obstacle que
+     rencontre un nouveau client, et il n'avait aucun moyen de le comprendre —
+     l'écran lui annonçait exactement le contraire de ce que faisait le serveur. */
   if (!DB.domaines(eid).length) aFaire.push({ texte:
-    "Aucun domaine de messagerie déclaré : le lien accepte n'importe qui", vers:"#/equipe", ton:"alerte" });
+    "Aucun domaine de messagerie déclaré : personne ne peut encore s'inscrire",
+    vers:"#/equipe", ton:"alerte" });
 
   /* Un seul taux de participation dans tout le produit, celui du protocole de mesure :
      salariés ayant au moins une action validée, divisés par l'effectif de référence.
@@ -948,8 +979,8 @@ function tableauEntreprise(u){
         texte: "Un seul lien, à diffuser en interne.", vers: "#/equipe" },
       { fait: !!(inv && inv.teste), titre: "Tester le lien avant de le diffuser",
         texte: "Ouvrez-le vous-même une fois : c'est la meilleure façon d'éviter d'envoyer un lien mort à trois cents personnes.",
-        action: inv ? { label: "Ouvrir le lien", fn: () => {
-          window.open(`/rejoindre.html?code=${inv.code}`, "_blank");
+        action: inv && codeDe(inv) ? { label: "Ouvrir le lien", fn: () => {
+          window.open(lienDe(inv), "_blank");
           inv.teste = true; toast("Lien ouvert dans un nouvel onglet."); } } : null },
       { fait: si.pris > 1, titre: "Diffuser le lien à vos équipes",
         texte: si.pris > 1 ? `${si.pris} personnes ont déjà créé leur compte.`
@@ -1829,7 +1860,7 @@ function vueEquipe(u){
   const inv = monSite
     ? DB.invitations(eid).find(i => i.etablissement === monSite && i.active && !i.pour_referent)
     : DB.invitationActive(eid);
-  const lien = inv ? lienPublic(`/rejoindre.html?code=${inv.code}`) : "";
+  const lien = lienDe(inv);
 
   const el = h(`<div class="two">
     <section class="card">
@@ -1900,16 +1931,17 @@ function vueEquipe(u){
         <div class="between" style="margin-bottom:var(--s4)">
           <h3>Domaines autorisés</h3>
           <span class="badge ${DB.domaines(eid).length ? "badge--ok" : "badge--danger"}">${
-            DB.domaines(eid).length ? "Restreint" : "Ouvert à tous"}</span>
+            DB.domaines(eid).length ? "Restreint" : "Aucun domaine"}</span>
         </div>
         <p class="muted" style="font-size:var(--t-sm)">
           Seules les adresses de ces domaines peuvent créer un compte avec votre lien.
-          <strong style="color:var(--ink)">Sans restriction, un lien qui fuite laisse
-          n'importe qui entrer chez vous.</strong></p>
+          <strong style="color:var(--ink)">Tant qu'aucun domaine n'est déclaré, personne
+          ne peut s'inscrire</strong> — c'est volontaire : un lien qui fuite ne doit
+          ouvrir aucune porte.</p>
         <div class="field" style="margin-top:var(--s5)">
           <input class="input" id="dom" value="${esc(DB.domaines(eid).join(", "))}"
             placeholder="entreprise.fr, filiale.com">
-          <p class="hint">Séparés par des virgules. Laisser vide retire la protection.</p>
+          <p class="hint">Séparés par des virgules. Laisser vide ferme les inscriptions.</p>
         </div>
         <button class="btn btn--primary btn--sm" style="margin-top:var(--s3)" id="saveDom">Enregistrer</button>
       </section>`}
@@ -1924,13 +1956,22 @@ function vueEquipe(u){
           Un seul lien à diffuser en interne. Chaque salarié crée son compte lui-même,
           vous n'avez aucune liste à saisir.</p>
         ${inv ? `
-        <div class="copyline" style="margin-top:var(--s5)">
+        ${lien ? `<div class="copyline" style="margin-top:var(--s5)">
           <input class="input" id="lien" aria-label="Lien d'inscription à partager avec vos salariés" value="${esc(lien)}" readonly>
           <button class="btn btn--primary btn--sm" id="copy" style="flex:none">Copier</button>
-        </div>
+        </div>`
+        : `<div class="card card--flat" style="background:var(--paper-sunk);border-color:transparent;margin-top:var(--s5)">
+             <p style="font-size:var(--t-sm);color:var(--ink-700)">
+               <strong>Le lien complet ne s'affiche qu'une fois</strong>, au moment où vous
+               le créez : nous n'en gardons qu'une empreinte, pour qu'il ne vaille rien
+               même si quelqu'un lisait notre base.</p>
+             <p style="font-size:var(--t-sm);color:var(--ink-600);margin-top:var(--s3)">
+               Vous ne l'avez plus ? Régénérez-le ci-dessous. L'ancien cessera de
+               fonctionner et les comptes déjà ouverts ne sont pas touchés.</p>
+           </div>`}
         <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
-          <div class="between"><span class="muted">Code</span>
-            <strong style="font-family:var(--font-mono)">${esc(inv.code)}</strong></div>
+          <div class="between"><span class="muted">Repère du lien</span>
+            <strong style="font-family:var(--font-mono)">${esc(inv.indice || inv.code || "-")}</strong></div>
           <div class="between"><span class="muted">Inscriptions par ce lien</span>
             <span class="tnum">${inv.utilisees} / ${inv.places}</span></div>
           <div class="between"><span class="muted">Valable jusqu'au</span>
@@ -2075,18 +2116,24 @@ function vueEquipe(u){
     </div>`);
     modal("Ouvrir l'accès CSE", corps, [
       { label:"Annuler" },
-      { label:"Créer le lien", classe:"btn--primary", onClick: () => {
+      /* `async` et `await` : en production l'écriture est un aller-retour, et
+         la valeur rendue est le CODE, pas un objet. Sans cela l'écran affichait
+         `?code=undefined&role=cse` et « Expire le undefined », en annonçant
+         « Accès CSE créé » même quand la base avait refusé. */
+      { label:"Créer le lien", classe:"btn--primary", onClick: async () => {
           try {
-            const inv = DB.creerInvitationCSE(eid,
+            const r = await DB.creerInvitationCSE(eid,
               corps.querySelector("#cse-nom").value.trim(),
               corps.querySelector("#cse-mail").value.trim());
-            const url = lienPublic(`/rejoindre.html?code=${inv.code}&role=cse`);
+            const code = typeof r === "string" ? r : (r && r.code);
+            retenirCode(cleCode(eid, null, "cse"), code);
+            const url = lienPublic(`/rejoindre.html?code=${encodeURIComponent(code)}&role=cse`);
             corps.querySelector("#cse-res").innerHTML =
-              `<p class="hint" style="margin-bottom:6px">À envoyer à cette personne, et à elle seule :</p>
-               <div class="copyline"><input class="input" readonly aria-label="Lien d'accès du CSE" value="${esc(url)}"></div>
-               <p class="hint" style="margin-top:6px">Expire le ${dateFR(inv.expire_le)}.</p>`;
+              `<p class="hint" style="margin-bottom:6px">À envoyer à cette personne, et à elle seule.
+               Il ne se réaffichera pas :</p>
+               <div class="copyline"><input class="input" readonly aria-label="Lien d'accès du CSE" value="${esc(url)}"></div>`;
             toast("Accès CSE créé.");
-          } catch (e){ toast(e.message); }
+          } catch (e){ toast(e.message || "L'accès n'a pas pu être créé."); }
           return false;
         }}]);
   };
@@ -2096,16 +2143,16 @@ function vueEquipe(u){
     const l = el.querySelector("#dom").value.split(",").filter(x => x.trim());
     const enregistrer = () => {
       DB.majDomaines(eid, l);
-      toast(l.length ? "Domaines enregistrés." : "Restriction retirée.");
+      toast(l.length ? "Domaines enregistrés." : "Inscriptions fermées.");
       rendre();
     };
     if (!l.length && DB.domaines(eid).length){
-      modal("Retirer la restriction de domaine",
-        `<p class="muted">Sans domaine déclaré, <strong style="color:var(--ink)">n'importe qui
-         disposant du lien pourra créer un compte dans votre entreprise</strong>, y compris
-         quelqu'un à qui il aurait été transféré par erreur.</p>
-         <p class="hint" style="margin-top:var(--s4)">Si vous voulez seulement fermer les
-         inscriptions, révoquez le lien : c'est plus sûr et réversible.</p>`,
+      modal("Retirer tous les domaines",
+        `<p class="muted">Sans domaine déclaré, <strong style="color:var(--ink)">plus aucun
+         salarié ne pourra créer de compte</strong>, même avec un lien valide. Les comptes
+         déjà ouverts ne sont pas touchés.</p>
+         <p class="hint" style="margin-top:var(--s4)">C'est une façon de fermer les
+         inscriptions ; révoquer le lien fait la même chose et se défait plus vite.</p>`,
         [{ label:"Annuler" },
          { label:"Retirer quand même", classe:"btn--primary", onClick: enregistrer }]);
       return;
@@ -2127,10 +2174,17 @@ function vueEquipe(u){
     </div>`);
     modal(inv ? "Régénérer le lien" : "Créer le lien", corps, [
       { label:"Annuler" },
-      { label:inv ? "Régénérer" : "Créer", classe:"btn--primary", onClick: () => {
+      { label:inv ? "Régénérer" : "Créer", classe:"btn--primary", onClick: async () => {
           const n = Math.min(Number(corps.querySelector("#pl").value) || 1, si.total);
-          DB.creerInvitation(eid, n);
-          toast("Nouveau lien prêt."); rendre();
+          /* Le code rendu par le serveur est la SEULE occasion de le lire. Il
+             était jeté : l'écran se contentait d'un « Nouveau lien prêt » et
+             affichait ensuite l'indice à la place du code. */
+          try {
+            const code = await DB.creerInvitation(eid, n);
+            retenirCode(cleCode(eid), code);
+            toast("Nouveau lien prêt. Copiez-le maintenant : il ne s'affichera plus.");
+          } catch (err){ toast(err.message || "Le lien n'a pas pu être créé."); }
+          rendre();
         }}
     ]);
   });
@@ -6216,18 +6270,20 @@ function formReferent(et){
   </div>`);
   modal(`Référent de ${et.nom}, ${et.ville}`, corps, [
     { label: "Annuler", classe: "btn--ghost" },
-    { label: "Créer le lien", classe: "btn--primary", onClick: () => {
+    { label: "Créer le lien", classe: "btn--primary", onClick: async () => {
         try {
-          const inv = DB.creerInvitationReferent(et.id,
+          const r = await DB.creerInvitationReferent(et.id,
             corps.querySelector("#rf-nom").value.trim(),
             corps.querySelector("#rf-mail").value.trim());
-          const url = lienPublic(`/rejoindre.html?code=${inv.code}&role=referent`);
+          const code = typeof r === "string" ? r : (r && r.code);
+          retenirCode(cleCode(et.societe, et.id, "referent"), code);
+          const url = lienPublic(`/rejoindre.html?code=${encodeURIComponent(code)}&role=referent`);
           corps.querySelector("#rf-out").innerHTML =
-            `<p class="hint" style="margin-bottom:6px">À envoyer à cette personne, et à elle seule :</p>
-             <div class="copyline"><input class="input" readonly aria-label="Lien du référent" value="${esc(url)}"></div>
-             <p class="hint" style="margin-top:6px">Expire le ${dateFR(inv.expire_le)}.</p>`;
+            `<p class="hint" style="margin-bottom:6px">À envoyer à cette personne, et à elle seule.
+             Il ne se réaffichera pas :</p>
+             <div class="copyline"><input class="input" readonly aria-label="Lien du référent" value="${esc(url)}"></div>`;
           toast("Lien de référent créé.");
-        } catch (e){ toast(e.message); }
+        } catch (e){ toast(e.message || "Le lien n'a pas pu être créé."); }
         /* La fenêtre reste ouverte : le lien qu'elle vient d'afficher est la
            seule raison de l'avoir ouverte, et il ne se réaffiche pas. */
         return false;
@@ -6817,11 +6873,13 @@ function ouvrirAffiche(u){
   const e = DB.entreprise(u.org) || {};
   const sa = DB.saison();
   const inv = DB.invitationActive(u.org);
-  const lien = inv ? lienPublic(`/rejoindre.html?code=${inv.code}`) : null;
+  const lien = lienDe(inv);
   if (!lien){
-    modal("Aucun lien d'inscription actif",
+    modal("Le lien d'inscription n'est pas sous la main",
       `<p class="muted">Une affiche sans lien est une affiche qu'on regarde sans y répondre.
-       Créez d'abord le lien d'inscription de vos salariés, depuis l'écran Équipe.</p>`,
+       ${inv ? `Le lien complet ne s'affiche qu'au moment où on le crée : régénérez-le depuis
+       l'écran Équipe, l'affiche le reprendra.`
+             : `Créez d'abord le lien d'inscription de vos salariés, depuis l'écran Équipe.`}</p>`,
       [{ label:"Fermer" }]);
     return;
   }
@@ -7985,11 +8043,15 @@ function tableauSite(u){
       <p class="muted" style="font-size:var(--t-sm)">
         Ce lien ouvre des comptes sur <strong style="color:var(--ink)">${esc(et.nom)}, ${esc(et.ville)}</strong>,
         dans la limite de votre quota. Il ne donne aucun droit d'administration.</p>
-      ${inv ? `<div class="copyline" style="margin-top:var(--s5)">
+      ${inv && lienDe(inv) ? `<div class="copyline" style="margin-top:var(--s5)">
         <input class="input" id="lienSite" readonly aria-label="Lien d'inscription de votre site"
-          value="${esc(lienPublic("/rejoindre.html?code=" + inv.code))}">
+          value="${esc(lienDe(inv))}">
         <button class="btn btn--primary btn--sm" id="copySite" style="flex:none">Copier</button></div>
         <p class="hint" style="margin-top:6px">${inv.utilisees} compte${inv.utilisees > 1 ? "s" : ""} créé${inv.utilisees > 1 ? "s" : ""} par ce lien, expire le ${dateFR(inv.expire_le)}</p>`
+      : inv ? `<p class="hint" style="margin-top:var(--s5)">Un lien est actif (repère
+          <strong style="font-family:var(--font-mono)">${esc(inv.indice || "")}</strong>) mais son
+          adresse complète ne s'affiche qu'à la création. ${inv.utilisees} compte${inv.utilisees > 1 ? "s" : ""} créé${inv.utilisees > 1 ? "s" : ""} par ce lien.</p>
+        <button class="btn btn--ghost btn--sm" style="margin-top:var(--s4)" id="newLien">Régénérer le lien de mon site</button>`
       : `<button class="btn btn--primary" style="margin-top:var(--s5)" id="newLien">Créer le lien de mon site</button>`}
     </section>
   </div>`);
@@ -8015,9 +8077,13 @@ function tableauSite(u){
     navigator.clipboard?.writeText(el.querySelector("#lienSite").value);
     toast("Lien copié.");
   });
-  el.querySelector("#newLien")?.addEventListener("click", () => {
-    try { DB.creerInvitation(u.org, et.quota, et.id); toast("Lien créé."); rendre(); }
-    catch (e){ toast(e.message); }
+  el.querySelector("#newLien")?.addEventListener("click", async () => {
+    try {
+      const code = await DB.creerInvitation(u.org, et.quota || 1, et.id);
+      retenirCode(cleCode(u.org, et.id), code);
+      toast("Lien créé. Copiez-le maintenant : il ne s'affichera plus.");
+    } catch (e){ toast(e.message || "Le lien n'a pas pu être créé."); }
+    rendre();
   });
   return el;
 }
@@ -9597,75 +9663,128 @@ addEventListener("unhandledrejection", (e) => {
    et la depose directement dans son dossier, a l'endroit ou il reste trois
    choses a completer : le numero au registre, l'IBAN et une photo. Rien n'est
    demande deux fois. */
-const CLE_NOUVELLE_ASSO = "riseva.nouvelleAsso";
-async function ouvrirCompteDepuisVitrine(){
-  let brut;
-  try { brut = localStorage.getItem(CLE_NOUVELLE_ASSO); } catch (e) { return false; }
-  if (!brut) return false;
-  /* On n'oublie PAS le depot avant d'avoir ouvert le compte. L'ancienne version
-     l'effacait en premier : une ouverture refusee — pas encore connecte, reseau
-     coupe, policy — et les quatre reponses de la presidente etaient perdues sans
-     un mot, avec un ecran de connexion pour tout accueil. */
-  const oublier = () => { try { localStorage.removeItem(CLE_NOUVELLE_ASSO); } catch (e) {} };
-  let d;
-  try { d = JSON.parse(brut); } catch (e) { oublier(); return false; }
-  if (!d || !d.asso || !d.mail){ oublier(); return false; }
+const CLE_NOUVELLE_ASSO = "riseva.nouvelleAsso";   /* déposée par la vitrine */
+const CLE_DEMANDE = "riseva.demandeCompte";        /* déposée par l'application */
 
-  const champs = { association: d.asso, ville: d.ville || "", cause: "",
-    resume: d.mot ? `Ce qui nous manque le plus en ce moment : ${d.mot}.` : "",
-    nom: d.contact || d.asso, email: d.mail };
+/* Ce qui attend d'être ouvert. Deux dépôts pour une seule raison : la vitrine
+   est une page à part, écrite en ES5, et elle pose sa clé à elle depuis
+   toujours. On lit les deux, on n'en écrit qu'un. */
+function demandeEnAttente(){
+  const lire = (cle) => { try { return localStorage.getItem(cle); } catch (e){ return null; } };
+  const brut = lire(CLE_DEMANDE);
+  if (brut){ try { const d = JSON.parse(brut); if (d && d.type) return d; } catch (e){} }
+  const vit = lire(CLE_NOUVELLE_ASSO);
+  if (vit){
+    try {
+      const d = JSON.parse(vit);
+      if (d && d.asso && d.mail)
+        return { type:"association", asso:d.asso, ville:d.ville || "", cause:"",
+                 resume: d.mot ? `Ce qui nous manque le plus en ce moment : ${d.mot}.` : "",
+                 nom: d.contact || d.asso, mail: d.mail };
+    } catch (e){}
+  }
+  return null;
+}
+function deposerDemande(d){
+  try { localStorage.setItem(CLE_DEMANDE, JSON.stringify(d)); return true; }
+  catch (e){ return false; }
+}
+function oublierDemande(){
+  for (const c of [CLE_DEMANDE, CLE_NOUVELLE_ASSO])
+    try { localStorage.removeItem(c); } catch (e){}
+}
 
-  const entrerDansLeDossier = () => {
-    location.hash = "#/dossier";
-    setTimeout(() => toast("Compte ouvert. Il reste trois champs pour être visible."), 400);
-  };
+/* Ouvrir le compte décrit par `d`, si la session le permet. Rend `true` quand
+   l'écran a été pris en main (compte ouvert, ou lien envoyé). */
+async function ouvrirCompte(d){
+  const creer = () => d.type === "entreprise"
+    ? DB.creerCompteEntreprise({ entreprise:d.entreprise, effectif:d.effectif,
+        nom:d.nom, email:d.mail, secteur:d.secteur, ville:d.ville })
+    : DB.creerCompteAssociation({ association:d.asso, cause:d.cause || "",
+        ville:d.ville || "", resume:d.resume || "", nom:d.nom, email:d.mail });
+  const destination = d.type === "entreprise" ? "#/equipe" : "#/dossier";
+  const mot = d.type === "entreprise"
+    ? "Compte ouvert. Créez votre lien d'inscription pour vos équipes."
+    : "Compte ouvert. Il reste trois champs pour être visible.";
 
-  /* En demonstration, tout vit en memoire : le compte s'ouvre immediatement et
-     la session se pose sur l'utilisateur cree. */
+  /* En démonstration, tout vit en mémoire : le compte s'ouvre à l'instant. */
   if (DB.mode !== "supabase"){
     try {
-      const r = DB.creerCompteAssociation(champs);
-      oublier(); setSession(r.utilisateur.id); entrerDansLeDossier();
+      const r = await creer();
+      oublierDemande();
+      if (r && r.utilisateur) setSession(r.utilisateur.id);
+      location.hash = destination;
+      rendre();
+      setTimeout(() => toast(mot), 300);
       return true;
-    } catch (e) { oublier(); return false; }
+    } catch (e){ toast(e.message || "Le compte n'a pas pu être ouvert."); return false; }
   }
 
-  /* En production, ouvrir un compte demande d'etre authentifie : la fonction
-     rattache l'association au compte connecte, et sans jeton elle refuse. La
-     personne arrive de la vitrine sans session — on lui envoie donc le lien a
-     l'adresse qu'elle vient de saisir, et le depot RESTE : au retour du lien,
-     ce meme code repasse, la session existe, et le compte s'ouvre. */
+  /* En production, ouvrir un compte demande une session : la fonction Postgres
+     rattache l'organisation au compte connecté, et sans jeton elle refuse. On
+     envoie donc le lien, et le dépôt RESTE — au retour, ce même code repasse. */
   let sess = null;
-  try { sess = await sessionAuth(); } catch (e) { sess = null; }
+  try { sess = await sessionAuth(); } catch (e){ sess = null; }
   if (!sess || !sess.user){
+    if (!deposerDemande(d)){
+      toast("Votre navigateur empêche l'ouverture directe du compte. Écrivez-nous à bonjour@riseva.fr.");
+      return false;
+    }
     try {
       await envoyerLienConnexion(d.mail, { retour: location.origin + "/app/" });
       annonceConnexion = { mail: d.mail, texte:
-        "Nous avons envoyé un lien à " + d.mail + ". Ouvrez-le : votre compte "
-        + "s'ouvrira tout seul avec ce que vous venez de nous dire. Rien à ressaisir." };
+        "Nous avons envoyé un lien à " + d.mail + ". Ouvrez-le depuis cet appareil : "
+        + "votre compte s'ouvrira tout seul avec ce que vous venez de nous dire." };
     } catch (e){
       annonceConnexion = { mail: d.mail, erreur: true, texte:
-        "Le lien n'a pas pu être envoyé. Votre demande est conservée : "
-        + "redemandez un lien avec cette adresse et le compte s'ouvrira." };
+        (e && e.message) || "Le lien n'a pas pu être envoyé. Votre demande est conservée." };
     }
-    return false;
+    setSession(null);
+    rendre();
+    return true;
   }
 
   try {
-    await DB.creerCompteAssociation(champs);
-    oublier(); setSession(sess.user.id); entrerDansLeDossier();
+    const r = await creer();
+    oublierDemande();
+    /* Le premier lien d'inscription est rendu par le serveur, une seule fois. */
+    if (d.type === "entreprise"){
+      const u = (DB.utilisateurs() || []).find(x => x.id === sess.user.id);
+      if (u && u.org) retenirCode(cleCode(u.org), typeof r === "string" ? r : null);
+    }
+    setSession(sess.user.id);
+    location.hash = destination;
+    setTimeout(() => toast(mot), 300);
+    rendre();
     return true;
   } catch (e){
-    /* Le compte existe deja : la personne est revenue deux fois sur le lien.
-       Ce n'est pas un echec, c'est exactement ce qu'elle voulait. */
+    /* Déjà rattaché : la personne est revenue deux fois sur son lien. Ce n'est
+       pas un échec, c'est exactement ce qu'elle voulait. */
     if (/appartient|existe/i.test(e && e.message || "")){
-      oublier(); setSession(sess.user.id); entrerDansLeDossier();
+      oublierDemande(); setSession(sess.user.id);
+      location.hash = destination; rendre();
       return true;
     }
     annonceConnexion = { mail: d.mail, erreur: true, texte:
       (e && e.message) || "Le compte n'a pas pu être ouvert. Votre demande est conservée." };
-    return false;
+    rendre();
+    return true;
   }
+}
+
+/* Depuis un formulaire : on dépose, puis on ouvre. Rend `false` pour laisser la
+   fenêtre modale ouverte quand rien n'a abouti. */
+async function lancerOuverture(d){
+  deposerDemande(d);
+  const pris = await ouvrirCompte(d);
+  return pris ? undefined : false;
+}
+
+/* Au démarrage : reprendre ce qui attend. */
+async function reprendreDemande(){
+  const d = demandeEnAttente();
+  if (!d) return false;
+  return await ouvrirCompte(d);
 }
 
 (async () => {
@@ -9675,7 +9794,27 @@ async function ouvrirCompteDepuisVitrine(){
   const vierge = new URLSearchParams(location.search).has("vierge");
   if (vierge){ demarrerVierge(); }
   else if (window.RISEVA_CONFIG) {
-    try { await connecterSupabase(window.RISEVA_CONFIG); } catch (e) { console.warn(e); }
+    /* Un échec de branchement laissait le moteur de DÉMONSTRATION en place : sur
+       riseva.fr, l'écran de connexion réaffichait alors les cinq comptes de
+       démonstration cliquables, et « Créer un compte entreprise » ouvrait
+       vraiment un compte — en mémoire, perdu au rechargement. Un produit qui
+       tombe en panne doit le dire ; se replier sur des données inventées est
+       pire que la panne. */
+    try { await connecterSupabase(window.RISEVA_CONFIG); }
+    catch (e) {
+      console.warn(e);
+      root.innerHTML = "";
+      root.appendChild(h(`<div class="login"><div class="login__form"><div class="login__box">
+        <span class="badge badge--danger" style="height:28px">Service indisponible</span>
+        <h1 style="margin-top:var(--s5);font-size:var(--t-h2)">Nous ne joignons pas nos serveurs</h1>
+        <p class="muted" style="margin-top:var(--s4)">Rien n'est perdu : vos données sont en
+          base, c'est l'accès qui est momentanément coupé. Réessayez dans un instant.</p>
+        <p class="hint" style="margin-top:var(--s5)">${esc(e && e.message || "")}</p>
+        <button class="btn btn--primary" style="margin-top:var(--s8)"
+          onclick="location.reload()">Réessayer</button>
+      </div></div></div>`));
+      return;
+    }
 
     /* Le retour du lien de connexion. La bibliotheque a deja lu le fragment de
        l'adresse et pose la session ; ce qui manque, c'est de faire le lien
@@ -9688,7 +9827,16 @@ async function ouvrirCompteDepuisVitrine(){
         const u = (DB.utilisateurs() || []).find(
           x => x.id === sess.user.id
             || (x.email || "").toLowerCase() === (sess.user.email || "").toLowerCase());
-        if (u) setSession(u.id);
+        if (u && u.role) setSession(u.id);
+        /* Authentifiée, mais rattachée à aucune organisation : ni salariée, ni
+           association, ni entreprise. Sans ce mot, elle retombait sur l'écran de
+           connexion et redemandait un lien en boucle, ce qui est la façon la
+           plus sûre de perdre quelqu'un qui vient d'arriver. */
+        else if (!demandeEnAttente())
+          annonceConnexion = { mail: sess.user.email, texte:
+            "Vous êtes bien connecté, mais cette adresse n'est encore rattachée à aucune "
+            + "organisation. Ouvrez votre compte ci-dessous, ou utilisez le lien "
+            + "d'inscription que votre employeur vous a transmis." };
         /* L'adresse porte encore le jeton dans son fragment : on la nettoie,
            un jeton n'a rien a faire dans une barre d'adresse ni dans un
            historique de navigation. */
@@ -9697,6 +9845,6 @@ async function ouvrirCompteDepuisVitrine(){
       }
     } catch (e) { console.warn(e); }
   }
-  if (!vierge) await ouvrirCompteDepuisVitrine();
+  if (!vierge) { if (await reprendreDemande()) return; }
   rendre();
 })();
