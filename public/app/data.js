@@ -6153,7 +6153,27 @@ function verifierEcritures(dos){
   return manquantes;
 }
 
+/* La demonstration, demandee explicitement, meme en production.
+   ------------------------------------------------------------
+   Le site vitrine a un bouton « Ouvrir la demonstration ». Sur riseva.fr, ce
+   bouton menait a l'application branchee sur la vraie base : un prospect
+   tombait sur un ecran de connexion et une base vide, c'est-a-dire sur rien.
+   L'inverse — servir la demonstration a un client qui croit voir ses donnees —
+   reste interdit, et c'est pour cela que le parametre doit etre EXPLICITE dans
+   l'adresse et que l'ecran l'affiche en clair. Personne n'arrive ici par
+   accident : on y arrive en cliquant sur un lien qui le dit. */
+export function demoDemandee(){
+  try { return new URLSearchParams(location.search).get("demo") === "1"; }
+  catch { return false; }
+}
+
 export async function connecterSupabase(config, { client: injecte = null } = {}){
+  if (demoDemandee()){
+    /* On ne touche pas a `impl` : il porte deja le moteur de demonstration. La
+       seule chose a faire est de ne pas se brancher. */
+    branche = false;
+    return impl;
+  }
   /* `injecte` sert à la recette : elle branche un client factice alimenté par un
      export de la vraie base, pour prouver que la traduction des lignes tient
      sans avoir à monter un Supabase. Le chemin de production, lui, ne le passe

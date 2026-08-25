@@ -1,4 +1,4 @@
-import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, DELAI_VALIDATION_JOURS, FISCAL, cerfaPour, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, KITS_SAISON, ETATS_EXPEDITION, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, brancherEvenements, estArgent, estTemps, estPrive, heuresPour,
+import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, DELAI_VALIDATION_JOURS, FISCAL, cerfaPour, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, KITS_SAISON, ETATS_EXPEDITION, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, demoDemandee, brancherEvenements, estArgent, estTemps, estPrive, heuresPour,
   RUBRIQUES, rubrique, rubriquesDe, saisisDe, calculesDe, sectionsDe,
   demarrerVierge } from "./data.js";
 import { qrSvg } from "./qr.js";
@@ -374,6 +374,13 @@ function coquille(u, vue, titre, actions = "", periode = DB.saison().nom){
                 page. « Saison 2026 » au-dessus d'un total qui court depuis le
                 lancement racontait deux périmètres à la fois. */""}
           <span class="badge badge--brand"><span class="dot"></span>${esc(periode)}</span>
+          ${/* Le bandeau de demonstration. Il n'apparait que si l'adresse porte
+                `?demo=1`, c'est-a-dire si quelqu'un a clique sur le lien de la
+                vitrine. Il doit etre impossible de confondre cet ecran avec le
+                sien : un chiffre invente pris pour un vrai est la confusion la
+                plus couteuse que ce produit puisse produire. */""}
+          ${DEMO ? `<span class="badge badge--warn" title="Les chiffres de cet écran viennent d'un jeu de démonstration">
+            Démonstration</span>` : ""}
         </div>
         <div class="row">${actions}
           <div class="notifs">
@@ -9464,6 +9471,8 @@ function rendre(){
     barres.forEach(([i, w]) => { i.style.width = w; })));
   el.querySelector("#np")?.addEventListener("click", () => formAnnonce(u));
 }
+
+const DEMO = demoDemandee();
 
 window.addEventListener("hashchange", rendre);
 

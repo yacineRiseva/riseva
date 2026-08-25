@@ -32,7 +32,8 @@ supabase/
   01_schema.sql         tables, types, vue matérialisée du classement
   02_logique.sql        calcul des points, triggers, validation automatique
   03_rls.sql            politiques de sécurité ligne à ligne
-  04_seed.sql           saison et barème de départ
+  04_seed.sql           saison, barème et durées de conservation
+  04b_demonstration.sql le jeu de démonstration, jamais en production
   functions/            fonctions Edge : validation, rapports, reçus fiscaux
   404.html              page d'erreur
 supabase/05_taches.sql  ce qui tourne tout seul : validation auto, fraîcheur,
@@ -113,7 +114,9 @@ migrations dépendent — schéma `auth`, `auth.users`, `auth.uid()`, les rôles
 
 1. Créer un projet Supabase.
 2. Exécuter dans l'ordre `01_schema.sql`, `02_logique.sql`, `03_rls.sql`, `04_seed.sql`,
-   `05_taches.sql`. L'ordre n'est pas indicatif : `03` retire tous les droits par
+   `05_taches.sql`, `06_catalogue.sql`, `07_ecritures.sql`. **Ne pas exécuter
+   `04b_demonstration.sql`** : il pose une entreprise et des associations
+   inventées, et une base de production doit s'ouvrir vide. L'ordre n'est pas indicatif : `03` retire tous les droits par
    défaut avant d'en rendre nommément, et `05` reprend la propriété des fonctions.
 3. Copier `public/app/config.example.js` en `public/app/config.js` et y mettre l'URL du projet
    et la clé anonyme.

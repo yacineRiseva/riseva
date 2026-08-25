@@ -3544,3 +3544,36 @@ body{
   margin-top:clamp(22px,2.4vw,32px);
   font-size:clamp(16px,1.3vw,19px); line-height:1.5; max-width:46ch;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LES TROIS PARTIES · un intertitre de premier niveau
+
+   Il ne doit ressembler a aucune autre section : pas de fond colore, pas de
+   carte, pas de capture. Une respiration, un numero, un titre tres grand, une
+   phrase. C'est ce qui fait comprendre, en descendant la page, qu'on vient de
+   changer de sujet et pas seulement de paragraphe.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.chap{ padding:clamp(64px,8vh,110px) var(--gut) clamp(18px,2.4vh,34px); }
+.chap-in{ max-width:64ch; }
+.chap-n{
+  font-size:12px; letter-spacing:.14em; color:var(--forest-700);
+  display:flex; align-items:center; gap:12px;
+}
+.chap-n::after{ content:""; flex:1; height:1px; background:var(--line); }
+.chap-t{
+  font-family:var(--f-display); font-weight:600; letter-spacing:-.04em;
+  font-size:clamp(40px,6vw,84px); line-height:.96; margin:clamp(14px,1.6vw,22px) 0 0;
+}
+.chap-p{
+  margin-top:clamp(16px,1.8vw,24px); max-width:60ch;
+  font-size:clamp(16px,1.28vw,19px); line-height:1.6; color:var(--ink-soft);
+}
+@media (max-width:720px){ .chap{ padding-top:clamp(48px,6vh,72px); } }
+
+/* La section qui suit un intertitre de partie ne recommence pas a zero : elle
+   appartient a ce qui vient d'etre annonce. Sans cette regle, l'oeil voit deux
+   cents pixels de vide entre le titre de la partie et son premier contenu, et
+   il les lit comme une separation, pas comme un lien. */
+.chap + section{ padding-top:clamp(20px,2.6vh,40px); }
+.chap + section > .layer > .s-head{ margin-top:0; }

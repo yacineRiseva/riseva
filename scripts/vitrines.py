@@ -389,7 +389,7 @@ def faq(items):
 #     pas : elle confirme au lecteur que l'image ne prouve rien.
 #
 #  2. L'ordre des sections est l'ordre des objections, pas l'ordre du plan
-#     commercial. Un dirigeant de PME industrielle se demande d'abord qui va
+#     commercial. Un dirigeant se demande d'abord qui va
 #     gérer ça chez lui, ensuite si ses équipes suivront, ensuite s'il y a des
 #     associations autour de son usine, ensuite ce qu'il y gagne, et le prix
 #     traverse tout : il est donc donné dès le premier écran.
@@ -400,11 +400,14 @@ def faq(items):
 #     soixante-douze occasions de ne rien afficher du tout.
 # ═══════════════════════════════════════════════════════════════════════════
 
+# La barre du haut nomme les trois parties, et rien d'autre. Sept entrees
+# disaient sept choses de meme rang ; personne ne pouvait deviner, en les lisant,
+# que « Le deroule », « Cote salaries » et « Les affiches » racontaient une seule
+# et meme chose.
 NAV_ENT = nav(
-    [("saison", "Le déroulé"), ("equipes", "Côté salariés"),
-     ("associations", "Côté associations"), ("pilotage", "Ce que vous pilotez"),
-     ("outil", "L'outil RSE"), ("prix", "Le prix"), ("faq", "Questions")],
-    "Explorer la plateforme", "/app/", "Démonstration libre, sans rendez-vous")
+    [("challenge", "Le challenge"), ("outil-rse", "L'outil RSE"),
+     ("assos", "Les associations"), ("prix", "Le prix"), ("faq", "Questions")],
+    "Ouvrir la démonstration", "/app/?demo=1", "Démonstration libre, sans rendez-vous")
 
 PIED_ENT = pied(
     "Riseva met des entreprises françaises au service des associations qui protègent "
@@ -631,6 +634,30 @@ def chiffres_hero():
     </ul>"""
 
 
+def chapitre(numero, titre, phrase, ancre):
+    """Un intertitre de premier niveau, qui ouvre une partie de la page.
+
+    Ce qu'il repare. La page comptait onze sections, chacune repondant a une
+    objection d'acheteur. C'est le bon ordre pour convaincre quelqu'un qui a
+    deja une question en tete ; pour tous les autres, le produit arrivait en
+    morceaux. Le challenge etait raconte dans quatre sections separees par
+    trois autres, l'outil RSE dans trois, et personne ne savait, arrive au bas
+    de la page, combien de choses il venait de lire.
+
+    Il y en a trois : le challenge, l'outil, les associations. Chaque partie est
+    annoncee par son numero et sa phrase, et tout ce qui la compose vient
+    ensuite, sans rien d'autre au milieu."""
+    return f"""<section class="chap" id="{ancre}">
+  <div class="layer">
+    <div class="chap-in rv">
+      <p class="chap-n mono">Partie {numero} sur 3</p>
+      <h2 class="chap-t">{titre}</h2>
+      <p class="chap-p">{phrase}</p>
+    </div>
+  </div>
+</section>"""
+
+
 def questions(items):
     """Les trois questions auxquelles un dirigeant n'avait pas la reponse.
 
@@ -640,7 +667,7 @@ def questions(items):
     a l'infinitif que n'importe quel outil de gestion pourrait afficher, et
     devant lesquels un dirigeant ne se reconnait pas.
 
-    Un dirigeant de PME n'ouvre pas un logiciel RSE par curiosite. Il l'ouvre
+    On n'ouvre pas un logiciel RSE par curiosite. On l'ouvre
     parce qu'on vient de lui poser une question a laquelle il n'a pas su
     repondre, et il y en a exactement trois : combien de mes sites ont repondu,
     d'ou sort ce chiffre, et qu'est-ce que mes equipes ont fait cette annee. La
@@ -711,8 +738,8 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
   <div class="layer">
     <p class="eyebrow mono">Plateforme RSE multi-sites, challenge d'un an,
       associations du vivant</p>
-    <h1 class="h1 h1--doc h1--court">La RSE d'une PME,<br>
-      <span class="it">sans direction RSE.</span></h1>
+    <h1 class="h1 h1--doc h1--court">Votre RSE, sans service RSE<br>
+      <span class="it">à monter pour la tenir.</span></h1>
 
     <div class="doc-tete doc-tete--apercu">
     <div class="doc-intro">
@@ -730,7 +757,7 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
       </ul>
       <div class="hero-cta">
         <a class="btn btn-lg" href="#prix"><span class="dot"></span>Calculer mon tarif</a>
-        <a class="tlink" href="/app/">Explorer la plateforme</a>
+        <a class="tlink" href="/app/?demo=1">Explorer la plateforme</a>
       </div>
       <p class="doc-micro mono">Démonstration libre. Aucun rendez-vous, aucune carte
         bancaire.</p>
@@ -896,7 +923,7 @@ EQUIPES_ENT = f"""<section id="equipes">
           argent.</p></div>
     </div>
 
-    <p class="s-note"><a class="tlink" href="/app/">Explorer l'espace salarié</a></p>
+    <p class="s-note"><a class="tlink" href="/app/?demo=1">Explorer l'espace salarié</a></p>
   </div>
 </section>"""
 
@@ -1003,6 +1030,29 @@ def onglets(items):
 # permet de repondre », enlevait le reproche et la tension avec. Celle qui est
 # en place garde les deux : le fait est le meme, il n'est simplement plus
 # personnel.
+# ── les trois parties de la page ───────────────────────────────────────────
+CHAP_CHALLENGE = chapitre(
+    1, "Le challenge",
+    "Une saison de douze mois qui met vos équipes en mouvement, site contre site, "
+    "chez des associations vérifiées près de chez elles. Les affiches arrivent quatre "
+    "fois dans l'année, et chaque trimestre vous recevez le rapport de ce qui a été fait.",
+    "challenge")
+
+CHAP_OUTIL = chapitre(
+    2, "L'outil RSE",
+    "Vous demandez vos indicateurs une fois. Chaque établissement répond sur son écran, "
+    "la plateforme relance à votre place, consolide, et rend le rapport du trimestre et "
+    "celui de l'année, avec la pièce qui justifie chaque chiffre.",
+    "outil-rse")
+
+CHAP_ASSOS = chapitre(
+    3, "Les associations",
+    "Des associations vérifiées, proches de chacun de vos sites, qui publient ce dont "
+    "elles ont besoin et confirment ce qui a été fait. Bénévolat, dons de matériel, "
+    "mécénat de compétences et dons en argent passent par le même circuit.",
+    "assos")
+
+
 PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss">
   <div class="layer">
 {entete("Ce que ça répond",
@@ -1163,7 +1213,7 @@ OUTIL_ENT = f"""<section id="outil" class="band">
 
     <p class="s-note">Riseva tient le classeur ; c'est vous qui signez. Les valeurs sont celles
       que vos sites ont écrites, elles restent les vôtres, et la plateforme ne les interprète
-      pas. <a class="tlink" href="/app/">Ouvrir l'écran de collecte</a></p>
+      pas. <a class="tlink" href="/app/?demo=1">Ouvrir l'écran de collecte</a></p>
   </div>
 </section>"""
 
@@ -1239,7 +1289,7 @@ AFFICHES_ENT = f"""<section id="affiches">
         <h3>Quatre envois compris</h3>
         <p>Elles partent imprimées, en nombre suffisant pour tous vos sites, à quatre moments
           de la saison. Un site qui ouvre en cours d'année la réimprime lui-même.</p>
-        <p class="s-note"><a class="tlink" href="/app/">Voir l'écran des supports</a></p>
+        <p class="s-note"><a class="tlink" href="/app/?demo=1">Voir l'écran des supports</a></p>
       </div>
     </div>
   </div>
@@ -1512,18 +1562,25 @@ PRIX_ENT = grille_tarifaire()
 
 
 CORPS_ENT = "\n\n".join([
-    HERO_ENT,           # 1. l'offre, le prix, et une capture de l'application
-    PLATEFORME_ENT,     # 2. « concrètement, c'est quoi ? »
-    SAISON_ENT,         # 3. « qui va gérer ça chez moi ? »
-    EQUIPES_ENT,        # 3. « est-ce que mes équipes vont y aller ? »
-    ASSOCIATIONS_ENT,   # 4. « et s'il n'y a rien autour de mon site ? »
-    OUTIL_ENT,          # 5. « et le travail que ça m'épargne ? »
-    PILOTAGE_ENT,       # 6. les écrans qui le prouvent, après le procédé
-    CHANGE_ENT,         # 7. trois effets, et leur date
-    AFFICHES_ENT,       # 8. le seul objet Riseva qu'un salarié voit sans écran
-    PERIMETRES_ENT,     # 9. groupes et services RSE, en porte d'entrée
-    PRIX_ENT,           # 10. la grille, et le devis à côté
-    FAQ_ENT,            # 11. les questions qui décident vraiment
+    HERO_ENT,           # la promesse, le produit en image, quatre chiffres
+    PLATEFORME_ENT,     # « concrètement, c'est quoi ? » — la carte des trois parties
+
+    CHAP_CHALLENGE,     # ── partie 1 ──────────────────────────────────────
+    SAISON_ENT,         #    le déroulé des douze mois
+    EQUIPES_ENT,        #    ce que le salarié voit, et ce qu'il y gagne
+    AFFICHES_ENT,       #    ce qui arrive par la poste, quatre fois dans l'année
+    CHANGE_ENT,         #    ce que la saison produit, et à quelle date
+
+    CHAP_OUTIL,         # ── partie 2 ──────────────────────────────────────
+    OUTIL_ENT,          #    demander, répondre, relancer, consolider
+    PILOTAGE_ENT,       #    les écrans qui le prouvent
+    PERIMETRES_ENT,     #    groupes, sociétés, établissements
+
+    CHAP_ASSOS,         # ── partie 3 ──────────────────────────────────────
+    ASSOCIATIONS_ENT,   #    l'annuaire vérifié, et la confirmation
+
+    PRIX_ENT,           # la grille, et le devis à côté
+    FAQ_ENT,            # les questions qui décident vraiment
     BANDEAU_ENT,
 ])
 
