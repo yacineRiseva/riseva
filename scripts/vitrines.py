@@ -1871,7 +1871,7 @@ CONTACT_ASSO = f"""<section id="commencer">
               <span class="bl-track"><span class="bl-fill" id="blBar"></span></span>
               <span class="bl-count mono" id="blCount">0 / 4</span>
             </div>
-            <div class="bl-stamp mono">Gratuit, sans engagement</div>
+            <div class="bl-stamp mono" id="blStamp">Gratuit, sans engagement</div>
           </div>
         </div>
       </div>

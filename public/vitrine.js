@@ -157,7 +157,21 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
   if(!idx||!panel) return;
   var links=qsa('.qa-link',idx), cards=qsa('.qa-card',panel);
 
-  function open(i){
+  /* Sous mille pixels, la liste des questions passe AU-DESSUS du panneau des
+     reponses, et le panneau garde la hauteur de la plus longue reponse. La
+     reponse s'echangeait donc sept cents a mille cent pixels plus bas, hors du
+     champ de vision, et la page ne bougeait pas : au telephone, on appuyait sur
+     une question, puis sur la suivante, et il ne se passait RIEN a l'ecran. Dix
+     questions sur la page d'accueil, sept sur celle des associations : la
+     section entiere etait morte sur mobile.
+
+     On amene donc la reponse sous les yeux. Sur grand ecran, ou les deux
+     colonnes sont cote a cote, on ne touche a rien. */
+  var etroit = function(){
+    return window.matchMedia && window.matchMedia('(max-width:1000px)').matches;
+  };
+
+  function open(i, montrer){
     links.forEach(function(l,k){
       var on=k===i;
       l.classList.toggle('is-on',on);
@@ -168,10 +182,14 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
       c.classList.toggle('is-on',on);
       if(on) c.removeAttribute('hidden'); else c.setAttribute('hidden','');
     });
+    if(montrer && etroit()){
+      try { panel.scrollIntoView({ behavior:'smooth', block:'start' }); }
+      catch(e){ panel.scrollIntoView(); }
+    }
   }
 
   links.forEach(function(l,i){
-    l.addEventListener('click',function(){ open(i); });
+    l.addEventListener('click',function(){ open(i,true); });
     l.addEventListener('keydown',function(e){
       var n=null;
       if(e.key==='ArrowDown'||e.key==='ArrowRight') n=(i+1)%links.length;
@@ -179,7 +197,7 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
       if(e.key==='Home') n=0;
       if(e.key==='End') n=links.length-1;
       if(n===null) return;
-      e.preventDefault(); open(n); links[n].focus();
+      e.preventDefault(); open(n,true); links[n].focus();
     });
   });
 })();
@@ -524,7 +542,15 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
   })();
   var eur=function(n){ return n.toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g,' ')+' €'; };
   function maj(){
-    var e=Math.max(1,parseInt(eff.value,10)||1), s=Math.max(1,parseInt(sites.value,10)||1);
+    /* Un champ vidé pour retaper un nombre ne doit pas produire une phrase : il
+       affichait « 2 160 € HT, soit 2160,0 € par salarié », ce qui est absurde
+       une demi-seconde par frappe. On laisse le résultat précédent. */
+    if(!String(eff.value).trim()) return;
+    var plafond=parseInt(eff.max,10)||Infinity;
+    /* L'attribut `max` du champ n'était appliqué par personne : un effectif de
+       999 999 rendait « 0,0 € par salarié ». */
+    var e=Math.min(plafond,Math.max(1,parseInt(eff.value,10)||1));
+    var s=Math.max(1,parseInt(sites.value,10)||1);
     var p=null;
     for(var i=0;i<paliers.length;i++){ if(e<=paliers[i].max){ p=paliers[i]; break; } }
     if(!p) p=paliers[paliers.length-1];
@@ -532,6 +558,20 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
     var base=p.prix+facturables*supp;
     var ht=base-Math.round(base*0.10);
     var acompte=Math.min(ht,Math.max(900,Math.round(ht*0.40)));
+
+    /* La dernière tranche est « sur devis », et la grille juste au-dessus le dit
+       en toutes lettres : « à partir de 18 500 € HT ». Le simulateur, lui,
+       répondait un montant FERME et un acompte chiffré — et un montant
+       INFÉRIEUR au plancher affiché deux centimètres plus haut, parce que la
+       remise de lancement s'appliquait à un prix qui est déjà un plancher. Un
+       acheteur avait deux prix contradictoires sous les yeux. */
+    if(p.max===Infinity){
+      out.innerHTML='À partir de <b>'+eur(p.prix)+' HT</b> la saison : au-delà de '
+        +'deux mille salariés, le tarif est établi sur devis. Nous le calculons '
+        +'avec vous, sites compris'
+        +(facturables?' — vous en déclarez '+s+'.':'.');
+      return;
+    }
     out.innerHTML='<b>'+eur(ht)+' HT</b> la saison au tarif fondateur, soit '
       +(ht/e).toFixed(1).replace('.',',')+' € par salarié. Acompte de <b>'+eur(acompte)
       +'</b> à la commande'

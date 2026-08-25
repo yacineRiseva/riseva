@@ -29,7 +29,10 @@
 .spark i:last-child{background:var(--forest-700)}
 
 /* ============ Liste d'annonces ============ */
-.offer{display:grid;grid-template-columns:1fr auto;gap:var(--s5);padding:var(--s5) 0;border-top:var(--line)}
+/* `1fr` vaut `minmax(auto,1fr)` : la colonne de gauche prenait le `min-content`
+   de son contenu, et la fiche publique d'une association debordait de 77 px sur
+   un telephone — les points et le bord droit des annonces hors de l'ecran. */
+.offer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--s5);padding:var(--s5) 0;border-top:var(--line)}
 .offer:first-child{border-top:0}
 .offer h4{margin:0;font-family:var(--font-display);font-size:var(--t-lg);font-weight:600;color:var(--ink)}
 .offer p{margin-top:6px;font-size:var(--t-sm);color:var(--ink-500);max-width:70ch}
@@ -60,7 +63,7 @@
 .assoHero__photo img,.assoHero__photo svg{ display:block; width:100%;
   border-radius:var(--r-md); }
 .assoGrid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:var(--s10);align-items:start}
-@media(max-width:900px){.assoGrid{grid-template-columns:1fr}}
+@media(max-width:900px){.assoGrid{grid-template-columns:minmax(0,1fr)}}
 .amountRow{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s2)}
 .amount{height:44px;border:1px solid rgba(19,21,16,.16);border-radius:var(--r-sm);background:var(--paper-high);
   cursor:pointer;font-weight:550;transition:all var(--dur) var(--ease)}

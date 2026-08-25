@@ -121,6 +121,16 @@ img{max-width:100%;display:block;}
 .vd .band-moss > .layer,.va .band-moss > .layer,
 .vd .bandeau > .layer,.va .bandeau > .layer{position:relative;z-index:1;}
 
+/* Le lien d'évitement au clavier : premier élément atteint par Tab, et mesuré à
+   un pixel sur un pixel. L'anneau de focus entourait un point invisible, donc
+   l'utilisateur au clavier avait un focus qu'il ne voyait pas. Il se montre
+   quand il est atteint — c'est toute sa raison d'être. */
+.sr-only:focus-visible{
+  position:fixed;top:10px;left:10px;width:auto;height:auto;
+  clip:auto;clip-path:none;margin:0;padding:10px 16px;overflow:visible;
+  background:var(--ink);color:var(--paper);border-radius:var(--r-pill);
+  font-size:14px;z-index:900;
+}
 .sr-only{
   position:absolute;width:1px;height:1px;padding:0;margin:-1px;
   overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;
@@ -457,7 +467,12 @@ p{text-wrap:pretty;}
 }
 /* la barre ne doit pas etre trop serree quand le bouton apparait */
 @media (max-width:560px){
-  .nav .btn{padding:10px 15px;font-size:12.5px;}
+  .nav{gap:10px;}
+  /* `.btn` porte `overflow:hidden` et se laissait comprimer dans un flex : le
+     premier appel a l'action de la page affichait « Ouvrir la demonstratio »,
+     le « n » coupe net, sur tout telephone. Un bouton principal au mot mutile
+     ne demande qu'une chose, c'est de ne pas etre clique. */
+  .nav .btn{flex:none;white-space:nowrap;padding:9px 13px;font-size:12px;}
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -1750,7 +1765,9 @@ section{
 }
 @media (max-width:1000px){
   .qa-split{grid-template-columns:minmax(0,1fr);gap:26px;}
-  .qa-panel{position:static;}
+  /* La barre de navigation est fixe : sans cette marge, le titre de la reponse
+     qu'on vient d'ouvrir se glisse dessous. */
+  .qa-panel{position:static;scroll-margin-top:84px;}
   .qa-link.is-on{padding-left:8px;}
 }
 
@@ -3199,7 +3216,13 @@ body{
   grid-column:2;grid-row:1 / span 2;
   width:100%;max-width:none;
 }
-@media (min-width:1180px){ .vd #perimetres .shot--seule{width:112%;} }
+/* Le garde-fou était posé à 1180 px, et il était trop bas : entre 1180 et
+   1425 px, le débord de 12 % sort encore de l'écran. 1280 et 1366 sont les deux
+   largeurs d'ordinateur portable les plus répandues — la page y gagnait une
+   barre de défilement horizontale, et comme la barre de navigation est fixe,
+   elle restait en place pendant que le contenu glissait : la page paraissait
+   cassée. Le débord ne commence donc qu'à la largeur où la gouttière le porte. */
+@media (min-width:1440px){ .vd #perimetres .shot--seule{width:112%;} }
 .vd #perimetres .shot--seule img{max-height:clamp(360px,34vw,520px);object-position:left top;}
 .vd #perimetres .duo--texte{
   grid-column:1;grid-template-columns:1fr;gap:clamp(18px,2vw,26px);margin:0;

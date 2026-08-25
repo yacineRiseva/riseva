@@ -145,10 +145,22 @@ tr.is-anonyme td{color:var(--ink-400)}
 /* ============ Nav publique ============ */
 .nav{position:sticky;top:0;z-index:50;background:rgba(242,240,233,.86);
   backdrop-filter:saturate(150%) blur(14px);border-bottom:var(--line-soft)}
-.nav__in{display:flex;align-items:center;justify-content:space-between;height:var(--header-h)}
+.nav__in{display:flex;align-items:center;justify-content:space-between;gap:var(--s4);
+  height:var(--header-h)}
+/* Le logo n'est JAMAIS la variable d'ajustement. Dans un flex, il se laissait
+   comprimer : sur les huit pages du dossier, mesuré à zéro pixel de large sur
+   un téléphone. Le visiteur voyait une barre qui commence par « Règlement
+   Sécurité Données » sans aucune marque, et le seul lien de retour vers
+   l'accueil n'était pas cliquable. */
+.nav__in > .logo{flex:none}
 .nav__links{display:flex;align-items:center;gap:var(--s6);font-size:var(--t-sm);color:var(--ink-500)}
 .nav__links a{transition:color var(--dur) var(--ease)}
 .nav__links a:hover{color:var(--ink)}
+/* En dessous de 720 px, logo + quatre liens + bouton demandent 531 px : la page
+   défilait latéralement sur tout téléphone, et le bouton principal sortait par
+   la droite. Les liens de section restent atteignables depuis le corps de la
+   page ; la marque et l'action, elles, doivent tenir. */
+@media (max-width:720px){ .nav__links{display:none} }
 
 /* ============ Coquille applicative ============ */
 .app{display:grid;grid-template-columns:var(--sidebar) 1fr;min-height:100vh;background:var(--paper)}

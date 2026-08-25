@@ -98,12 +98,24 @@
   </div>
 </main>
 
+<!-- La configuration, comme sur toutes les autres pages qui écrivent. Sans elle,
+     `formulaires.js` ne trouve pas `window.RISEVA_CONFIG` et bascule sur son
+     repli « ouvrez votre messagerie » — DÉFINITIVEMENT, même sur une production
+     entièrement configurée, parce que la condition est structurelle et non
+     conjoncturelle. C'était le formulaire de conversion principal de la vitrine
+     entreprises : onze liens y mènent depuis l'accueil, et pas une seule
+     préinscription n'aurait été enregistrée. -->
+<script src="/app/config.js" onerror="void 0"></script>
 <script type="module">
 import { brancher } from "/app/formulaires.js";
 brancher(document.getElementById("f"), {
   table: "preinscription",
   sujet: "Riseva, préinscription entreprise",
-  ligne: (d) => ({ entreprise: d.ent, contact: d.mail, effectif: Number(d.eff) || null }),
+  /* `d.eff` est une tranche — « 50 à 199 » — et `Number("50 à 199")` vaut NaN :
+     l'effectif partait TOUJOURS à `null`. On garde le premier nombre de la
+     tranche, qui est l'information utile pour rappeler la bonne personne. */
+  ligne: (d) => ({ entreprise: d.ent, contact: d.mail,
+                   effectif: parseInt(String(d.eff || "").replace(/[^0-9]/g, ""), 10) || null }),
   resume: (d) => `Entreprise : ${d.ent || "non précisé"}\nEffectif : ${d.eff || "non précisé"}\n`
                + `Contact : ${d.nom} (${d.fonction || "fonction non précisée"}), ${d.mail}`
                + (d.tel ? `, ${d.tel}` : "")

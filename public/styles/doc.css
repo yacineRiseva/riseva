@@ -29,6 +29,13 @@
 .calcul__ligne--total{border-top:var(--line);margin-top:var(--s3);padding-top:var(--s3);
   font-weight:600;color:var(--ink)}
 @media(max-width:900px){
-  .doc__grid{grid-template-columns:1fr;gap:var(--s10)}
+  /* `1fr` vaut `minmax(auto,1fr)` : la colonne prend le `min-content` de son
+     contenu, et le `min-content` d'un tableau dont la première colonne ne se
+     coupe pas est énorme. La page débordait de 396 px sur la charte des
+     associations : la moitié du tableau était hors de l'écran, et un bénévole
+     qui la lisait sur son téléphone ne pouvait pas le savoir. */
+  .doc__grid{grid-template-columns:minmax(0,1fr);gap:var(--s10)}
   .doc__nav{position:static}
 }
+/* Un tableau large défile dans SON cadre, jamais la page entière. */
+.doc__corps table{display:block;overflow-x:auto;max-width:100%}
