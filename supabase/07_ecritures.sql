@@ -614,6 +614,58 @@ begin
   return v_id;
 end $$;
 
+-- --------------------------------------------------- résoudre un lien d'entrée
+-- Ce que la porte d'entrée doit savoir AVANT que quiconque soit connecté : de
+-- quelle entreprise il s'agit, de quel site, s'il reste des places, et si le
+-- lien nomme quelqu'un. La table `invitation` n'est lisible que par
+-- l'administrateur et Riseva — c'est correct, elle porte des adresses — et la
+-- page `rejoindre.html` la lisait quand même : elle recevait une table vide et
+-- répondait « Ce code n'existe pas » à TOUS les salariés. Le seul chemin prévu
+-- pour faire entrer quelqu'un était mort au seuil.
+--
+-- Le code EST le secret : le rendre à qui le détient déjà n'ouvre rien de neuf.
+-- On ne rend rien d'autre — ni l'empreinte, ni les autres liens, ni la liste des
+-- personnes — et un code inconnu ne rend aucune ligne, pas un message qui
+-- distinguerait « inconnu » de « expiré ».
+create or replace function public.resoudre_invitation(p_code text)
+returns table (
+  entreprise uuid, entreprise_nom text,
+  etablissement uuid, etablissement_nom text, etablissement_ville text,
+  etablissement_quota integer,
+  pour_referent boolean, pour_cse boolean,
+  destinataire_nom text, destinataire_mail text,
+  places integer, utilisees integer, restantes integer,
+  restantes_abonnement integer, active boolean, expire_le timestamptz,
+  domaines text[])
+language sql stable security definer set search_path = '' as $$
+  select
+    i.entreprise, e.nom,
+    i.etablissement, et.nom, et.ville, et.quota,
+    i.pour_referent, coalesce(i.pour_cse, false),
+    i.destinataire_nom, i.destinataire_mail,
+    i.places,
+    (select count(*)::integer from public.affectation_siege s
+      where s.invitation = i.id and s.liberee_le is null),
+    greatest(0, i.places - (select count(*)::integer from public.affectation_siege s
+                             where s.invitation = i.id and s.liberee_le is null)),
+    coalesce((select ab.sieges - (select count(*)::integer from public.affectation_siege s
+                                   where s.abonnement = ab.id and s.liberee_le is null)
+                from public.abonnement ab
+               where ab.entreprise = i.entreprise and ab.saison = private.saison_ouverte()), 0),
+    i.active and i.expire_le > now(),
+    i.expire_le,
+    -- Les domaines acceptés, pour que la page puisse le dire AVANT la saisie
+    -- plutôt que de refuser après. Ce ne sont pas des données personnelles :
+    -- c'est le nom de domaine de l'employeur.
+    coalesce((select array_agg(d.domaine order by d.domaine)
+                from private.domaine_entreprise d where d.entreprise = i.entreprise),
+             '{}'::text[])
+  from public.invitation i
+  join public.entreprise e on e.id = i.entreprise
+  left join public.etablissement et on et.id = i.etablissement
+ where i.empreinte = extensions.digest(p_code, 'sha256')
+$$;
+
 -- ------------------------------------------------------------- qui suis-je
 -- Le rôle d'une personne, son entreprise, son site, son groupe. Ces colonnes
 -- vivent dans le schéma privé et n'en sortent pas : ouvrir `appartenance` à
@@ -671,6 +723,10 @@ grant execute on function
   public.ouvrir_compte_association(text, text, text, text),
   public.mon_profil()
 to authenticated;
+
+-- La porte d'entrée est ouverte à qui n'est pas encore connecté : c'est tout
+-- l'objet d'un lien d'inscription.
+grant execute on function public.resoudre_invitation(text) to anon, authenticated;
 
 -- La préinscription vient du site public : c'est la seule écriture ouverte à qui
 -- n'est pas connecté. Elle n'écrit que dans sa propre table, ne lit rien, et ne
@@ -927,10 +983,127 @@ begin
   return v_id;
 end $$;
 
+-- ----------------------------------------------- une entreprise s'inscrit seule
+-- La fonction du dessus est l'outil de Riseva : elle exige `est_admin()`, et
+-- c'est bien ainsi — elle fixe un montant et un palier, c'est-à-dire un contrat.
+-- Mais l'écran d'accueil propose « Créer un compte entreprise » à n'importe quel
+-- visiteur, et ce bouton n'a JAMAIS pu aboutir : chaque clic finissait sur
+-- « Réservé à Riseva ». Pire, même en levant la garde, personne ne serait
+-- devenu administrateur de l'entreprise créée — aucune ligne d'appartenance
+-- n'était écrite nulle part — et l'application, incapable de dire quel rôle
+-- avait la personne, la renvoyait indéfiniment à l'écran de connexion.
+--
+-- Celle-ci ouvre un compte pour la personne connectée, la nomme administratrice,
+-- déclare le domaine de son adresse et rend le premier lien d'inscription. Elle
+-- ne fixe aucun montant : le contrat se signe ensuite, et un abonnement sans
+-- date de signature est exactement ce que l'écran doit montrer.
+create or replace function private.domaine_grand_public(p_domaine text)
+returns boolean language sql immutable parallel safe set search_path = '' as $$
+  -- Un domaine de messagerie grand public n'identifie pas un employeur : le
+  -- déclarer ouvrirait le lien d'inscription à la moitié de la France.
+  select p_domaine = any (array[
+    'gmail.com','googlemail.com','outlook.com','outlook.fr','hotmail.com','hotmail.fr',
+    'live.com','live.fr','msn.com','yahoo.com','yahoo.fr','free.fr','orange.fr',
+    'wanadoo.fr','laposte.net','sfr.fr','bbox.fr','numericable.fr','icloud.com',
+    'me.com','mac.com','protonmail.com','proton.me','gmx.fr','gmx.com','aol.com'])
+$$;
+
+create or replace function public.ouvrir_compte_entreprise(
+  p_nom text, p_effectif integer, p_secteur text default null, p_ville text default null,
+  p_contact text default null)
+returns text
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_uid uuid := auth.uid();
+  v_mail text := auth.email();
+  v_dom text;
+  v_saison uuid := private.saison_ouverte();
+  v_groupe uuid; v_id uuid; v_abo uuid;
+  v_code text; v_indice text;
+begin
+  if v_uid is null then raise exception 'Connexion requise' using errcode = '42501'; end if;
+  if v_mail is null or position('@' in v_mail) = 0 then
+    raise exception 'Adresse professionnelle introuvable' using errcode = '42501';
+  end if;
+  if exists (select 1 from private.appartenance a where a.profil = v_uid) then
+    raise exception 'Ce compte appartient déjà à une organisation' using errcode = '22023';
+  end if;
+  if coalesce(length(btrim(p_nom)), 0) < 2 then
+    raise exception 'Une raison sociale est nécessaire' using errcode = '22023';
+  end if;
+  if p_effectif is null or p_effectif < 1 then
+    raise exception 'Un effectif d''au moins une personne est nécessaire' using errcode = '22023';
+  end if;
+  if v_saison is null then
+    raise exception 'Aucune saison ouverte' using errcode = '22023';
+  end if;
+
+  insert into public.groupe (nom) values (left(btrim(p_nom), 160)) returning id into v_groupe;
+  insert into public.entreprise (nom, secteur, ville, effectif, groupe)
+  values (left(btrim(p_nom), 160), nullif(btrim(coalesce(p_secteur, '')), ''),
+          nullif(btrim(coalesce(p_ville, '')), ''), p_effectif, v_groupe)
+  returning id into v_id;
+  update public.groupe g set societe_mere = v_id where g.id = v_groupe;
+
+  -- Aucun montant, aucune date de signature : rien n'est vendu ici. Les places
+  -- suivent l'effectif déclaré tant que le contrat n'est pas signé.
+  insert into public.abonnement (entreprise, saison, montant_ht, sieges, effectif_reference)
+  values (v_id, v_saison, 0, p_effectif, p_effectif)
+  returning id into v_abo;
+
+  insert into public.profil (id, nom)
+  values (v_uid, coalesce(nullif(btrim(coalesce(p_contact, '')), ''),
+                          split_part(v_mail, '@', 1)))
+    on conflict (id) do nothing;
+  insert into private.appartenance (profil, role, entreprise, groupe)
+  values (v_uid, 'entreprise_admin', v_id, v_groupe);
+
+  -- Le domaine de la fondatrice, sauf s'il s'agit d'une messagerie grand
+  -- public : dans ce cas on n'en déclare aucun, et l'écran le dit — mieux vaut
+  -- une entreprise qui sait qu'il lui manque un domaine qu'un lien d'inscription
+  -- ouvert à toute la planète.
+  v_dom := lower(split_part(v_mail, '@', 2));
+  if not private.domaine_grand_public(v_dom) then
+    insert into private.domaine_entreprise (entreprise, domaine)
+    values (v_id, v_dom) on conflict do nothing;
+  end if;
+
+  -- Le premier lien d'inscription, rendu UNE fois : c'est la seule occasion de
+  -- le lire, la base n'en garde que l'empreinte.
+  v_code := replace(replace(replace(
+              encode(extensions.gen_random_bytes(16), 'base64'), '+', '-'), '/', '_'), '=', '');
+  v_indice := substr(v_code, 1, 6);
+  insert into public.invitation (entreprise, empreinte, indice, places, cree_par, expire_le)
+  values (v_id, extensions.digest(v_code, 'sha256'), v_indice, p_effectif,
+          v_uid, now() + interval '60 days');
+  insert into public.acces (entreprise, profil, quoi, indice)
+  values (v_id, v_uid, 'creation_lien', v_indice);
+
+  return v_code;
+end $$;
+
+-- ------------------------------------------------------ mes domaines à moi
+-- `private.domaine_entreprise` ne sort pas du schéma privé : c'est un contrôle
+-- d'accès, pas une préférence. Mais l'application posait `domaines: []` en dur
+-- pour toute entreprise chargée depuis la base, donc l'écran Équipe affichait
+-- éternellement le badge rouge « Ouvert à tous » — y compris à un client qui
+-- venait de déclarer ses trois domaines et dont la base était correctement
+-- verrouillée. On rend donc la liste, à celle qu'elle concerne, et à elle seule.
+create or replace function public.mes_domaines()
+returns text[]
+language sql stable security definer set search_path = '' as $$
+  select coalesce((select array_agg(d.domaine order by d.domaine)
+                     from private.domaine_entreprise d
+                    where d.entreprise = private.mon_entreprise()), '{}'::text[])
+   where private.mon_entreprise() is not null
+$$;
+
 grant execute on function
   public.maj_contrat(text, text),
   public.reconduire(boolean),
   public.marquer_facture_payee(text, date),
+  public.ouvrir_compte_entreprise(text, integer, text, text, text),
+  public.mes_domaines(),
   public.creer_compte_entreprise(text, integer, text, text, numeric, integer, text, boolean)
 to authenticated;
 

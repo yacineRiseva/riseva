@@ -395,7 +395,13 @@ begin
   update public.invitation i set active = false
    where i.entreprise = v_ent and i.active
      and not i.pour_referent and not coalesce(i.pour_cse, false)
-     and i.etablissement is null;
+     and i.etablissement is null
+     -- Et pas davantage les invitations NOMINATIVES de salaries, que
+     -- `inviter_salarie` cree sans aucun de ces deux drapeaux. Un
+     -- administrateur qui avait envoye dix invitations personnelles puis
+     -- regenerait son lien collectif coupait les dix, sans un mot et sans
+     -- trace. Une invitation nominative se reconnait a son destinataire.
+     and i.destinataire_mail is null;
 
   insert into public.invitation (entreprise, empreinte, indice, places, cree_par, expire_le)
   values (v_ent, extensions.digest(v_code, 'sha256'), v_indice, p_places,
@@ -691,6 +697,25 @@ language sql stable security definer set search_path = '' as $$
                   where cr.campagne = p_campagne
                   order by r.ordre), '{}'),
     array(select r.cle from public.rubrique r where r.active order by r.ordre))
+   -- Le périmètre, comme partout ailleurs. Sans lui, cette fonction SECURITY
+   -- DEFINER contournait la policy de `campagne_rubrique` : n'importe quel
+   -- compte connecté — un salarié, une association, un élu du CSE — apprenait
+   -- CE QUE MESURE n'importe quel client, en devinant seulement l'identifiant
+   -- d'une campagne. Les identifiants d'entreprise, eux, sont publics.
+   where exists (
+     select 1 from public.campagne_indicateurs c
+      where c.id = p_campagne
+        -- Pour une campagne de groupe, on n'exige pas que l'appelant CONSOLIDE
+        -- le groupe : un référent de site n'a pas de périmètre de groupe, et
+        -- c'est pourtant lui qui remplit le formulaire. Il suffit que sa
+        -- société appartienne au groupe de la campagne.
+        and (private.est_admin()
+             or (c.groupe is not null and exists (
+                   select 1 from public.entreprise e
+                    where e.id = private.mon_entreprise() and e.groupe = c.groupe))
+             or (c.entreprise is not null
+                 and (c.entreprise = private.mon_entreprise()
+                      or private.dans_mon_groupe(c.entreprise)))))
 $$;
 
 -- Les clés qu'un site doit renseigner pour cette campagne, dans l'ordre du
@@ -698,6 +723,9 @@ $$;
 -- lue ici plutôt que recopiée, parce qu'une liste recopiée finit par diverger.
 create or replace function public.indicateurs_de(p_campagne uuid) returns setof public.indicateur
 language sql stable security definer set search_path = '' as $$
+  -- `rubriques_de` porte la garde de périmètre : hors périmètre elle rend NULL,
+  -- et `= any (null)` ne rend aucune ligne. La frontière est donc écrite une
+  -- seule fois, ici comme là.
   select i.* from public.indicateur i
    where i.active
      and i.rubrique = any (public.rubriques_de(p_campagne))
@@ -716,6 +744,9 @@ language sql stable security definer set search_path = '' as $$
                   where er.entreprise = p_entreprise and r.active
                   order by r.ordre), '{}'),
     array(select r.cle from public.rubrique r where r.active and r.defaut order by r.ordre))
+   where p_entreprise = private.mon_entreprise()
+      or private.dans_mon_groupe(p_entreprise)
+      or private.est_admin()
 $$;
 
 -- Ouvrir une collecte. Ce que la RPC fixe elle-même et qui ne se négocie pas :
@@ -897,7 +928,7 @@ end $$;
 
 -- Une seule porte d'entrée. L'adresse vient de `auth.users`, jamais d'un
 -- paramètre : sinon il suffit de prétendre s'appeler quelqu'un@client.fr.
-create or replace function public.rejoindre_entreprise(p_code text)
+create or replace function public.rejoindre_entreprise(p_code text, p_nom text default null)
 returns uuid
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -906,6 +937,7 @@ declare
   v_email  text := auth.email();
   v_dom    text;
   v_num    integer;
+  v_places integer;
   v_uid    uuid := auth.uid();
 begin
   if v_uid is null then
@@ -923,6 +955,25 @@ begin
      for update;
   if not found or not v_inv.active or v_inv.expire_le < now() then
     raise exception 'Lien invalide ou expiré' using errcode = '42501';
+  end if;
+
+  -- Un lien qui nomme un referent de site ou un elu du CSE n'est pas un lien
+  -- d'inscription salarie. Sans ce refus, quiconque le detenait — et le
+  -- detenteur du lien collectif de l'entreprise le detient souvent — l'usait
+  -- comme lien salarie et brulait le lien de la personne visee, qui lisait
+  -- ensuite « lien invalide ». Le moteur du navigateur refusait deja ce cas ;
+  -- la base, non.
+  if v_inv.pour_referent or coalesce(v_inv.pour_cse, false) then
+    raise exception 'Ce lien nomme un accès particulier : il ne sert pas à l''inscription des salariés'
+      using errcode = '42501';
+  end if;
+
+  -- Une invitation NOMINATIVE ne vaut que pour son destinataire. `inviter_salarie`
+  -- inscrit l'adresse ; personne ne la relisait, et le lien personnel de Sonia
+  -- ouvrait un compte a qui le recevait par transfert.
+  if v_inv.destinataire_mail is not null
+     and lower(v_inv.destinataire_mail) <> lower(v_email) then
+    raise exception 'Ce lien a été envoyé à une autre adresse' using errcode = '42501';
   end if;
 
   -- Une entreprise sans domaine déclaré n'accepte personne : une liste vide
@@ -953,14 +1004,35 @@ begin
   select count(*) into v_num
     from public.affectation_siege s
    where s.abonnement = v_abo.id and s.liberee_le is null;
-  if v_num >= least(v_abo.sieges, v_inv.places) then
-    raise exception 'Toutes les places sont prises' using errcode = '23514';
+  if v_num >= v_abo.sieges then
+    raise exception 'Toutes les places de votre abonnement sont prises' using errcode = '23514';
+  end if;
+
+  -- Et le plafond DU LIEN se compte sur le lien, pas sur l'abonnement. Le
+  -- `least(sieges, places)` melangeait les deux : une entreprise de 210 sieges
+  -- avec 180 comptes ouverts qui regenerait un lien de 20 places pour ses
+  -- derniers arrivants bloquait tout le monde — 180 >= min(210, 20) — alors que
+  -- le lien n'avait servi a personne. C'est exactement le nombre que l'ecran
+  -- propose par defaut.
+  select count(*) into v_places
+    from public.affectation_siege s
+   where s.invitation = v_inv.id and s.liberee_le is null;
+  if v_places >= v_inv.places then
+    raise exception 'Ce lien a ouvert toutes les places qu''il promettait' using errcode = '23514';
   end if;
   select coalesce(max(s.numero), 0) + 1 into v_num
     from public.affectation_siege s where s.abonnement = v_abo.id;
 
-  insert into public.profil (id, nom) values (v_uid, split_part(v_email, '@', 1))
-    on conflict (id) do nothing;
+  -- Le nom saisi au formulaire. Il etait transporte jusque dans l'adresse de
+  -- retour du lien de connexion, relu par la page, passe a cette fonction — et
+  -- jete faute d'un parametre pour le recevoir : le salarie apparaissait a ses
+  -- collegues et dans les rapports sous « jean.dupont ». Le repli reste le
+  -- debut de l'adresse, jamais rien.
+  insert into public.profil (id, nom)
+  values (v_uid, coalesce(nullif(left(btrim(coalesce(p_nom, '')), 160), ''),
+                          split_part(v_email, '@', 1)))
+    on conflict (id) do update set nom = excluded.nom
+   where public.profil.nom is null or public.profil.nom = '';
   -- Le rôle est imposé ici. Le client ne le propose même pas.
   insert into private.appartenance (profil, role, entreprise)
   values (v_uid, 'salarie', v_inv.entreprise)
