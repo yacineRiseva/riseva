@@ -353,6 +353,36 @@ begin
   return v_total;
 end $$;
 
+-- ------------------------------------------------------- envoi des courriels
+-- Le maillon qui manquait entre la base et les boîtes aux lettres. La base enfile
+-- ce qui doit partir ; la fonction Edge `courriels` écrit et envoie. Entre les
+-- deux, il n'y avait RIEN : pas un `cron.schedule`, pas un appel HTTP, rien dans
+-- la procédure de mise en ligne. Les trois files se remplissaient et ne se
+-- vidaient jamais, et « le rapport part tout seul » restait une phrase.
+--
+-- Deux réglages, posés une fois à l'installation (voir docs/MISE-EN-LIGNE.txt) :
+--   insert into private.reglage (cle, valeur) values
+--     ('url_fonctions', 'https://<projet>.supabase.co/functions/v1'),
+--     ('cron_secret',   '<le même secret que CRON_SECRET côté fonction>');
+-- Tant qu'ils manquent, la tâche ne fait rien et ne casse rien : une base de
+-- développement n'a pas de fonctions Edge à appeler.
+create or replace function private.tache_courriels()
+returns integer
+language plpgsql security definer set search_path = '' as $$
+declare v_url text; v_secret text;
+begin
+  if to_regproc('net.http_post') is null then return 0; end if;
+  select r.valeur into v_url    from private.reglage r where r.cle = 'url_fonctions';
+  select r.valeur into v_secret from private.reglage r where r.cle = 'cron_secret';
+  if v_url is null or v_secret is null then return 0; end if;
+  perform net.http_post(
+    url := rtrim(v_url, '/') || '/courriels',
+    headers := jsonb_build_object('Content-Type', 'application/json',
+                                  'x-riseva-cron', v_secret),
+    body := '{}'::jsonb);
+  return 1;
+end $$;
+
 -- ---------------------------------------------------------------- moteur
 create or replace function private.moteur()
 returns jsonb
@@ -372,7 +402,10 @@ begin
     'campagnes_closes',    private.tache_cloture_campagnes(),
     'rapports',            private.tache_rapports(),
     'rapports_envoyes',    private.tache_envoi_rapports(),
-    'purges',              private.tache_retention());
+    'purges',              private.tache_retention(),
+    -- En dernier, une fois les trois files remplies : un seul appel sortant par
+    -- nuit, et il part avec tout ce que la nuit a produit.
+    'courriels',           private.tache_courriels());
   insert into public.moteur_journal (tache, fait) values ('moteur', v);
   return v;
 end $$;
@@ -395,7 +428,7 @@ revoke all on function
   private.tache_intentions_expirees(), private.tache_demandes_validation(),
   private.tache_relances_collecte(), private.tache_cloture_campagnes(),
   private.tache_rapports(), private.tache_envoi_rapports(),
-  private.tache_retention(), private.moteur()
+  private.tache_retention(), private.tache_courriels(), private.moteur()
 from public, anon, authenticated;
 
 -- Les fonctions créées ici sont elles aussi SECURITY DEFINER : elles doivent

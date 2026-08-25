@@ -1155,6 +1155,24 @@ create table moteur_journal (
 
 -- Journal de purge : il dit ce qui a été supprimé, sans contenir ce qui a été
 -- supprimé. Un journal de purge qui recopie la donnée purgée ne purge rien.
+-- ---------------------------------------------------------------- réglages
+-- Deux valeurs, et deux seulement : l'adresse des fonctions Edge et le secret
+-- partagé qui les autorise. Elles vivent ici parce que la tâche planifiée en a
+-- besoin et qu'un secret n'a rien à faire dans un fichier de migration versionné
+-- ni dans une variable de session. La table est dans le schéma privé, sans
+-- aucun droit pour `anon` ni `authenticated` : personne d'autre que les
+-- fonctions du moteur ne la lit.
+--
+-- Sans ces deux lignes, RIEN ne déclenche l'envoi des courriels : les files se
+-- remplissent et ne se vident jamais. C'était le cas — aucun ordonnanceur
+-- n'appelait la moindre fonction Edge, alors que la page de vente promet des
+-- rapports et des relances qui partent tout seuls.
+create table private.reglage (
+  cle    text primary key check (length(cle) between 2 and 60),
+  valeur text not null check (length(valeur) between 1 and 500),
+  maj_le timestamptz not null default now()
+);
+
 create table private.journal_purge (
   id          uuid primary key default gen_random_uuid(),
   ensemble    text not null,

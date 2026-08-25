@@ -39,6 +39,26 @@ const sb = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
+/* Signature du retour de paiement. Le secret ne quitte jamais la fonction ; la
+   signature est tronquée à 32 caractères hexadécimaux — 128 bits, très au-delà
+   de ce qu'un rejeu peut deviner. */
+const SECRET_RETOUR = Deno.env.get("RETOUR_SECRET")
+  ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+async function signer(valeur: string): Promise<string> {
+  const cle = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(SECRET_RETOUR),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", cle, new TextEncoder().encode(valeur));
+  return [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+}
+/* Comparaison à durée constante. `a === b` sort au premier caractère différent. */
+function memeSignature(recu: string | null, attendu: string): boolean {
+  if (!recu || recu.length !== attendu.length) return false;
+  let diff = 0;
+  for (let k = 0; k < recu.length; k++) diff |= recu.charCodeAt(k) ^ attendu.charCodeAt(k);
+  return diff === 0;
+}
+
 const API   = Deno.env.get("HELLOASSO_API")  ?? "https://api.helloasso.com";
 const AUTH  = Deno.env.get("HELLOASSO_AUTH") ?? "https://auth.helloasso.com";
 const SITE  = Deno.env.get("SITE_URL") ?? "https://riseva.fr";
@@ -197,8 +217,8 @@ Deno.serve(async (req) => {
           initialAmount: cents,
           itemName: `Don Riseva ${i.reference}`.slice(0, 250),
           backUrl:   `${SITE}/app/#/annonces`,
-          errorUrl:  `${MOI}/paiement?intention=${i.id}&etat=erreur`,
-          returnUrl: `${MOI}/paiement?intention=${i.id}`,
+          errorUrl:  `${MOI}/paiement?intention=${i.id}&etat=erreur&s=${await signer(i.id)}`,
+          returnUrl: `${MOI}/paiement?intention=${i.id}&s=${await signer(i.id)}`,
           containsDonation: true,
           metadata: JSON.stringify({ riseva: i.reference, intention: i.id })
         })
@@ -220,6 +240,17 @@ Deno.serve(async (req) => {
     if (route === "paiement") {
       const id = url.searchParams.get("intention");
       if (!id) return versApp("/annonces", "Paiement introuvable.");
+      /* L'identifiant de l'intention voyage en clair dans l'adresse de retour
+         remise à HelloAsso : il vit donc dans l'historique du donateur, dans les
+         journaux de HelloAsso, et dans tout partage de cette adresse. C'était la
+         SEULE route de cette fonction sans contrôle d'appelant : quiconque le
+         détenait rejouait le retour, et chaque rejeu faisait tourner le jeton de
+         rafraîchissement HelloAsso de l'association. Deux rejeux concurrents, et
+         la liaison sautait — plus aucun don par carte jusqu'à ce qu'elle
+         réautorise. La signature est posée au moment où l'adresse est fabriquée
+         et n'est vérifiable que par nous. */
+      if (!memeSignature(url.searchParams.get("s"), await signer(id)))
+        return versApp("/annonces", "Ce lien de retour n'est pas valable.");
       const { data: infos } = await sb.rpc("helloasso_intention", { p_intention: id });
       const i = Array.isArray(infos) ? infos[0] : infos;
       if (!i) return versApp("/annonces", "Paiement introuvable.");

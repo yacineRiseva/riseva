@@ -538,10 +538,48 @@ Rien n'est perdu, mais personne n'est prévenu.
 
   5. Déployez les fonctions. Depuis un terminal, dans le dossier du projet :
 
-         supabase functions deploy demande-validation valider-mission rapport paiement helloasso effacement
+         supabase functions deploy courriels valider-mission paiement helloasso effacement
 
      (Il faut avoir installé l'outil `supabase` au préalable ; sa page
      d'installation explique comment, et c'est une seule commande.)
+
+  6. LE DÉCLENCHEUR. C'est l'étape qu'on oublie, et sans elle rien ne part :
+     la base range chaque nuit ce qui doit être envoyé, mais quelqu'un doit
+     venir vider la boîte. Ce quelqu'un, c'est la base elle-même, une fois par
+     nuit, à condition qu'on lui dise où appeler et avec quel mot de passe.
+
+     a) Inventez un mot de passe long, au hasard. N'importe quel générateur
+        fait l'affaire ; trente caractères, ce n'est pas trop.
+
+     b) Dans les secrets des fonctions Edge (même écran qu'à l'étape 4),
+        ajoutez :
+
+            CRON_SECRET = le mot de passe que vous venez d'inventer
+
+     c) Dans Supabase, menu de gauche : « SQL Editor ». Collez ceci en
+        remplaçant les deux valeurs, puis « Run » :
+
+            insert into private.reglage (cle, valeur) values
+              ('url_fonctions', 'https://VOTRE-PROJET.supabase.co/functions/v1'),
+              ('cron_secret',   'LE-MOT-DE-PASSE-DE-L-ETAPE-a')
+            on conflict (cle) do update set valeur = excluded.valeur, maj_le = now();
+
+        (L'adresse de votre projet est celle que vous avez déjà recopiée dans
+        `config.js` à l'étape E — c'est la même, suivie de `/functions/v1`.)
+
+     d) Toujours dans le SQL Editor, vérifiez que l'extension qui permet à la
+        base d'appeler une adresse est bien active :
+
+            create extension if not exists pg_net;
+
+     Comment savoir que ça marche : le lendemain matin, dans le SQL Editor,
+
+            select fait from moteur_journal order by cree_le desc limit 1;
+
+     La réponse contient une ligne `"courriels": 1`. Si elle contient `0`,
+     c'est qu'il manque l'un des deux réglages de l'étape c) ou l'extension de
+     l'étape d) — rien n'est cassé, rien n'est perdu, les messages attendent
+     dans la file et partiront dès que ce sera réparé.
 
 
 ================================================================================
