@@ -1087,6 +1087,14 @@ begin
   insert into public.acces (entreprise, profil, quoi, indice)
   values (v_inv.entreprise, v_uid, 'inscription', v_inv.indice);
 
+  -- Une invitation NOMINATIVE a une place ne resservira pas : elle a fait ce
+  -- pour quoi elle existait. La laisser active, c'est laisser trainer un lien
+  -- valide qui n'ouvrira plus rien mais qu'un contrôle de sécurité comptera
+  -- comme une porte ouverte.
+  if v_inv.destinataire_mail is not null and v_inv.places = 1 then
+    update public.invitation i set active = false where i.id = v_inv.id;
+  end if;
+
   return v_inv.entreprise;
 end $$;
 

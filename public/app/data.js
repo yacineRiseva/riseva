@@ -2395,17 +2395,26 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
        Avec un établissement, la place se compte dans son quota et pas ailleurs :
        sinon le premier site servi mange les places des autres, et le référent de
        Marseille découvre en septembre qu'il n'a plus de comptes. */
+    /* Une place, c'est un salarié. Un administrateur, un référent de site ou un
+       élu du CSE n'en consomme pas : refuser un élu parce que l'entreprise a
+       rempli ses sièges reviendrait à lui faire payer des comptes qu'il
+       n'utilise pas. C'est la règle du serveur — `affectation_siege` n'est
+       écrite que par `rejoindre_entreprise` — et c'est ce que dit la page
+       d'inscription. Ici, les trois rôles étaient comptés : un client lisait
+       « 118 / 120 places » là où la base en comptait 115 de libres, et l'alerte
+       « votre équipe approche de sa limite » se déclenchait pour rien. */
+    occupeUnSiege: (u) => !!u && !u.anonyme && u.role === "salarie",
     sieges(eid, { etablissement = null } = {}){
       if (etablissement){
         const et = api.etablissement(etablissement);
         const total = et ? (et.quota || et.effectif || 0) : 0;
-        const pris = api.salaries(eid).filter(u => !u.anonyme
+        const pris = api.salaries(eid).filter(u => api.occupeUnSiege(u)
           && u.etablissement === etablissement).length;
         return { total, pris, restants: Math.max(0, total - pris) };
       }
       const e = api.entreprise(eid);
       const total = e ? (e.sieges || e.effectif || 0) : 0;
-      const pris = api.salaries(eid).filter(u => !u.anonyme).length;
+      const pris = api.salaries(eid).filter(u => api.occupeUnSiege(u)).length;
       return { total, pris, restants: Math.max(0, total - pris) };
     },
 
@@ -6271,14 +6280,36 @@ export async function clientDAuth(config = null){
 /* Demander le lien. `emailRedirectTo` ramene la personne sur l'ecran d'ou elle
    est partie : un salarie qui vient d'un lien d'inscription doit revenir sur ce
    lien-la, code compris, sinon il se retrouve authentifie et sans entreprise. */
-export async function envoyerLienConnexion(email, { retour = null } = {}){
+/* `creerCompte` : faut-il ouvrir un compte à une adresse inconnue ?
+   ------------------------------------------------------------------
+   OUI sur les deux chemins d'entrée — le lien d'inscription d'un salarié et
+   l'ouverture d'un compte d'organisation — parce que la personne n'a par
+   définition pas encore de compte.
+
+   NON sur l'écran de connexion. Il est public : laissé ouvert, il acceptait
+   n'importe quelle adresse, faisait partir un courriel signé Riseva vers un
+   tiers, et créait la ligne `auth.users` correspondante. Répété, cela vide le
+   quota d'envoi du projet — plus aucun salarié légitime ne reçoit son lien —
+   et remplit la table des comptes d'adresses qui n'ont rien demandé.
+
+   Le refus qui en découle ne doit RIEN révéler : `compteInconnu` est vrai quand
+   Supabase répond que l'adresse n'existe pas, et l'appelant affiche alors le
+   même message que dans le cas contraire. Répondre « aucun compte avec cette
+   adresse » sur une page publique, c'est offrir un annuaire de qui travaille
+   ou non chez un client. */
+export async function envoyerLienConnexion(email, { retour = null, creerCompte = true } = {}){
   const c = await clientDAuth();
   if (!c) throw new Error("Cette installation n'a pas de configuration serveur.");
   const { error } = await c.auth.signInWithOtp({
     email: String(email || "").trim().toLowerCase(),
-    options: { emailRedirectTo: retour || location.href }
+    options: { emailRedirectTo: retour || location.href, shouldCreateUser: creerCompte }
   });
-  if (error) throw new Error(error.message);
+  if (error){
+    const e = new Error(error.message);
+    e.compteInconnu = !creerCompte
+      && /not found|n'existe|signups? not allowed|user not allowed|disabled/i.test(error.message || "");
+    throw e;
+  }
   return true;
 }
 

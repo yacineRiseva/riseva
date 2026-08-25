@@ -278,14 +278,20 @@ function vueConnexion(){
       bouton.disabled = true;
       msg.style.color = "var(--ink-600)";
       msg.textContent = "Envoi du lien...";
+      const neutre = "Si un compte existe avec cette adresse, un lien de connexion "
+        + "vient d'y être envoyé. Il est valable une heure et ne sert qu'une fois.";
       try {
-        await envoyerLienConnexion(mail, { retour: location.origin + "/app/" });
+        /* `creerCompte:false` : cet écran est public. Ouvert, il acceptait
+           n'importe quelle adresse et envoyait un courriel signé Riseva à des
+           gens qui n'avaient rien demandé, en créant leur compte au passage. */
+        await envoyerLienConnexion(mail, { retour: location.origin + "/app/", creerCompte: false });
         msg.style.color = "var(--ok-texte, var(--ink-600))";
-        msg.textContent = "Si un compte existe avec cette adresse, un lien de connexion "
-          + "vient d'y être envoyé. Il est valable une heure et ne sert qu'une fois.";
+        msg.textContent = neutre;
       } catch (e){
-        msg.style.color = "var(--danger, #B4564A)";
-        msg.textContent = e.message || "Le lien n'a pas pu être envoyé.";
+        /* Adresse inconnue : le MÊME message. Distinguer les deux cas ferait de
+           cette page un annuaire de qui travaille chez un client. */
+        msg.style.color = e.compteInconnu ? "var(--ok-texte, var(--ink-600))" : "var(--danger, #B4564A)";
+        msg.textContent = e.compteInconnu ? neutre : (e.message || "Le lien n'a pas pu être envoyé.");
       } finally { bouton.disabled = false; }
       return;
     }

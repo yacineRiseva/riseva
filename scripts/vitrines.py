@@ -1712,7 +1712,7 @@ COMMENT_ASSO = f"""<section id="comment" class="band">
    "proposent. Vous voyez qui vient et pour quelle date."),
   ("Vous confirmez", "En <span class='it'>un clic.</span>",
    "Après la date, vous recevez un courriel avec un lien. Il ouvre une page qui pose une "
-   "seule question, avec trois réponses possibles — dont « réalisée partiellement », avec le "
+   "seule question, avec trois réponses possibles, dont « réalisée partiellement » avec le "
    "chiffre réel. Rien à ressaisir dans votre espace, aucun rapport à écrire."),
 ])}
   </div>
