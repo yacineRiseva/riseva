@@ -1055,7 +1055,91 @@ CHAP_ASSOS = chapitre(
     "assos")
 
 
-PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss">
+def lianes_verre():
+    """Le motif de Riseva, pose derriere le verre.
+
+    Pourquoi celui-la et pas trois taches de couleur. Un panneau translucide
+    pose sur un aplat uni ne prouve rien : il n'y a rien a traverser. Ce qui
+    fait le verre, c'est de voir le MEME motif net a cote du panneau et flou
+    dessous. Il fallait donc un motif, et le site en a deja un : les lianes.
+
+    Elles ne sont pas recopiees ici. On relit le fragment qui les fabrique et on
+    en prend trois du milieu, celles que la page ecarte parce qu'elles sont trop
+    loin des bords. Le jour ou le trace change, il change aussi ici."""
+    brut = (RACINE / "scripts" / "fragments-rubans.html").read_text(encoding="utf-8")
+    blocs = re.findall(r'<div class="rib".*?</div>', brut, re.S)
+    milieu = [b for b in blocs
+              if 20 < float(re.search(r'top:([\d.]+)%', b).group(1)) < 60]
+    out = []
+    for n, bloc in enumerate(milieu[:3]):
+        # Les identifiants de degrade sont uniques dans un document : ceux du
+        # fragment servent deja aux deux lianes de la page.
+        bloc = bloc.replace('id="rg', 'id="vg').replace('url(#rg', 'url(#vg')
+        # Reparties dans la section, pas a leur place dans la page.
+        bloc = re.sub(r'top:[\d.]+%', f'top:{14 + n * 27}%', bloc)
+        bloc = re.sub(r'height:[\d.]+%', f'height:{22 + n * 3}%', bloc)
+        out.append(bloc)
+    if len(out) != 3:
+        raise SystemExit("lianes de la section verre : le fragment a change")
+    return ('<div class="verre-lianes" aria-hidden="true">'
+            + "".join(out) + '</div>')
+
+
+def mini_ecran(onglet, lignes, jauge, legende):
+    """Un ecran de produit, dessine avec du texte.
+
+    Aucune capture. Une capture d'ecran de produit pese deux cents kilo-octets,
+    vieillit a la premiere retouche d'interface, ne se traduit pas et ne se lit
+    pas au lecteur d'ecran. Ces maquettes-la sont du HTML : elles suivent la
+    feuille de style, elles restent nettes a tous les zooms, et ce qu'elles
+    montrent est ecrit en toutes lettres dans leur legende.
+
+    Ce qu'elles n'ont pas le droit de faire : passer pour la trace d'un
+    resultat reel. La legende dit toujours de quel ecran il s'agit."""
+    corps = ""
+    for gauche, droite, etat in lignes:
+        droit = (f'<span class="mini-etat mini-etat--{etat}">{droite}</span>'
+                 if etat else f"<span>{droite}</span>")
+        corps += f"""
+            <div class="mini-ligne"><span>{gauche}</span>{droit}</div>"""
+    if jauge:
+        part, dit = jauge
+        corps += f"""
+            <div class="mini-jauge"><i style="width:{part}%"></i></div>
+            <div class="mini-ligne"><span>{dit}</span><span>{part}&nbsp;%</span></div>"""
+    return f"""<figure class="mini">
+          <div class="mini-barre"><i></i><i></i><i></i><span class="mono">{onglet}</span></div>
+          <div class="mini-corps">{corps}
+          </div>
+          <figcaption class="mini-note">{legende}</figcaption>
+        </figure>"""
+
+
+def verre_carte(qui, question, reponse, visuel, ecrans):
+    """Une carte de verre : qui pose la question, la question, la reponse."""
+    return f"""      <article class="verre verre-carte verre-anim">
+        <i class="verre-eclat" aria-hidden="true"></i>
+        <span class="verre-puce mono">{qui}</span>
+        <h3>{question}</h3>
+        <p>{reponse}</p>
+        {visuel}
+        <p class="verre-ecrans mono">{ecrans}</p>
+      </article>"""
+
+
+# La seule section du site traitee en verre, et c'est deliberé : celle qui
+# presente la plateforme. Ce qui est en jeu ici n'est pas un effet de mode. Un
+# lecteur arrive du premier ecran avec une promesse et zero idee de ce que le
+# produit est. Il faut lui montrer des ecrans. Les montrer en photographie
+# coute des captures qui vieillissent ; les montrer en verre, c'est-a-dire des
+# panneaux translucides poses sur un champ lumineux, avec des maquettes de
+# texte dedans, donne la meme impression de produit sans une seule image.
+#
+# Le verre, ici, n'est pas une decoration posee sur le fond : c'est ce qui fait
+# tenir ensemble trois maquettes tres differentes sur une meme bande sombre.
+PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss verre-sect">
+  <div class="verre-champ" aria-hidden="true"><i></i><i></i><i></i></div>
+{lianes_verre()}
   <div class="layer">
 {entete("Ce que ça répond",
         "Trois questions,<br><span class='it'>et personne n'a la réponse.</span>",
@@ -1063,39 +1147,72 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss">
         "vient de vous poser une de ces trois questions, et qu'il a fallu répondre "
         "« je vais voir ».")}
 
-{questions([
-  ("« Combien de vos sites ont répondu&nbsp;? »",
-   "Posée par votre direction, en réunion budget",
-   f"Vous cochez les rubriques d'une période parmi {CATALOGUE['rubriques']} : effectifs, "
-   "sécurité, formation, énergie, déchets, mobilité, achats. Chaque établissement voit sa "
-   "part sur son écran, avec ce qu'on compte et ce qu'on ne compte pas. La plateforme "
-   "relance à sa place, et <b>vous voyez qui manque, nommément</b>.",
-   "Écrans : Données sociales, Sites et quotas, Vue consolidée"),
-  ("« D'où sort ce chiffre&nbsp;? »",
-   "Posée par un donneur d'ordre, dans un questionnaire fournisseur",
-   f"{CATALOGUE['saisis']} valeurs collectées, {CATALOGUE['calcules']} taux calculés en "
-   "rapport de sommes et jamais en moyenne de taux. Chaque saisie de site porte qui l'a "
-   "remplie, qui l'a approuvée (jamais la même personne) et <b>les pièces jointes qui la "
-   "justifient</b>. Le "
-   "rapport sort en classeur et en CSV, avec sa méthode et le nombre de sites derrière "
-   "chaque somme.",
-   "Écrans : Rapports, Fiche VSME, Mécénat"),
-  ("« Qu'est-ce que vos équipes ont fait, cette année&nbsp;? »",
-   "Posée par vos salariés, et par vos candidats",
-   "Une saison d'un an. Des associations vérifiées près de chaque site publient ce dont "
-   "elles ont besoin, vos équipes s'y rendent ensemble, et <b>c'est l'association qui "
-   "confirme</b>. Refuges, plantations, berges, distributions de repas. Bénévolat, dons de "
-   "matériel, mécénat de compétences et dons en argent passent par le même écran.",
-   "Écrans : Annonces, Nos missions, Associations",
-   photo("refuge-sortie", "Deux bénévoles sortent quatre chiens de refuge sur un chemin de "
-         "campagne, en plein soleil", "")),
-])}
+    <div class="verre verre-tete verre-anim">
+      <i class="verre-eclat" aria-hidden="true"></i>
+      <p>Une saison d'un an, un écran par métier, et <b>la même donnée du site
+        jusqu'au rapport</b>. Rien n'est ressaisi, et rien n'est estimé sans que
+        la page le dise.</p>
+      <div class="verre-chiffres">
+        <span class="verre-chiffre"><b>{CATALOGUE['rubriques']}</b><span>rubriques</span></span>
+        <span class="verre-chiffre"><b>{CATALOGUE['saisis']}</b><span>valeurs collectées</span></span>
+        <span class="verre-chiffre"><b>{CATALOGUE['calcules']}</b><span>taux calculés</span></span>
+      </div>
+    </div>
+
+    <div class="verre-rail">
+{verre_carte(
+  "En réunion budget",
+  "« Combien de vos sites<br>ont répondu&nbsp;?&nbsp;»",
+  f"Vous cochez les rubriques d'une période parmi {CATALOGUE['rubriques']} : effectifs, "
+  "sécurité, formation, énergie, déchets, mobilité, achats. Chaque établissement voit sa "
+  "part sur son écran, avec ce qu'on compte et ce qu'on ne compte pas. La plateforme "
+  "relance à sa place, et <b>vous voyez qui manque, nommément</b>.",
+  mini_ecran("Sites et quotas", [
+      ("Rennes - Sud", "Approuvé", "ok"),
+      ("Lyon - Vaise", "Approuvé", "ok"),
+      ("Lille - Seclin", "En attente", "attente"),
+      ("Brest - Port", "Non commencé", "muet"),
+  ], (64, "Établissements ayant répondu"),
+     "Maquette de l'écran « Sites et quotas », avec un jeu de démonstration."),
+  "Écrans : Données sociales, Sites et quotas, Vue consolidée")}
+
+{verre_carte(
+  "Questionnaire fournisseur",
+  "« D'où sort<br>ce chiffre&nbsp;?&nbsp;»",
+  f"{CATALOGUE['saisis']} valeurs collectées, {CATALOGUE['calcules']} taux calculés en "
+  "rapport de sommes et jamais en moyenne de taux. Chaque saisie de site porte qui l'a "
+  "remplie, qui l'a approuvée (jamais la même personne) et <b>les pièces jointes qui la "
+  "justifient</b>. Le rapport sort en classeur et en CSV, avec sa méthode et le nombre de "
+  "sites derrière chaque somme.",
+  mini_ecran("Rapport, taux de fréquence", [
+      ("Formule", "AT x 1 000 000 / heures", None),
+      ("Période", "2026, 4e trimestre", None),
+      ("Sites derrière la somme", "22 sur 22", "ok"),
+      ("Valeurs approuvées", "Par le référent", "ok"),
+      ("Pièces jointes", "9 justificatifs", "muet"),
+      ("Méthode", "Rapport de sommes", None),
+  ], None,
+     "Maquette de la fiche d'un taux consolidé, avec sa formule et ses sources."),
+  "Écrans : Rapports, Fiche VSME, Mécénat")}
+
+{verre_carte(
+  "Vos salariés, vos candidats",
+  "« Qu'est-ce que vos équipes<br>ont fait cette année&nbsp;?&nbsp;»",
+  "Des associations vérifiées près de chaque site publient ce dont elles ont besoin, vos "
+  "équipes s'y rendent ensemble, et <b>c'est l'association qui confirme</b>. Refuges, "
+  "plantations, berges, distributions de repas. Bénévolat, dons de matériel, mécénat de "
+  "compétences et dons en argent passent par le même écran.",
+  photo("refuge-sortie", "Deux bénévoles sortent quatre chiens de refuge sur un chemin de "
+        "campagne, en plein soleil", "", " verre-photo"),
+  "Écrans : Annonces, Nos missions, Associations")}
+    </div>
 
     <p class="s-note s-note--trois">Vos sites répondent, vos équipes agissent,
       <b>et vous avez les preuves</b>.</p>
 
   </div>
 </section>"""
+
 
 PILOTAGE_ENT = f"""<section id="pilotage">
   <div class="layer">

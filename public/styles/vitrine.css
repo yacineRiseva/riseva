@@ -3624,3 +3624,376 @@ body{
 .fmt-note{ max-width:62ch; margin:10px 0 0; font-size:14px; line-height:1.6;
   color:var(--ink-soft); }
 .fmt-note b{ color:var(--ink); }
+
+/* ==================================================================== */
+/* La section verre                                                     */
+/* ==================================================================== */
+/* Une seule section du site est faite comme ca, et c'est deliberé : celle qui
+   presente la plateforme. Le verre est un effet cher — chaque couche en
+   `backdrop-filter` est un rendu de plus a chaque image — et un site qui en met
+   partout devient lent partout. Ici, il sert a une chose : donner a voir des
+   ecrans de produit sans les photographier.
+
+   Ce qui distingue ce verre-la du glassmorphism de 2021, et c'est tout le
+   travail : le bord. Un flou pose sous une bordure blanche a un pour cent, c'est
+   du plastique depoli. Ce qui fait le verre, c'est l'arete — un filet clair en
+   haut, sombre en bas, qui suit la lumiere — plus un reflet speculaire qui se
+   deplace avec le pointeur, et une saturation du fond legerement poussee, comme
+   un vrai verre epais qui concentre la couleur derriere lui. */
+
+.verre-sect{
+  position:relative; isolation:isolate; overflow:hidden;
+  background:var(--forest-900);
+  /* Pas de `content-visibility:auto` ici, et c'est un renoncement delibere. Il
+     economise la peinture d'une section qu'on ne voit pas encore, mais il
+     demande en echange une hauteur estimee ; quand l'estimation est fausse, la
+     page se deplace sous le doigt au moment ou la section arrive. Une section
+     qui saute coute plus cher qu'une section qui peint. */
+}
+
+/* Ce qu'on voit a travers le verre, et c'est toute la question. Un panneau
+   translucide pose sur un aplat uni ne ressemble a rien : il n'y a rien a
+   traverser, donc rien ne prouve qu'il est transparent. Ce qui fait le verre,
+   c'est le CONTRASTE entre un motif net a cote du panneau et le meme motif
+   flou dessous.
+
+   Le motif n'est pas invente pour l'occasion : ce sont les lianes de Riseva,
+   le meme trace que porte le reste du site, tirees du fragment qui les
+   fabrique. Deux nappes de lumiere les accompagnent, floutees UNE fois et
+   animees uniquement en `transform` : animer un `filter` le recalcule a chaque
+   image, et c'est la premiere cause de section a douze images par seconde. */
+.verre-champ{
+  position:absolute; inset:-18% -8%; z-index:0; pointer-events:none;
+  /* Aucun `filter:blur()`. Un degrade radial est deja un bord doux : le flouter
+     ajoutait une passe de rendu par image pour un resultat que le degrade
+     donnait tout seul. C'est la correction la plus rentable de la section. */
+}
+.verre-champ i{
+  position:absolute; display:block; border-radius:50%;
+  will-change:transform;
+}
+.verre-champ i:nth-child(1){
+  /* La nappe principale, emeraude, sous le titre et la tete de section. */
+  width:72%; height:66%; left:-14%; top:-12%;
+  background:radial-gradient(ellipse at 50% 50%,
+    rgba(46,122,98,.92) 0%, rgba(46,122,98,.38) 36%, rgba(46,122,98,0) 72%);
+  animation:verre-derive-a 26s ease-in-out infinite alternate;
+}
+.verre-champ i:nth-child(2){
+  /* Le bleu d'eau, en haut a droite, la ou le panneau de tete le traverse. */
+  width:58%; height:62%; right:-12%; top:-8%;
+  background:radial-gradient(ellipse at 50% 50%,
+    rgba(61,130,173,.62) 0%, rgba(61,130,173,.20) 38%, rgba(61,130,173,0) 74%);
+  animation:verre-derive-b 31s ease-in-out infinite alternate;
+}
+.verre-champ i:nth-child(3){
+  /* Le lime, bas et au centre : sans lui, la moitie basse de la section
+     redevient un aplat, et les trois cartes n'ont plus rien a traverser. */
+  width:78%; height:60%; left:14%; bottom:-16%;
+  background:radial-gradient(ellipse at 50% 50%,
+    rgba(201,242,75,.30) 0%, rgba(201,242,75,.10) 34%, rgba(201,242,75,0) 68%);
+  animation:verre-derive-c 37s ease-in-out infinite alternate;
+}
+@keyframes verre-derive-a{ from{transform:translate3d(0,0,0) scale(1);}
+                           to{transform:translate3d(9%,-7%,0) scale(1.14);} }
+@keyframes verre-derive-b{ from{transform:translate3d(0,0,0) scale(1.08);}
+                           to{transform:translate3d(-11%,9%,0) scale(1);} }
+@keyframes verre-derive-c{ from{transform:translate3d(0,0,0) scale(1);}
+                           to{transform:translate3d(-8%,-9%,0) scale(1.22);} }
+
+/* Les lianes, nettes. Elles ne se tracent pas ici : le trace a l'arrivee est le
+   geste du reste de la page, et le repeter dans une section qui a deja son
+   entree ferait deux animations pour un seul evenement. Elles sont la, et elles
+   derivent lentement, ce qui suffit a faire vivre le fond derriere le verre. */
+.verre-lianes{
+  position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden;
+}
+.verre-lianes .rib{ animation:verre-liane 44s ease-in-out infinite alternate; }
+.verre-lianes .rib:nth-child(2){ animation-duration:57s; animation-direction:alternate-reverse; }
+.verre-lianes .rib:nth-child(3){ animation-duration:68s; }
+.verre-lianes .ribbon{
+  stroke-dashoffset:0; transition:none; stroke-opacity:.42; stroke-width:4;
+}
+@keyframes verre-liane{
+  from{ transform:translate3d(-3%,0,0); }
+  to  { transform:translate3d(3%,0,0); }
+}
+@media (max-width:820px){
+  /* Sur telephone, le panneau occupe presque toute la largeur : il n'y a plus
+     de « a cote » ou voir le motif net, donc il ne sert plus a rien et il
+     coute. */
+  .verre-lianes{ display:none; }
+}
+
+.verre-sect > .layer{ position:relative; z-index:1; }
+
+/* ------------------------------------------------------------------ */
+/* Le panneau de verre                                                 */
+/* ------------------------------------------------------------------ */
+.verre{
+  position:relative; isolation:isolate;
+  border-radius:26px;
+  /* Le fond composite au-dessus d'une bande deja sombre : ce qui garantit que
+     le texte pose dessus garde son contraste meme quand `backdrop-filter` n'est
+     pas rendu. Le verre ne doit jamais decider de la lisibilite. */
+  background:linear-gradient(158deg, rgba(223,230,208,.11), rgba(223,230,208,.035) 54%);
+  -webkit-backdrop-filter:blur(15px) saturate(145%);
+  backdrop-filter:blur(15px) saturate(145%);
+  box-shadow:
+    /* le filet clair du haut : c'est lui qui fait l'epaisseur */
+    inset 0 1px 0 rgba(242,240,233,.20),
+    /* le retour sombre du bas : sans lui, le panneau flotte sans poids */
+    inset 0 -1px 0 rgba(11,38,32,.45),
+    0 30px 64px -40px rgba(11,38,32,.9);
+}
+/* L'angle de la lumiere sur l'arete. Declare pour que le navigateur le
+   connaisse comme un ANGLE et non comme une chaine : sans cette declaration il
+   n'est pas interpolable, et une valeur ecrite par le script produirait un saut
+   au lieu d'un glissement. */
+@property --verre-arc{ syntax:"<angle>"; inherits:false; initial-value:210deg; }
+
+/* L'arete speculaire : un degrade d'un pixel, en masque, sans image ni SVG.
+   Le bord d'un vrai verre n'a pas la meme couleur en haut et en bas — il prend
+   la lumiere d'un cote et l'ombre de l'autre. Une bordure unie n'a jamais
+   ressemble a du verre. */
+.verre::before{
+  content:""; position:absolute; inset:0; border-radius:inherit; padding:1px;
+  /* Conique, et non lineaire : un degrade lineaire donne au bord deux zones
+     claires opposees, ce qu'aucune source de lumiere reelle ne produit. Un
+     degrade conique fait tourner la lumiere AUTOUR du panneau, ce qui est
+     exactement ce qui se passe quand une source unique eclaire une arete.
+
+     Et l'angle de depart suit le pointeur, comme le reflet de surface : une
+     arete dont la zone claire ne repond pas a la meme lumiere que la surface
+     est le detail qui trahit le faux verre. Une seule source, deux effets. */
+  transition:--verre-arc .28s linear;
+  background:conic-gradient(from var(--verre-arc,210deg),
+    rgba(242,240,233,.05)  0deg,
+    rgba(242,240,233,.42) 48deg,
+    rgba(242,240,233,.09) 112deg,
+    rgba(61,130,173,.16) 176deg,
+    rgba(242,240,233,.06) 244deg,
+    rgba(201,242,75,.26)  312deg,
+    rgba(242,240,233,.05) 360deg);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor; mask-composite:exclude;
+  pointer-events:none; z-index:2;
+}
+/* Le reflet qui suit le pointeur. Deux variables, mises a jour une fois par
+   image, pour toute la section : un ecouteur par carte ferait le meme effet et
+   trente fois le travail. */
+.verre::after{
+  content:""; position:absolute; inset:0; border-radius:inherit;
+  background:radial-gradient(420px circle at var(--mx,50%) var(--my,0%),
+    rgba(242,240,233,.16), rgba(242,240,233,0) 62%);
+  opacity:0; transition:opacity .45s ease; pointer-events:none; z-index:1;
+}
+.verre:hover::after, .verre:focus-within::after{ opacity:1; }
+
+@supports not ((backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px))){
+  /* Pas de verre rate : un aplat assume vaut mieux qu'un flou qui ne floute
+     rien. Le texte, lui, ne bouge pas d'un pixel. */
+  .verre{ background:rgba(15,61,48,.94); }
+}
+
+/* ------------------------------------------------------------------ */
+/* La mise en page de la section                                       */
+/* ------------------------------------------------------------------ */
+.verre-tete{
+  padding:clamp(22px,2.6vw,34px) clamp(22px,2.8vw,38px);
+  margin-top:clamp(24px,3vw,40px);
+  display:flex; flex-wrap:wrap; gap:clamp(18px,2.4vw,34px); align-items:center;
+  justify-content:space-between;
+}
+.verre-tete p{
+  margin:0; max-width:48ch; color:var(--moss);
+  font-size:clamp(15px,1.15vw,18px); line-height:1.6;
+}
+.verre-tete b{ color:var(--paper); }
+.verre-chiffres{ display:flex; gap:clamp(20px,2.4vw,38px); flex-wrap:wrap; }
+.verre-chiffre{ display:block; }
+.verre-chiffre b{
+  display:block; font-family:var(--font-titre,inherit);
+  font-size:clamp(30px,3.4vw,46px); line-height:1; color:var(--lime);
+  font-variant-numeric:tabular-nums;
+}
+.verre-chiffre span{
+  display:block; margin-top:6px; font-size:13px; letter-spacing:.02em;
+  color:var(--moss);
+}
+
+.verre-rail{
+  display:grid; gap:clamp(18px,2vw,26px); margin-top:clamp(26px,3vw,40px);
+  grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+}
+.verre-carte{ padding:clamp(20px,2vw,28px); display:flex; flex-direction:column; }
+.verre-puce{
+  align-self:flex-start; display:inline-block; white-space:nowrap;
+  padding:5px 11px; border-radius:999px;
+  background:rgba(201,242,75,.14); color:var(--lime);
+  font-size:12px; letter-spacing:.06em; text-transform:uppercase;
+}
+.verre-carte h3{
+  margin:clamp(12px,1.4vw,18px) 0 0; color:var(--paper);
+  font-size:clamp(19px,1.5vw,23px); line-height:1.25;
+}
+.verre-carte p{
+  margin:10px 0 0; color:var(--moss); font-size:15px; line-height:1.62;
+  max-width:46ch;
+}
+.verre-carte p b{ color:var(--paper); }
+.verre-ecrans{
+  margin-top:auto; padding-top:clamp(16px,1.8vw,22px);
+  font-size:13px; color:var(--moss-dim,#B9C6A8);
+}
+
+/* ------------------------------------------------------------------ */
+/* Les petits ecrans de produit, dessines en CSS                       */
+/* ------------------------------------------------------------------ */
+/* Aucune image : une capture d'ecran de produit vieillit en trois semaines, pese
+   deux cents kilo-octets, et ne se traduit pas. Ces maquettes-la sont du texte,
+   elles se lisent a la loupe et au lecteur d'ecran. */
+.mini{
+  margin:clamp(16px,1.8vw,22px) 0 0; border-radius:16px; overflow:hidden;
+  background:rgba(11,38,32,.55);
+  box-shadow:inset 0 1px 0 rgba(242,240,233,.14);
+}
+.mini-barre{
+  display:flex; align-items:center; gap:6px;
+  padding:9px 12px; background:rgba(11,38,32,.5);
+  font-size:11px; letter-spacing:.04em; color:var(--moss);
+}
+.mini-barre i{
+  width:7px; height:7px; border-radius:50%; background:rgba(223,230,208,.32);
+  display:inline-block;
+}
+.mini-corps{ padding:12px; display:grid; gap:8px; }
+.mini-ligne{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  font-size:12.5px; color:var(--paper);
+}
+.mini-ligne span:first-child{ color:var(--moss); }
+.mini-etat{
+  padding:3px 9px; border-radius:999px; font-size:11px; white-space:nowrap;
+}
+.mini-etat--ok{ background:rgba(201,242,75,.16); color:var(--lime); }
+.mini-etat--attente{ background:rgba(201,127,30,.22); color:#F0C07A; }
+.mini-etat--muet{ background:rgba(223,230,208,.12); color:var(--moss); }
+.mini-jauge{
+  height:5px; border-radius:999px; background:rgba(223,230,208,.14);
+  overflow:hidden; margin-top:4px;
+}
+.mini-jauge i{ display:block; height:100%; background:var(--lime); border-radius:inherit; }
+.mini-note{
+  /* Douze pixels, pas onze et demi : la recette mesure chaque texte et refuse
+     ce qui passe sous douze. Une legende qu'on ne lit pas ne legende rien. */
+  padding:10px 12px 12px; font-size:12px; line-height:1.5; color:var(--moss);
+  border-top:1px solid rgba(223,230,208,.10);
+}
+
+/* La photographie, quand elle remplace la maquette. La troisieme carte parle
+   de ce que les equipes font dehors : une liste de lignes ne le montre pas. */
+/* La photo prend la hauteur qui reste. Trois cartes de meme hauteur dont une
+   se termine deux cents pixels avant les autres, ce n'est pas une composition,
+   c'est un trou. */
+.verre-photo{
+  margin:clamp(16px,1.8vw,22px) 0 0; border-radius:16px; overflow:hidden;
+  flex:1 1 auto; min-height:clamp(150px,13vw,190px);
+}
+.verre-photo img{
+  display:block; width:100%; height:100%; min-height:inherit;
+  object-fit:cover; border-radius:inherit;
+}
+/* Meme raison pour la maquette : c'est elle qui absorbe le reste. */
+.verre-carte .mini{ margin-bottom:0; }
+.verre-carte .mini-note{ margin-top:auto; }
+
+/* ------------------------------------------------------------------ */
+/* L'entree au defilement                                              */
+/* ------------------------------------------------------------------ */
+/* Le chemin moderne d'abord, le repli ensuite. `animation-timeline: view()`
+   fait defiler l'animation avec la page sans une ligne de JavaScript et sans un
+   seul recalcul de mise en page. La ou il manque, un IntersectionObserver pose
+   la classe `.vu`, et le resultat est le meme. */
+/* Rien ne se cache tant que le script n'a pas dit qu'il etait la. Sans `.js`,
+   la section s'affiche telle quelle : une entree ratee vaut mieux qu'une
+   section invisible. */
+.js .verre-anim{ opacity:0; transform:translate3d(0,26px,0); }
+.js .verre-anim.vu{
+  opacity:1; transform:none;
+  transition:opacity .7s cubic-bezier(.22,.61,.36,1),
+             transform .7s cubic-bezier(.22,.61,.36,1);
+}
+.js .verre-rail > .verre-anim:nth-child(2).vu{ transition-delay:.09s; }
+.js .verre-rail > .verre-anim:nth-child(3).vu{ transition-delay:.18s; }
+
+@supports (animation-timeline:view()){
+  .js .verre-anim{
+    opacity:1; transform:none;
+    animation:verre-monte linear both;
+    animation-timeline:view();
+    animation-range:entry 8% cover 34%;
+  }
+  .js .verre-rail > .verre-anim:nth-child(2){ animation-range:entry 4% cover 36%; }
+  .js .verre-rail > .verre-anim:nth-child(3){ animation-range:entry 0% cover 38%; }
+}
+@keyframes verre-monte{
+  from{ opacity:0; transform:translate3d(0,26px,0); }
+  to  { opacity:1; transform:none; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Ce qui bouge dans le panneau, et pourquoi si peu                    */
+/* ------------------------------------------------------------------ */
+/* Trois mouvements, pas un de plus, et tous declenches par la meme arrivee a
+   l'ecran. Le premier est le seul qui ressemble a du verre : un eclat qui
+   traverse le panneau une fois, comme une lumiere qui passe. Les deux autres ne
+   decorent rien, ils LISENT : la jauge se remplit jusqu'a sa valeur, et les
+   etats se posent l'un apres l'autre, ce qui fait comprendre l'ecran sans le
+   legender. */
+.verre-eclat{
+  position:absolute; inset:0; border-radius:inherit; overflow:hidden;
+  pointer-events:none; z-index:2;
+}
+.verre-eclat::before{
+  content:""; position:absolute; top:-45%; bottom:-45%; left:0; width:38%;
+  background:linear-gradient(100deg,
+    rgba(242,240,233,0), rgba(242,240,233,.13) 48%, rgba(242,240,233,0));
+  transform:translate3d(-160%,0,0) rotate(9deg); opacity:0;
+}
+.js .verre-anim.vu .verre-eclat::before{
+  animation:verre-eclat 1.15s cubic-bezier(.3,.72,.3,1) .16s both;
+}
+@keyframes verre-eclat{
+  from{ transform:translate3d(-160%,0,0) rotate(9deg); opacity:0; }
+  30% { opacity:1; }
+  to  { transform:translate3d(330%,0,0) rotate(9deg); opacity:0; }
+}
+
+.mini-jauge i{ transform-origin:left center; }
+.js .verre-anim .mini-jauge i{ transform:scaleX(0); }
+.js .verre-anim.vu .mini-jauge i{
+  transform:none; transition:transform 1.05s cubic-bezier(.22,.61,.36,1) .38s;
+}
+.js .verre-anim .mini-etat{ opacity:0; transform:translate3d(8px,0,0); }
+.js .verre-anim.vu .mini-etat{
+  opacity:1; transform:none;
+  transition:opacity .42s ease, transform .42s cubic-bezier(.22,.61,.36,1);
+}
+.js .verre-anim.vu .mini-ligne:nth-child(1) .mini-etat{ transition-delay:.34s; }
+.js .verre-anim.vu .mini-ligne:nth-child(2) .mini-etat{ transition-delay:.44s; }
+.js .verre-anim.vu .mini-ligne:nth-child(3) .mini-etat{ transition-delay:.54s; }
+.js .verre-anim.vu .mini-ligne:nth-child(4) .mini-etat{ transition-delay:.64s; }
+
+@media (prefers-reduced-motion:reduce){
+  /* Tout se pose. Pas « plus lentement » : pose. Une animation ralentie reste
+     une animation, et c'est precisement ce que le reglage demande d'eviter. */
+  .verre-champ i{ animation:none; }
+  .js .verre-anim{ opacity:1; transform:none; animation:none; transition:none; }
+  .verre::after{ display:none; }
+  .verre-eclat{ display:none; }
+  .verre-lianes .rib{ animation:none; }
+  .js .verre-anim .mini-jauge i{ transform:none; transition:none; }
+  .js .verre-anim .mini-etat{ opacity:1; transform:none; transition:none; }
+}

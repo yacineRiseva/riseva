@@ -711,7 +711,7 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
    sort tot emporterait tout ce qui le suit.
    ══════════════════════════════════════════════════════════════ */
 (function(){
-  var els = [].slice.call(document.querySelectorAll('.chiffres b'));
+  var els = [].slice.call(document.querySelectorAll('.chiffres b, .verre-chiffre b'));
   if(!els.length) return;
   if(matchMedia('(prefers-reduced-motion:reduce)').matches) return;
   if(!('IntersectionObserver' in window)) return;
@@ -765,4 +765,79 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
     [].slice.call(v.querySelectorAll('source')).forEach(function(s){ s.remove(); });
     try { v.load(); } catch(e){}
   });
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   LA SECTION DE VERRE
+
+   Deux choses, et deux seulement. Le reflet speculaire qui suit le
+   pointeur, et l'entree au defilement pour les navigateurs qui ne
+   savent pas encore `animation-timeline: view()`.
+
+   La regle qui gouverne tout ce bloc : on ne lit jamais une position
+   apres avoir ecrit un style. Un `getBoundingClientRect()` pose apres
+   un `style.setProperty()` force le navigateur a recalculer la mise en
+   page avant de repondre, et quatre panneaux suffisent alors a faire
+   tomber la section a trente images par seconde. On lit tout, puis on
+   ecrit tout.
+   ══════════════════════════════════════════════════════════════ */
+(function(){
+  var sect = document.querySelector('.verre-sect');
+  if(!sect) return;
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  var panneaux = [].slice.call(sect.querySelectorAll('.verre'));
+  if(!panneaux.length) return;
+
+  var x = 0, y = 0, prevu = false;
+
+  function peindre(){
+    prevu = false;
+    var rects = [], i;
+    for(i = 0; i < panneaux.length; i++) rects.push(panneaux[i].getBoundingClientRect());
+    for(i = 0; i < panneaux.length; i++){
+      var r = rects[i];
+      /* Hors de l'ecran, le reflet n'existe pour personne. */
+      if(r.bottom < 0 || r.top > innerHeight) continue;
+      panneaux[i].style.setProperty('--mx', (x - r.left).toFixed(1) + 'px');
+      panneaux[i].style.setProperty('--my', (y - r.top).toFixed(1) + 'px');
+      /* La meme lumiere pour l'arete. `atan2` rend zero vers la droite et
+         croit vers le bas ; un degrade conique part du haut et tourne dans le
+         sens des aiguilles, d'ou le quart de tour. Les 48 degres retranches
+         placent la zone claire du degrade, et non son origine, du cote du
+         pointeur. */
+      var ang = Math.atan2(y - (r.top + r.height / 2),
+                           x - (r.left + r.width / 2)) * 180 / Math.PI;
+      panneaux[i].style.setProperty('--verre-arc', (ang + 42).toFixed(0) + 'deg');
+    }
+  }
+
+  sect.addEventListener('pointermove', function(e){
+    /* Le doigt n'a pas de survol : lui peindre un reflet sous le point de
+       contact ne montre rien et fait travailler la machine pour rien. */
+    if(e.pointerType === 'touch') return;
+    x = e.clientX; y = e.clientY;
+    if(!prevu){ prevu = true; requestAnimationFrame(peindre); }
+  }, { passive: true });
+})();
+
+(function(){
+  var els = [].slice.call(document.querySelectorAll('.verre-anim'));
+  if(!els.length) return;
+  /* La classe `.vu` est posee dans tous les cas, meme la ou
+     `animation-timeline: view()` fait deja monter le panneau tout seul : elle
+     ne sert pas qu'a l'entree, elle declenche aussi l'eclat, la jauge et les
+     etats. Deux mecanismes, un seul signal. */
+  if(!('IntersectionObserver' in window) ||
+     matchMedia('(prefers-reduced-motion:reduce)').matches){
+    els.forEach(function(el){ el.classList.add('vu'); });
+    return;
+  }
+  var io = new IntersectionObserver(function(entrees){
+    entrees.forEach(function(en){
+      if(!en.isIntersecting) return;
+      en.target.classList.add('vu');
+      io.unobserve(en.target);
+    });
+  }, { threshold: 0.18, rootMargin: '0px 0px -8% 0px' });
+  els.forEach(function(el){ io.observe(el); });
 })();
