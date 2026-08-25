@@ -247,3 +247,80 @@ coupure serait laide — c'est tapable, c'est visible dans la source, et c'est
 retirable par celui qui le lit. Une propriété CSS qui produit un caractère
 invisible qu'aucun auteur ne peut retirer est un piège, même quand elle rend le
 bon résultat à l'écran.
+
+## Le jour où la production ne s'ouvrait pour personne
+
+*25/08/2026.* Trois audits croisés, menés en parallèle sur les inscriptions, les
+invitations et l'authentification. Le verdict tenait en une phrase : **la
+démonstration marchait, la production non**, et rien dans la recette ne pouvait
+le dire, parce que la recette traverse le produit avec le moteur en mémoire.
+
+Ce qui manquait, dans l'ordre de gravité :
+
+**Le rôle n'était jamais transmis.** Le rôle d'une personne vit dans le schéma
+privé et n'en sort pas — c'est correct. Mais rien ne le rendait au navigateur :
+`chargerEtat` posait `role: null` sur chaque profil, le routeur cherchait
+`ROUTES[null]`, et l'application ne s'ouvrait pour personne. La démonstration,
+dont le jeu de données porte les rôles, marchait parfaitement. `mon_profil()`
+répare cela, et ne rend que la ligne de l'appelant.
+
+**Le lien d'inscription était un lien mort.** La base ne garde qu'une empreinte
+du code ; elle expose l'`indice`, six caractères qui servent à reconnaître un
+lien dans une liste et *à rien d'autre* — la RLS le dit explicitement. L'écran
+en faisait le code du lien diffusé à tout l'effectif. `rejoindre_entreprise`
+hache ce qu'on lui donne : six caractères ne correspondent à aucune empreinte.
+La règle qui en sort : **une valeur que la base classe comme non-secrète ne peut
+pas devenir le secret d'un écran.** Le code se montre une fois, au retour de la
+fonction qui le crée, et l'écran dit qu'il ne se réaffichera pas.
+
+**La porte d'entrée lisait une table qui lui était fermée.** `rejoindre.html`
+résolvait le code en interrogeant `invitation`, réservée à l'administrateur : le
+salarié recevait une table vide et lisait « Ce code n'existe pas ». Une fonction
+dédiée, ouverte à qui n'est pas connecté, rend maintenant le strict nécessaire.
+
+**Rien ne vidait la file des courriels.** La base rangeait chaque nuit ce qui
+devait partir. Aucun ordonnanceur n'appelait la moindre fonction Edge — ni
+`cron.schedule`, ni `vercel.json`, ni la procédure de mise en ligne. « Le rapport
+part tout seul » était une phrase de page de vente. Et deux des trois files
+n'avaient même pas de fonction pour les lire.
+
+**Tout était figé au 20 août 2026.** Quatorze dates écrites en dur dans le
+moteur, qui est le *même code* en démonstration et en production. La liste des
+rapports d'un vrai client restait au deuxième trimestre pour toujours, et le
+contrôle « un événement ne se déclare pas à une date future » aurait refusé,
+dès le 21 août, toute déclaration portant la date du jour.
+
+**Les rapports du moteur sortaient tous à zéro.** La tâche planifiée passait par
+`points_entreprise`, qui porte une garde d'autorisation. Une tâche planifiée n'a
+pas d'identité : la garde lui rendait zéro ligne. Aucune erreur, aucune trace,
+des rapports vides chaque nuit. La règle : **une garde d'autorisation et un
+calcul ne sont pas la même fonction.** Le calcul vit dans le schéma privé, la
+garde dans la fonction publique qui l'appelle.
+
+Deux règles générales sortent de cette journée. La première : **une couche qui
+n'est traversée par aucun test n'est pas écrite, elle est espérée.** La seconde,
+plus dure : **quand la démonstration et la production partagent le code mais pas
+les données, chaque divergence de données est un défaut invisible.** Les deux
+moteurs disaient le contraire l'un de l'autre sur le seul contrôle d'accès du
+produit — les domaines de messagerie — et personne ne pouvait s'en apercevoir en
+regardant l'écran.
+
+## Un bouton qui se dérobe sous le doigt
+
+*25/08/2026.* Le formulaire d'inscription des associations ne partait pas. Pas
+d'erreur, pas de message : le clic ne produisait rien. La cause n'était pas dans
+le formulaire mais trois lignes au-dessus : la ligne d'aide sous les champs
+change de texte selon le champ survolé, et les textes n'ont pas la même
+longueur. Au moment où l'on appuie sur le bouton, le champ perd le focus, l'aide
+reprend son texte long, passe de une à quatre lignes, et **tout ce qui est en
+dessous descend de soixante pixels** — dont le bouton. Entre l'appui et le
+relâchement, il n'est plus là. Le navigateur ne compte pas de clic.
+
+La tentation était de rendre la recette indulgente : faire défiler la page,
+attendre, cliquer par programme. Cela aurait caché le défaut au lieu de le
+corriger, et un vrai visiteur aurait continué à ne pas pouvoir s'inscrire. On
+réserve donc la hauteur du plus long des messages d'aide, une fois pour toutes,
+et la recette clique comme un visiteur clique.
+
+La règle : **rien de ce qui se trouve au-dessus d'un bouton n'a le droit de
+changer de hauteur pendant qu'on appuie dessus.**
