@@ -205,6 +205,13 @@ begin
              r.effectif_reference,
              jsonb_build_object(
                'du', t.du, 'au', t.au,
+               -- Le `brut` s'additionne d'un trimestre à l'autre ; le `retenu`,
+               -- non. L'écrêtage par format (`least(pts, brut - pts)`) porte sur
+               -- le total de la période : additionner quatre `retenu`
+               -- trimestriels ne redonne pas le `retenu` annuel, et c'est
+               -- normal. Le rapport le porte, plutôt que de laisser un client
+               -- découvrir l'écart en additionnant lui-même.
+               'retenu_additif', t.periode = 'annuel',
                'retenu', (select coalesce(sum(pb.retenu), 0)
                             from private.points_bruts(r.entreprise, r.saison, t.borne_du, t.borne_au) pb),
                'brut',   (select coalesce(sum(pb.brut), 0)
@@ -260,7 +267,10 @@ begin
       join public.entreprise e
         on (c.groupe is not null and e.groupe = c.groupe)
         or (c.groupe is null and e.id = c.entreprise)
-      join public.etablissement et on et.societe = e.id
+      -- Un site fermé ne reçoit pas de relance : son référent est parti et son
+      -- siège recevrait deux courriels par campagne pour un lieu qui n'existe
+      -- plus.
+      join public.etablissement et on et.societe = e.id and et.ferme_le is null
      cross join rappels r
      where c.close_le is null
        and current_date >= c.echeance - r.jour

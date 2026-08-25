@@ -149,7 +149,24 @@ export function modal(titre, corps, actions = []){
   const bar = h(`<div class="row" style="justify-content:flex-end;margin-top:var(--s8)"></div>`);
   actions.forEach(a => {
     const b = h(`<button class="btn ${a.classe || "btn--ghost"}">${esc(a.label)}</button>`);
-    b.onclick = () => { const r = a.onClick?.(md); if (r !== false) ov.remove(); };
+    /* `await`, et pas seulement pour la propreté. En production, une écriture
+       est un aller-retour : les gestionnaires sont devenus `async`, et une
+       fonction `async` rend une PROMESSE — jamais `false`. La fenêtre se
+       fermait donc immédiatement, avant que l'écriture soit revenue, et le
+       code d'invitation qu'elle allait afficher — le seul moment où il est
+       lisible, la base n'en garde qu'une empreinte — était écrit dans un nœud
+       déjà détaché du document. Il était perdu pour de bon.
+
+       Le bouton se désactive pendant l'attente : sans cela, deux clics
+       impatients créent deux liens, et le premier est révoqué par le second. */
+    b.onclick = async () => {
+      if (b.disabled) return;
+      b.disabled = true;
+      try {
+        const r = await a.onClick?.(md);
+        if (r !== false) ov.remove();
+      } finally { b.disabled = false; }
+    };
     bar.appendChild(b);
   });
   md.appendChild(bar);

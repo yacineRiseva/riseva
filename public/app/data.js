@@ -6474,9 +6474,17 @@ const versEtat = {
        bas, une fois les abonnements lus. */
     sieges: r.effectif, ca: r.ca ? Number(r.ca) : null,
     cout_jour_moyen: r.cout_jour_moyen ? Number(r.cout_jour_moyen) : null,
-    cout_heure_charge: r.cout_heure_charge ? Number(r.cout_heure_charge) : null,
-    exercice_debut: r.exercice_debut || null, exercice_fin: r.exercice_fin || null,
-    dons_hors_riseva: r.dons_hors_riseva ?? null, report_anterieur: r.report_anterieur ?? null,
+    /* Cinq colonnes qui n'existent dans AUCUN fichier du schéma : le coût
+       horaire chargé, les bornes d'exercice, les dons faits hors Riseva et le
+       report antérieur de mécénat. Elles étaient lues, valaient toujours `null`,
+       et les écrans basculaient en silence sur une estimation. Le jeu de
+       démonstration les porte, la base non : c'est un chantier ouvert, pas une
+       donnée perdue. On le dit ici plutôt que de laisser croire au contraire.
+       Tant que la base ne les porte pas, l'écran de mécénat estime, et il le
+       dit déjà. */
+    cout_heure_charge: null,
+    exercice_debut: null, exercice_fin: null,
+    dons_hors_riseva: null, report_anterieur: null,
     siren: r.siren, siret: r.siret, adresse: r.adresse,
     lat: r.lat, lon: r.lon, groupe: r.groupe || null,
     /* Renseigné plus bas depuis `mes_domaines()` : la liste vit dans le schéma
@@ -6669,6 +6677,12 @@ async function chargerEtat(client){
        normal pour un salarié sur `abonnement`. On rend une liste vide, et le
        moteur dérive ce qu'il peut. Toute autre erreur remonte. */
     if (error && !/permission|denied|not exist/i.test(error.message || "")) throw error;
+    /* Un refus avalé reste un refus. Il est légitime — un salarié n'a rien à
+       lire sur `abonnement` — mais il l'était aussi quand `select=*` butait sur
+       un droit COLONNE et vidait six tables pour tout le monde. Un `[]` ne
+       ressemble pas à une panne ; on le trace, pour que la prochaine fois se
+       voie dans la console plutôt que six mois plus tard. */
+    if (error) console.warn(`Riseva : lecture de « ${nom} » refusée (${error.message}).`);
     return data || [];
   };
 
@@ -6679,12 +6693,40 @@ async function chargerEtat(client){
          abonnements, factures, preinscriptions, reglagesAsso,
          reglagesProfil, piecesJointes,
          envois, expeditions, sourcing, sieges, rapportsBase] = await Promise.all([
-    lire("saison"), lire("bareme"), lire("entreprise"), lire("groupe"),
-    lire("etablissement"), lire("association"), lire("annonce"), lire("mission"),
-    lire("profil"), lire("invitation"), lire("campagne_indicateurs"),
-    lire("observation_indicateur"), lire("acces"), lire("signalement"),
+    /* SIX tables n'ont que des droits COLONNE, jamais un droit de table : ce
+       sont celles qui portent une donnée qu'un salarié n'a pas à lire — le
+       chiffre d'affaires, l'empreinte d'une invitation, les circonstances d'un
+       accident. PostgREST traduit `select=*` en `SELECT tbl.*`, qui exige le
+       droit sur TOUTES les colonnes : la requête était donc refusée en bloc, le
+       filtre d'erreur avalait le refus, et l'application recevait une liste
+       vide. En production, `entreprise`, `profil`, `invitation`, `acces`,
+       `association` et `evenement_securite` étaient VIDES pour tout le monde —
+       et un `[]` ne ressemble pas à une panne, il ressemble à une base neuve.
+       On énumère donc, et la liste doit rester identique à celle de 03_rls.sql. */
+    lire("saison"), lire("bareme"),
+    lire("entreprise", "id, nom, secteur, ville, effectif, ca, cout_jour_moyen, "
+                     + "siren, siret, adresse, lat, lon, groupe, visibilite, logo, "
+                     + "objectif_mobilises"),
+    lire("groupe"),
+    lire("etablissement"),
+    lire("association", "id, nom, nom_juridique, rna, siren, cause, ville, resume, adresse, "
+                      + "lat, lon, site, photo, valide, suspendue, verifiee_le, a_reverifier_le, "
+                      + "eligible_mecenat, helloasso, helloasso_slug, helloasso_lie_le, "
+                      + "iban, bic, titulaire_compte, cree_le"),
+    lire("annonce"), lire("mission"),
+    lire("profil", "id, nom"),
+    lire("invitation", "id, entreprise, etablissement, pour_referent, pour_cse, "
+                     + "destinataire_nom, destinataire_mail, indice, places, active, "
+                     + "cree_le, expire_le"),
+    lire("campagne_indicateurs"),
+    lire("observation_indicateur"),
+    lire("acces", "id, entreprise, profil, quoi, indice, cree_le"),
+    lire("signalement"),
     lire("intention_don"), lire("controle_association"),
-    lire("evenement_securite"), lire("action_corrective"),
+    lire("evenement_securite", "id, etablissement, date, nature, gravite, type_evenement, "
+                             + "zone, jours_arret, circonstances, declare_le, annule_le, "
+                             + "motif_annulation"),
+    lire("action_corrective"),
     /* Trois tables qui n'etaient jamais lues : l'ecran « Abonnement » d'un
        client etait donc vide en production, et l'ecran « Preinscriptions » de
        Riseva aussi. Elles existaient en base ; personne n'allait les chercher. */

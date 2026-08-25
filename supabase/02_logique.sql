@@ -357,6 +357,11 @@ $$;
 -- d'un seul site — qui révoquait au passage le lien collectif de toute
 -- l'entreprise. Un référent de site, lui, se voyait répondre « Réservé à
 -- l'administrateur » : la fonctionnalité n'existait pas côté serveur.
+-- La signature change : sans ce `drop`, `create or replace` LAISSE l'ancienne
+-- en place sur une base deja deployee, et tout appel positionnel devient
+-- ambigu — « function is not unique ». Une migration qui ne se rejoue pas sur
+-- une base existante n'est pas une migration.
+drop function if exists public.creer_invitation(integer, integer);
 create or replace function public.creer_invitation(
   p_places integer, p_jours integer default 60, p_etablissement uuid default null)
 returns text
@@ -968,6 +973,7 @@ end $$;
 
 -- Une seule porte d'entrée. L'adresse vient de `auth.users`, jamais d'un
 -- paramètre : sinon il suffit de prétendre s'appeler quelqu'un@client.fr.
+drop function if exists public.rejoindre_entreprise(text);
 create or replace function public.rejoindre_entreprise(p_code text, p_nom text default null)
 returns uuid
 language plpgsql security definer set search_path = '' as $$
@@ -1068,21 +1074,44 @@ begin
   -- jete faute d'un parametre pour le recevoir : le salarie apparaissait a ses
   -- collegues et dans les rapports sous « jean.dupont ». Le repli reste le
   -- debut de l'adresse, jamais rien.
+  -- `profil.nom` est `not null` avec `length between 1 and 160` : la garde
+  -- « nom is null or nom = '' » ne pouvait JAMAIS etre vraie, et le nom saisi au
+  -- formulaire etait donc jete des que la ligne existait deja. On n'ecrase que
+  -- le nom de repli — le debut de l'adresse — qui n'a jamais ete saisi par
+  -- personne, et jamais un nom que quelqu'un a ecrit.
   insert into public.profil (id, nom)
   values (v_uid, coalesce(nullif(left(btrim(coalesce(p_nom, '')), 160), ''),
                           split_part(v_email, '@', 1)))
     on conflict (id) do update set nom = excluded.nom
-   where public.profil.nom is null or public.profil.nom = '';
+   where public.profil.nom = split_part(v_email, '@', 1);
   -- Le rôle est imposé ici. Le client ne le propose même pas.
   -- Le site du lien devient le site du salarie. Sans cela, un lien cree par le
   -- referent de Marseille rattachait ses recrues a personne, et le siege devait
   -- confirmer un a un des rattachements qu'il ne connaissait pas.
+  --
+  -- `do nothing` laissait un revenant — parti, puis re-inscrit — avec son
+  -- appartenance eteinte : `actif = false`, `pseudonymise = true`. `mon_profil()`
+  -- ne rendait rien, et l'application s'ouvrait sur du blanc pour quelqu'un qui
+  -- venait pourtant de recreer son compte. Revenir, c'est redevenir actif.
   insert into private.appartenance (profil, role, entreprise, etablissement)
   values (v_uid, 'salarie', v_inv.entreprise, v_inv.etablissement)
-    on conflict (profil) do nothing;
+    on conflict (profil) do update
+       set role = 'salarie', entreprise = excluded.entreprise,
+           etablissement = excluded.etablissement,
+           actif = true, pseudonymise = false, retire_le = null, maj_le = now()
+     where private.appartenance.entreprise = excluded.entreprise
+       and not private.appartenance.actif;
 
+  -- Le siege, lui, porte `unique (abonnement, profil)` : un revenant, ou
+  -- quelqu'un qui ouvre deux fois son propre lien, heurtait la contrainte et
+  -- recevait « duplicate key value violates unique constraint » en pleine page.
+  -- Une place liberee se reprend ; une place deja tenue ne se reprend pas deux
+  -- fois, et ce n'est pas une erreur.
   insert into public.affectation_siege (abonnement, numero, profil, invitation)
-  values (v_abo.id, v_num, v_uid, v_inv.id);
+  values (v_abo.id, v_num, v_uid, v_inv.id)
+  on conflict (abonnement, profil) do update
+     set liberee_le = null, invitation = excluded.invitation
+   where public.affectation_siege.liberee_le is not null;
 
   insert into public.acces (entreprise, profil, quoi, indice)
   values (v_inv.entreprise, v_uid, 'inscription', v_inv.indice);
@@ -2984,7 +3013,10 @@ begin
   select p_campagne, et.id, 'clos_sans_reponse', '{}'::jsonb
     from public.etablissement et
     join public.entreprise e on e.id = et.societe
-   where ((v_c.groupe is not null and e.groupe = v_c.groupe)
+   -- Un site fermé n'a pas « omis de répondre » : il n'existait plus. L'inscrire
+   -- comme silencieux ferait porter au rapport un manque qui n'en est pas un.
+   where et.ferme_le is null
+     and ((v_c.groupe is not null and e.groupe = v_c.groupe)
           or (v_c.groupe is null and e.id = v_c.entreprise))
      and not exists (select 1 from public.observation_indicateur o
                       where o.campagne = p_campagne and o.etablissement = et.id);

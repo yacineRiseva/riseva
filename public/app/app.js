@@ -576,7 +576,7 @@ function tableauEntreprise(u){
   if (aValider.length) aAttendre.push({ texte:
     `${aValider.length} mission${aValider.length > 1 ? "s" : ""} en attente de confirmation par l'association`,
     vers:"#/missions" });
-  const aDeclarer = ms.filter(m => m.etat === "engagee" && m.date < "2026-08-20");
+  const aDeclarer = ms.filter(m => m.etat === "engagee" && m.date < leJour());
   if (aDeclarer.length) aFaire.push({ texte:
     `${aDeclarer.length} mission${aDeclarer.length > 1 ? "s" : ""} passée${aDeclarer.length > 1 ? "s" : ""} que personne n'a déclarée${aDeclarer.length > 1 ? "s" : ""}`,
     vers:"#/missions", ton:"alerte" });
@@ -943,8 +943,8 @@ function tableauEntreprise(u){
     .filter(f => f.etat !== "payee")
     .sort((a, b) => String(a.echeance).localeCompare(String(b.echeance)))[0];
   if (prochaine) dates.push({ quand: prochaine.echeance, quoi: esc(prochaine.libelle),
-    detail: `${eur(prochaine.montant)}${prochaine.echeance < "2026-08-20" ? ", échéance dépassée" : ""}`,
-    vers: "#/abonnement", ton: prochaine.echeance < "2026-08-20" ? "alerte" : "info" });
+    detail: `${eur(prochaine.montant)}${prochaine.echeance < leJour() ? ", échéance dépassée" : ""}`,
+    vers: "#/abonnement", ton: prochaine.echeance < leJour() ? "alerte" : "info" });
   dates.push({ quand: DB.saison().fin, quoi: "Clôture de la saison",
     detail: jFin > 0 ? `${nb(jFin)} jours, puis le rapport annuel se génère`
                      : "la saison est close",
@@ -2554,7 +2554,7 @@ function vueAbonnement(u){
 
   const tb = el.querySelector("tbody");
   c.factures.forEach(fa => {
-    const enRetard = fa.etat !== "payee" && fa.echeance < "2026-08-20";
+    const enRetard = fa.etat !== "payee" && fa.echeance < leJour();
     const cle = enRetard ? "en_retard" : fa.etat;
     const ttc = Math.round(fa.montant * (1 + FACTURATION.tva));
     const tr = h(`<tr>
@@ -4049,7 +4049,7 @@ function vueAdminAssos(){
       <a href="/associations.html" target="_blank">riseva.fr/associations</a>, et se présentent
       ici dès qu'un compte est ouvert.</td></tr>`));
   DB.associations().forEach(a => {
-    const retard = a.valide && a.a_reverifier_le && a.a_reverifier_le < "2026-08-20";
+    const retard = a.valide && a.a_reverifier_le && a.a_reverifier_le < leJour();
     const etat = a.suspendue ? ["Suspendue", "badge--danger"]
                : !a.valide   ? ["En attente", "badge--warn"]
                : retard      ? ["À revérifier", "badge--warn"]
@@ -7277,7 +7277,7 @@ function vueSecurite(u){
     </tr></thead><tbody></tbody></table></div>`);
     acts.forEach(a => {
       const et = DB.etablissement(a.etablissement) || {};
-      const tard = ["a_faire", "en_cours"].includes(a.etat) && a.echeance < "2026-08-20";
+      const tard = ["a_faire", "en_cours"].includes(a.etat) && a.echeance < leJour();
       const tr = h(`<tr>
         <td>${esc(a.quoi)}</td>
         <td class="muted">${esc(et.nom || "")}</td>
@@ -7372,7 +7372,7 @@ function formEvenement(u, sites, monSite){
           ${sites.map(x => `<option value="${x.id}"${x.id === monSite ? " selected" : ""}>${esc(x.nom)}, ${esc(x.ville || "")}</option>`).join("")}
         </select></div>
       <div class="field" style="flex:1"><label for="ev-date">Date de l'événement</label>
-        <input class="input" type="date" id="ev-date" max="2026-08-20" value="2026-08-20"></div>
+        <input class="input" type="date" id="ev-date" max="${leJour()}" value="${leJour()}"></div>
     </div>
     <div class="row" style="--gap:var(--s4);align-items:stretch">
       <div class="field" style="flex:1"><label for="ev-nature">Nature</label>
@@ -8085,7 +8085,14 @@ function tableauSite(u){
   });
   el.querySelector("#newLien")?.addEventListener("click", async () => {
     try {
-      const code = await DB.creerInvitation(u.org, et.quota || 1, et.id);
+      /* `et.quota || 1` faisait d'un site sans quota alloué un lien à UNE
+         place : le deuxième salarié lisait « ce lien a ouvert toutes les places
+         qu'il promettait ». Un quota nul veut dire « pas de plafond de site » —
+         c'est ce que dit le serveur — donc on retombe sur ce qui reste au
+         contrat, à défaut sur l'effectif du site. */
+      const si = DB.sieges(u.org);
+      const places = et.quota || si.restants || et.effectif || 1;
+      const code = await DB.creerInvitation(u.org, places, et.id);
       retenirCode(cleCode(u.org, et.id), code);
       toast("Lien créé. Copiez-le maintenant : il ne s'affichera plus.");
     } catch (e){ toast(e.message || "Le lien n'a pas pu être créé."); }
@@ -9702,7 +9709,7 @@ function oublierDemande(){
 
 /* Ouvrir le compte décrit par `d`, si la session le permet. Rend `true` quand
    l'écran a été pris en main (compte ouvert, ou lien envoyé). */
-async function ouvrirCompte(d){
+async function ouvrirCompte(d, { envoyer = false } = {}){
   const creer = () => d.type === "entreprise"
     ? DB.creerCompteEntreprise({ entreprise:d.entreprise, effectif:d.effectif,
         nom:d.nom, email:d.mail, secteur:d.secteur, ville:d.ville })
@@ -9736,8 +9743,24 @@ async function ouvrirCompte(d){
       toast("Votre navigateur empêche l'ouverture directe du compte. Écrivez-nous à bonjour@riseva.fr.");
       return false;
     }
+    /* On n'envoie le lien QUE sur un geste. Le dépôt reste en place tant que le
+       compte n'est pas ouvert, et `reprendreDemande()` repasse à chaque
+       ouverture de l'application : envoyer ici sans condition faisait partir un
+       courriel à CHAQUE rechargement de la page tant que la personne n'avait
+       pas cliqué. Au bout d'une minute, Supabase répond par son quota, et son
+       message de refus devenait le texte de l'écran de connexion. */
+    if (!envoyer){
+      annonceConnexion = { mail: d.mail, texte:
+        "Un lien de connexion vous attend à " + d.mail + ". Ouvrez-le et votre compte "
+        + "s'ouvrira avec ce que vous nous avez dit. Besoin d'un nouveau lien ? "
+        + "Demandez-le ci-dessous avec cette même adresse." };
+      setSession(null); rendre();
+      return true;
+    }
     try {
       await envoyerLienConnexion(d.mail, { retour: location.origin + "/app/" });
+      d.lienEnvoye = leJour();
+      deposerDemande(d);
       annonceConnexion = { mail: d.mail, texte:
         "Nous avons envoyé un lien à " + d.mail + ". Ouvrez-le depuis cet appareil : "
         + "votre compte s'ouvrira tout seul avec ce que vous venez de nous dire." };
@@ -9782,7 +9805,7 @@ async function ouvrirCompte(d){
    fenêtre modale ouverte quand rien n'a abouti. */
 async function lancerOuverture(d){
   deposerDemande(d);
-  const pris = await ouvrirCompte(d);
+  const pris = await ouvrirCompte(d, { envoyer: true });
   return pris ? undefined : false;
 }
 
@@ -9790,7 +9813,10 @@ async function lancerOuverture(d){
 async function reprendreDemande(){
   const d = demandeEnAttente();
   if (!d) return false;
-  return await ouvrirCompte(d);
+  /* Un dépôt qui vient de la vitrine n'a encore reçu aucun lien : c'est ici, et
+     une seule fois, qu'il part. Un dépôt déjà servi attend simplement qu'on
+     ouvre le courriel. */
+  return await ouvrirCompte(d, { envoyer: !d.lienEnvoye });
 }
 
 (async () => {

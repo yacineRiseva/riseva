@@ -499,9 +499,24 @@ Durée : 20 minutes, plus quelques heures d'attente.
      fait apparaître le cadenas.
 
   6. Une fois le domaine actif, retournez dans Supabase, « Authentication »,
-     puis « URL Configuration », et mettez https://riseva.fr comme « Site URL ».
-     Sans ça, les liens de confirmation envoyés par courriel renverront vers la
-     mauvaise adresse.
+     puis « URL Configuration ». Il y a DEUX champs à remplir, et le second est
+     celui qu'on oublie.
+
+     a) « Site URL » : https://riseva.fr
+
+     b) « Redirect URLs » : ajoutez la ligne
+
+            https://riseva.fr/**
+
+        Les deux étoiles ne sont pas une faute de frappe : elles veulent dire
+        « n'importe quelle page du site ». Sans cette ligne, Supabase refuse de
+        renvoyer les gens ailleurs que sur la page d'accueil — et le lien
+        d'inscription d'un salarié, qui doit le ramener sur
+        `/rejoindre.html?code=...`, perdrait son code en route. Il arriverait
+        sur la vitrine, sans compte, et sans comprendre pourquoi.
+
+     Si vous testez d'abord sur l'adresse en `.vercel.app` que Vercel vous a
+     donnée, ajoutez-la aussi, de la même façon, avec `/**` à la fin.
 
 
 ================================================================================
