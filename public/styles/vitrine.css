@@ -2087,7 +2087,20 @@ section{
    d'écran d'application reste lisible. Deux colonnes divisent la taille du
    texte par deux, et une capture qu'on ne peut pas lire est une image
    décorative de plus — exactement ce qu'on vient de retirer. */
-.duo--pile{grid-template-columns:1fr;gap:clamp(20px,2.4vw,32px);}
+/* Les deux ecrans du salarie : meme largeur, meme hauteur, memes coins. Ils
+   etaient en quinconce parce que chaque capture gardait sa proportion propre ;
+   deux images de tailles differentes posees cote a cote ne se lisent pas comme
+   deux ecrans du meme produit, elles se lisent comme un defaut. */
+.duo--pile{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:clamp(20px,2.4vw,32px); align-items:stretch;
+}
+.duo--pile .shot{margin:0; height:100%;}
+.duo--pile .shot img{
+  width:100%; height:clamp(220px,24vw,340px);
+  object-fit:cover; object-position:top left;
+}
+@media (max-width:820px){ .duo--pile{grid-template-columns:1fr;} }
 .duo--texte{gap:clamp(28px,3.6vw,52px);align-items:start;}
 .duo--texte .col > h3{
   font-size:clamp(19px,1.5vw,23px);font-weight:600;letter-spacing:-.012em;
@@ -2816,7 +2829,11 @@ body{
   width:min(1120px,88vw);margin-inline:auto;
   z-index:3;
 }
-.vd #saison{padding-top:clamp(170px,14vw,220px);}
+/* La scene qui debordait sur la section suivante a ete retiree du premier ecran
+   avec le reste : elle concurrencait la section de verre, qui est ce qu'on veut
+   faire regarder. La regle de compensation qui lui repondait n'a donc plus
+   d'objet, et laisser deux cents pixels de vide en haut de la section de verre
+   serait exactement le genre de blanc que la relecture reproche. */
 @supports (animation-timeline: view()){
   @media (prefers-reduced-motion:no-preference) and (min-width:900px){
     /* Onze degres etaient trop : a cet angle la capture n'est plus lisible au
@@ -2833,6 +2850,18 @@ body{
 /* ── l'asymetrie ────────────────────────────────────────────────────────────
    Deux objets sur cinq sortent de la colonne. Ce n'est pas un effet : c'est ce
    qui empeche la page de ressembler a une pile. */
+/* Une photo de section est PLEINE LARGEUR ou elle n'est pas. Le decalage a
+   gauche etait une coquetterie de composition ; a l'ecran, pose au-dessus de
+   deux captures alignees, il se lit comme un defaut d'alignement, et c'est ce
+   que la relecture a vu en premier. */
+.vd .photo--pleine{
+  width:100%; margin:clamp(30px,3.4vw,48px) 0;
+  border-radius:var(--r-lg);
+}
+.vd .photo--pleine img{
+  max-height:clamp(260px,30vw,440px); object-fit:cover; object-position:center 55%;
+}
+
 .vd .photo--large-gauche{
   width:min(72%,860px);margin:clamp(30px,3.4vw,48px) 0;
   margin-left:clamp(-40px,-2.6vw,-16px);
@@ -3253,28 +3282,33 @@ body{
   margin:clamp(34px,4.4vw,66px) 0 clamp(6px,1vw,16px);
 }
 .piliers .pil{
-  display:grid;grid-template-rows:auto auto auto 1fr;gap:8px;
+  display:grid;grid-template-rows:auto auto 1fr;gap:10px;
   border-top:1px solid var(--line);padding-top:14px;
   color:inherit;text-decoration:none;
   transition:border-color .22s ease, transform .22s ease;
 }
-.piliers .pil:first-child{border-top-color:var(--ink);}
+/* Le premier pilier portait un trait sombre en permanence. L'intention etait
+   d'en designer un ; l'effet etait qu'on croyait le survoler, et que le survol
+   des trois autres ne se voyait plus par comparaison. Quatre traits clairs, et
+   un seul s'assombrit : celui qu'on survole. */
 .piliers .pil:hover,.piliers .pil:focus-visible{
   border-top-color:var(--ink);transform:translateY(-2px);
 }
-.pil-n{font-size:12px;letter-spacing:.14em;color:var(--faint);}
+/* Le numero a disparu : quatre numeros devant quatre titres, dans un bloc qui
+   n'est pas une procedure, c'est du bruit. */
 .pil-k{
   font-size:12px;letter-spacing:.14em;text-transform:uppercase;
   color:var(--brand-800);
 }
 .pil-h{
   font-family:var(--f-disp);
-  font-size:clamp(17px,1.42vw,22px);line-height:1.18;letter-spacing:-.02em;
+  font-size:clamp(20px,1.9vw,28px);line-height:1.14;letter-spacing:-.024em;
   font-weight:600;color:var(--ink);
 }
+.pil-h .it{font-style:italic;color:var(--brand-800);}
 .pil-p{
-  font-size:clamp(14px,1vw,15.5px);line-height:1.55;color:var(--ink-soft);
-  align-self:start;
+  font-size:clamp(16px,1.15vw,18px);line-height:1.5;color:var(--ink-soft);
+  align-self:start;max-width:30ch;
 }
 /* Le soulignement n'apparaît qu'au survol, et seulement sous le titre : un lien
    de bloc souligné en permanence transforme quatre paragraphes en quatre liens
@@ -4155,3 +4189,173 @@ body{
     transform:none; transition:none;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   QUATRIEME PASSE · LE TEST DE LA LECTURE EN DIAGONALE
+
+   Le verdict du client, et il est sans appel : « la personne qui va ouvrir ca
+   n'a pas forcement le temps de tout lire, on prospecte, il faut vendre le
+   produit le plus rapidement possible. La tu ne passes pas le test de la
+   lecture en diagonale, il y a trop de textes, la personne va passer tout le
+   long et elle ne comprendra pas votre produit. »
+
+   Trois regles en sont sorties, et elles gouvernent tout ce bloc.
+
+   UN. Le corps de texte commercial ne descend pas sous dix-huit pixels. Les
+   seuls quatorze ou quinze pixels autorises sont les metadonnees d'une maquette
+   d'interface : une legende de capture, un libelle de colonne. Jamais un
+   argument de vente.
+
+   DEUX. Un paragraphe fait cent quatre-vingts signes au maximum, deux a trois
+   lignes. Deux paragraphes de suite dans une section commerciale sont deja le
+   signal qu'il faut couper.
+
+   TROIS. Un paragraphe supprime n'est pas remplace par un autre paragraphe plus
+   court : il est remplace par UNE chose, un nombre, une image, ou trois
+   formulations de trois mots. Jamais par une petite carte de plus.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── le corps de texte, remonte ─────────────────────────────────────────── */
+.vd .s-note, .vd .doc-accroche,
+.vd .benef li span, .vd .fx-p, .vd .trois li{
+  font-size:clamp(17px,1.28vw,19px); line-height:1.6;
+}
+.vd .s-note--grand{
+  font-size:clamp(18px,1.5vw,22px); line-height:1.55; max-width:44ch;
+  margin-top:clamp(24px,2.8vw,36px);
+}
+.vd .doc-accroche{
+  font-size:clamp(18px,1.6vw,23px); line-height:1.5; max-width:40ch;
+}
+
+/* ── trois benefices, a la place de quatre explications ─────────────────── */
+/* Ce que ce bloc remplace : quatre etapes numerotees, chacune avec un titre en
+   deux lignes et un paragraphe de trois cents signes. C'etait exact et personne
+   ne le lisait. Trois affirmations de six mots, chacune avec une phrase
+   dessous, se lisent en deux secondes et disent la meme chose. */
+.vd .benef{
+  list-style:none; margin:clamp(30px,3.6vw,52px) 0 0; padding:0;
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:clamp(20px,2.6vw,40px);
+}
+.vd .benef li{
+  display:grid; gap:10px; align-content:start;
+  border-top:2px solid var(--ink); padding-top:16px;
+}
+.vd .benef b{
+  font-family:var(--f-disp); font-weight:600;
+  font-size:clamp(20px,1.8vw,26px); line-height:1.2; letter-spacing:-.018em;
+  color:var(--ink);
+}
+.vd .benef span{ color:var(--ink-soft); max-width:34ch; }
+@media (max-width:880px){ .vd .benef{grid-template-columns:1fr; gap:24px;} }
+
+/* ── le challenge : une photographie, et un panneau de verre dessus ─────── */
+/* C'est la seule image pleine largeur de la page, et c'est voulu : le challenge
+   est la partie du produit qu'aucune capture d'ecran ne peut montrer. Le
+   panneau de verre y trouve son emploi le plus juste, celui pour lequel le
+   materiau existe : poser du texte lisible sur une photographie sans la
+   masquer. */
+.chal{
+  position:relative; isolation:isolate; overflow:hidden;
+  padding:clamp(70px,8vw,130px) var(--gut);
+  background:var(--forest-900);
+}
+.chal-fond{ position:absolute; inset:0; z-index:0; }
+.chal-fond img{
+  width:100%; height:100%; object-fit:cover; object-position:center 52%;
+  display:block;
+}
+/* Le voile. Sans lui, un texte clair pose sur une photographie ensoleillee
+   tombe sous le seuil de contraste des qu'un nuage clair passe derriere une
+   lettre. Il est dirige : dense a gauche, ou est le texte, transparent a
+   droite, ou l'image doit rester une image. */
+.chal-fond::after{
+  content:''; position:absolute; inset:0;
+  background:
+    linear-gradient(100deg, rgba(11,38,32,.94) 0%, rgba(11,38,32,.78) 42%,
+                    rgba(11,38,32,.42) 72%, rgba(11,38,32,.30) 100%),
+    linear-gradient(rgba(11,38,32,.30), rgba(11,38,32,.30));
+}
+.chal > .layer{ position:relative; z-index:1; }
+.chal-verre{
+  margin:0; max-width:min(760px, 92%);
+  padding:clamp(28px,3.4vw,48px);
+}
+.chal-tete .eyebrow{ color:var(--lime); }
+.chal-verre h2{
+  margin:10px 0 0; color:var(--paper-2);
+  font-family:var(--f-disp); font-weight:600;
+  font-size:clamp(30px,4.2vw,56px); line-height:1.06; letter-spacing:-.028em;
+}
+.chal-verre h2 .it{ font-style:italic; color:var(--moss); }
+.chal-p{
+  margin:clamp(14px,1.6vw,20px) 0 0; max-width:44ch;
+  color:rgba(242,240,233,.86);
+  font-size:clamp(17px,1.4vw,20px); line-height:1.55;
+}
+.chal-chiffres{
+  margin-top:clamp(22px,2.6vw,34px);
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+.chal-temps{
+  list-style:none; margin:clamp(22px,2.6vw,34px) 0 0; padding:0;
+  display:grid; gap:0;
+  border-top:1px solid rgba(242,240,233,.12);
+}
+.chal-temps li{
+  display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 16px;
+  padding:12px 0; border-bottom:1px solid rgba(242,240,233,.10);
+}
+.chal-temps b{
+  flex:0 0 clamp(120px,13vw,180px);
+  color:var(--lime); font-size:12.5px; letter-spacing:.06em; text-transform:uppercase;
+}
+.chal-temps span{
+  flex:1 1 240px; color:rgba(242,240,233,.88);
+  font-size:clamp(16px,1.25vw,18px); line-height:1.45;
+}
+@media (max-width:760px){
+  .chal-chiffres{ grid-template-columns:1fr; }
+  .chal-temps b{ flex:1 1 100%; }
+}
+
+/* ── la confirmation, dans une dalle de verre ───────────────────────────── */
+/* C'est le seul geste que l'association fait, et c'est celui dont depend tout
+   le chiffre du rapport. Il merite d'etre montre comme un objet, pas comme une
+   capture de plus posee sur le vert. */
+.asso-verre{
+  margin:clamp(30px,3.6vw,52px) 0 0;
+  padding:clamp(16px,1.8vw,26px);
+}
+.asso-verre .shot{ margin:0; }
+.asso-verre .shot img{ border-radius:12px; }
+.asso-verre figcaption{ color:rgba(242,240,233,.8); }
+
+/* ── l'echeance reglementaire, en une ligne ─────────────────────────────── */
+/* Elle tenait dans un bloc de quatre chiffres suivis de quatre paragraphes de
+   source. C'est le seul des quatre qui portait un argument de vente, et il en
+   porte un tres fort : ce n'est plus une echeance, c'est le droit en vigueur.
+   Une ligne, avec sa source dessous, et il se lit en diagonale. */
+.vd .s-note--loi{
+  margin-top:clamp(26px,3vw,40px);
+  padding-top:clamp(18px,2vw,26px);
+  border-top:1px solid var(--line);
+  max-width:72ch;
+  font-size:clamp(17px,1.35vw,20px); line-height:1.5;
+}
+.vd .s-note--loi .mono{
+  display:block; margin-top:8px;
+  font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint);
+}
+
+/* ── le prix, sous le bouton, en toutes lettres ─────────────────────────── */
+/* Il vivait dans une fiche de sept lignes que personne n'ouvrait, puis dans une
+   ligne de metadonnee grise de cinq lignes. Un acheteur demarche a froid pose
+   la question du prix en deuxieme, juste apres « c'est quoi » : elle merite le
+   corps de texte, pas la note de bas de page. */
+.vd .doc-prix{
+  margin:clamp(14px,1.6vw,20px) 0 0; max-width:46ch;
+  font-size:clamp(16px,1.2vw,18px); line-height:1.5; color:var(--ink-soft);
+}
+.vd .doc-prix b{ color:var(--ink); font-weight:600; }

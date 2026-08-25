@@ -790,8 +790,13 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
    qui doit atteindre les maquettes, est ecrite sur le panneau.
    ══════════════════════════════════════════════════════════════ */
 (function(){
-  var sect = document.querySelector('.verre-sect');
-  if(!sect) return;
+  /* Il y a maintenant plusieurs sections de verre sur la page : la console qui
+     presente la plateforme, et le panneau pose sur la photographie du
+     challenge. Chacune a son panneau, son calque de lumiere et sa geometrie ;
+     le bloc s'applique donc a chacune, sans rien partager entre elles. */
+  [].slice.call(document.querySelectorAll('.verre-sect')).forEach(monter);
+
+  function monter(sect){
 
   var panneau = sect.querySelector('.verre');
   var lumiere = sect.querySelector('.verre-lumiere');
@@ -888,4 +893,5 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
   sect.addEventListener('pointerleave', function(){
     sect.classList.remove('pointe');
   }, { passive:true });
+  }
 })();

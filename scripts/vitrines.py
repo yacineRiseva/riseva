@@ -406,17 +406,17 @@ def faq(items):
 # et meme chose.
 NAV_ENT = nav(
     [("outil-rse", "L'outil RSE"), ("challenge", "Le challenge"),
-     ("assos", "Les associations"), ("prix", "Le prix"), ("faq", "Questions")],
+     ("associations", "Les associations"), ("prix", "Le prix"), ("faq", "Questions")],
     "Ouvrir la démonstration", "/app/?demo=1", "Démonstration libre, sans rendez-vous")
 
 PIED_ENT = pied(
     "Riseva met des entreprises françaises au service des associations qui protègent "
     "le vivant, partout en France. Une saison, un barème public, un rapport qui tient debout.",
-    [("La saison", [("#saison", "Le déroulé"), ("#equipes", "Côté salariés"),
-                    ("#associations", "Côté associations"),
-                    ("#pilotage", "Ce que vous pilotez"), ("#outil", "L'outil RSE"),
+    [("La saison", [("#plateforme", "Ce que ça répond"), ("#outil-rse", "L'outil RSE"),
+                    ("#pilotage", "La preuve, écran par écran"),
+                    ("#challenge", "Le challenge"), ("#equipes", "Côté salariés"),
                     ("#affiches", "Les affiches"),
-                    ("#perimetres", "Groupes et périmètres"),
+                    ("#associations", "Côté associations"),
                     ("#prix", "Le prix")]),
      ("Les règles", [("/reglement.html", "Le règlement du barème"),
                      ("/engagements.html", "Engagements de service"),
@@ -578,7 +578,6 @@ def piliers(items):
         d = f" d{n}" if n else ""
         out += f"""
         <a class="pil rv{d}" href="#{ancre}">
-          <span class="pil-n mono">{n + 1:02d}</span>
           <span class="pil-k mono">{cle}</span>
           <span class="pil-h">{titre}</span>
           <span class="pil-p">{corps}</span>
@@ -618,19 +617,16 @@ def chiffres_hero():
     obtenu."""
     return f"""
     <ul class="chiffres chiffres--hero rv">
-      <li><b>60&nbsp;%</b><span>de réduction d'impôt sur les deux premiers millions d'euros de dons
-        de l'exercice, 40 % au-delà, dans la limite de 20 000 € ou de 5 pour mille du chiffre d'affaires
-        HT, la plus élevée des deux.<br><span class="mono">Article 238 bis du CGI</span></span></li>
-      <li><b>{CATALOGUE['rubriques']}&nbsp;rubriques</b><span>du social aux achats,
-        {CATALOGUE['saisis']} valeurs collectées et {CATALOGUE['calcules']} taux calculés avec
-        leur formule à côté du chiffre.<br><span class="mono">Catalogue de la
-        plateforme</span></span></li>
-      <li><b>1&nbsp;lien</b><span>à diffuser en interne. Chaque salarié ouvre son compte lui-même :
-        aucune liste à saisir, rien à installer.<br><span class="mono">Déploiement</span></span></li>
+      <li><b>60&nbsp;%</b><span>de réduction d'impôt sur vos dons, jusqu'à deux millions
+        d'euros.<br><span class="mono">Article 238 bis du CGI</span></span></li>
+      <li><b>{CATALOGUE['rubriques']}&nbsp;rubriques</b><span>{CATALOGUE['saisis']} valeurs,
+        {CATALOGUE['calcules']} taux, chacun avec sa formule.<br><span class="mono">Catalogue de
+        la plateforme</span></span></li>
+      <li><b>1&nbsp;lien</b><span>à diffuser. Chaque salarié ouvre son compte
+        lui-même.<br><span class="mono">Déploiement</span></span></li>
       <li><b>{EUR(TARIFS['paliers'][0]['prix']).replace('&nbsp;€', '')} à
-        {EUR(TARIFS['paliers'][-2]['prix'])}</b><span>HT la saison de douze mois, selon
-        l'effectif. Pas de facturation par salarié, pas de commission sur les
-        dons.<br><span class="mono">Grille publique, plus bas</span></span></li>
+        {EUR(TARIFS['paliers'][-2]['prix'])}</b><span>HT la saison, selon l'effectif. Rien
+        par salarié.<br><span class="mono">Grille publique, plus bas</span></span></li>
     </ul>"""
 
 
@@ -734,33 +730,41 @@ def flux(etapes_flux):
 # plateforme RSE annoncee complete promet le bilan carbone, l'index egalite et
 # la conformite CSRD — trois choses que Riseva ne fait pas et, pour deux
 # d'entre elles, n'a pas le droit de faire. On ecrit ce qu'elle fait.
+# Le premier ecran, refait apres le retour du client. Ce qu'il a dit, et il a
+# raison : « la personne qui va ouvrir ca n'a pas forcement le temps de tout
+# lire, il faut vendre le produit le plus rapidement possible avec une lecture
+# en diagonale ». L'ancien premier ecran demandait quatre blocs avant le premier
+# fait : une accroche, trois puces, une fiche de sept lignes, quatre piliers,
+# quatre chiffres avec leurs sources, et une grande capture. Six masses de texte
+# gris avant de comprendre ce que le produit EST.
+#
+# Il en reste trois : ce que c'est, ce que ca coute, et a quoi ca ressemble. Le
+# reste de la page le developpe pour celui qui ralentit.
 HERO_ENT = f"""<header class="hero hero--doc" id="hero">
   <div class="layer">
-    <p class="eyebrow mono">Plateforme RSE multi-sites, challenge d'un an,
-      associations du vivant</p>
-    <h1 class="h1 h1--doc h1--court">Votre RSE,<br>
-      <span class="it">sans service RSE dédié.</span></h1>
+    <p class="eyebrow mono">Plateforme RSE multi-sites, et un an de terrain avec vos équipes</p>
+    <h1 class="h1 h1--doc h1--court">Tous vos sites<br>dans un seul rapport.<br>
+      <span class="it">Et vos équipes sur le terrain.</span></h1>
 
     <div class="doc-tete doc-tete--apercu">
     <div class="doc-intro">
-      <p class="doc-accroche">Vos sites répondent, la plateforme relance, consolide et sort le
-        rapport. Et pendant ce temps, <b>un challenge d'un an</b> envoie vos équipes chez des
-        <b>associations vérifiées</b> près de chaque site : refuges, plantations, distributions
-        de repas. <b>Ce qu'elles font revient dans les mêmes chiffres.</b></p>
-      <ul class="hero-liste">
-        <li><b>Multi-sites.</b> Un groupe, ses sociétés, ses établissements. Chacun saisit,
-          le siège consolide.</li>
-        <li><b>Indicateurs.</b> Vous choisissez les rubriques, la plateforme calcule les taux
-          et garde la formule à côté du chiffre.</li>
-        <li><b>Preuves.</b> Chaque saisie de site porte qui l'a remplie, qui l'a approuvée
-          et les justificatifs joints.</li>
-      </ul>
+      <p class="doc-accroche">Chaque site saisit ses chiffres, la plateforme relance,
+        consolide et sort le rapport. Et pendant douze mois, vos équipes vont chez des
+        <b>associations vérifiées</b> près de chez elles : refuges, plantations,
+        distributions de repas.</p>
       <div class="hero-cta">
         <a class="btn btn-lg" href="#prix"><span class="dot"></span>Calculer mon tarif</a>
         <a class="tlink" href="/app/?demo=1">Explorer la plateforme</a>
       </div>
-      <p class="doc-micro mono">Démonstration libre. Aucun rendez-vous, aucune carte
-        bancaire.</p>
+      <p class="doc-prix">De <b>{EUR(TARIFS['paliers'][0]['prix'])}</b> à
+        <b>{EUR(TARIFS['paliers'][-2]['prix'])} HT</b> l'an selon l'effectif, au-delà sur devis
+        à partir de {EUR(TARIFS['paliers'][-1]['prix'])}. Challenge et outil RSE dans le même
+        abonnement, <b>sans module en supplément</b>.</p>
+      <p class="doc-micro mono">-10&nbsp;% pour les 20 premières entreprises.
+        <a class="tlink" href="/reglement.html">Le règlement de la saison</a>,
+        <a class="tlink" href="/cgv.html">les conditions de vente</a> et
+        <a class="tlink" href="/engagements.html">les engagements</a> sont lisibles avant de
+        signer.</p>
     </div>
 
     <figure class="apercu">
@@ -775,128 +779,79 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
     </figure>
     </div>
 
+    {piliers([
+      ("Le terrain", "Des associations<br><span class='it'>près de chaque site.</span>",
+       "Refuges animaliers, plantations, berges de rivière, à moins de trente kilomètres.",
+       "associations"),
+      ("Le collectif", "Un challenge d'un an<br><span class='it'>qui fédère les équipes.</span>",
+       "Un classement entre entreprises comparables, sans nommer la moitié basse.",
+       "challenge"),
+      ("L'outil RSE", "Huit rubriques,<br><span class='it'>vingt-sept valeurs.</span>",
+       "Dix taux calculés, chacun avec sa formule à côté du chiffre.", "outil-rse"),
+      ("La preuve", "Chaque chiffre<br><span class='it'>garde sa source.</span>",
+       "Sa date, la personne qui l'a saisie, celle qui l'a approuvée, ses pièces.",
+       "pilotage"),
+    ])}
+
     {chiffres_hero()}
 
-    <!-- Le premier ecran portait deux introductions a la suite : l'accroche du
-         haut, puis un paragraphe qui reformulait la meme promesse en plus long.
-         Le lecteur lisait deux fois la meme chose avant d'arriver au premier
-         fait. La fiche, elle, reste : elle ne raconte rien, elle enonce. -->
-    <div class="doc-tete doc-tete--fiche">
-    <dl class="fiche">
-      <div><dt class="mono">Saison</dt><dd>12 mois, sans reconduction tacite</dd></div>
-      <div><dt class="mono">Déploiement</dt><dd>un lien à diffuser, rien à installer</dd></div>
-      <div><dt class="mono">Périmètre</dt><dd>une entreprise, ou un groupe multi-sites</dd></div>
-      <div><dt class="mono">Ce qui est compris</dt><dd>le challenge et l'<b>outil RSE</b> dans
-        le même abonnement, <b>sans module en supplément</b> : collecte, relances,
-        consolidation, rapports, fiche VSME et dossier de mécénat</dd></div>
-      <div><dt class="mono">Tarif</dt><dd>de <b>{EUR(TARIFS['paliers'][0]['prix'])} à
-        {EUR(TARIFS['paliers'][-2]['prix'])} HT</b> l'an selon l'effectif, d'un à
-        {TARIFS['paliers'][-2]['sites']} sites compris selon la tranche. Au-delà de deux mille salariés, sur devis à partir de
-        {EUR(TARIFS['paliers'][-1]['prix'])}. Pas de facturation par salarié, pas de commission
-        sur les dons.</dd></div>
-      <div><dt class="mono">Lancement</dt><dd>-10 % pour les 20 premières entreprises,
-        sur leur première saison</dd></div>
-      <div><dt class="mono">Le dossier</dt><dd><a href="/reglement.html">le règlement de la
-        saison</a>, <a href="/cgv.html">les conditions de vente</a> et
-        <a href="/engagements.html">les engagements de service</a>, lisibles avant de
-        signer</dd></div>
-    </dl>
-    </div>
-
-    {piliers([
-      ("Le terrain", "Des associations enregistrées<br><span class='it'>près de chaque site.</span>",
-       "Refuges animaliers, plantations, berges de rivière, distributions de repas. Des "
-       "demi-journées réelles, pour quelqu'un d'autre, avec un résultat visible le soir même. "
-       "Riseva vérifie l'enregistrement administratif de chaque structure avant de la rendre "
-       "visible ; elle ne l'audite pas.", "associations"),
-      ("Le collectif", "Un challenge d'un an<br><span class='it'>qui fédère les équipes.</span>",
-       "Un objectif compté en personnes et non en points : il ne s'atteint qu'en allant "
-       "chercher quelqu'un qui n'est pas encore venu. Le classement situe les entreprises "
-       "entre elles sans nommer la moitié basse.", "equipes"),
-      ("L'outil RSE", "Huit rubriques,<br><span class='it'>vingt-sept valeurs, dix taux.</span>",
-       "Effectifs, sécurité, formation, diversité, énergie et eau, déchets, mobilité, achats. "
-       "Collectés site par site, calculés avec leur formule à côté du chiffre, rendus en "
-       "classeur et en CSV. Registre de sécurité, fiche VSME et accès CSE compris.", "outil"),
-      ("La preuve", "Chaque chiffre<br><span class='it'>garde sa source.</span>",
-       "Les sites saisissent leurs valeurs, les associations confirment les missions, Riseva "
-       "additionne et restitue. Chaque ligne porte sa date, son auteur et sa méthode : c'est "
-       "la pièce qu'on vous demande en appel d'offres.", "pilotage"),
-    ])}
-
-    {chiffres([
-      ("21 août 2026", "la date à partir de laquelle les consultations engagées sous le code "
-        "de la commande publique doivent retenir au moins un critère prenant en compte les "
-        "caractéristiques environnementales de l'offre, sous réserve des exclusions prévues "
-        "par le code.",
-        "Loi Climat et résilience, art. 35 ; code de la commande publique, art. L. 2152-7 ; "
-        "décret n° 2022-767 du 2 mai 2022"),
-      ("60 %", "de réduction d'impôt sur les deux premiers millions d'euros de dons de "
-        "l'exercice, 40 % au-delà, dans la limite de 20 000 € ou de 5 pour mille du chiffre d'affaires "
-        "HT, la plus élevée des deux. L'excédent est reportable sur cinq exercices.",
-        "Article 238 bis du CGI"),
-      ("14 j", "le délai au bout duquel une mission sans réponse est clôturée, avec son "
-        "résultat marqué comme estimé partout où il apparaît. C'est notre engagement, et il "
-        "ne dépend que de nous.", None),
-      ("0 €", "de commission sur les dons, et rien de facturé aux associations. Le paiement "
-        "va de la carte du donateur au compte de l'association, sans passer par Riseva.", None),
-    ])}
-
-    <div class="scene">
-    {capture("admin-tableau",
-             "Le tableau de bord d'un responsable RSE dans Riseva : indicateurs de la saison, "
-             "résultats confirmés par les associations, et comparaison entre sites",
-             "Tableau de bord", " shot--large", eager=True)}
-    </div>
+    <p class="s-note s-note--loi rv">Depuis le <b>21 août 2026</b>, toute nouvelle
+      consultation engagée sous le code de la commande publique doit retenir au moins un
+      critère prenant en compte les caractéristiques environnementales de l'offre, sous
+      réserve des exclusions prévues par le code.
+      <span class="mono">Loi Climat et résilience, art. 35 ; code de la commande publique,
+      art. L. 2152-7 ; décret n° 2022-767 du 2 mai 2022</span></p>
   </div>
 </header>"""
 
 
-SAISON_ENT = f"""<section id="saison" class="band">
+# ── le challenge ────────────────────────────────────────────────────────────
+# Refait apres le retour du client. Ce qu'il y avait avant : deux sections
+# blanches a la suite, « une saison, quatre rendez-vous » et « ce que vos
+# salaries voient », soit deux titres, deux questions frequentes, quatre
+# paragraphes d'etapes et trois petits textes de bas de page. En lecture
+# diagonale, cela faisait deux ecrans de gris.
+#
+# Ce qu'il y a maintenant : une photographie pleine largeur, un panneau de verre
+# pose dessus avec la promesse et trois nombres, et les quatre temps de la
+# saison en une ligne chacun. On comprend en deux secondes ce que le challenge
+# est. Le detail est reste, il a juste cesse d'etre la premiere chose qu'on
+# rencontre.
+CHALLENGE_ENT = f"""<section id="challenge" class="chal verre-sect">
+  <div class="chal-fond" aria-hidden="true">
+    <img src="/photos/berge-ramassage.jpg" alt="" loading="lazy" decoding="async"
+         width="1358" height="772">
+  </div>
   <div class="layer">
-{entete("Le déroulé", "Une saison,<br><span class='it'>quatre rendez-vous.</span>",
-        "Le rythme est le même pour tout le monde : un début, un courant, des points d'étape, "
-        "une fin. Et une date à laquelle on regarde ce qui a réellement été fait.")}
-
-    {objection("Qui pilotera la saison au quotidien ?",
-               "Vous diffusez un lien, les salariés créent leur compte, les associations "
-               "publient leurs besoins, et les rapports arrivent finis à chaque clôture. "
-               "Personne chez vous n'a de fichier à tenir.")}
-
-{etapes([
-  ("Janvier", "Le <span class='it'>départ.</span>",
-   "La saison s'ouvre. Vous diffusez un lien, chacun crée son compte. Vos équipes voient "
-   "les besoins publiés par les associations proches de vos sites."),
-  ("Février à octobre", "Les <span class='it'>missions.</span>",
-   "Les missions se font, une par une. Un salarié se propose, l'association l'accueille, "
-   "puis confirme que c'est arrivé. C'est cette confirmation qui compte."),
-  ("Quatre fois dans l'année", "Le <span class='it'>point.</span>",
-   "Un rapport se génère tout seul à la fin de chaque trimestre, dès que les quatorze jours "
-   "de confirmation sont écoulés pour la dernière mission de la période : le sceller le "
-   "dernier jour le figerait incomplet. Ce qui a été fait, ce qui a été confirmé, ce qui "
-   "reste ouvert. Vous n'avez rien à consolider."),
-  ("Mi-janvier", "Le <span class='it'>bilan.</span>",
-   "Le rapport annuel est arrêté à son tour, avec le dossier de traçabilité : pièces, sources "
-   "et méthode. Puis vous décidez si vous recommencez. Il n'y a pas de reconduction tacite."),
-])}
-
+    <div class="verre chal-verre verre-anim">
+      <i class="verre-lumiere" aria-hidden="true"></i>
+      <i class="verre-eclat" aria-hidden="true"></i>
+      <div class="chal-tete">
+        <p class="eyebrow mono">Le challenge</p>
+        <h2>Douze mois,<br><span class="it">et vos équipes y sont allées.</span></h2>
+        <p class="chal-p">Des associations vérifiées publient ce dont elles ont besoin près de
+          chacun de vos sites. Vos équipes s'y rendent ensemble.</p>
+      </div>
+      <div class="verre-chiffres chal-chiffres">
+        <span class="verre-chiffre"><b>12</b><span>mois, sans reconduction tacite</span></span>
+        <span class="verre-chiffre"><b>4</b><span>rapports, un par trimestre</span></span>
+        <span class="verre-chiffre"><b>30&nbsp;km</b><span>autour de chaque site</span></span>
+      </div>
+      <ol class="chal-temps">
+        <li><b class="mono">Janvier</b><span>Vous diffusez un lien. Chacun crée son compte.</span></li>
+        <li><b class="mono">Février à octobre</b><span>Les missions se font, l'association confirme.</span></li>
+        <li><b class="mono">Chaque trimestre</b><span>Le rapport se génère tout seul.</span></li>
+        <li><b class="mono">Mi-janvier</b><span>Le bilan annuel, avec son dossier de traçabilité.</span></li>
+      </ol>
+    </div>
   </div>
 </section>"""
 
 
 EQUIPES_ENT = f"""<section id="equipes">
   <div class="layer">
-{entete("Côté salariés", "Ce que vos salariés<br><span class='it'>voient réellement.</span>",
-        "Deux écrans, et une règle : chacun se propose. Un salarié qui se sent inscrit "
-        "d'office ne revient pas une deuxième fois.")}
-
-    {objection("Est-ce que ça prend, avec des équipes en poste ou sur le terrain ?",
-               "Le premier obstacle au bénévolat d'entreprise n'est ni le temps ni la cause : "
-               "c'est de ne pas savoir avec qui on y va. L'écran répond à cette question-là "
-               "avant de parler de points.")}
-
-    {photo("refuge-sortie",
-           "Deux personnes promènent cinq chiens en laisse sur un chemin de campagne bordé "
-           "d'arbres, un matin d'été", "", " photo--large-gauche")}
+{entete("Côté salariés", "Deux écrans,<br><span class='it'>et chacun se propose.</span>",
+        "Un salarié qui se sent inscrit d'office ne revient pas une deuxième fois.")}
 
     <div class="duo duo--pile">
       {capture("salarie-saison",
@@ -907,54 +862,40 @@ EQUIPES_ENT = f"""<section id="equipes">
                "Les besoins près de chez lui")}
     </div>
 
-    <div class="trois3">
-      <div><h4>Chacun choisit</h4>
-        <p>Il se propose quand il le veut, et se retirer ne demande aucune
-          justification.</p></div>
-      <div><h4>L'objectif se compte en personnes</h4>
-        <p>Un objectif en points s'atteint avec trois salariés très actifs. En personnes, il
-          ne s'atteint qu'en allant chercher quelqu'un qui n'est pas encore venu, et c'est le
-          geste qu'on cherche à provoquer.</p></div>
-      <div><h4>On voit qui vient</h4>
-        <p>Le nombre de collègues déjà inscrits est toujours affiché. Les prénoms
-          n'apparaissent que pour ceux qui l'ont choisi, et jamais sur un don en
-          argent.</p></div>
-    </div>
-
-    <p class="s-note"><a class="tlink" href="/app/?demo=1">Explorer l'espace salarié</a></p>
+    <p class="s-note s-note--grand">L'objectif de la saison se compte en <b>personnes venues</b>,
+      pas en points : il ne s'atteint qu'en allant chercher quelqu'un qui n'est pas encore
+      venu. <a class="tlink" href="/app/?demo=1">Explorer l'espace salarié</a></p>
   </div>
 </section>"""
 
 
-ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
+ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss verre-sect">
   <div class="layer">
-    {photo("refuge",
-           "Un chien de refuge trotte en laisse sur l'allée d'un refuge, au soleil, à côté "
-           "de la personne qui le sort", "", " photo--couverture")}
+    {photo("riviere-aube",
+           "Une rivière au petit matin, ses berges plantées, avant l'arrivée d'un chantier "
+           "de ramassage", "", " photo--couverture")}
 {entete("L'annuaire", "L'association publie,<br><span class='it'>puis elle confirme.</span>",
         "Le chiffre final de votre rapport vient de la structure qui était sur place : une "
         "déclaration datée, tracée et attribuée. Ce n'est pas une attestation et cela ne vaut "
         "ni contrôle ni certification, mais c'est déjà tout autre chose qu'un chiffre que vous "
         "auriez écrit vous-même.")}
 
-    {objection("Et s'il n'y avait rien autour d'un de vos sites ?",
-               "La plateforme mesure l'offre associative dans un rayon de trente kilomètres "
-               "autour de chaque site et vous le dit avant la saison. Vous pouvez signaler "
-               "une zone à couvrir, ou inviter une association que vous connaissez déjà.")}
-
     <div class="photos3">
       {photo("refuge", "Un chien de refuge trotte en laisse au soleil, à côté de la personne "
              "qui le sort", "")}
-      {photo("berge-ramassage", "Trois personnes remontent une berge de rivière avec leurs "
-             "sacs pleins, un matin d'automne", "")}
+      {photo("plantation", "Deux paires de mains tassent la terre autour d'un jeune arbre "
+             "qui vient d'être planté", "")}
       {photo("maraude", "Un bol chaud passe de main en main au-dessus d'une table de "
              "distribution, devant une camionnette", "")}
     </div>
 
-    {capture("asso-valider",
-             "L'écran par lequel une association confirme ce qui a été réalisé",
-             "La confirmation, en un clic",
-             " shot--seule")}
+    <div class="verre asso-verre verre-anim">
+      <i class="verre-lumiere" aria-hidden="true"></i>
+      <i class="verre-eclat" aria-hidden="true"></i>
+      {capture("asso-valider",
+               "L'écran par lequel une association confirme ce qui a été réalisé",
+               "La confirmation, en un clic")}
+    </div>
 
     <ul class="trois">
       <li><b>Aucun abonnement, aucune commission.</b> Une association ne paie jamais rien, et
@@ -968,31 +909,24 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
 
     <div class="fmt-bloc fmt-bloc--incruste">
       <h3 class="fmt-titre">Ce qu'une association peut proposer</h3>
-      <p class="fmt-note">Les points servent au <b>classement entre vos sites</b>, et à
-        rien d'autre. L'objectif de votre saison, lui, se compte en <b>personnes venues</b>.
-        Le barème est public : il est <a class="tlink" href="/reglement.html">dans le
-        règlement</a>.</p>
       <ul class="fmt-lignes">
-        <li><div><b>Une demi-journée de bénévolat</b> : chantier, collecte, entretien, encadrés par
-          l'association et sans compétence requise.</div><span>150 pts</span></li>
-        <li><div><b>Une journée entière</b> sur un chantier ou une maraude.</div><span>300 pts</span></li>
-        <li><div><b>Une mission de compétence</b> : compta, droit, informatique, communication,
-          sur le temps de travail.</div><span>200 pts</span></li>
-        <li><div><b>Le parrainage d'un animal</b> dans un refuge, pour une année.</div><span>250 pts</span></li>
-        <li><div><b>L'adoption d'un animal</b> auprès d'un refuge partenaire, confirmée par le
+        <li><div><b>Une demi-journée de bénévolat</b> : chantier, collecte,
+          entretien.</div><span>150 pts</span></li>
+        <li><div><b>Une mission de compétence</b> sur le temps de
+          travail.</div><span>200 pts</span></li>
+        <li><div><b>Le parrainage d'un animal</b> dans un refuge, pour une
+          année.</div><span>250 pts</span></li>
+        <li><div><b>L'adoption d'un animal</b>, confirmée par le
           refuge.</div><span>400 pts</span></li>
-        <li><div><b>Un don de matériel</b> : c'est l'association qui déclare ce qu'elle a reçu.</div><span>100 pts</span></li>
-        <li><div><b>Un don en argent, par carte</b>, encaissé par
-          <b>HelloAsso</b> pour l'association, <b>sans transiter par Riseva</b>.</div><span>1 pt / 10 €</span></li>
+        <li><div><b>Un don de matériel</b> : c'est l'association qui déclare ce qu'elle a
+          reçu.</div><span>100 pts</span></li>
+        <li><div><b>Un don en argent, par carte</b>, encaissé par <b>HelloAsso</b> pour
+          l'association, <b>sans transiter par Riseva</b>.</div><span>1 pt / 10 €</span></li>
       </ul>
-      <p class="fmt-bareme">Sur le don en argent : <b>aucune commission</b>, aucun délai de
-        reversement, <b>Riseva n'encaisse rien</b>. Le paiement se fait par carte sur une page
-        HelloAsso et arrive sur le compte de l'association ; les points sont crédités
-        <b>quand le paiement est confirmé</b>. Le barème est identique
-        pour toutes les entreprises et c'est la plateforme qui l'attribue, jamais l'association. Aucun format ne peut peser plus de la
-        moitié des points d'une entreprise sur la saison. Le calcul complet, écrêtage compris,
-        est dans <a href="/reglement.html">le règlement</a>, avec un exemple chiffré qui se
-        refait à la main.</p>
+      <p class="fmt-note"><b>Aucune commission, et Riseva n'encaisse rien.</b> Les points
+        tombent <b>quand le paiement est confirmé</b>. Ils servent au classement entre vos
+        sites, et à rien d'autre. Le barème complet, écrêtage compris, est
+        <a class="tlink" href="/reglement.html">dans le règlement</a>.</p>
     </div>
 
     <p class="s-note"><a class="tlink" href="/asso.html?id=a1">Voir une fiche d'association</a>
@@ -1033,28 +967,6 @@ def onglets(items):
 # en place garde les deux : le fait est le meme, il n'est simplement plus
 # personnel.
 # ── les trois parties de la page ───────────────────────────────────────────
-CHAP_CHALLENGE = chapitre(
-    2, "Le challenge",
-    "Une saison de douze mois qui met vos équipes en mouvement, site contre site, "
-    "chez des associations vérifiées près de chez elles. Les affiches arrivent quatre "
-    "fois dans l'année, et chaque trimestre vous recevez le rapport de ce qui a été fait.",
-    "challenge")
-
-CHAP_OUTIL = chapitre(
-    1, "L'outil RSE",
-    "Vous demandez vos indicateurs une fois. Chaque établissement répond sur son écran, "
-    "la plateforme relance à votre place, consolide, et rend le rapport du trimestre et "
-    "celui de l'année, avec la pièce qui justifie chaque chiffre.",
-    "outil-rse")
-
-CHAP_ASSOS = chapitre(
-    3, "Les associations",
-    "Des associations vérifiées, proches de chacun de vos sites, qui publient ce dont "
-    "elles ont besoin et confirment ce qui a été fait. Bénévolat, dons de matériel, "
-    "mécénat de compétences et dons en argent passent par le même circuit.",
-    "assos")
-
-
 def lianes_verre():
     """Le motif de Riseva, pose derriere le verre.
 
@@ -1239,15 +1151,9 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss verre-sect">
 
 PILOTAGE_ENT = f"""<section id="pilotage">
   <div class="layer">
-{entete("Les écrans", "La preuve,<br><span class='it'>écran par écran.</span>",
-        "Quatre écrans de l'application, tels qu'ils s'affichent, remplis avec un jeu de "
+{entete("La preuve", "Chaque chiffre<br><span class='it'>garde sa source.</span>",
+        "Quatre écrans de l'application, tels qu'ils s'affichent, avec un jeu de "
         "démonstration.")}
-
-    {objection("Qu'obtient l'entreprise en fin de saison ?",
-               "Des chiffres datés, avec leur source et leur méthode. Pour les missions, le "
-               "rapport conserve en plus la confirmation de l'association qui était sur place. "
-               "C'est la pièce qu'on vous demande en appel d'offres et dans les questionnaires "
-               "de vos donneurs d'ordre.")}
 
 {onglets([
   ("miss", "Les missions", capture("missions",
@@ -1266,98 +1172,70 @@ PILOTAGE_ENT = f"""<section id="pilotage">
       "Chaque taux avec sa formule")),
 ])}
 
+    {capture("groupe",
+             "La vue consolidée d'un groupe : sociétés, sites et indicateurs réunis",
+             "Un groupe, ses sociétés, ses établissements", " shot--seule")}
+
     <dl class="faits4 faits4--serre">
-      <div><dt class="mono">Salariés mobilisés</dt><dd>et non le nombre de comptes ouverts</dd></div>
-      <div><dt class="mono">Missions confirmées</dt><dd>séparées des missions estimées</dd></div>
-      <div><dt class="mono">Résultats déclarés</dt><dd>arbres, kilos, repas, animaux</dd></div>
-      <div><dt class="mono">Méthode et sources</dt><dd>exportables, datées, versionnées</dd></div>
+      <div><dt class="mono">Trois niveaux</dt><dd>le groupe, les sociétés avec leur SIREN,
+        les établissements</dd></div>
+      <div><dt class="mono">Cloisonné</dt><dd>payer la facture ne donne pas accès aux
+        personnes d'une filiale</dd></div>
+      <div><dt class="mono">Clôture automatique</dt><dd>passé quatorze jours sans réponse, la
+        mission est clôturée et son résultat reste <b>estimé</b></dd></div>
+      <div><dt class="mono">Rien à installer</dt><dd>un lien à diffuser, chaque salarié ouvre
+        son compte lui-même</dd></div>
     </dl>
   </div>
 </section>"""
 
 
-# ── l'outil RSE ─────────────────────────────────────────────────────────────
-# La section que la page n'avait pas, et qui est pourtant la moitié de ce qu'on
-# vend. Un responsable RSE n'achète pas un challenge : il achète de ne plus
-# passer trois semaines par an à réclamer des chiffres à quatorze sites. Le
-# challenge est ce qui fait venir les salariés ; l'outil est ce qui fait signer
-# le budget.
-#
-# Elle est écrite en quatre temps parce que c'est un enchaînement, pas une liste
-# de fonctionnalités : on demande, les sites répondent, personne ne relance, le
-# rapport existe. Chaque temps dit ce qu'il remplace dans la vie réelle de celui
-# qui lit.
-OUTIL_ENT = f"""<section id="outil" class="band">
+OUTIL_ENT = f"""<section id="outil-rse" class="band">
   <div class="layer">
-{entete("La collecte", "Ce que vous ne referez plus<br><span class='it'>à la main.</span>",
-        "Ce qui coûte cher dans un programme RSE, ce n'est pas le calcul. C'est d'obtenir "
-        "les chiffres de chaque site, et de relancer jusqu'à ce que le dernier réponde.")}
+{entete("L'outil RSE", "Ce que vous ne referez plus<br><span class='it'>à la main.</span>",
+        "Obtenir les chiffres de chaque site, et relancer jusqu'à ce que le dernier réponde.")}
 
-    {objection("On a déjà un tableur pour tout ça.",
-               "Riseva ne fait rien qu'un tableur ne sache faire. Elle fait ce qu'un tableur "
-               "ne fait pas : demander, prévenir à votre place, et vous dire qui manque "
-               "encore.")}
-
-{formats([
-  ("Vous demandez", "Les rubriques que vous voulez,<br><span class='it'>et rien d'autre.</span>",
-   "Effectifs, sécurité, formation, diversité, énergie et eau, déchets, mobilité, achats. "
-   "Vous cochez ce que vous demandez pour cette période, et l'écran vous dit combien de "
-   "valeurs chaque site devra trouver <b>avant</b> que la collecte parte. C'est le seul "
-   "chiffre qui décide du reste : plus la liste est courte, plus elle revient complète."),
-  ("Les sites répondent", "Sur leur écran,<br><span class='it'>pas dans votre boîte.</span>",
-   "Chaque référent de site voit ce qu'on attend de lui, rangé par source : la paie pour les "
-   "effectifs, le registre pour la sécurité, les factures pour l'énergie. Chaque champ dit ce "
-   "qu'on compte et ce qu'on ne compte pas, pour que deux sites ne divergent pas en silence. "
-   "Celui qui saisit ne peut pas approuver sa propre saisie."),
-  ("Personne ne relance", "Le rappel part tout seul,<br><span class='it'>et il ne vient pas de vous.</span>",
-   "Tant qu'un site n'a pas répondu, il le voit sur son tableau de bord, avec le nombre de "
-   "jours qui restent. Vous, vous voyez qui manque, nommément. Aucun courriel à écrire, "
-   "aucune liste à tenir. Et si personne ne répond, la période se clôt <b>sans réponse</b> "
-   "plutôt que d'être comblée avec celle d'avant."),
-  ("Le rapport existe déjà", "À l'écran, en classeur,<br><span class='it'>en CSV.</span>",
-   "Quand tout le monde a répondu, il n'y a rien à consolider : totaux par rubrique avec le "
-   "nombre de sites sur lequel chaque somme porte, taux calculés sur les sommes et jamais en "
-   "moyenne de taux, valeurs manquantes listées site par site. Le classeur a un onglet par "
-   "rubrique et un onglet de définitions. Tout est fabriqué dans votre navigateur."),
-])}
+    <ul class="benef">
+      <li class="rv">
+        <b>Vous demandez une fois</b>
+        <span>Vous cochez les rubriques de la période. L'écran dit combien de valeurs chaque
+          site devra trouver, avant que la collecte parte.</span>
+      </li>
+      <li class="rv d1">
+        <b>Personne ne relance</b>
+        <span>Le rappel part tout seul et il ne vient pas de vous. Vous voyez qui manque,
+          nommément.</span>
+      </li>
+      <li class="rv d2">
+        <b>Le rapport existe déjà</b>
+        <span>Totaux, taux calculés en rapport de sommes, valeurs manquantes site par site.
+          En classeur et en CSV.</span>
+      </li>
+    </ul>
 
     {capture("indicateurs",
              "L'écran de collecte des indicateurs dans Riseva : l'état de chaque site, les "
              "totaux par rubrique et les taux calculés",
              "La collecte, et le rapport qui en sort", " shot--seule")}
 
-    <dl class="faits4 faits4--serre">
-      <div><dt class="mono">Le dictionnaire</dt><dd>pour chaque clé, ce qu'on compte et ce
-        qu'on ne compte pas, daté avec la période</dd></div>
-      <div><dt class="mono">Le registre de sécurité</dt><dd>événements, circonstances, plan
-        d'actions avec ses échéances</dd></div>
-      <div><dt class="mono">La fiche VSME</dt><dd>les onze rubriques de la norme européenne
-        volontaire, et ce qui reste vide</dd></div>
-      <div><dt class="mono">L'accès CSE</dt><dd>en lecture, sans nominatif : aucune
-        participation sous cinq salariés, aucun détail du registre sous cinq événements</dd></div>
-    </dl>
-
 {flux([
   ("Jour 1", "vous cochez les rubriques et la date limite"),
   ("Jour 2", "chaque site voit sa part, sans rien installer"),
-  ("J-7, J-2", "le rappel part tout seul, il ne vient pas de vous"),
+  ("J-7, J-2", "le rappel part tout seul"),
   ("Échéance", "vous voyez qui manque, nommément"),
   ("Le lendemain", "le rapport est là, daté, avec sa méthode"),
 ])}
 
-    <p class="s-note s-note--flux">Vous ne vous en occupez qu'une fois, au début. Le reste de
-      la période, la plateforme travaille sans vous, et si personne ne répond, la période se
-      clôt <b>sans réponse</b> plutôt que d'être comblée avec celle d'avant.</p>
-
-    {capture("groupe",
-             "La vue consolidée d'un groupe dans Riseva : chaque société avec son SIREN, "
-             "chaque établissement avec son effectif, ses comptes ouverts, ses missions et "
-             "ses points",
-             "Deux sociétés, quatre établissements, un seul écran", " shot--seule")}
-
-    <p class="s-note">Riseva tient le classeur ; c'est vous qui signez. Les valeurs sont celles
-      que vos sites ont écrites, elles restent les vôtres, et la plateforme ne les interprète
-      pas. <a class="tlink" href="/app/?demo=1">Ouvrir l'écran de collecte</a></p>
+    <dl class="faits4 faits4--serre">
+      <div><dt class="mono">Le dictionnaire</dt><dd>ce qu'on compte et ce qu'on ne compte
+        pas, daté</dd></div>
+      <div><dt class="mono">Le registre de sécurité</dt><dd>événements, circonstances, plan
+        d'actions</dd></div>
+      <div><dt class="mono">La fiche VSME</dt><dd>les onze rubriques de la norme européenne
+        volontaire</dd></div>
+      <div><dt class="mono">Groupes et filiales</dt><dd>trois niveaux : groupe, sociétés,
+        établissements</dd></div>
+    </dl>
   </div>
 </section>"""
 
@@ -1366,46 +1244,6 @@ OUTIL_ENT = f"""<section id="outil" class="band">
 # Trois bénéfices, et chacun porte son chiffre. Dans la version précédente,
 # celui du milieu n'en avait pas : au lieu de trois colonnes, l'œil voyait deux
 # colonnes et un trou. Le rang a donc changé, et le troisième a reçu le sien.
-CHANGE_ENT = f"""<section id="change" class="band">
-  <div class="layer">
-{entete("Ce que ça change", "Trois effets,<br><span class='it'>et leur date.</span>",
-        "Deux échéances réglementaires arrivent, et une troisième chose se joue en interne, "
-        "tous les jours.")}
-
-{retombees([
-  ("Des chiffres datés pour vos <span class='it'>appels d'offres.</span>",
-   "Depuis le 21 août 2026, toute nouvelle consultation de marché public comporte un critère "
-   "environnemental, sans seuil de montant, sous réserve des exclusions prévues par le code "
-   "(notamment les marchés passés sans publicité ni mise en concurrence préalables). Ce qu'on "
-   "vous demande "
-   "alors n'est pas une intention : ce sont des chiffres datés, avec leur méthode. C'est "
-   "exactement ce que produit le rapport.",
-   "21.08.26", "Entrée en vigueur du critère environnemental pour toute nouvelle "
-   "consultation. Code de la commande publique, art. L. 2152-7, date fixée par le décret "
-   "n° 2022-767 du 2 mai 2022."),
-  ("Des résultats datés que vous pouvez <span class='it'>reprendre.</span>",
-   "À partir du 27 septembre 2026, les allégations environnementales vagues sont encadrées "
-   "dans toute l'Union. « Engagés pour la planète » devient difficile à tenir ; "
-   "« 42 demi-journées confirmées par 7 associations en 2027 » est un fait daté et sourcé.",
-   "27.09.26", "Entrée en application de la directive (UE) 2024/825."),
-  ("Des équipes qui se <span class='it'>parlent.</span>",
-   "Une demi-journée de chantier met dans la même camionnette des gens qui ne se croisent "
-   "jamais. Ce n'est pas un séminaire : c'est un travail réel, pour quelqu'un d'autre, avec "
-   "un résultat visible le soir même.",
-   "1 sur 10", "l'objectif de salariés mobilisés proposé par défaut sur chaque site, "
-   "calculé sur l'effectif et modifiable."),
-])}
-  </div>
-</section>"""
-
-
-# ── les affiches ────────────────────────────────────────────────────────────
-# Le seul support papier du produit, et le seul objet Riseva qu'un salarié voit
-# sans ouvrir un écran. Il est montré tel qu'il sort de l'application, avec le
-# lien de l'entreprise dedans et un code QR qui se scanne pour de bon.
-# L'encart montrait la meme affiche en petit a cote de la grande : deux fois la
-# meme image sur la meme ligne. Il montre maintenant le detail qui porte la
-# promesse, le code QR et le lien qu'il ouvre.
 AFFICHES_ENT = f"""<section id="affiches">
   <div class="layer">
 {entete("Les affiches", "Ce qui se met<br><span class='it'>au-dessus de la machine à café.</span>",
@@ -1434,41 +1272,6 @@ AFFICHES_ENT = f"""<section id="affiches">
         <p>Elles partent imprimées, en nombre suffisant pour tous vos sites, à quatre moments
           de la saison. Un site qui ouvre en cours d'année la réimprime lui-même.</p>
         <p class="s-note"><a class="tlink" href="/app/?demo=1">Voir l'écran des supports</a></p>
-      </div>
-    </div>
-  </div>
-</section>"""
-
-
-PERIMETRES_ENT = f"""<section id="perimetres" class="band">
-  <div class="layer">
-{entete("Le périmètre", "Un même cadre,<br><span class='it'>plusieurs périmètres.</span>",
-        "Une société seule, ou un groupe et ses filiales. Un écran pour les montrer.")}
-
-    {capture("groupe",
-             "La vue consolidée d'un groupe : sociétés, sites et indicateurs réunis",
-             "La vue consolidée d'un groupe",
-             " shot--seule")}
-
-    <div class="duo duo--texte">
-      <div class="col">
-        <h3>Pour un groupe</h3>
-        <p>Trois niveaux, parce que le droit en compte trois : le groupe, les <b>sociétés</b>,
-          chacune avec son SIREN, son contrat et son plafond de mécénat, et leurs
-          <b>établissements</b>. Payer la facture ne donne pas accès aux personnes : la
-          direction voit des agrégats, jamais l'identité d'un salarié d'une filiale dont elle
-          n'est pas l'employeur, et c'est une frontière écrite dans la base. Le classement
-          entre sites est désactivé par défaut.</p>
-        <p><a class="tlink" href="#prix">L'offre groupe est sur devis</a></p>
-      </div>
-      <div class="col">
-        <h3>Pour une société seule</h3>
-        <p>Le même produit, sans le niveau du dessus : un contrat, un plafond de mécénat, et
-          autant d'<b>établissements</b> que vous en avez. La collecte des indicateurs
-          fonctionne à l'identique, site par site, et le rapport porte alors sur la société.
-          Une société qui rejoint un groupe plus tard ne recommence rien : ses périodes
-          passées restent lisibles telles qu'elles ont été arrêtées.</p>
-        <p><a class="tlink" href="#outil">L'outil RSE, dans le détail</a></p>
       </div>
     </div>
   </div>
@@ -1535,20 +1338,6 @@ FAQ_ENT = faq([
    "quinze jours de plus, <b>l'acompte est remboursé intégralement</b> et aucun solde n'est "
    "dû. Le solde est facturé à l'ouverture de la saison et payable à trente jours ; si le "
    "démarrage n'est pas constaté, il n'est pas dû.</p>"),
-  ("Qui valide qu'une mission a bien eu lieu ?",
-   "<p>L'association, et elle seule. Elle reçoit un message après la date prévue ; le lien "
-   "ouvre une page qui pose une seule question, et elle répond sans se connecter. Sans réponse de sa part sous quatorze jours, la mission est "
-   "<b>clôturée automatiquement sans confirmation</b> : les points sont crédités selon le "
-   "barème, mais le résultat reste <b>estimé</b> et il est identifié comme <b>non confirmé</b> "
-   "partout où il apparaît, y compris dans vos rapports.</p>"),
-  ("Le classement, il sert à quoi ?",
-   "<p>À donner un rendez-vous que personne n'a besoin d'imposer. Il se joue entre "
-   "entreprises, jamais entre salariés : personne n'est noté individuellement et une équipe "
-   "qui passe son tour ne pénalise personne. La moitié basse n'est jamais nommée.</p>"
-   "<p>Vous voyez votre score et votre rang dès trois entreprises inscrites dans votre "
-   "catégorie. Le décile, lui, n'apparaît qu'à partir de <b>dix entreprises</b> dans la "
-   "catégorie : un « top 10 % » sur onze entreprises désigne la première et lui prête une "
-   "avance qu'elle n'a pas.</p>"),
   ("Est-ce que la dépense est déductible ?",
    "<p>Deux lignes, deux régimes. L'abonnement Riseva est une prestation de services : il "
    "entre dans vos charges, TVA récupérable. Le mécénat suit l'article 238 bis du CGI et "
@@ -1565,11 +1354,14 @@ FAQ_ENT = faq([
    "n'affichons donc pas de case à cocher qui n'en serait pas une.</p>"
    "<p>Consulter une page publique de riseva.fr ne déclenche aucune requête vers un domaine "
    "extérieur, polices comprises. Un test de la recette échoue si ce n'est plus vrai.</p>"),
-  ("Sur quoi s'engage-t-on ?",
-   "<p>Sur une saison, et rien de plus. <b>Pas de reconduction tacite</b> : votre abonnement "
-   "s'arrête à la clôture, après remise du rapport annuel, et vous décidez ensuite. Tant que "
-   "vous n'avez pas accepté la saison suivante, aucune facture n'est émise et rien n'est "
-   "dû.</p>"),
+  ("Le classement, il sert à quoi ?",
+   "<p>À donner un rendez-vous que personne n'a besoin d'imposer. Il se joue entre "
+   "entreprises, jamais entre salariés : personne n'est noté individuellement et une équipe "
+   "qui passe son tour ne pénalise personne. La moitié basse n'est jamais nommée.</p>"
+   "<p>Vous voyez votre score et votre rang dès trois entreprises inscrites dans votre "
+   "catégorie. Le décile, lui, n'apparaît qu'à partir de <b>dix entreprises</b> dans la "
+   "catégorie : un « top 10 % » sur onze entreprises désigne la première et lui prête une "
+   "avance qu'elle n'a pas.</p>"),
   ("Quel est le périmètre exact de la plateforme ?",
    "<p>Riseva documente l'enregistrement administratif des associations avec la date du "
    "contrôle, les validations et qui les a faites, les méthodes de calcul publiées et "
@@ -1706,25 +1498,16 @@ PRIX_ENT = grille_tarifaire()
 
 
 CORPS_ENT = "\n\n".join([
-    HERO_ENT,           # la promesse, le produit en image, quatre chiffres
-    PLATEFORME_ENT,     # « concrètement, c'est quoi ? » — la carte des trois parties
-
-    CHAP_OUTIL,         # ── partie 1 ──────────────────────────────────────
-    OUTIL_ENT,          #    demander, répondre, relancer, consolider
-    PILOTAGE_ENT,       #    les écrans qui le prouvent
-    PERIMETRES_ENT,     #    groupes, sociétés, établissements
-
-    CHAP_CHALLENGE,     # ── partie 2 ──────────────────────────────────────
-    SAISON_ENT,         #    le déroulé des douze mois
-    EQUIPES_ENT,        #    ce que le salarié voit, et ce qu'il y gagne
-    AFFICHES_ENT,       #    ce qui arrive par la poste, quatre fois dans l'année
-    CHANGE_ENT,         #    ce que la saison produit, et à quelle date
-
-    CHAP_ASSOS,         # ── partie 3 ──────────────────────────────────────
-    ASSOCIATIONS_ENT,   #    l'annuaire vérifié, et la confirmation
-
-    PRIX_ENT,           # la grille, et le devis à côté
-    FAQ_ENT,            # les questions qui décident vraiment
+    HERO_ENT,           # ce que c'est, ce que ca coute, a quoi ca ressemble
+    PLATEFORME_ENT,     # la console de verre : les trois questions, et leurs ecrans
+    OUTIL_ENT,          # trois benefices, une capture, cinq dates
+    PILOTAGE_ENT,       # la demonstration, quatre onglets
+    CHALLENGE_ENT,      # la photographie pleine largeur, et le panneau de verre
+    EQUIPES_ENT,        # les deux ecrans du salarie, alignes
+    AFFICHES_ENT,       # ce qui arrive par la poste
+    ASSOCIATIONS_ENT,   # l'annuaire verifie, et la confirmation
+    PRIX_ENT,           # la grille, et le devis a cote
+    FAQ_ENT,            # les questions qui decident vraiment
     BANDEAU_ENT,
 ])
 

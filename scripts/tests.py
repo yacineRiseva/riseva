@@ -104,14 +104,29 @@ def main():
         # ne se vend pas qu'aux PME. Un groupe de douze sites a exactement le
         # meme probleme, en plus grand, et un titre qui dit « PME » lui apprend
         # en trois mots que la page ne parle pas de lui.
+        # Cinquieme accroche, et c'est le client qui l'a tranchee : « Votre RSE
+        # sans service RSE dedie » nommait ce que l'acheteur N'A PAS. Il faut
+        # nommer ce qu'il obtient, et il faut que les deux moities du produit
+        # tiennent dans le titre, parce que c'est la seule ligne que tout le
+        # monde lit.
         verifie("l'accueil affiche le titre",
-                "Votre RSE" in p.inner_text("h1")
-                and "sans service RSE" in p.inner_text("h1"))
-        # Et la page doit se lire en trois parties, pas en onze sections. Le
-        # jour ou quelqu'un rajoute une douzieme section entre deux parties,
-        # c'est ce test qui le dira.
-        verifie("la page se lit en trois parties",
-                p.locator(".chap").count() == 3)
+                "Tous vos sites" in p.inner_text("h1")
+                and "un seul rapport" in p.inner_text("h1")
+                and "sur le terrain" in p.inner_text("h1"))
+        # Les trois intertitres de chapitre ont ete retires : chacun occupait un
+        # ecran entier pour un titre et un paragraphe, et le client lit en
+        # diagonale. Ce que ce test protege maintenant, c'est ce qui comptait
+        # vraiment dans l'ancien : que la page reste courte et que chaque entree
+        # de la navigation trouve sa section. Le jour ou quelqu'un rajoute une
+        # section sans l'ancrer, ou en rajoute quinze, c'est ici qu'on le voit.
+        ancres = p.eval_on_selector_all(
+            ".nav-links a", "l => l.map(a => a.getAttribute('href'))")
+        verifie("chaque entrée de la navigation trouve sa section",
+                all(p.locator(a).count() == 1 for a in ancres if a.startswith("#")),
+                str(ancres))
+        verifie("la page tient en une douzaine de sections",
+                p.locator("body > section, body > header").count() <= 12,
+                str(p.locator("body > section, body > header").count()))
         # Et le vivant ne doit pas avoir disparu du premier ecran pour autant :
         # c'est ce qui distingue Riseva d'un outil de reporting, et c'est ce que
         # le fondateur a demande de mettre en avant.
@@ -335,18 +350,6 @@ def main():
         gen = (RACINE.parent / "scripts" / "captures.py").read_text(encoding="utf-8")
         verifie("ces deux images se refabriquent avec l'affiche, elles ne se dessinent pas",
                 'photos / "affiche-qr.jpg"' in gen and 'photos / "affiche-bureau.jpg"' in gen)
-        # ── ce que ça change ────────────────────────────────────────────────
-        # Trois effets, et chacun porte son chiffre. Dans la version précédente
-        # celui du milieu n'en avait pas : au lieu de trois colonnes, l'œil
-        # voyait deux colonnes et un trou.
-        chiffres3 = p.eval_on_selector_all("#change .ret > li",
-            "l=>l.map(e=>!!e.querySelector('.ret-fact'))")
-        verifie("chacun des trois effets porte un chiffre",
-                len(chiffres3) == 3 and all(chiffres3), str(chiffres3))
-        ordre = p.eval_on_selector_all("#change .ret h3", "l=>l.map(e=>e.textContent)")
-        verifie("les échéances réglementaires viennent avant les équipes qui se parlent",
-                len(ordre) == 3 and "reprendre" in ordre[1] and "équipes" in ordre[2],
-                str(ordre))
         # Le champ a remplir se dimensionne sur son propre texte. Quand la
         # mesure est trop courte, le placeholder perd ses dernieres lettres et
         # « des bras un samedi matin » devient « des bras un samedi matir ». Le
@@ -418,14 +421,25 @@ def main():
         # point — le nombre final doit être dans la source, là où le lisent un
         # moteur d'indexation, un lecteur d'écran et un navigateur sans script.
         src = norm(p.evaluate("()=>fetch('/').then(r=>r.text())"))
+        # On compare sans les entites : la source ecrit « 1&nbsp;lien », et une
+        # insecable est justement ce qu'on veut y trouver.
         verifie("les chiffres de tête sont dans le HTML, pas seulement animés",
-                "21 août 2026" in src and "14 j" in src and "0 €" in src)
-        # `.chiffres` designe maintenant deux blocs : la bande du premier ecran
-        # et celle du corps de page. On les mesure separement, sinon le premier
-        # repond pour le second et la source du second n'est plus verifiee.
-        ch = norm(p.inner_text(".chiffres:not(.chiffres--hero)"))
+                "21 août 2026" in src and "Déploiement" in src
+                and "Grille publique" in src)
+        # La bande du corps de page a ete retiree : quatre chiffres suivis de
+        # quatre paragraphes de source, c'etait un ecran de gris de plus. Le
+        # seul qui portait un argument, l'echeance de la commande publique, est
+        # remonte en une ligne sous le premier ecran. Ce que ce test protege est
+        # inchange : un chiffre de cette page est un fait exterieur date et
+        # source, ou une propriete verifiable du produit. Jamais un resultat
+        # client, puisqu'il n'y a aucun client.
+        # La comparaison ignore la casse : ces sources sont composees en
+        # capitales par la feuille de style, et c'est une decision de mise en
+        # page, pas une decision de contenu.
+        ch = norm(p.inner_text(".hero")).lower()
         verifie("les chiffres de tête sont sourcés ou ne dépendent que de nous",
-                "L. 2152-7" in ch and "238 bis" in ch)
+                "l. 2152-7" in ch and "238 bis" in ch
+                and "catalogue de la plateforme" in ch)
         # Les sources sont composees en capitales par la feuille de style : on
         # compare donc sur le texte replie en minuscules, sinon la recette
         # depend d'un `text-transform`.
@@ -452,7 +466,8 @@ def main():
                 "nouvelle consultation" in corps and "L. 2152-7" in corps
                 and "2022-767" in corps)
         verifie("l'offre groupe est présentée avec ses trois niveaux",
-                "Trois niveaux" in corps and "SIREN" in corps and "établissements" in corps)
+                "trois niveaux" in corps.lower() and "siren" in corps.lower()
+                and "établissements" in corps.lower())
         verifie("le cloisonnement du groupe est annoncé, pas suggéré",
                 "ne donne pas accès aux" in corps.lower()
                 or "Payer la facture" in corps)
@@ -993,8 +1008,8 @@ def main():
             pages[nom] = p.inner_text("body")
         for nom, corps in pages.items():
             verifie(f"la clôture automatique est nommée telle quelle ({nom})",
-                    "clôturée automatiquement sans confirmation" in corps
-                    or "clôture automatique" in corps)
+                    "clôturée automatiquement sans confirmation" in corps.lower()
+                    or "clôture automatique" in corps.lower())
         verifie("aucune page ne dit qu'un silence vaut réalisation",
                 all("comptée comme réalisée" not in c and "considérée comme réalisée" not in c
                     for c in pages.values()))
