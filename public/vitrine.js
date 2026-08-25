@@ -770,78 +770,103 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
 /* ══════════════════════════════════════════════════════════════
    LA SECTION DE VERRE
 
-   Deux choses, et deux seulement. Le reflet speculaire qui suit le
-   pointeur, et l'entree au defilement pour les navigateurs qui ne
-   savent pas encore `animation-timeline: view()`.
+   Trois choses, et trois seulement. Le reflet speculaire et l'angle
+   de l'arete qui suivent le pointeur, la parallaxe des maquettes a
+   l'interieur du panneau, et la classe `.vu` qui declenche toutes
+   les entrees d'un seul signal.
 
-   La regle qui gouverne tout ce bloc : on ne lit jamais une position
-   apres avoir ecrit un style. Un `getBoundingClientRect()` pose apres
-   un `style.setProperty()` force le navigateur a recalculer la mise en
-   page avant de repondre, et quatre panneaux suffisent alors a faire
-   tomber la section a trente images par seconde. On lit tout, puis on
-   ecrit tout.
+   Deux regles gouvernent ce bloc.
+
+   On ne lit jamais une position pendant un `pointermove`. Un
+   `getBoundingClientRect()` demande au navigateur une mise en page a
+   jour, soixante fois par seconde, pour un panneau qui n'a pas bouge
+   d'un pixel. On mesure une fois, on garde le defilement qu'il y
+   avait a la mesure, et la position a l'ecran s'en deduit par une
+   soustraction.
+
+   Et on n'ecrit une variable que la ou elle sert. `--mx`, `--my` et
+   `--verre-arc` vont sur un element VIDE, `.verre-lumiere`, dont le
+   seul sous-arbre est ses deux pseudo-elements. Seule `--px` / `--py`,
+   qui doit atteindre les maquettes, est ecrite sur le panneau.
    ══════════════════════════════════════════════════════════════ */
 (function(){
   var sect = document.querySelector('.verre-sect');
   if(!sect) return;
-  if(matchMedia('(prefers-reduced-motion:reduce)').matches) return;
-  /* Ce ne sont pas les panneaux qu'on ecrit, mais leur calque de lumiere : un
-     element vide, sans sous-arbre a invalider. Voir le commentaire de
-     `.verre-lumiere` dans la feuille de style. */
-  var panneaux = [].slice.call(sect.querySelectorAll('.verre-lumiere'));
-  if(!panneaux.length) return;
 
-  /* Les geometries sont mesurees UNE fois, pas a chaque mouvement du pointeur.
-     Un `getBoundingClientRect()` pendant un `pointermove` demande au navigateur
-     une mise en page a jour, soixante fois par seconde, pour des cartes qui
-     n'ont pas bouge d'un pixel. On garde donc la position dans la PAGE, plus le
-     defilement qu'il y avait au moment de la mesure : la position a l'ecran
-     s'en deduit par une soustraction. */
-  var boites = null, mesureA = 0;
+  var panneau = sect.querySelector('.verre');
+  var lumiere = sect.querySelector('.verre-lumiere');
 
-  function mesurer(){
-    mesureA = window.scrollY || window.pageYOffset;
-    boites = panneaux.map(function(el){
-      var r = el.getBoundingClientRect();
-      return { g:r.left, h:r.top, l:r.width, t:r.height };
+  /* L'entree, d'abord : elle doit marcher meme quand tout le reste est
+     desactive. Un seul signal, `.vu` sur la section, et la feuille de style
+     s'occupe de l'ordre et des retards. */
+  if(!('IntersectionObserver' in window) ||
+     matchMedia('(prefers-reduced-motion:reduce)').matches){
+    sect.classList.add('vu');
+  } else {
+    var io = new IntersectionObserver(function(entrees){
+      entrees.forEach(function(en){
+        if(!en.isIntersecting) return;
+        sect.classList.add('vu');
+        io.disconnect();
+      });
+    }, { threshold: 0.14, rootMargin: '0px 0px -6% 0px' });
+    io.observe(sect);
+  }
+
+  /* L'eclat ne sert qu'une fois. Le laisser en place, c'est laisser un calque
+     translucide au-dessus d'un element filtre que le navigateur doit recomposer
+     a chaque repeinture, pour un element devenu invisible. */
+  var eclat = sect.querySelector('.verre-eclat');
+  if(eclat){
+    eclat.addEventListener('animationend', function(){
+      if(eclat.parentNode) eclat.parentNode.removeChild(eclat);
     });
   }
-  /* Trois occasions de remesurer, et pas une de plus : un redimensionnement,
-     un changement de taille reel de la section (rotation d'un telephone, zoom
-     du navigateur, police qui arrive tard), et l'entree du pointeur dans la
-     section. Jamais pendant un `pointermove`. */
-  addEventListener('resize', function(){ boites = null; }, { passive:true });
-  sect.addEventListener('pointerenter', function(){ boites = null; }, { passive:true });
+
+  if(!panneau || !lumiere) return;
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+
+  var boite = null, mesureA = 0;
+  function mesurer(){
+    mesureA = window.scrollY || window.pageYOffset;
+    var r = panneau.getBoundingClientRect();
+    boite = { g:r.left, h:r.top, l:r.width, t:r.height };
+  }
+  /* Trois occasions de remesurer, et pas une de plus : un redimensionnement, un
+     changement de taille reel de la section (rotation d'un telephone, zoom du
+     navigateur, police qui arrive tard), et l'entree du pointeur. */
+  addEventListener('resize', function(){ boite = null; }, { passive:true });
+  sect.addEventListener('pointerenter', function(){ boite = null; }, { passive:true });
   if(window.ResizeObserver){
-    new ResizeObserver(function(){ boites = null; }).observe(sect);
+    new ResizeObserver(function(){ boite = null; }).observe(sect);
   }
 
   var x = 0, y = 0, prevu = false;
 
   function peindre(){
     prevu = false;
-    if(!boites) mesurer();
+    if(!boite) mesurer();
     var dy = (window.scrollY || window.pageYOffset) - mesureA;
-    for(var i = 0; i < panneaux.length; i++){
-      var b = boites[i], haut = b.h - dy;
-      /* Hors de l'ecran, le reflet n'existe pour personne. */
-      if(haut + b.t < 0 || haut > innerHeight) continue;
-      panneaux[i].style.setProperty('--mx', (x - b.g).toFixed(1) + 'px');
-      panneaux[i].style.setProperty('--my', (y - haut).toFixed(1) + 'px');
-      /* La meme lumiere pour l'arete, et sur TOUS les panneaux, pas seulement
-         sur celui qu'on survole : une source de lumiere qui n'eclairerait que
-         la carte sous le curseur ne serait pas une source de lumiere. C'est
-         gratuit parce que `--mx`, `--my` et `--verre-arc` sont declarees
-         `inherits:false` : les ecrire ne repeint que l'element.
+    var haut = boite.h - dy;
+    /* Hors de l'ecran, le reflet n'existe pour personne. */
+    if(haut + boite.t < 0 || haut > innerHeight) return;
 
-         `atan2` rend zero vers la droite et croit vers le bas ; un degrade
-         conique part du haut et tourne dans le sens des aiguilles, d'ou le
-         quart de tour. Les 48 degres retranches placent la zone claire du
-         degrade, et non son origine, du cote du pointeur. */
-      var ang = Math.atan2(y - (haut + b.t / 2),
-                           x - (b.g + b.l / 2)) * 180 / Math.PI;
-      panneaux[i].style.setProperty('--verre-arc', (ang + 42).toFixed(0) + 'deg');
-    }
+    var mx = x - boite.g, my = y - haut;
+    lumiere.style.setProperty('--mx', mx.toFixed(1) + 'px');
+    lumiere.style.setProperty('--my', my.toFixed(1) + 'px');
+
+    /* La meme lumiere pour l'arete que pour la surface : une arete dont la zone
+       claire ne repond pas a la meme source que le reflet est le detail qui
+       trahit le faux verre. `atan2` rend zero vers la droite et croit vers le
+       bas ; un degrade conique part du haut et tourne dans le sens des
+       aiguilles, d'ou le quart de tour. Les 48 degres retranches placent la
+       zone claire du degrade, et non son origine, du cote du pointeur. */
+    var ang = Math.atan2(my - boite.t / 2, mx - boite.l / 2) * 180 / Math.PI;
+    lumiere.style.setProperty('--verre-arc', (ang + 42).toFixed(0) + 'deg');
+
+    /* Et la parallaxe des maquettes, normalisee entre moins un et un. */
+    panneau.style.setProperty('--px', ((mx / boite.l) * 2 - 1).toFixed(3));
+    panneau.style.setProperty('--py', ((my / boite.t) * 2 - 1).toFixed(3));
   }
 
   sect.addEventListener('pointermove', function(e){
@@ -852,35 +877,15 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
     if(!prevu){ prevu = true; requestAnimationFrame(peindre); }
   }, { passive: true });
 
-  /* L'eclat ne sert qu'une fois. Le laisser en place, c'est laisser un calque
-     translucide au-dessus d'un element filtre : le navigateur doit le
-     recomposer chaque fois que le panneau se repeint, pour un element devenu
-     invisible. On le retire des qu'il a fini de passer. */
-  [].slice.call(sect.querySelectorAll('.verre-eclat')).forEach(function(el){
-    el.addEventListener('animationend', function(){
-      if(el.parentNode) el.parentNode.removeChild(el);
-    });
-  });
-})();
-
-(function(){
-  var els = [].slice.call(document.querySelectorAll('.verre-anim'));
-  if(!els.length) return;
-  /* La classe `.vu` est posee dans tous les cas, meme la ou
-     `animation-timeline: view()` fait deja monter le panneau tout seul : elle
-     ne sert pas qu'a l'entree, elle declenche aussi l'eclat, la jauge et les
-     etats. Deux mecanismes, un seul signal. */
-  if(!('IntersectionObserver' in window) ||
-     matchMedia('(prefers-reduced-motion:reduce)').matches){
-    els.forEach(function(el){ el.classList.add('vu'); });
-    return;
-  }
-  var io = new IntersectionObserver(function(entrees){
-    entrees.forEach(function(en){
-      if(!en.isIntersecting) return;
-      en.target.classList.add('vu');
-      io.unobserve(en.target);
-    });
-  }, { threshold: 0.18, rootMargin: '0px 0px -8% 0px' });
-  els.forEach(function(el){ io.observe(el); });
+  /* Tant qu'aucun pointeur n'est entre dans la section, la feuille de style
+     fait tourner la lumiere toute seule : sur un telephone, c'est la seule
+     chose qui la fait vivre. Des qu'un pointeur arrive, on coupe la rotation et
+     on lui rend la main ; quand il repart, elle reprend. */
+  sect.addEventListener('pointerenter', function(e){
+    if(e.pointerType === 'touch') return;
+    sect.classList.add('pointe');
+  }, { passive:true });
+  sect.addEventListener('pointerleave', function(){
+    sect.classList.remove('pointe');
+  }, { passive:true });
 })();

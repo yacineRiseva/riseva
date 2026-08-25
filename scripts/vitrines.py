@@ -1115,11 +1115,26 @@ def mini_ecran(onglet, lignes, jauge, legende):
         </figure>"""
 
 
-def verre_carte(qui, question, reponse, visuel, ecrans):
-    """Une carte de verre : qui pose la question, la question, la reponse."""
-    return f"""      <article class="verre verre-carte verre-anim">
-        <i class="verre-lumiere" aria-hidden="true"></i>
-        <i class="verre-eclat" aria-hidden="true"></i>
+def verre_zone(n, qui, question, reponse, visuel, ecrans, large=False):
+    """Une zone du panneau : qui pose la question, la question, la reponse.
+
+    Ce ne sont pas des cartes. Elles vivent DANS le panneau de verre, separees
+    par des filets d'un pixel, comme les zones d'une interface. C'est ce qui
+    fait que le panneau se lit comme un ecran de produit et non comme trois
+    encarts poses cote a cote."""
+    if large:
+        return f"""      <article class="verre-zone verre-zone--large">
+        <span class="verre-num" aria-hidden="true">{n}</span>
+        <div class="verre-zone-texte">
+          <span class="verre-puce mono">{qui}</span>
+          <h3>{question}</h3>
+          <p>{reponse}</p>
+          <p class="verre-ecrans mono">{ecrans}</p>
+        </div>
+        {visuel}
+      </article>"""
+    return f"""      <article class="verre-zone">
+        <span class="verre-num" aria-hidden="true">{n}</span>
         <span class="verre-puce mono">{qui}</span>
         <h3>{question}</h3>
         <p>{reponse}</p>
@@ -1131,13 +1146,14 @@ def verre_carte(qui, question, reponse, visuel, ecrans):
 # La seule section du site traitee en verre, et c'est deliberé : celle qui
 # presente la plateforme. Ce qui est en jeu ici n'est pas un effet de mode. Un
 # lecteur arrive du premier ecran avec une promesse et zero idee de ce que le
-# produit est. Il faut lui montrer des ecrans. Les montrer en photographie
-# coute des captures qui vieillissent ; les montrer en verre, c'est-a-dire des
-# panneaux translucides poses sur un champ lumineux, avec des maquettes de
-# texte dedans, donne la meme impression de produit sans une seule image.
+# produit EST. Il faut lui montrer un ecran. Le montrer en photographie coute
+# des captures qui vieillissent ; le montrer en verre, avec un nom de produit en
+# haut et des maquettes de texte dedans, donne la meme impression de produit
+# sans une seule image.
 #
-# Le verre, ici, n'est pas une decoration posee sur le fond : c'est ce qui fait
-# tenir ensemble trois maquettes tres differentes sur une meme bande sombre.
+# Et il n'y a qu'UN panneau. Quatre panneaux de verre cote a cote, c'est quatre
+# fois la depense de `backdrop-filter` ; et surtout, trois cartes parlent DE la
+# plateforme quand un seul panneau EST la plateforme.
 PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss verre-sect">
   <div class="verre-champ" aria-hidden="true"><i></i><i></i><i></i></div>
 {lianes_verre()}
@@ -1148,23 +1164,30 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss verre-sect">
         "vient de vous poser une de ces trois questions, et qu'il a fallu répondre "
         "« je vais voir ».")}
 
-    <div class="verre verre-tete verre-anim">
+    <div class="verre verre-anim">
       <i class="verre-lumiere" aria-hidden="true"></i>
       <i class="verre-eclat" aria-hidden="true"></i>
-      <p>Une saison d'un an, un écran par métier, et <b>la même donnée du site
-        jusqu'au rapport</b>. Rien n'est ressaisi, et rien n'est estimé sans que
-        la page le dise.</p>
-      <div class="verre-chiffres">
-        <span class="verre-chiffre"><b>{CATALOGUE['rubriques']}</b><span>rubriques</span></span>
-        <span class="verre-chiffre"><b>{CATALOGUE['saisis']}</b><span>valeurs collectées</span></span>
-        <span class="verre-chiffre"><b>{CATALOGUE['calcules']}</b><span>taux calculés</span></span>
-      </div>
-    </div>
 
-    <div class="verre-rail">
-{verre_carte(
+      <div class="verre-tete">
+        <span class="verre-produit"><span class="verre-marque" aria-hidden="true">R</span>Riseva, tableau de bord</span>
+        <span class="verre-demo mono"><i aria-hidden="true"></i>Jeu de démonstration</span>
+      </div>
+
+      <div class="verre-intro">
+        <p>Une saison d'un an, un écran par métier, et <b>la même donnée du site
+          jusqu'au rapport</b>. Rien n'est ressaisi, et rien n'est estimé sans que
+          la page le dise.</p>
+        <div class="verre-chiffres">
+          <span class="verre-chiffre"><b>{CATALOGUE['rubriques']}</b><span>rubriques au choix</span></span>
+          <span class="verre-chiffre"><b>{CATALOGUE['saisis']}</b><span>valeurs collectées</span></span>
+          <span class="verre-chiffre"><b>{CATALOGUE['calcules']}</b><span>taux calculés</span></span>
+        </div>
+      </div>
+
+      <div class="verre-grille">
+{verre_zone(1,
   "En réunion budget",
-  "« Combien de vos sites<br>ont répondu&nbsp;?&nbsp;»",
+  "« Combien de vos sites ont répondu&nbsp;?&nbsp;»",
   f"Vous cochez les rubriques d'une période parmi {CATALOGUE['rubriques']} : effectifs, "
   "sécurité, formation, énergie, déchets, mobilité, achats. Chaque établissement voit sa "
   "part sur son écran, avec ce qu'on compte et ce qu'on ne compte pas. La plateforme "
@@ -1176,37 +1199,36 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss verre-sect">
       ("Brest - Port", "Non commencé", "muet"),
   ], (64, "Établissements ayant répondu"),
      "Maquette de l'écran « Sites et quotas », avec un jeu de démonstration."),
-  "Écrans : Données sociales, Sites et quotas, Vue consolidée")}
+  "Écrans : Données sociales, Sites et quotas, Vue consolidée",
+  large=True)}
 
-{verre_carte(
+{verre_zone(2,
   "Questionnaire fournisseur",
-  "« D'où sort<br>ce chiffre&nbsp;?&nbsp;»",
+  "« D'où sort ce chiffre&nbsp;?&nbsp;»",
   f"{CATALOGUE['saisis']} valeurs collectées, {CATALOGUE['calcules']} taux calculés en "
   "rapport de sommes et jamais en moyenne de taux. Chaque saisie de site porte qui l'a "
   "remplie, qui l'a approuvée (jamais la même personne) et <b>les pièces jointes qui la "
-  "justifient</b>. Le rapport sort en classeur et en CSV, avec sa méthode et le nombre de "
-  "sites derrière chaque somme.",
+  "justifient</b>.",
   mini_ecran("Rapport, taux de fréquence", [
       ("Formule", "AT x 1 000 000 / heures", None),
       ("Période", "2026, 4e trimestre", None),
       ("Sites derrière la somme", "22 sur 22", "ok"),
       ("Valeurs approuvées", "Par le référent", "ok"),
       ("Pièces jointes", "9 justificatifs", "muet"),
-      ("Méthode", "Rapport de sommes", None),
   ], None,
      "Maquette de la fiche d'un taux consolidé, avec sa formule et ses sources."),
   "Écrans : Rapports, Fiche VSME, Mécénat")}
 
-{verre_carte(
+{verre_zone(3,
   "Vos salariés, vos candidats",
-  "« Qu'est-ce que vos équipes<br>ont fait cette année&nbsp;?&nbsp;»",
+  "« Qu'est-ce que vos équipes ont fait cette année&nbsp;?&nbsp;»",
   "Des associations vérifiées près de chaque site publient ce dont elles ont besoin, vos "
-  "équipes s'y rendent ensemble, et <b>c'est l'association qui confirme</b>. Refuges, "
-  "plantations, berges, distributions de repas. Bénévolat, dons de matériel, mécénat de "
-  "compétences et dons en argent passent par le même écran.",
+  "équipes s'y rendent ensemble, et <b>c'est l'association qui confirme</b>. Bénévolat, "
+  "dons de matériel, mécénat de compétences et dons en argent passent par le même écran.",
   photo("refuge-sortie", "Deux bénévoles sortent quatre chiens de refuge sur un chemin de "
         "campagne, en plein soleil", "", " verre-photo"),
   "Écrans : Annonces, Nos missions, Associations")}
+      </div>
     </div>
 
     <p class="s-note s-note--trois">Vos sites répondent, vos équipes agissent,
@@ -1214,7 +1236,6 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss verre-sect">
 
   </div>
 </section>"""
-
 
 PILOTAGE_ENT = f"""<section id="pilotage">
   <div class="layer">
