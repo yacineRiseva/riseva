@@ -41,7 +41,13 @@ insert into auth.users (id, email) values
   ('aaaaaaaa-0000-4000-8000-000000000006', 'lea@vaudrey-ciments.fr'),
   ('aaaaaaaa-0000-4000-8000-000000000007', 'theo@vaudrey-negoce.fr'),
   ('aaaaaaaa-0000-4000-8000-000000000008', 'controle@riseva.fr'),
-  ('aaaaaaaa-0000-4000-8000-000000000009', 'cse@vaudrey-ciments.fr');
+  ('aaaaaaaa-0000-4000-8000-000000000009', 'cse@vaudrey-ciments.fr'),
+  -- Deux comptes authentifiés SANS appartenance : ce sont eux qui éprouvent les
+  -- deux portes d'inscription en libre-service, celles qu'aucun test ne
+  -- traversait.
+  ('aaaaaaaa-0000-4000-8000-00000000001a', 'dg@fonderie-morel.fr'),
+  ('aaaaaaaa-0000-4000-8000-00000000001b', 'quelqun@gmail.com'),
+  ('aaaaaaaa-0000-4000-8000-00000000001c', 'presidente@amis-du-bocage.org');
 
 insert into profil (id, nom) values
   ('aaaaaaaa-0000-4000-8000-000000000001', 'Claire Fontaine'),
@@ -2219,7 +2225,7 @@ select pg_temp.refuse('un référent de site ne suspend personne',
 
 -- L'administratrice d'une AUTRE société ne touche pas aux gens de celle-ci.
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000007', false);
-select set_config('request.jwt.claim.email', 'theo@atelier-rialland.fr', false);
+select set_config('request.jwt.claim.email', 'theo@vaudrey-negoce.fr', false);
 select pg_temp.refuse('l''administrateur d''une autre société ne promeut pas ici',
   'select public.promouvoir_admin(''aaaaaaaa-0000-4000-8000-000000000002'')');
 select pg_temp.refuse('il ne suspend personne ici non plus',
@@ -2410,6 +2416,187 @@ begin
     private.tache_cloture_campagnes() = 0);
   perform pg_temp.dit('une campagne close ne se relance plus',
     (select count(*) from public.envoi where cle like 'relance:' || v_c3 || ':%') = 0);
+end $$;
+
+\echo ''
+\echo 'Ce que personne ne testait'
+-- Quarante-six fonctions publiques sur cent trois n'étaient appelées par aucun
+-- test, dont les deux portes d'inscription en libre-service et toute la
+-- modération. Une fonction qu'aucun test n'appelle n'est pas écrite, elle est
+-- espérée.
+
+-- --- Une entreprise s'inscrit elle-même ------------------------------------
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-00000000001a', false);
+select set_config('request.jwt.claim.email', 'dg@fonderie-morel.fr', false);
+do $$
+declare v_code text; v_moi record;
+begin
+  v_code := public.ouvrir_compte_entreprise('Fonderie Morel', 40, 'Industrie', 'Nantes', 'Anne Morel');
+  perform pg_temp.dit('elle reçoit son premier lien d''inscription', length(v_code) > 12);
+  select * into v_moi from public.mon_profil();
+  perform pg_temp.dit('et elle en est l''administratrice',
+    v_moi.role = 'entreprise_admin' and v_moi.entreprise is not null);
+  perform pg_temp.dit('son domaine de messagerie est déclaré tout seul',
+    'fonderie-morel.fr' = any (public.mes_domaines()));
+  perform pg_temp.dit('son abonnement n''est pas signé : rien n''a été vendu',
+    (select signe_le is null and montant_ht = 0 from public.abonnement ab
+      where ab.entreprise = v_moi.entreprise));
+  perform pg_temp.dit('le lien qu''elle vient de recevoir se résout',
+    exists (select 1 from public.resoudre_invitation(v_code)));
+  perform set_config('riseva.ent2', v_moi.entreprise::text, false);
+exception when others then
+  perform pg_temp.dit('elle reçoit son premier lien d''inscription', false);
+  raise notice 'ouvrir_compte_entreprise : %', sqlerrm;
+end $$;
+select pg_temp.refuse('on n''ouvre pas deux comptes avec le même compte',
+  'select public.ouvrir_compte_entreprise(''Autre SARL'', 10)');
+reset role;
+
+-- Une messagerie grand public n'identifie pas un employeur.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-00000000001b', false);
+select set_config('request.jwt.claim.email', 'quelqun@gmail.com', false);
+do $$
+begin
+  perform public.ouvrir_compte_entreprise('Atelier Gmail', 5);
+  perform pg_temp.dit('une adresse grand public ne devient pas un domaine d''entreprise',
+    coalesce(array_length(public.mes_domaines(), 1), 0) = 0);
+end $$;
+reset role;
+
+-- Un compte ouvert en libre-service n'entre pas au classement public.
+set role anon;
+select set_config('request.jwt.claim.sub', '', false);
+do $$
+begin
+  perform pg_temp.dit('une société sans contrat signé n''est pas classée',
+    not exists (select 1 from public.classement_saison(
+      (select id from public.saison where etat = 'ouverte')) c
+      where c.entreprise = current_setting('riseva.ent2', true)::uuid));
+end $$;
+reset role;
+
+-- --- L'effectif de la société ne descend pas sous celui de ses sites -------
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
+select pg_temp.refuse('l''effectif ne peut pas passer sous la somme des sites',
+  'select public.maj_entreprise(p_effectif => 3)');
+reset role;
+
+-- --- Le registre de sécurité ne sort pas de son périmètre -----------------
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
+select set_config('request.jwt.claim.email', 'malik@vaudrey-ciments.fr', false);
+-- La fonction rend toujours UNE ligne — un agrégat sans `group by` en rend une
+-- même sur un ensemble vide. Ce qu'on vérifie, c'est qu'elle ne rend que des
+-- zéros à qui n'a pas le droit de savoir : sur un site de dix personnes, « un
+-- accident avec arrêt de douze jours ce mois-ci » désigne un collègue.
+do $$
+declare v record;
+begin
+  select * into v from public.securite_du_registre(
+    'e7000000-0000-4000-8000-000000000001', current_date - 400, current_date);
+  perform pg_temp.dit('un salarié ne lit aucun accident de son site', v.evenements = 0);
+end $$;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000009', false);
+select set_config('request.jwt.claim.email', 'cse@vaudrey-ciments.fr', false);
+do $$
+declare v record;
+begin
+  select * into v from public.securite_du_registre(
+    'e7000000-0000-4000-8000-000000000001', current_date - 400, current_date);
+  perform pg_temp.dit('le CSE non plus : ce sont des données de santé', v.evenements = 0);
+end $$;
+select pg_temp.refuse('et il ne dépose aucune pièce dans le coffre',
+  'select public.joindre_piece(''mission'', (select id from public.mission limit 1),
+     ''x.pdf'', ''application/pdf'', 1000,
+     ''0000000000000000000000000000000000000000000000000000000000000000'',
+     ''22222222-2222-4222-8222-222222222222/x.pdf'')');
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000005', false);
+select set_config('request.jwt.claim.email', 'karim@vaudrey-ciments.fr', false);
+do $$
+declare v_sien record; v_autre record; v_reel integer;
+begin
+  select count(*)::int into v_reel from public.evenement_securite e
+   where e.etablissement = 'e7000000-0000-4000-8000-000000000002' and e.annule_le is null;
+  select * into v_sien from public.securite_du_registre(
+    'e7000000-0000-4000-8000-000000000002', current_date - 4000, current_date + 400);
+  select * into v_autre from public.securite_du_registre(
+    'e7000000-0000-4000-8000-000000000001', current_date - 4000, current_date + 400);
+  perform pg_temp.dit('un référent lit le registre de SON site',
+    v_reel = 0 or v_sien.evenements > 0);
+  perform pg_temp.dit('et rien de celui d''un autre', v_autre.evenements = 0);
+end $$;
+reset role;
+
+-- --- Une collecte ne se remplit pas depuis une autre société --------------
+-- Vaudrey Négoce est dans le MÊME groupe que Vaudrey Ciments : la collecte de
+-- groupe la concerne, c'est voulu. On éprouve donc avec la société qui vient de
+-- s'inscrire toute seule, qui n'a de groupe qu'avec elle-même.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-00000000001a', false);
+select set_config('request.jwt.claim.email', 'dg@fonderie-morel.fr', false);
+do $$
+declare v_et uuid;
+begin
+  v_et := public.creer_etablissement('Nantes', 'Nantes', null, 40, null);
+  perform set_config('riseva.et2', v_et::text, false);
+exception when others then
+  raise notice 'creer_etablissement : %', sqlerrm;
+end $$;
+select pg_temp.refuse('on n''écrit pas dans la collecte d''un autre client',
+  'select public.saisir_indicateurs(''c1000000-0000-4000-8000-000000000001'',
+     current_setting(''riseva.et2'')::uuid, ''{}''::jsonb)');
+reset role;
+
+-- --- La modération, article 16 du DSA ------------------------------------
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
+select set_config('request.jwt.claim.email', 'malik@vaudrey-ciments.fr', false);
+do $$
+declare v_sg uuid;
+begin
+  v_sg := public.signaler_annonce((select id from public.annonce where etat = 'ouverte' limit 1),
+                                  'trompeuse', 'Le nombre de places annoncé ne correspond pas.');
+  perform set_config('riseva.sg', v_sg::text, false);
+  perform pg_temp.dit('un salarié peut signaler une annonce', v_sg is not null);
+end $$;
+select pg_temp.refuse('mais il ne décide pas lui-même',
+  'select public.decider_signalement(current_setting(''riseva.sg'')::uuid, ''retire'', ''Motivation quelconque'')');
+reset role;
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000008', false);
+select set_config('request.jwt.claim.email', 'controle@riseva.fr', false);
+select pg_temp.refuse('une décision sans motivation est refusée',
+  'select public.decider_signalement(current_setting(''riseva.sg'')::uuid, ''maintenu'', '''')');
+select pg_temp.refuse('une décision hors nomenclature est refusée',
+  'select public.decider_signalement(current_setting(''riseva.sg'')::uuid, ''conserve'', ''Vérifié, rien à redire.'')');
+do $$
+begin
+  perform public.decider_signalement(current_setting('riseva.sg')::uuid, 'maintenu',
+    'Vérifié auprès de l''association : le nombre de places est exact, il avait changé entre-temps.');
+  perform pg_temp.dit('Riseva tranche, avec sa motivation',
+    (select decision = 'maintenu' and decide_le is not null and length(motivation) > 10
+       from public.signalement where id = current_setting('riseva.sg')::uuid));
+end $$;
+reset role;
+
+-- Un signalement survit à la suppression de l'annonce qu'il vise : la décision
+-- motivée est justement ce qu'il faut pouvoir montrer quand l'objet a disparu.
+do $$
+declare v_an uuid;
+begin
+  select annonce into v_an from public.signalement
+   where id = current_setting('riseva.sg')::uuid;
+  begin
+    delete from public.annonce where id = v_an;
+    perform pg_temp.dit('une annonce signalée ne s''efface pas en silence', false);
+  exception when others then
+    perform pg_temp.dit('une annonce signalée ne s''efface pas en silence', true);
+  end;
 end $$;
 
 \echo ''
