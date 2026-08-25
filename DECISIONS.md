@@ -324,3 +324,64 @@ et la recette clique comme un visiteur clique.
 
 La règle : **rien de ce qui se trouve au-dessus d'un bouton n'a le droit de
 changer de hauteur pendant qu'on appuie dessus.**
+
+## Quatre écrans qui écrivaient dans le vide
+
+*25/08/2026.* L'écran « Paramètres » demande à l'entreprise son exercice
+comptable, ses dons faits hors Riseva et son report antérieur. Ces quatre
+champs commandent le plafond de mécénat de l'article 238 bis : sans eux, le
+plafond ne se calcule pas et l'écran bascule sur une « estimation maximale ». Le
+client les remplissait, cliquait « Enregistrer », lisait « Paramètres
+enregistrés » — et les retrouvait vides au rechargement suivant. La RPC ne
+prenait pas ces paramètres, la table n'avait pas ces colonnes, et le mappeur les
+posait à `null` en dur avec un commentaire honnête qui disait « chantier
+ouvert ». Le chantier ouvert, c'était **le plafond fiscal jamais appliqué chez
+aucun client de production.** Même histoire pour le nom du référent Riseva, pour
+l'adresse de contact d'une association — dont le bouton « Les contacter »
+n'apparaissait sur aucune page réelle — et pour les cinq colonnes du registre
+AGEC, qui revenaient bien de la base mais que le mappeur renommait sous le nez
+de la fonction qui les lit.
+
+La règle : **un champ qu'un écran demande doit avoir une colonne, une RPC qui la
+prend et un mappeur qui la rend sous le même nom.** Trois maillons, et il suffit
+qu'un manque pour que l'utilisateur écrive dans le vide en lisant « enregistré ».
+
+Ce défaut-là ne se voit sur aucun écran, parce que la démonstration, elle, porte
+toujours le champ. La recette compare donc désormais **les deux formes** : pour
+chaque collection, tout champ présent sur un objet du jeu de démonstration doit
+exister sur l'objet correspondant chargé depuis Postgres. Le test a trouvé neuf
+divergences le jour où il a été écrit.
+
+## Le contrat qu'on ne pouvait plus signer
+
+*25/08/2026.* Un compte ouvert en libre-service démarre avec l'abonnement de
+l'essai : dix places, zéro euro, aucune date de signature. Aucune fonction ne
+savait relever ces places. Celle qui semblait faite pour ça crée une société et
+un abonnement, et `abonnement` porte `unique (entreprise, saison)` : elle ne
+pouvait donc pas convertir un compte existant. Une entreprise de six cents
+personnes pouvait signer, payer, et rester à dix places pour toute la saison —
+la seule issue étant de recréer la société en double, en abandonnant ses
+salariés et ses missions.
+
+La règle : **une limite qu'on pose doit avoir, écrite le même jour, la fonction
+qui la lève.** Un plafond sans son geste de sortie n'est pas une protection,
+c'est une impasse.
+
+Et sa garde était morte elle aussi : `sieges_pris` prend un abonnement, on lui
+passait une entreprise. Les deux sont des `uuid`, PostgreSQL ne dit rien, la
+fonction rendait zéro, et le contrôle « on ne descend pas sous ce qui est déjà
+occupé » ne s'est jamais déclenché. **Deux identifiants du même type sont deux
+paramètres différents ; le typage ne les distingue pas, la relecture si.**
+
+## « Retirer l'annonce » ne retirait rien
+
+*25/08/2026.* L'écran de modération propose trois décisions, dont « Retirer
+l'annonce ». La fonction écrivait la décision dans une colonne — et rien d'autre.
+Aucune ligne du produit ne lisait cette colonne : l'annonce restait ouverte,
+visible, offerte aux engagements. Tant que personne n'était prévenu, le défaut
+dormait. Le jour où l'on a branché la notification que l'article 16 du règlement
+sur les services numériques impose, il est devenu **un mensonge écrit, envoyé à
+la personne la mieux placée pour le constater.**
+
+La règle : **avant de notifier une décision, vérifier qu'elle a un effet.** Une
+décision de modération qui ne modère rien est pire qu'une absence de décision.
