@@ -100,9 +100,18 @@ def main():
         # plateforme de benevolat. Celle-ci dit d'abord a qui elle s'adresse et
         # ce qu'elle remplace ; le vivant est trois lignes plus bas, en image et
         # dans l'accroche.
+        # Quatrieme accroche, et le changement est de fond, pas de style : Riseva
+        # ne se vend pas qu'aux PME. Un groupe de douze sites a exactement le
+        # meme probleme, en plus grand, et un titre qui dit « PME » lui apprend
+        # en trois mots que la page ne parle pas de lui.
         verifie("l'accueil affiche le titre",
-                "La RSE d'une PME" in p.inner_text("h1")
-                and "sans direction RSE" in p.inner_text("h1"))
+                "Votre RSE" in p.inner_text("h1")
+                and "sans service RSE" in p.inner_text("h1"))
+        # Et la page doit se lire en trois parties, pas en onze sections. Le
+        # jour ou quelqu'un rajoute une douzieme section entre deux parties,
+        # c'est ce test qui le dira.
+        verifie("la page se lit en trois parties",
+                p.locator(".chap").count() == 3)
         # Et le vivant ne doit pas avoir disparu du premier ecran pour autant :
         # c'est ce qui distingue Riseva d'un outil de reporting, et c'est ce que
         # le fondateur a demande de mettre en avant.

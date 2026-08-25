@@ -933,7 +933,7 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
     {photo("refuge",
            "Un chien de refuge trotte en laisse sur l'allée d'un refuge, au soleil, à côté "
            "de la personne qui le sort", "", " photo--couverture")}
-{entete("Côté associations", "L'association publie,<br><span class='it'>puis elle confirme.</span>",
+{entete("L'annuaire", "L'association publie,<br><span class='it'>puis elle confirme.</span>",
         "Le chiffre final de votre rapport vient de la structure qui était sur place : une "
         "déclaration datée, tracée et attribuée. Ce n'est pas une attestation et cela ne vaut "
         "ni contrôle ni certification, mais c'est déjà tout autre chose qu'un chiffre que vous "
@@ -1163,7 +1163,7 @@ PILOTAGE_ENT = f"""<section id="pilotage">
 # qui lit.
 OUTIL_ENT = f"""<section id="outil" class="band">
   <div class="layer">
-{entete("L'outil RSE", "Ce que vous ne referez plus<br><span class='it'>à la main.</span>",
+{entete("La collecte", "Ce que vous ne referez plus<br><span class='it'>à la main.</span>",
         "Ce qui coûte cher dans un programme RSE, ce n'est pas le calcul. C'est d'obtenir "
         "les chiffres de chaque site, et de relancer jusqu'à ce que le dernier réponde.")}
 
@@ -1298,7 +1298,7 @@ AFFICHES_ENT = f"""<section id="affiches">
 
 PERIMETRES_ENT = f"""<section id="perimetres" class="band">
   <div class="layer">
-{entete("Groupes et périmètres", "Un même cadre,<br><span class='it'>plusieurs périmètres.</span>",
+{entete("Le périmètre", "Un même cadre,<br><span class='it'>plusieurs périmètres.</span>",
         "Une société seule, ou un groupe et ses filiales. Un écran pour les montrer.")}
 
     {capture("groupe",
