@@ -562,10 +562,15 @@ function tableauEntreprise(u){
   const maxSite = Math.max(...sites.map(x => x.parSalarie), 0.01);
   const eid = u.org;
   const e = DB.entreprise(eid);
-  const clCat = DB.classement();
+  /* `pour` : une entreprise se voit TOUJOURS elle-même, à son rang réel. Sans ce
+     paramètre, une entreprise de la moitié basse recevait sa propre ligne
+     anonymisée — points, score par salarié et participation à `null` — et son
+     tableau de bord lui annonçait « 0,0 point par salarié » pendant que l'écran
+     Classement, qui passe `pour`, lui donnait le vrai chiffre. */
+  const clCat = DB.classement({ pour: eid });
   const moiCl = clCat.find(x => x.id === eid) || {};
   const catId = moiCl.categorie ? moiCl.categorie.id : null;
-  const dansCat = DB.classement({ categorie: catId });
+  const dansCat = DB.classement({ categorie: catId, pour: eid });
   const rang = dansCat.findIndex(x => x.id === eid) + 1;
   const total = dansCat.length;
   const pts = DB.pointsDe(eid);
@@ -579,7 +584,12 @@ function tableauEntreprise(u){
      qui existe — la médiane de la catégorie quand la cohorte est assez grande,
      l'avancement de la cohorte sinon. */
   const monParSalarie = moiCl.parSalarie || 0;
-  const scores = dansCat.map(x => x.parSalarie).sort((a, b) => a - b);
+  /* Les lignes anonymisées rendent `null` : les faire entrer dans la médiane la
+     tirait systématiquement vers le bas, et l'écart affiché avec « la médiane de
+     votre catégorie » était faux d'autant. */
+  const scores = dansCat.map(x => x.parSalarie)
+                        .filter(x => typeof x === "number" && Number.isFinite(x))
+                        .sort((a, b) => a - b);
   const medianeCat = scores.length
     ? Math.round(((scores.length % 2
         ? scores[(scores.length - 1) / 2]
@@ -1812,7 +1822,12 @@ function vueClassement(u){
   el.querySelector("#detail").onclick = () => {
     const e = DB.entreprise(u.org);
     const pts = DB.pointsDe(u.org);
-    const base = Math.max(e.effectif || 1, 1);
+    /* Le dénominateur du score est celui du CONTRAT, pas l'effectif déclaré :
+       c'est déjà la règle du classement et de la base. Cet écran-ci prenait
+       l'autre, et affichait donc un score différent de celui du classement pour
+       la même entreprise le même jour — juste sous la phrase « si nos deux
+       résultats diffèrent, c'est nous qui avons tort ». */
+    const base = Math.max(DB.effectifReference(u.org) || e.effectif || 1, 1);
     const ms = DB.missionsVueEmployeur(u.org)
                  .filter(m => !m.masquee)
                  .filter(m => m.etat === "validee" || m.etat === "validee_auto");
@@ -2090,10 +2105,17 @@ function vueEquipe(u){
          n'est effacé.</p>
          <p class="muted" style="margin-top:var(--s4)">Ici, son compte est fermé et sa place est
          rendue à votre abonnement.</p>
-         <p class="muted" style="margin-top:var(--s4)">Son nom et son adresse disparaissent de la
-         plateforme. Il apparaîtra désormais comme <strong>salarié retiré</strong> dans les listes et
-         dans l'historique des missions. Les ${nb(DB.pointsVisiblesEmployeur(g.id))} points qu'il a rapportés restent
-         acquis à l'entreprise.</p>
+         <!-- On n'annonce que ce qui est fait. La phrase promettait aussi
+              l'effacement de l'adresse : celle-ci vit dans la base
+              d'authentification, que ce geste ne touche pas — seul le droit à
+              l'effacement, exercé par la personne elle-même ou par Riseva, la
+              supprime. Promettre les deux rendait l'écran faux sur la moitié. -->
+         <p class="muted" style="margin-top:var(--s4)">Son nom disparaît de la plateforme : il
+         apparaîtra désormais comme <strong>salarié retiré</strong> dans les listes et dans
+         l'historique des missions, et il ne peut plus se connecter. Les
+         ${nb(DB.pointsVisiblesEmployeur(g.id))} points qu'il a rapportés restent acquis à
+         l'entreprise. Son adresse, elle, reste dans le service d'authentification jusqu'à ce
+         qu'il demande l'effacement de ses données, ou que Riseva le fasse à sa demande.</p>
          <p class="hint" style="margin-top:var(--s4)">Cette opération ne se défait pas.</p>`,
         [{ label:"Annuler" },
          { label:"Retirer et anonymiser", classe:"btn--primary", onClick: () => {
@@ -2998,7 +3020,8 @@ function ouvrirFacture(u, fa){
     Paiement à ${FACTURATION.delai_paiement_jours} jours à compter de la date d'émission.<br>
     En cas de retard, pénalités au ${esc(FACTURATION.penalites_taux)}, exigibles sans rappel,
     et indemnité forfaitaire pour frais de recouvrement de ${eur(FACTURATION.indemnite_recouvrement)}
-    (articles L. 441-9 et L. 441-10 du code de commerce). Pas d'escompte pour paiement anticipé.<br>
+    (articles L. 441-9 et L. 441-10 du code de commerce).
+    Escompte de ${pct(FACTURATION.escompte_comptant * 100)} % pour règlement intégral à la commande.<br>
     Aucune commission n'est prélevée sur les dons versés aux associations, qui ne transitent
     jamais par Riseva et ne figurent pas sur cette facture.<br>
     Document conservé ${FACTURATION.conservation_ans} ans.
@@ -3868,8 +3891,11 @@ function vueAValider(u){
          <div class="field" style="margin-top:var(--s5)"><label>Un mot d'explication, pour l'entreprise</label>
            <textarea class="textarea" id="mot" placeholder="Personne n'est venu, ou la mission a été écourtée..."></textarea></div>`,
         [{ label:"Annuler" },
-         { label:"Refuser", classe:"btn--primary", onClick: () => {
-             return alors(DB.validerMission(m.id, false),
+         { label:"Refuser", classe:"btn--primary", onClick: (md) => {
+             /* Le motif part avec la décision. Il était saisi, lu par personne,
+                et l'écran promettait quand même que l'entreprise serait prévenue. */
+             const mot = (md.querySelector("#mot") || {}).value || "";
+             return alors(DB.validerMission(m.id, false, null, mot),
                () => { toast("Mission refusée, l'entreprise est prévenue."); rendre(); }); }}]);
       tr.lastElementChild.append(no, ok);
     }
@@ -5426,7 +5452,7 @@ function ouvrirConvention(u, m){
 
   ${art(1, "Parties", `
     <p><strong>${esc(e.nom)}</strong>, ${champ("")} au capital de ${champ("")},
-    SIREN ${champ(esc(e.siret || ""))}, siège ${champ(esc(e.adresse || ""))},
+    SIREN ${champ(esc(e.siren || ""))}, siège ${champ(esc(e.adresse || ""))},
     représentée par ${champ(esc(e.referent || ""))}, ci-après <strong>l'Entreprise</strong>.</p>
     <p><strong>${esc(asso.nom)}</strong>, association loi 1901, RNA ${champ(esc(asso.rna || ""))},
     siège ${champ(esc(asso.ville || ""))}, représentée par
@@ -8199,7 +8225,17 @@ function formIndicateurs(u, cid, et){
     const vals = {};
     champsDemandes.forEach(d => {
       const champ = corps.querySelector(`#i-${d.cle}`);
-      if (champ && !champ.disabled) vals[d.cle] = champ.value;
+      if (!champ || champ.disabled) return;
+      /* La valeur d'un champ est une CHAÎNE, et vide quand personne n'a rien
+         tapé. La base, elle, n'accepte que des nombres : « Seules des valeurs
+         numériques sont acceptées ». En production, aucune saisie d'indicateurs
+         ne pouvait donc être enregistrée — jamais une seule — pendant que la
+         démonstration, qui normalisait de son côté, marchait parfaitement. Un
+         champ vide n'est pas un zéro : il ne part pas du tout. */
+      const brut = String(champ.value).trim();
+      if (brut === "") return;
+      const n = Number(brut);
+      if (Number.isFinite(n)) vals[d.cle] = n;
     });
     return { ...v, ...(derive || {}), ...vals };
   };
@@ -8866,6 +8902,20 @@ function ouvrirDon(a, u){
       onClick: async () => {
         const orig = corps.querySelector("#orig");
         const origine = orig ? orig.value : "salarie";
+        /* Le circuit CARTE ne déclare rien ici. C'est la fonction Edge qui crée
+           l'intention, au moment d'ouvrir le paiement chez HelloAsso — et elle
+           seule. En déclarer une de plus depuis le navigateur en fabriquait DEUX
+           pour le même don : la première restait « annoncée » trente jours et
+           s'affichait à l'association dans « virements en attente de votre
+           confirmation », au même montant et le même jour que le paiement carte
+           qu'elle venait de voir arriver. Elle confirmait, et cinquante euros
+           encaissés en devenaient cent déclarés, avec deux reçus fiscaux — dont
+           un irrégulier, à sa charge (article 1740 A). */
+        if (parCarte){
+          ouvrirPaiementCarte({ montant: Number(q.value), origine, annonce: a.id },
+                              asso, a, u);
+          return;
+        }
         let i;
         try {
           i = await DB.declarerIntentionDon({ annonce: a.id, montant: Number(q.value),
@@ -8876,7 +8926,6 @@ function ouvrirDon(a, u){
           toast("Le don n'a pas pu être enregistré. Réessayez dans un instant.");
           return false;
         }
-        if (parCarte){ ouvrirPaiementCarte(i, asso, a); return; }
         modal("Votre virement à " + asso.nom, bonDeVirement(i, asso),
           [{ label:"C'est noté", classe:"btn--primary", onClick: () => rendre() }]);
       }}
@@ -8891,7 +8940,7 @@ function ouvrirDon(a, u){
 
    En demonstration, il n'y a pas de page a ouvrir : on simule le paiement, et on
    le dit. */
-function ouvrirPaiementCarte(intention, asso, annonce){
+function ouvrirPaiementCarte(intention, asso, annonce, u){
   if (DB.mode === "supabase"){
     const base = (window.RISEVA_CONFIG || {}).url || "";
     toast("Ouverture de la page de paiement...");
@@ -8910,6 +8959,18 @@ function ouvrirPaiementCarte(intention, asso, annonce){
     }).catch(() => toast("Le paiement n'a pas pu être ouvert."));
     return;
   }
+  /* En démonstration il n'y a pas de fonction Edge : c'est ici qu'on fabrique
+     l'intention, au moment de simuler le paiement, et pas une ligne plus tôt. */
+  let simulee = null;
+  try {
+    simulee = DB.declarerIntentionDon({ annonce: annonce.id, montant: intention.montant,
+      origine: intention.origine, salarie: u ? u.id : null,
+      entreprise: intention.origine === "entreprise" && u ? u.org : null });
+  } catch (e){ toast(e.message || "Le don n'a pas pu être enregistré."); return; }
+  if (!simulee || !simulee.reference){
+    toast("Le don n'a pas pu être enregistré."); return;
+  }
+  intention = simulee;
   const corps = h(`<div class="stack" style="--gap:var(--s4)">
     <p class="muted" style="font-size:var(--t-sm)">
       Sur riseva.fr, ce bouton vous emmène sur la page de paiement de HelloAsso :

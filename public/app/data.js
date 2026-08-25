@@ -546,7 +546,17 @@ export const categorieDe = (effectif) =>
    professionnel établi en France est au taux normal. */
 export const FACTURATION = {
   tva: 0.20,
-  penalites_taux: "taux d'intérêt légal majoré de 10 points",
+  /* La MÊME formulation que les CGV acceptées par le client. La facture disait
+     « taux d'intérêt légal majoré de 10 points », les CGV « taux de
+     refinancement de la BCE majoré de dix points, sans pouvoir être inférieur à
+     trois fois le taux d'intérêt légal » : deux taux différents sur la mention
+     obligatoire de l'article L. 441-9, l'un sur la pièce, l'autre au contrat. */
+  penalites_taux: "taux de refinancement de la Banque centrale européenne en vigueur "
+    + "au 1er janvier ou au 1er juillet précédant l'échéance, majoré de dix points, "
+    + "sans pouvoir être inférieur à trois fois le taux d'intérêt légal",
+  /* Le même taux que `TARIFS.remise_comptant`, lu là où il est décidé : deux
+     constantes pour un seul escompte finissent toujours par diverger. */
+  get escompte_comptant(){ return TARIFS.remise_comptant; },
   indemnite_recouvrement: 40,          // article L. 441-10 du code de commerce
   delai_paiement_jours: 30,
   conservation_ans: 10,
@@ -2105,6 +2115,45 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
          ce qui met une PME et un grand groupe sur le même plan ;
        - brut : le total, gardé comme lecture secondaire. */
     classement({ mode = "normalise", categorie = null, pour = null } = {}){
+      /* En production, la cohorte vient de la base. Le moteur ne voit que les
+         sociétés que la RLS lui ouvre — la sienne, et celles de son groupe —, ce
+         qui donnait un classement d'une seule ligne chez tout client réel. La
+         base, elle, voit tout le réseau et applique déjà les règles de nommage :
+         moitié haute, ex æquo à cheval sur la médiane, totaux à null sur une
+         ligne anonyme. On ne recalcule donc rien ici, on met en forme. */
+      if (Array.isArray(s.classement_public) && s.classement_public.length){
+        /* La base rend « TPE », « PME », « ETI », « GE » ; les identifiants du
+           moteur sont en minuscules. Les bornes, elles, sont les mêmes des deux
+           côtés — c'est écrit dans `classement_saison`. */
+        let l = s.classement_public.map(r => {
+          const cat = CATEGORIES.find(c => c.id === String(r.categorie || "").toLowerCase())
+                      || CATEGORIES[0];
+          const e = r.id ? api.entreprise(r.id) : null;
+          const sal = r.id ? api.salaries(r.id).filter(u => !u.anonyme) : [];
+          const engages = sal.filter(u => api.pointsVisiblesEmployeur(u.id) > 0).length;
+          const anonyme = r.anonyme && r.id !== pour;
+          return {
+            ...(e || {}), id: r.id, nom: r.nom, logo: anonyme ? null : (r.logo || (e || {}).logo || null),
+            categorie: cat, rang: r.rang, cohorte: r.cohorte, anonyme,
+            points: anonyme ? null : r.points, brut: anonyme ? null : r.brut,
+            ecrete: anonyme || r.brut === null || r.points === null ? null : r.brut - r.points,
+            parSalarie: anonyme ? null : r.parSalarie,
+            effectif: anonyme ? null : r.effectif,
+            /* Participation et activation ne se calculent que pour soi : elles
+               demandent la liste des salariés, que personne n'a sur une autre
+               société — et n'a pas à avoir. */
+            participation: anonyme || !r.id || !r.effectif ? null
+              : Math.round((engages / r.effectif) * 1000) / 10,
+            activation: anonyme || !sal.length ? null
+              : Math.round((engages / sal.length) * 100),
+            engages: r.id ? engages : null, inscrits: r.id ? sal.length : null,
+            nomAffiche: anonyme ? `Entreprise, ${cat.label.toLowerCase()}` : r.nom
+          };
+        });
+        if (categorie) l = l.filter(x => x.categorie.id === categorie);
+        const mediane = Math.ceil(l.length / 2);
+        return l.sort((a, b) => a.rang - b.rang).map(x => ({ ...x, mediane }));
+      }
       let l = clone(s.entreprises).map(e => {
         const p = api.pointsDe(e.id);
         const sal = api.salaries(e.id).filter(u => !u.anonyme);
@@ -2389,14 +2438,27 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
        a corrigé. Pas de compteur additionné au passage sur l'entreprise ni sur le
        salarié — les totaux se relisent dans les missions, sinon une correction
        laisse un score faux derrière elle. */
-    validerMission(mid, ok, realise){
+    validerMission(mid, ok, realise, motif = null){
       const m = s.missions.find(x => x.id === mid); if (!m) return null;
       m.etat = ok ? "validee" : "refusee";
       m.tranchee_le = leJour();
       if (ok){
         if (realise !== undefined && realise !== null) m.realise = Math.max(0, Number(realise) || 0);
         api.emettreRecuSiPret(m);
-      } else { m.points = 0; m.realise = 0; }
+      } else {
+        m.points = 0; m.realise = 0;
+        /* Le motif suit la décision. L'écran le demandait déjà et le jetait :
+           l'entreprise voyait ses points tomber à zéro sans un mot, et le salarié
+           qui avait donné sa demi-journée non plus. */
+        m.motif_refus = String(motif || "").trim().slice(0, 500) || null;
+        const dest = api.administrateurs(m.entreprise)[0];
+        if (!s.envois.some(x => x.cle === `refus:${m.id}`))
+          s.envois.unshift({ id: id("en"), cle: `refus:${m.id}`, type: "moderation",
+            entreprise: m.entreprise, destinataire: dest ? dest.email : null,
+            sujet: "Une mission n'a pas été confirmée",
+            detail: m.motif_refus || "L'association a indiqué que la mission n'a pas eu lieu.",
+            date: leJour(), etat: dest ? "à envoyer" : "sans destinataire" });
+      }
       return m;
     },
     /* Les administrateurs occupent aussi une place : ce sont des comptes de l'entreprise. */
@@ -2920,7 +2982,13 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         .map(p => ({ ...p,
           format: api.FORMATS_PIECE[p.type] || "fichier",
           deposant: (s.utilisateurs.find(u => u.id === p.depose_par) || {}).nom || "compte retiré",
-          conserve: p.contenu !== null }));
+          /* `conserve` dit si le FICHIER est là. En démonstration il vit dans
+             `contenu` ; en production, dans le stockage objet, et le mappeur pose
+             `contenu: null` en dur avec `conserve` déjà calculé — cette ligne
+             réécrivait donc `false` par-dessus, et toute pièce d'un vrai client
+             s'affichait « fichier non conservé en démonstration », sans bouton
+             de téléchargement, sur une facture qu'il venait de déposer. */
+          conserve: p.contenu !== null || !!p.chemin || p.conserve === true }));
     },
 
     retirerPiece(id, uid = null){
@@ -3545,6 +3613,8 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const sal = api.salaries(eid).filter(x => !x.anonyme);
       const engages = sal.filter(x => api.pointsVisiblesEmployeur(x.id) > 0).length;
       const seuil = api.SEUIL_RESTITUTION;
+      /* Ce que la base a calculé pour cet élu, quand elle l'a calculé. */
+      const d = s.dossier_cse || null;
       return {
         entreprise: { id:e.id, nom:e.nom, effectif:e.effectif, secteur:e.secteur },
         saison: s.saison,
@@ -3556,10 +3626,17 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         /* La participation est un agrégat, et elle reste muette sous le seuil :
            « un salarié engagé sur douze » dans un site de douze personnes, c'est
            une désignation. */
-        participation: engages >= seuil
-          ? { engages, effectif: e.effectif || sal.length,
-              taux: Math.round((engages / Math.max(e.effectif || sal.length, 1)) * 1000) / 10 }
-          : null,
+        /* En production, ces deux chiffres viennent de la BASE : un compte CSE ne
+           lit ni la liste des salariés ni les événements, et les dériver d'ici
+           donnait zéro — donc « moins de cinq personnes » affiché en permanence à
+           une société qui en comptait cent quatre-vingts. */
+        participation: d
+          ? (d.participation_sous_seuil ? null
+             : { engages: d.engages, effectif: d.effectif, taux: Number(d.participation) })
+          : (engages >= seuil
+             ? { engages, effectif: e.effectif || sal.length,
+                 taux: Math.round((engages / Math.max(e.effectif || sal.length, 1)) * 1000) / 10 }
+             : null),
         seuil,
         /* La sécurité, en agrégat et sous seuil. Le registre ligne à ligne se
            réidentifie : une date, une zone et un nombre de journées d'arrêt
@@ -3568,6 +3645,16 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
            « un accident de manutention » dans une société de douze personnes
            désigne quelqu'un. */
         securite: (() => {
+          if (d) return {
+            sous_seuil: !!d.securite_sous_seuil,
+            motif_seuil: d.motif_seuil || null,
+            pareto: (d.pareto || []).map(x => ({ type: x.type, n: Number(x.n) })),
+            total: { evenements: d.evenements,
+                     at_avec_arret: d.at_avec_arret, at_sans_arret: d.at_sans_arret,
+                     at_trajet: d.at_trajet, jours_arret: d.jours_arret,
+                     sans_soin: d.sans_soin },
+            sites_sans_registre: d.sites_sans_registre || []
+          };
           const sy = api.syntheseSecurite({ societe: eid,
             debut: s.saison.debut, fin: s.saison.fin });
           /* Deux conditions, pas une. Cinq EVENEMENTS ne sont pas cinq
@@ -6716,6 +6803,11 @@ const ECRITURES = [
   "retirerPiece", "retrograderAdmin", "revoquerInvitation", "revoquerMandatRecus",
   "rouvrirAnnonce",
   "emettreRecusEnAttente",
+  /* Elles n'y étaient pas, et le Proxy retombait donc en SILENCE sur le moteur
+     en mémoire, créé avec `persister:false` : l'écran de Riseva disait « saison
+     enregistrée » et « barème enregistré », rien n'était écrit, et tout
+     disparaissait au rechargement suivant. */
+  "majSaison", "majBareme",
   "saisirIndicateurs", "signaler", "signalerZone", "signerContrat",
   "supprimerAnnonce", "supprimerSalarie",
   "suspendreAcces", "suspendreAssociation", "validerAssociation", "validerMission"
@@ -6784,8 +6876,8 @@ const versEtat = {
     exercice_fin: r.exercice_fin || null,
     dons_hors_riseva: r.dons_hors_riseva != null ? Number(r.dons_hors_riseva) : null,
     report_anterieur: r.report_anterieur != null ? Number(r.report_anterieur) : null,
-    referent: r.referent_nom || null,
-    referent_mail: r.referent_mail || null,
+    referent: r.referent_nom ?? null,
+    referent_mail: r.referent_mail ?? null,
     siren: r.siren, siret: r.siret, adresse: r.adresse,
     lat: r.lat, lon: r.lon, groupe: r.groupe || null,
     /* Demandée en lecture, jamais recopiée : l'objectif que l'administrateur
@@ -6930,6 +7022,7 @@ const versEtat = {
     quantite: Number(r.quantite), points: r.points, date: r.date_mission,
     declaree_le: r.declaree_le ? String(r.declaree_le).slice(0, 10) : null,
     tranchee_le: r.tranchee_le ? String(r.tranchee_le).slice(0, 10) : null,
+    motif_refus: r.motif_refus || null,
     realise: r.realise_confirme === null || r.realise_confirme === undefined
       ? undefined : Number(r.realise_confirme),
     realise_propose: r.realise_propose === null || r.realise_propose === undefined
@@ -7046,7 +7139,8 @@ async function chargerEtat(client){
     return data || [];
   };
 
-  const [saisons, baremes, entreprises, groupes, etablissements, associations,
+  const [saisons, baremes, entreprises, dossiersEntreprise, groupes, etablissements,
+         associations,
          annonces, missions, profils, invitations, campagnes, observations,
          acces, signalements, intentions, controles,
          evenements, actionsCorrectives,
@@ -7065,12 +7159,13 @@ async function chargerEtat(client){
        et un `[]` ne ressemble pas à une panne, il ressemble à une base neuve.
        On énumère donc, et la liste doit rester identique à celle de 03_rls.sql. */
     lire("saison"), lire("bareme"),
-    lire("entreprise", "id, nom, secteur, ville, effectif, ca, cout_jour_moyen, "
-                     + "cout_heure_charge, exercice_debut, exercice_fin, "
-                     + "dons_hors_riseva, report_anterieur, "
-                     + "referent_nom, referent_mail, "
-                     + "siren, siret, adresse, lat, lon, groupe, visibilite, logo, "
-                     + "objectif_mobilises"),
+    lire("entreprise", "id, nom, secteur, ville, effectif, lat, lon, groupe, "
+                     + "visibilite, logo, objectif_mobilises"),
+    /* Le dossier de MA société, et seulement si j'en suis l'administrateur :
+       chiffre d'affaires, coût journalier, dossier fiscal, numéros, adresse de
+       facturation, référent. C'est une vue avec son propre `where`, pas un droit
+       sur la table — une policy protège les lignes, jamais les colonnes. */
+    lire("entreprise_dossier"),
     lire("groupe"),
     lire("etablissement"),
     lire("association", "id, nom, nom_juridique, rna, siren, cause, ville, resume, adresse, "
@@ -7136,6 +7231,24 @@ async function chargerEtat(client){
   const saison = saisons.find(x => x.etat === "ouverte") || saisons[0] || null;
   if (!saison) throw new Error("Riseva : aucune saison ouverte en base.");
 
+  /* Le classement PUBLIC, calculé par la base.
+     Le navigateur le dérivait de `s.entreprises`, c'est-à-dire des sociétés que
+     la RLS le laisse lire : la sienne, et celles de son groupe. Chez un vrai
+     client, la cohorte comptait donc UNE ligne, l'écran affichait
+     « 1 / 1 entreprise dans votre catégorie » et le tableau de bord annonçait
+     « classement non publié » pour toujours. La fonction qui calcule la vraie
+     cohorte existait depuis le premier jour et n'était appelée nulle part.
+     Elle nomme, anonymise et met les totaux à null selon les mêmes règles que le
+     moteur : c'est elle qui fait foi. */
+  let classementPublic = [];
+  try {
+    const { data, error } = await client.rpc("classement_saison", { p_saison: saison.id });
+    if (error) throw new Error(error.message);
+    classementPublic = data || [];
+  } catch (e){
+    console.warn("Riseva : classement public indisponible (" + e.message + ").");
+  }
+
   /* Le barème vient de la base, pas du fichier : un barème recalibré en cours
      de route doit s'appliquer partout, et surtout figurer dans les rapports. */
   baremes.filter(b => b.saison === saison.id).forEach(b => {
@@ -7175,12 +7288,34 @@ async function chargerEtat(client){
     } catch (e){ equipe = []; }
   }
 
+  /* Le dossier du CSE, calculé par la base avec ses deux planchers.
+     Un compte CSE ne lit ni les événements ligne à ligne ni la liste des
+     salariés — c'est la frontière, pas un oubli —, donc le navigateur dérivait
+     zéro partout et affichait « moins de cinq événements » à une société qui en
+     comptait quarante. */
+  let dossierCse = null;
+  if (identite && identite.role === "cse"){
+    try {
+      const { data, error } = await client.rpc("dossier_cse",
+        { p_debut: saison.debut, p_fin: saison.fin });
+      if (error) throw new Error(error.message);
+      dossierCse = Array.isArray(data) ? data[0] : data;
+    } catch (e){
+      console.warn("Riseva : dossier CSE indisponible (" + e.message + ").");
+    }
+  }
+
+
   return {
     saison: { id: saison.id, nom: saison.nom, debut: saison.debut, fin: saison.fin,
               etat: saison.etat, prix_min: saison.prix_min, prix_max: saison.prix_max,
               acompte: saison.acompte },
     entreprises: entreprises.map(r => {
-      const e = versEtat.entreprise(r);
+      /* Le dossier de la société, quand il est lisible. Il ne l'est que pour
+         l'administrateur de SA société : pour tous les autres, ces champs
+         restent absents, et c'est la frontière, pas un oubli. */
+      const d = (dossiersEntreprise || []).find(x => x.id === r.id) || {};
+      const e = versEtat.entreprise({ ...r, ...d });
       const ab = abonnements.find(x => x.entreprise === r.id && x.saison === saison.id);
       if (ab && ab.sieges) e.sieges = ab.sieges;
       if (identite && identite.entreprise === r.id) e.domaines = domaines;
@@ -7354,6 +7489,20 @@ async function chargerEtat(client){
       le: String(x.cree_le).slice(0, 10), ...(x.fait || {})
     })),
     rapports_generes: [],
+    /* Le classement public, tel que la base l'a calculé. Le moteur s'en sert
+       quand il est là — c'est-à-dire en production — et retombe sur sa propre
+       dérivation en démonstration. */
+    /* Ce que la base rend au CSE, brut. Le moteur le met en forme. */
+    dossier_cse: dossierCse || null,
+    classement_public: classementPublic.map(r => ({
+      id: r.entreprise || null, nom: r.nom, logo: r.logo || null,
+      anonyme: !!r.anonyme, categorie: r.categorie,
+      brut: r.brut === null ? null : Number(r.brut),
+      points: r.retenu === null ? null : Number(r.retenu),
+      effectif: r.effectif_reference === null ? null : Number(r.effectif_reference),
+      parSalarie: r.par_salarie === null ? null : Number(r.par_salarie),
+      rang: Number(r.rang), cohorte: Number(r.cohorte)
+    })),
     /* Les reçus délivrés, rattachés à la mission que le moteur connaît. C'est
        ce nombre-là, et pas celui des dons confirmés, que l'article 222 bis fait
        déclarer chaque année. */
@@ -7562,10 +7711,21 @@ function creerSupabase(client){
     // son explication, elle ne partait pas, et la base refusait la saisie en lui
     // demandant precisement ce qu'il venait d'ecrire. La demonstration, elle,
     // acceptait — deux moteurs, deux comportements sur la meme regle.
-    saisirIndicateurs: (cid, etid, valeurs, uid, commentaire = null) => ecrire(() =>
-      rpc("saisir_indicateurs", { p_campagne: cid, p_etablissement: etid,
-                                  p_valeurs: valeurs,
-                                  p_commentaire: commentaire || null })),
+    saisirIndicateurs: (cid, etid, valeurs, uid, commentaire = null) => ecrire(() => {
+      /* Deuxième filet, au plus près de la RPC : elle refuse tout ce qui n'est
+         pas un nombre, et un écran qui enverrait une chaîne ferait échouer la
+         saisie sans que personne comprenne pourquoi. Un champ vide disparaît,
+         il ne devient pas zéro. */
+      const propres = {};
+      Object.entries(valeurs || {}).forEach(([k, val]) => {
+        if (val === undefined || val === null || val === "") return;
+        const n = Number(val);
+        if (Number.isFinite(n)) propres[k] = n;
+      });
+      return rpc("saisir_indicateurs", { p_campagne: cid, p_etablissement: etid,
+                                         p_valeurs: propres,
+                                         p_commentaire: commentaire || null });
+    }),
     approuverIndicateurs: (cid, etid) => ecrire(() =>
       rpc("approuver_indicateurs", { p_campagne: cid, p_etablissement: etid })),
 
@@ -7603,8 +7763,9 @@ function creerSupabase(client){
                                p_consentement: !!consentement })),
     declarerFaite: (mid, propose) => ecrire(() =>
       rpc("declarer_mission", { p_mission: mid, p_propose: propose ?? null })),
-    validerMission: (mid, ok, realise) => ecrire(() =>
-      rpc("trancher_mission", { p_mission: mid, p_ok: ok, p_realise: realise ?? null })),
+    validerMission: (mid, ok, realise, motif = null) => ecrire(() =>
+      rpc("trancher_mission", { p_mission: mid, p_ok: ok, p_realise: realise ?? null,
+                                p_motif: motif || null })),
     creerAnnonce: (a) => ecrire(() => rpc("publier_annonce", {
       p_titre: a.titre, p_description: a.description, p_type: a.type,
       p_quantite: a.quantite, p_date: a.date, p_lieu: a.lieu,
@@ -7838,6 +7999,11 @@ function creerSupabase(client){
     },
     signalerZone: (etid, motif = null) => ecrire(() =>
       rpc("signaler_zone", { p_etablissement: etid, p_motif: motif })),
+    majSaison: (champs = {}) => ecrire(() => rpc("maj_saison", {
+      p_nom: champs.nom ?? null, p_debut: champs.debut ?? null,
+      p_fin: champs.fin ?? null, p_etat: champs.etat ?? null })),
+    majBareme: (type, points) => ecrire(() =>
+      rpc("maj_bareme", { p_type: type, p_points: Math.round(Number(points) || 0) })),
     signerContrat: (eid, { sieges, montant_ht = 0, palier = null,
                            fondateur = false, le = null } = {}) => ecrire(() =>
       rpc("signer_contrat", { p_entreprise: eid, p_montant_ht: Number(montant_ht) || 0,

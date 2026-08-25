@@ -62,12 +62,18 @@ create policy bareme_lecture on public.bareme for select to anon, authenticated 
 -- à n'importe quel compte connecté — y compris une association. Le commentaire
 -- affirmait le contraire, et la recette ne testait que `anon`.
 grant select on public.entreprise_publique to anon, authenticated;
-grant select (id, nom, secteur, ville, effectif, ca, cout_jour_moyen,
-              cout_heure_charge, exercice_debut, exercice_fin,
-              dons_hors_riseva, report_anterieur, referent_nom, referent_mail,
-              siren, siret, adresse, lat, lon, groupe, visibilite, logo,
-              objectif_mobilises)
+-- Ce qu'un COLLÈGUE peut lire de sa propre société, et rien de plus. Le chiffre
+-- d'affaires, le coût journalier moyen, le SIREN, le SIRET, l'adresse de
+-- facturation et le dossier fiscal étaient dans cette liste : ils descendaient
+-- donc dans le navigateur de chacun des deux cent dix salariés, en une requête
+-- triviale. Le coût journalier moyen est une donnée de masse salariale ; le
+-- chiffre d'affaires, une donnée que beaucoup d'entreprises ne publient pas.
+-- Ils vivent maintenant derrière `entreprise_dossier`, qui ne s'ouvre qu'à
+-- l'administrateur de la société.
+grant select (id, nom, secteur, ville, effectif, lat, lon, groupe, visibilite,
+              logo, objectif_mobilises)
   on public.entreprise to authenticated;
+grant select on public.entreprise_dossier to authenticated;
 create policy entreprise_privee on public.entreprise for select to authenticated
   using (id = private.mon_entreprise()
          or private.dans_mon_groupe(id)
@@ -456,7 +462,7 @@ grant execute on function
   public.creer_invitation(integer, integer, uuid),
   public.engager_mission(uuid, numeric, text, boolean),
   public.declarer_mission(uuid, numeric),
-  public.trancher_mission(uuid, boolean, numeric),
+  public.trancher_mission(uuid, boolean, numeric, text),
   public.publier_annonce(text, text, public.type_annonce, integer, date, text,
                          boolean, public.unite_realisation, numeric),
   public.fermer_annonce(uuid),
@@ -506,6 +512,7 @@ grant execute on function
   public.ajouter_action(uuid, text, text, date, uuid),
   public.maj_action(uuid, text),
   public.securite_du_registre(uuid, date, date),
+  public.dossier_cse(date, date),
   public.pareto_securite(uuid, date, date),
   public.enregistrer_helloasso(uuid, text),
   public.confirmer_reception(uuid),

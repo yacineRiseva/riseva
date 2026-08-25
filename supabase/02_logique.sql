@@ -229,7 +229,13 @@ language sql stable security definer set search_path = '' as $$
       join public.entreprise e on e.id = ab.entreprise
       left join brut   b on b.entreprise = ab.entreprise
       left join retenu r on r.entreprise = ab.entreprise
-     where ab.saison = p_saison
+     -- Le filtre est sur les DEUX niveaux. Il était sur le décompte des points
+     -- seulement : une société inscrite en libre-service, sans contrat signé,
+     -- n'y prenait aucun point mais gardait sa LIGNE dans le classement, à zéro.
+     -- Elle apparaissait publiquement comme « Entreprise · TPE » et gonflait la
+     -- cohorte — donc déplaçait la médiane, donc changeait qui est nommé et qui
+     -- reste anonyme chez les vrais clients.
+     where ab.saison = p_saison and ab.signe_le is not null
   ), classe as (
     select b.*,
            rank() over (partition by b.categorie
@@ -929,6 +935,20 @@ begin
               where jsonb_typeof(e.value) not in ('number','null')) then
     raise exception 'Seules des valeurs numériques sont acceptées' using errcode = '22023';
   end if;
+  -- Un site qui tient son registre ne saisit plus ses quatre chiffres de
+  -- sécurité à la main : ils se déduisent des événements déclarés. Le verrou
+  -- n'existait que dans le navigateur — `readonly` sur quatre champs — donc un
+  -- onglet resté ouvert avant l'activation, ou un appel direct, écrasait les
+  -- valeurs déduites. C'est exactement la double saisie et la divergence
+  -- site/siège que l'activation du registre existe pour supprimer.
+  if exists (select 1 from public.etablissement et
+              where et.id = p_etablissement and et.registre_actif)
+     and exists (select 1 from jsonb_each(p_valeurs) e
+                  where e.key in ('at_avec_arret','at_sans_arret','at_trajet','jours_arret')) then
+    raise exception 'Ce site tient son registre : ses chiffres de sécurité se déduisent des événements déclarés'
+      using errcode = '22023';
+  end if;
+
   -- Et seulement des clés du catalogue, appartenant à une rubrique que CETTE
   -- campagne demande. Une clé inconnue qui entre est une colonne qui n'existe
   -- nulle part, qui ne s'additionne pas, et qu'on retrouve six mois plus tard
@@ -1211,6 +1231,14 @@ begin
   if p_temps_travail and not v_asso.eligible_mecenat then
     raise exception 'Association non éligible au mécénat de compétences' using errcode = '42501';
   end if;
+  -- Demander de l'argent sans avoir dit où le verser, c'est publier un besoin
+  -- auquel personne ne peut répondre. La règle existait dans le moteur du
+  -- navigateur, qui n'est pas sur le chemin de production : l'annonce partait, un
+  -- salarié cliquait, et le refus tombait un par un au dernier geste.
+  if p_type = 'don_financier' and v_asso.iban is null and v_asso.helloasso_slug is null then
+    raise exception 'Renseignez un IBAN ou connectez votre compte HelloAsso avant de demander un don'
+      using errcode = '22023';
+  end if;
 
   insert into public.annonce (association, saison, type, titre, description, lieu,
     temps_travail, quantite, restant, date_prevue, etat, impact_unite, impact_par_unite)
@@ -1361,10 +1389,18 @@ begin
     v_texte := private.texte_consentement(p_annonce);
   end if;
 
-  insert into public.mission (annonce, entreprise, salarie, etat, quantite, points,
+  -- L'établissement se GÈLE ici, au moment de l'engagement. La colonne existait,
+  -- son commentaire disait « jamais recalculé », et l'insertion ne la remplissait
+  -- pas : cent pour cent des missions d'un vrai client retombaient sur
+  -- l'affectation COURANTE du salarié. Un salarié muté de Lyon à Marseille
+  -- emportait donc tout son passé — le classement inter-sites de la saison
+  -- écoulée, les points par site du consolidé, le registre AGEC changeaient
+  -- tout seuls, sans qu'aucune écriture n'ait eu lieu.
+  insert into public.mission (annonce, entreprise, salarie, etablissement, etat,
+                              quantite, points,
                               date_mission, cle_idempotence, consentement_le,
                               consentement_texte, consentement_empreinte)
-  values (p_annonce, v_ent, v_uid, 'engagee', p_quantite,
+  values (p_annonce, v_ent, v_uid, private.mon_etablissement(), 'engagee', p_quantite,
           private.points_pour(v_a.saison, v_a.type, p_quantite),
           coalesce(v_a.date_prevue, current_date), p_cle,
           case when v_a.temps_travail then clock_timestamp() end,
@@ -1396,7 +1432,8 @@ end $$;
 -- si elle valide : une validation automatique donne des points, jamais une
 -- réalisation confirmée.
 create or replace function public.trancher_mission(
-  p_mission uuid, p_ok boolean, p_realise numeric default null)
+  p_mission uuid, p_ok boolean, p_realise numeric default null,
+  p_motif text default null)
 returns void
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -1424,10 +1461,25 @@ begin
      where m.id = p_mission;
   else
     update public.mission m
-       set etat = 'refusee', tranchee_le = now(), points = 0, realise_confirme = null
+       set etat = 'refusee', tranchee_le = now(), points = 0, realise_confirme = null,
+           motif_refus = nullif(btrim(coalesce(p_motif, '')), '')
      where m.id = p_mission;
     update public.annonce a set restant = least(a.quantite, a.restant + v_m.quantite)
      where a.id = v_m.annonce;
+    -- « L'entreprise est prévenue », dit l'écran de l'association. Elle ne
+    -- l'était pas : le motif partait dans le vide, aucun envoi n'était enfilé, et
+    -- l'entreprise voyait ses points tomber à zéro sans un mot.
+    insert into public.envoi (cle, type, entreprise, destinataire_profil,
+                              sujet, detail, date, etat)
+    select 'refus:' || p_mission, 'moderation', v_m.entreprise,
+           (select ap.profil from private.appartenance ap
+             where ap.entreprise = v_m.entreprise and ap.role = 'entreprise_admin' and ap.actif
+             order by ap.maj_le limit 1),
+           'Une mission n''a pas été confirmée',
+           left(coalesce(nullif(btrim(coalesce(p_motif, '')), ''),
+                         'L''association a indiqué que la mission n''a pas eu lieu.'), 380),
+           current_date, 'a_envoyer'
+    on conflict (cle) do nothing;
   end if;
 end $$;
 
@@ -1641,42 +1693,30 @@ end $$;
 create or replace function public.emettre_recu(p_don uuid)
 returns text
 language plpgsql security definer set search_path = '' as $$
-declare
-  v_d public.don;
-  v_a public.association;
-  v_num text;
-  v_suite integer;
+declare v_d public.don; v_num text;
 begin
+  -- Une seule règle de numérotation dans tout le produit.
+  --
+  -- Cette fonction avait la sienne — `count(*) + 1` — pendant que
+  -- `private.emettre_recu_si_pret` déduisait le numéro du plus grand suffixe déjà
+  -- émis. Sur une association qui a repris sa série à 47, la première repartait à
+  -- 0001 : soit elle réemployait un numéro déjà délivré hors Riseva, soit la
+  -- contrainte d'unicité faisait échouer l'émission sans que personne comprenne.
+  -- Les deux tombent sous l'article 1740 A, et l'amende est pour l'association.
   select * into v_d from public.don d where d.id = p_don;
-  if not found or v_d.etat <> 'confirme' then
-    raise exception 'Don introuvable ou non confirmé' using errcode = '42501';
-  end if;
-  -- Seule l'association bénéficiaire émet ses reçus. Sans ce contrôle, quiconque
-  -- tenait l'identifiant d'un don émettait un reçu au nom d'une association et
-  -- consommait sa numérotation — et c'est elle qui encourt l'amende de l'article
-  -- 1740 A du CGI, pas celui qui a appelé la fonction.
-  if v_d.association is distinct from private.mon_association()
-     and not private.est_admin() then
+  if not found then raise exception 'Don inconnu' using errcode = '42704'; end if;
+  if private.mon_association() is distinct from v_d.association and not private.est_admin() then
     raise exception 'Réservé à l''association bénéficiaire' using errcode = '42501';
   end if;
-  -- Le verrou sérialise la numérotation : deux reçus ne peuvent pas porter le
-  -- même numéro, et aucun numéro n'est attribué côté navigateur.
-  select * into v_a from public.association a where a.id = v_d.association for update;
-  if not v_a.recus_actif then
-    raise exception 'Cette association n''émet pas de reçus' using errcode = '42501';
+  if v_d.etat <> 'confirme' then
+    raise exception 'Un reçu ne se délivre que sur un don encaissé' using errcode = '22023';
   end if;
-  -- Un reçu ne se prépare que sous mandat écrit : sans lui, Riseva n'a pas le
-  -- droit d'agir au nom de l'association.
-  if v_a.mandat_recus_le is null then
-    raise exception 'Aucun mandat de préparation des reçus' using errcode = '42501';
+  perform private.emettre_recu_si_pret(p_don);
+  select r.numero into v_num from public.recu r where r.don = p_don;
+  if v_num is null then
+    raise exception 'Il manque un réglage : éligibilité, activation, signataire, qualité, préfixe ou mandat'
+      using errcode = '22023';
   end if;
-
-  select count(*) + 1 into v_suite from public.recu r where r.association = v_a.id;
-  v_num := v_a.recu_prefixe || lpad(v_suite::text, 4, '0');
-
-  insert into public.recu (don, association, numero, modele)
-  values (p_don, v_a.id, v_num,
-          case when v_d.origine = 'entreprise' then '16216*03' else '11580*05' end);
   return v_num;
 end $$;
 
@@ -1697,6 +1737,21 @@ begin
                   where a.profil = p_profil and a.entreprise = v_ent)
      and not private.est_admin() then
     raise exception 'Ce compte n''appartient pas à votre entreprise' using errcode = '42501';
+  end if;
+  -- Le dernier administrateur ne se retire pas. `retrograder_admin` et
+  -- `suspendre_acces` comptaient déjà les autres ; celle-ci, non — et c'est la
+  -- seule des trois qui est irréversible. Une société sans administrateur ne
+  -- peut plus créer un lien, allouer un quota, approuver un indicateur ni
+  -- signer : elle est morte jusqu'à une intervention en base.
+  if exists (select 1 from private.appartenance a
+              where a.profil = p_profil and a.role = 'entreprise_admin' and a.actif)
+     and not exists (select 1 from private.appartenance a
+                      where a.entreprise = (select b.entreprise from private.appartenance b
+                                             where b.profil = p_profil)
+                        and a.role = 'entreprise_admin' and a.actif
+                        and a.profil <> p_profil) then
+    raise exception 'C''est le dernier administrateur : nommez-en un autre avant de le retirer'
+      using errcode = '23514';
   end if;
 
   update public.profil p set nom = 'Salarié retiré', maj_le = now() where p.id = p_profil;
@@ -1910,6 +1965,25 @@ end $$;
 create or replace view public.entreprise_publique as
   select e.id, e.nom, e.secteur, e.ville
     from public.entreprise e;
+
+-- Le dossier d'une société : ce qu'un COLLÈGUE n'a pas à lire.
+--
+-- Ces colonnes étaient accordées à `authenticated` comme les autres, donc
+-- lisibles par chacun des salariés de l'entreprise en une requête. Le chiffre
+-- d'affaires, le coût journalier moyen — une donnée de masse salariale —, le
+-- SIREN, le SIRET, l'adresse de facturation, le nom et l'adresse personnelle du
+-- référent, et tout le dossier fiscal. Une policy protège les LIGNES, pas les
+-- colonnes : ce qui les protège ici, c'est cette vue et son `where`.
+--
+-- Pas de `security_invoker` : c'est la vue qui est la frontière, pas un droit
+-- sur la table.
+create or replace view public.entreprise_dossier as
+  select e.id, e.ca, e.cout_jour_moyen, e.cout_heure_charge,
+         e.exercice_debut, e.exercice_fin, e.dons_hors_riseva, e.report_anterieur,
+         e.referent_nom, e.referent_mail, e.siren, e.siret, e.adresse
+    from public.entreprise e
+   where (e.id = private.mon_entreprise() and private.mon_role() = 'entreprise_admin')
+      or private.est_admin();
 
 -- Les réglages qu'une association ne partage avec personne : qui signe ses reçus,
 -- avec quelle qualité, sous quel mandat, et où en est sa numérotation. Sans
@@ -2154,8 +2228,16 @@ begin
     raise exception 'Annonce indisponible' using errcode = '42501';
   end if;
   select * into v_a from public.association a where a.id = v_an.association;
-  if v_a.iban is null or not v_a.valide or v_a.suspendue then
-    raise exception 'Cette association ne peut pas recevoir de virement pour l''instant'
+  if not v_a.valide or v_a.suspendue then
+    raise exception 'Cette association ne peut pas recevoir de don pour l''instant'
+      using errcode = '42501';
+  end if;
+  -- Un moyen de recevoir, l'un OU l'autre. La garde exigeait l'IBAN dans tous
+  -- les cas : une association qui avait connecté HelloAsso sans jamais saisir de
+  -- coordonnées bancaires — ce que l'écran lui présente comme complet, et ce que
+  -- la vitrine recommande — voyait chaque don par carte refusé au dernier geste.
+  if v_a.iban is null and v_a.helloasso_slug is null then
+    raise exception 'Cette association n''a pas encore de moyen de recevoir les dons'
       using errcode = '42501';
   end if;
   if p_montant is null or p_montant < 5 then
@@ -2381,7 +2463,16 @@ begin
     raise exception 'Le tarif fondateur est clos depuis le %', private.fin_fondateur()
       using errcode = '23514';
   end if;
-  select count(*) into v_pris from public.abonnement a
+  -- Vingt ENTREPRISES, pas vingt abonnements. Le compte portait sur les lignes :
+  -- une même société pouvait en porter deux — la remise s'appliquant alors
+  -- au-delà de la première saison, ce que le tarif fondateur exclut — et le
+  -- plafond réel tombait sous vingt entreprises distinctes.
+  if exists (select 1 from public.abonnement a
+              where a.entreprise = new.entreprise and a.id is distinct from new.id) then
+    raise exception 'Le tarif fondateur ne vaut que pour la première saison de cette entreprise'
+      using errcode = '23514';
+  end if;
+  select count(distinct a.entreprise) into v_pris from public.abonnement a
    where a.fondateur and a.id is distinct from new.id;
   if v_pris >= private.places_fondateur() then
     raise exception 'Les % places au tarif fondateur sont prises', private.places_fondateur()
@@ -2625,6 +2716,104 @@ language sql stable security definer set search_path = '' as $$
                        or private.dans_mon_groupe(et.societe)
                        or private.est_admin()))
 $$;
+
+-- ------------------------------------------------------------- dossier du CSE
+-- Ce que l'élu lit, calculé par la base, avec les deux planchers appliqués ICI.
+--
+-- Le navigateur dérivait ces chiffres de tables que le compte CSE ne peut pas
+-- lire — et c'était voulu : ni les événements ligne à ligne, ni la liste des
+-- salariés. Il lisait donc zéro partout, et affichait en permanence « moins de
+-- cinq événements déclarés » et « moins de cinq personnes concernées » à une
+-- société qui en comptait quarante et cent quatre-vingts. Une protection
+-- annoncée que le code n'applique pas est un défaut, même quand le silence est
+-- plus protecteur que la vérité : l'élu lisait une phrase fausse.
+--
+-- Deux planchers, et ils ne comptent pas la même chose. La PARTICIPATION porte
+-- sur des personnes : sous cinq salariés engagés, rien. Le REGISTRE porte sur
+-- des événements, et cinq événements peuvent être ceux d'une seule personne —
+-- on exige donc aussi que la société compte au moins cinq salariés. Quand
+-- l'effectif n'est renseigné nulle part, on ne rend rien et on dit pourquoi,
+-- plutôt que d'affirmer qu'il est sous le seuil.
+create or replace function public.dossier_cse(p_debut date, p_fin date)
+returns table (
+  effectif integer, engages integer, participation numeric,
+  participation_sous_seuil boolean,
+  evenements integer, at_avec_arret integer, at_sans_arret integer,
+  at_trajet integer, jours_arret integer, sans_soin integer,
+  securite_sous_seuil boolean, motif_seuil text,
+  pareto jsonb, sites_sans_registre text[])
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_ent uuid := private.mon_entreprise();
+  v_seuil constant integer := 5;
+  v_eff integer; v_eng integer; v_ev record; v_par jsonb; v_sites text[];
+begin
+  if v_ent is null
+     or private.mon_role() not in ('cse','entreprise_admin','site_referent') then
+    raise exception 'Réservé à la société concernée' using errcode = '42501';
+  end if;
+
+  select e.effectif into v_eff from public.entreprise e where e.id = v_ent;
+  if coalesce(v_eff, 0) = 0 then
+    select nullif(sum(et.effectif), 0) into v_eff from public.etablissement et
+     where et.societe = v_ent and et.ferme_le is null;
+  end if;
+
+  select count(distinct m.salarie)::int into v_eng
+    from public.mission m
+   where m.entreprise = v_ent and m.etat in ('validee','validee_auto')
+     and m.origine = 'entreprise'
+     and m.date_mission between p_debut and p_fin;
+
+  select
+    count(*)::int as evenements,
+    count(*) filter (where e.nature = 'travail' and e.gravite = 'avec_arret')::int as avec,
+    count(*) filter (where e.nature = 'travail' and e.gravite = 'soin_sans_arret')::int as sans,
+    count(*) filter (where e.nature = 'trajet')::int as trajet,
+    coalesce(sum(e.jours_arret) filter (where e.nature = 'travail'), 0)::int as jours,
+    count(*) filter (where e.gravite = 'sans_soin')::int as soin
+    into v_ev
+    from public.evenement_securite e
+    join public.etablissement et on et.id = e.etablissement
+   where et.societe = v_ent and e.annule_le is null
+     and e.date between p_debut and p_fin;
+
+  select coalesce(jsonb_agg(x order by x->>'n' desc), '[]'::jsonb) into v_par from (
+    select jsonb_build_object('type', e.type_evenement, 'n', count(*)) as x
+      from public.evenement_securite e
+      join public.etablissement et on et.id = e.etablissement
+     where et.societe = v_ent and e.annule_le is null
+       and e.date between p_debut and p_fin
+     group by e.type_evenement) t;
+
+  select coalesce(array_agg(et.nom order by et.nom), '{}') into v_sites
+    from public.etablissement et
+   where et.societe = v_ent and et.ferme_le is null and not et.registre_actif;
+
+  effectif := v_eff;
+  engages := v_eng;
+  participation_sous_seuil := v_eng < v_seuil;
+  participation := case when v_eng >= v_seuil and coalesce(v_eff, 0) > 0
+                        then round((v_eng::numeric / v_eff) * 1000) / 10 end;
+  engages := case when v_eng >= v_seuil then v_eng end;
+
+  motif_seuil := case
+    when v_eff is null then 'effectif_inconnu'
+    when v_eff < v_seuil then 'effectif'
+    when v_ev.evenements < v_seuil then 'evenements'
+  end;
+  securite_sous_seuil := motif_seuil is not null;
+  evenements := v_ev.evenements;
+  if securite_sous_seuil then
+    at_avec_arret := null; at_sans_arret := null; at_trajet := null;
+    jours_arret := null; sans_soin := null; pareto := '[]'::jsonb;
+  else
+    at_avec_arret := v_ev.avec; at_sans_arret := v_ev.sans; at_trajet := v_ev.trajet;
+    jours_arret := v_ev.jours; sans_soin := v_ev.soin; pareto := v_par;
+  end if;
+  sites_sans_registre := v_sites;
+  return next;
+end $$;
 
 -- ---------------------------------------------------------------------------
 -- Supports : ce qui part par la poste

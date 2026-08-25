@@ -398,6 +398,16 @@ begin
      or p_mail !~ '^[^@[:space:]]+@[^@[:space:]]+\.[a-z]{2,}$' then
     raise exception 'Un accès CSE est nominatif : nom et adresse' using errcode = '22023';
   end if;
+  -- Le même domaine que pour un référent de site. Sans ce contrôle, un accès en
+  -- lecture aux agrégats sociaux et sécurité d'une société pouvait être ouvert
+  -- sur n'importe quelle adresse, y compris celle d'un concurrent.
+  if exists (select 1 from private.domaine_entreprise d where d.entreprise = v_ent)
+     and not exists (select 1 from private.domaine_entreprise d
+                      where d.entreprise = v_ent
+                        and lower(split_part(btrim(p_mail), '@', 2)) = d.domaine) then
+    raise exception 'Cette adresse n''est pas dans les domaines déclarés par votre société'
+      using errcode = '22023';
+  end if;
   v_code := replace(replace(replace(
               encode(extensions.gen_random_bytes(16), 'base64'), '+', '-'), '/', '_'), '=', '');
   update public.invitation i set active = false
@@ -427,6 +437,18 @@ begin
   -- circule : c'est ce qui le distingue d'un lien d'inscription.
   if lower(coalesce(v_email, '')) <> v_i.destinataire_mail then
     raise exception 'Ce lien a été émis pour une autre adresse' using errcode = '42501';
+  end if;
+  -- Le compte n'appartient à personne d'autre. C'était la seule des trois portes
+  -- d'entrée à ne pas le vérifier : `rejoindre_entreprise` et
+  -- `rejoindre_comme_referent` refusent toutes deux un compte déjà rattaché,
+  -- celle-ci écrasait l'appartenance existante. Un administrateur qui connaissait
+  -- l'adresse professionnelle d'un salarié d'un AUTRE client pouvait donc
+  -- l'arracher à son employeur : la personne disparaissait de son équipe, ses
+  -- missions lui devenaient illisibles, son siège payé restait occupé, et son
+  -- vrai employeur ne pouvait plus la récupérer.
+  if exists (select 1 from private.appartenance a
+              where a.profil = v_uid and a.actif and a.entreprise is distinct from v_i.entreprise) then
+    raise exception 'Ce compte appartient déjà à une autre organisation' using errcode = '22023';
   end if;
   insert into public.profil (id, nom) values (v_uid, v_i.destinataire_nom)
     on conflict (id) do nothing;
@@ -1339,7 +1361,64 @@ language sql stable security definer set search_path = '' as $$
    where private.mon_entreprise() is not null
 $$;
 
+-- La saison et le barème, écrits par Riseva. Les deux écrans existaient depuis
+-- le premier jour et n'écrivaient nulle part : aucune RPC, et les deux méthodes
+-- absentes de la liste des écritures, donc le Proxy retombait en silence sur le
+-- moteur en mémoire. « Saison enregistrée », « barème enregistré pour la saison
+-- suivante » — et tout disparaissait au rechargement. Recalibrer le barème après
+-- la première saison, ce que la spécification prévoit noir sur blanc, était donc
+-- impossible depuis le produit.
+create or replace function public.maj_saison(
+  p_nom text default null, p_debut date default null,
+  p_fin date default null, p_etat text default null)
+returns void
+language plpgsql security definer set search_path = '' as $$
+declare v_id uuid := private.saison_ouverte();
+begin
+  if not private.est_admin() then
+    raise exception 'Réservé à Riseva' using errcode = '42501';
+  end if;
+  if v_id is null then raise exception 'Aucune saison ouverte' using errcode = '22023'; end if;
+  if p_etat is not null and p_etat not in ('brouillon','ouverte','close') then
+    raise exception 'État de saison inconnu' using errcode = '22023';
+  end if;
+  if coalesce(p_debut, (select s.debut from public.saison s where s.id = v_id))
+     >= coalesce(p_fin, (select s.fin from public.saison s where s.id = v_id)) then
+    raise exception 'Une saison finit après son début' using errcode = '22023';
+  end if;
+  update public.saison s set
+    nom   = coalesce(nullif(btrim(coalesce(p_nom, '')), ''), s.nom),
+    debut = coalesce(p_debut, s.debut),
+    fin   = coalesce(p_fin, s.fin),
+    etat  = coalesce(p_etat::public.etat_saison, s.etat)
+  where s.id = v_id;
+end $$;
+
+-- Le barème d'un format, pour la saison ouverte. Il vit en base et versionné par
+-- saison, jamais en dur : un barème recalibré doit s'appliquer partout, et
+-- figurer dans les rapports de la saison qu'il concerne.
+create or replace function public.maj_bareme(p_type public.type_annonce, p_points integer)
+returns void
+language plpgsql security definer set search_path = '' as $$
+declare v_id uuid := private.saison_ouverte();
+begin
+  if not private.est_admin() then
+    raise exception 'Réservé à Riseva' using errcode = '42501';
+  end if;
+  if v_id is null then raise exception 'Aucune saison ouverte' using errcode = '22023'; end if;
+  if p_points is null or p_points < 1 then
+    raise exception 'Un barème vaut au moins un point' using errcode = '22023';
+  end if;
+  update public.bareme b set points = p_points
+   where b.saison = v_id and b.type = p_type;
+  if not found then
+    raise exception 'Ce format n''a pas de barème sur la saison ouverte' using errcode = '42704';
+  end if;
+end $$;
+
 grant execute on function
+  public.maj_saison(text, date, date, text),
+  public.maj_bareme(public.type_annonce, integer),
   public.maj_contrat(text, text),
   public.reconduire(boolean),
   public.marquer_facture_payee(text, date),

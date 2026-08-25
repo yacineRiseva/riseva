@@ -815,6 +815,11 @@ create table mission (
   date_mission date not null,
   declaree_le  timestamptz,
   tranchee_le  timestamptz,
+  -- Ce que l'association a répondu quand elle refuse. L'écran le demandait déjà
+  -- — « un mot d'explication, pour l'entreprise » — et le jetait : il n'y avait
+  -- ni colonne, ni paramètre, ni envoi. L'entreprise voyait ses points tomber à
+  -- zéro sans un mot, et le salarié qui avait donné sa demi-journée non plus.
+  motif_refus text check (length(motif_refus) <= 500),
   -- Deux chiffres, jamais mélangés. `realise_confirme` vient de l'association
   -- qui était sur place ; `realise_estime` est ce que l'annonce laissait
   -- attendre quand personne n'a répondu. Additionner les deux transformerait un

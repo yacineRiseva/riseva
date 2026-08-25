@@ -1106,9 +1106,12 @@ begin
     returning id into v_a;
   insert into public.entreprise (nom, secteur, effectif) values ('Fière SAS', 'Chimie', 200)
     returning id into v_b;
-  insert into public.abonnement (entreprise, saison, montant_ht, sieges, effectif_reference)
-  values (v_a, '11111111-1111-4111-8111-111111111111', 6900, 200, 200),
-         (v_b, '11111111-1111-4111-8111-111111111111', 6900, 200, 200);
+  -- Signés : le classement public ne porte que des clients. Une société sans
+  -- contrat n'y a plus de ligne du tout, elle ne gonfle donc plus la cohorte.
+  insert into public.abonnement (entreprise, saison, montant_ht, sieges,
+                                 effectif_reference, signe_le)
+  values (v_a, '11111111-1111-4111-8111-111111111111', 6900, 200, 200, current_date),
+         (v_b, '11111111-1111-4111-8111-111111111111', 6900, 200, 200, current_date);
   update public.entreprise set visibilite = 'nom' where id = v_b;
 end $$;
 
@@ -1474,8 +1477,10 @@ select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000003
 select set_config('request.jwt.claim.email', 'elise@quatrevents.org', false);
 do $$
 begin
+  -- Le chiffre d'affaires n'est plus une colonne accordée : il vit derrière
+  -- `entreprise_dossier`, qui ne s'ouvre qu'à l'administrateur de SA société.
   perform pg_temp.dit('une association ne lit le chiffre d''affaires d''aucune entreprise',
-    (select count(*) from public.entreprise where ca is not null) = 0);
+    (select count(*) from public.entreprise_dossier) = 0);
   perform pg_temp.dit('ni aucune ligne de la table entreprise',
     (select count(*) from public.entreprise) = 0);
   perform pg_temp.dit('la vitrine publique reste servie par la vue',
@@ -1490,8 +1495,8 @@ begin
   -- Deux sociétés du même groupe : la consolidation reste ouverte, mais dans un
   -- sens seulement — la filiale ne lit pas la maison mère.
   perform pg_temp.dit('une filiale ne lit pas le chiffre d''affaires de la maison mère',
-    not exists (select 1 from public.entreprise
-                 where id = '22222222-2222-4222-8222-222222222222' and ca is not null));
+    not exists (select 1 from public.entreprise_dossier
+                 where id = '22222222-2222-4222-8222-222222222222'));
 end $$;
 
 -- 2. Le classement anonymisé se levait par jointure : `points_entreprise`
@@ -2932,12 +2937,13 @@ begin
     p_dons_hors_riseva => 12000, p_report_anterieur => 0,
     p_cout_heure_charge => 42, p_referent_nom => 'Claire Vaudrey',
     p_referent_mail => 'claire@vaudrey-ciments.fr', p_efface_vides => true);
+  -- Relu par la vue : les colonnes du dossier ne sont plus accordées sur la table.
   select e.exercice_debut, e.cout_heure_charge into v_d, v_h
-    from public.entreprise e where e.id = v_ent;
+    from public.entreprise_dossier e where e.id = v_ent;
   perform pg_temp.dit('le dossier fiscal s''enregistre vraiment',
     v_d = date '2026-01-01' and v_h = 42);
   perform public.maj_entreprise(p_efface_vides => true);
-  select e.exercice_debut into v_d from public.entreprise e where e.id = v_ent;
+  select e.exercice_debut into v_d from public.entreprise_dossier e where e.id = v_ent;
   perform pg_temp.dit('un champ vidé sur le formulaire complet redevient vide', v_d is null);
 exception when others then
   perform pg_temp.dit('le dossier fiscal s''enregistre vraiment', false);
