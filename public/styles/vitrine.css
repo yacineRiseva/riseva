@@ -2849,6 +2849,10 @@ body{
 .vd .band-moss .fmt-bloc--incruste b,
 .vd .band-moss .fmt-bloc--incruste strong{color:var(--ink);}
 .vd .band-moss .fmt-bloc--incruste li,
+/* La note s'ajoute a cette liste, et pas ailleurs : la carte est claire, la
+   bande est sombre, et c'est la carte qui gagne pour tout ce qu'elle contient.
+   Une regle posee sur `.fmt-note` seule perdait contre celle de la bande. */
+.vd .band-moss .fmt-bloc--incruste .fmt-note,
 .vd .band-moss .fmt-bloc--incruste .fmt-bareme{color:var(--ink-soft);}
 .vd .band-moss .fmt-bloc--incruste .fmt-lignes li{border-color:var(--line);}
 .vd .band-moss .fmt-bloc--incruste .fmt-lignes span{color:var(--brand-800);}
@@ -3513,14 +3517,18 @@ body{
 .flux-c{
   position:relative; display:grid; gap:6px; align-content:start;
   padding:clamp(16px,1.6vw,22px) clamp(14px,1.4vw,20px);
-  border-top:2px solid rgba(242,240,233,.16);
+  border-top:2px solid var(--line);
 }
+.band-moss .flux-c{ border-top-color:rgba(242,240,233,.16); }
 .flux-c::before{
   content:""; position:absolute; top:-6px; left:0;
-  width:10px; height:10px; border-radius:50%; background:var(--lime);
+  width:10px; height:10px; border-radius:50%; background:var(--forest-700);
 }
-.flux-c:not(:first-child)::before{ background:rgba(242,240,233,.35); }
-.flux-c b{ font-size:12.5px; letter-spacing:.1em; color:var(--lime); }
+.flux-c:not(:first-child)::before{ background:var(--line-fort, rgba(19,21,16,.28)); }
+.flux-c b{ font-size:12.5px; letter-spacing:.1em; color:var(--forest-700); }
+.band-moss .flux-c::before{ background:var(--lime); }
+.band-moss .flux-c:not(:first-child)::before{ background:rgba(242,240,233,.35); }
+.band-moss .flux-c b{ color:var(--lime); }
 .flux-c span{ font-size:13.5px; line-height:1.5; }
 @media (max-width:1000px){
   .flux{grid-template-columns:repeat(2,minmax(0,1fr));}
@@ -3582,5 +3590,14 @@ body{
    largeur maximale, elle traverse toute la carte et depasse les quatre-vingts
    signes que la recette fait respecter. Au-dela, l'oeil perd la ligne suivante
    en revenant a la marge. */
-.fmt-note{ max-width:72ch; margin:10px 0 0; font-size:14px; line-height:1.6;
+/* La note vit dans la carte CLAIRE incrustee sur la bande sombre : son texte
+   est donc de l'encre, pas du papier. On s'est trompe une fois dans l'autre
+   sens, en regardant la couleur de la section au lieu de celle de la carte, et
+   la recette a mesure un contraste de un contre un : du blanc sur du blanc.
+   Une bande sombre ne rend pas sombre ce qu'on pose dessus.
+   Soixante signes de large : la regle des quatre-vingts porte sur la ligne
+   RENDUE, et une note plus courte que le paragraphe au-dessus se lit comme ce
+   qu'elle est, une precision. */
+.fmt-note{ max-width:62ch; margin:10px 0 0; font-size:14px; line-height:1.6;
   color:var(--ink-soft); }
+.fmt-note b{ color:var(--ink); }

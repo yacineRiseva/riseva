@@ -966,10 +966,9 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
 
     <div class="fmt-bloc fmt-bloc--incruste">
       <h3 class="fmt-titre">Ce qu'une association peut proposer</h3>
-      <p class="fmt-note">Les points servent au <b>classement entre vos sites</b>, et à rien
-        d'autre. L'objectif que vous fixez à votre saison, lui, se compte en <b>personnes
-        venues</b> : c'est le seul chiffre qu'on n'atteint pas avec trois volontaires très
-        actifs. Le barème est public, il est <a class="tlink" href="/reglement.html">dans le
+      <p class="fmt-note">Les points servent au <b>classement entre vos sites</b>, et à
+        rien d'autre. L'objectif de votre saison, lui, se compte en <b>personnes venues</b>.
+        Le barème est public : il est <a class="tlink" href="/reglement.html">dans le
         règlement</a>.</p>
       <ul class="fmt-lignes">
         <li><div><b>Une demi-journée de bénévolat</b> : chantier, collecte, entretien, encadrés par
