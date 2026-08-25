@@ -107,8 +107,14 @@ app = app.replace('<script type="module" src="/app/app.js"></script>',
 
 # ---- page publique de rejointe ----------------------------------------
 rej = (R/"rejoindre.html").read_text(encoding="utf-8")
-rej = rej.replace('import { DB, BAREME } from "/app/data.js";', "")
-rej = rej.replace('import { h, esc, nb, toast } from "/app/ui.js";', "")
+# Les imports sont retires par motif, pas par chaine exacte : la page de
+# rejointe a gagne deux imports de plus le jour ou elle a cesse de tourner sur
+# le jeu de demonstration, et une substitution litterale les aurait laisses
+# passer. Un import restant dans un fichier autonome, c'est une page blanche.
+rej = re.sub(r'^\s*import\s*\{[^}]*\}\s*from\s*"/app/[^"]+";\s*$', "", rej, flags=re.M)
+# La configuration n'existe pas dans un fichier autonome : il n'y a pas de
+# serveur pour la servir, et le fichier doit montrer la demonstration.
+rej = re.sub(r'\s*<script src="/app/config\.js"[^>]*></script>', "", rej)
 rej = rej.replace('const code = new URLSearchParams(location.search).get("code") || "";',
                   'const code = new URLSearchParams(location.search).get("code") || "VAUDREY-7QK2";')
 rej = inline(rej, ["polices.css","tokens.css","base.css","components.css","app.css"])

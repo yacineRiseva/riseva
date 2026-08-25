@@ -2307,7 +2307,25 @@ function vueAbonnement(u){
   const etats = { payee:["Payée","badge--ok"], a_venir:["À venir",""],
                   envoyee:["Envoyée","badge--info"], en_retard:["En retard","badge--danger"] };
 
-  if (!c) return h(`<section class="card"><p class="empty">Aucun contrat rattaché à cette entreprise.</p></section>`);
+  /* L'ecran ou un client du premier jour vient chercher son contrat. Il n'en a
+     pas encore : c'est normal, et c'etait pourtant un mur — une phrase, aucun
+     geste, aucune explication. Un etat vide muet est un defaut partout dans ce
+     produit ; sur l'ecran qui mene au paiement, c'est le plus cher de tous. */
+  if (!c) return h(`<section class="card">
+    <h3>Votre saison n'est pas encore ouverte</h3>
+    <p class="muted" style="font-size:var(--t-sm);margin-top:6px;max-width:70ch">
+      Aucun contrat n'est rattaché à cette entreprise. C'est normal tant que
+      votre bon de commande n'est pas signé : vous pouvez d'ici là déclarer vos
+      établissements, préparer votre collecte d'indicateurs et regarder les
+      associations autour de vos sites. Ce qui attend la signature, c'est
+      l'ouverture des comptes salariés et l'envoi des affiches.</p>
+    <div class="row" style="--gap:var(--s3);margin-top:var(--s5);flex-wrap:wrap">
+      <a class="btn" href="/inscription.html">Demander l'ouverture de ma saison</a>
+      <a class="btn btn--quiet" href="/#prix">Revoir la grille tarifaire</a>
+    </div>
+    <p class="hint" style="margin-top:var(--s4)">Le tarif suit votre effectif, il est
+      public, et le bon de commande reprend la grille telle quelle.</p>
+  </section>`);
 
   const el = h(`<div class="stack" style="--gap:var(--s5)">
     ${f.enRetard.length ? `<section class="card card--flat" style="background:var(--danger-bg);border-color:transparent">
@@ -3067,7 +3085,7 @@ function vueParametres(u){
 function tableauAsso(u){
   const aid = u.org;
   const asso = DB.association(aid);
-  const annonces = DB.annonces({ asso: aid });
+  const annonces = DB.annonces({ asso: aid, toutes: true });
   const ms = DB.missions({ asso: aid });
   const aValider = ms.filter(m => m.etat === "a_valider");
 
@@ -3927,7 +3945,7 @@ function vueAdminAssos(){
       <td class="muted" style="font-family:var(--font-mono);font-size:var(--t-xs)">${esc(a.siren || a.rna || "-")}</td>
       <td>${badgeControle(a.id)}</td>
       <td class="muted tnum">${a.verifiee_le ? dateCourte(a.verifiee_le) : "-"}</td>
-      <td class="tnum">${DB.annonces({ asso: a.id }).length}</td>
+      <td class="tnum">${DB.annonces({ asso: a.id, toutes: true }).length}</td>
       <td><span class="badge ${etat[1]}">${etat[0]}</span></td>
       <td style="text-align:right"></td></tr>`);
     const cell = tr.lastElementChild;
@@ -4211,7 +4229,27 @@ function tableauSalarie(u){
   const proches = u.org ? DB.associationsProches(u.org, { avecAnnonces: true }) : [];
   const ns = DB.notreSaison(u.id);
 
+  /* Le rattachement en attente se dit ICI, avant tout le reste, et pas au
+     moment du clic final. Ce qui se passait : le salarie parcourait les
+     annonces, en ouvrait une, remplissait toute la fenetre d'engagement, et
+     apprenait a la derniere seconde que son rattachement n'etait pas confirme.
+     La fenetre restait ouverte, sans issue, et l'ecran ne disait pas a qui
+     s'adresser. Un blocage annonce apres l'effort est un blocage deux fois. */
+  const enAttenteDeRattachement = u.etablissement && u.affectation_confirmee === false;
+  const monSite = u.etablissement ? DB.etablissement(u.etablissement) : null;
+
   const el = h(`<div class="stack" style="--gap:var(--s5)">
+    ${enAttenteDeRattachement ? `<section class="card card--flat"
+      style="background:var(--warn-bg);border-color:transparent">
+      <h3 style="font-size:var(--t-lg)">Votre rattachement attend une confirmation</h3>
+      <p style="font-size:var(--t-sm);color:var(--ink-600);margin-top:6px;max-width:74ch">
+        Vous êtes rattaché au site <b>${esc(monSite ? monSite.nom : "de votre entreprise")}</b>,
+        et ce rattachement doit être confirmé par le référent de ce site avant que vous
+        puissiez vous engager sur une mission. Sans lui, vos points iraient au mauvais
+        endroit. Vous pouvez déjà regarder ce qui se passe près de chez vous.</p>
+      <p class="hint" style="margin-top:var(--s4)">Si personne ne répond, l'administrateur
+        de votre entreprise peut confirmer à sa place depuis son écran « Équipe ».</p>
+    </section>` : ""}
     ${aDeclarer.length ? `<section class="aFaire">
       <div class="aFaire__col">
         <span class="aFaire__titre">Action requise
@@ -9382,7 +9420,7 @@ const ROUTES = {
        souvent. Une carte de tete lui donne son chiffre, celui qu'elle vient
        verifier : combien de places restent a prendre. */
     mesannonces:[(u) => {
-      const anns = DB.annonces({ asso: u.org });
+      const anns = DB.annonces({ asso: u.org, toutes: true });
       const ouvertes = anns.filter(a => a.etat === "ouverte");
       const places = ouvertes.filter(a => !estArgent(a.type))
                              .reduce((n, a) => n + (a.restant || 0), 0);

@@ -405,7 +405,7 @@ def faq(items):
 # que « Le deroule », « Cote salaries » et « Les affiches » racontaient une seule
 # et meme chose.
 NAV_ENT = nav(
-    [("challenge", "Le challenge"), ("outil-rse", "L'outil RSE"),
+    [("outil-rse", "L'outil RSE"), ("challenge", "Le challenge"),
      ("assos", "Les associations"), ("prix", "Le prix"), ("faq", "Questions")],
     "Ouvrir la démonstration", "/app/?demo=1", "Démonstration libre, sans rendez-vous")
 
@@ -738,8 +738,8 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
   <div class="layer">
     <p class="eyebrow mono">Plateforme RSE multi-sites, challenge d'un an,
       associations du vivant</p>
-    <h1 class="h1 h1--doc h1--court">Votre RSE, sans service RSE<br>
-      <span class="it">à monter pour la tenir.</span></h1>
+    <h1 class="h1 h1--doc h1--court">Votre RSE,<br>
+      <span class="it">sans service RSE dédié.</span></h1>
 
     <div class="doc-tete doc-tete--apercu">
     <div class="doc-intro">
@@ -777,22 +777,18 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
 
     {chiffres_hero()}
 
-    <div class="doc-tete">
-    <div class="doc-intro">
-      <p>Riseva organise une <b>saison d'engagement</b> d'un an autour d'<b>associations
-        vérifiées</b> proches de vos sites : <b>refuges</b>, berges de rivière, forêts,
-        distributions de repas. Vos salariés choisissent une action, y vont ensemble, et c'est
-        <b>l'association qui confirme</b> ce qui a été fait.</p>
-      <p>Dans le même abonnement, l'<b>outil RSE</b> qui va avec. Vous choisissez les rubriques
-        que vous demandez, chaque site les voit apparaître sur son écran, et quand tout le monde
-        a répondu le <b>rapport est déjà fait</b> : à l'écran, en classeur, en CSV. Vous ne
-        relancez personne, <b>et sans module en supplément</b>.</p>
-    </div>
-
+    <!-- Le premier ecran portait deux introductions a la suite : l'accroche du
+         haut, puis un paragraphe qui reformulait la meme promesse en plus long.
+         Le lecteur lisait deux fois la meme chose avant d'arriver au premier
+         fait. La fiche, elle, reste : elle ne raconte rien, elle enonce. -->
+    <div class="doc-tete doc-tete--fiche">
     <dl class="fiche">
       <div><dt class="mono">Saison</dt><dd>12 mois, sans reconduction tacite</dd></div>
       <div><dt class="mono">Déploiement</dt><dd>un lien à diffuser, rien à installer</dd></div>
       <div><dt class="mono">Périmètre</dt><dd>une entreprise, ou un groupe multi-sites</dd></div>
+      <div><dt class="mono">Ce qui est compris</dt><dd>le challenge et l'<b>outil RSE</b> dans
+        le même abonnement, <b>sans module en supplément</b> : collecte, relances,
+        consolidation, rapports, fiche VSME et dossier de mécénat</dd></div>
       <div><dt class="mono">Tarif</dt><dd>de <b>{EUR(TARIFS['paliers'][0]['prix'])} à
         {EUR(TARIFS['paliers'][-2]['prix'])} HT</b> l'an selon l'effectif, d'un à
         {TARIFS['paliers'][-2]['sites']} sites compris selon la tranche. Au-delà de deux mille salariés, sur devis à partir de
@@ -873,7 +869,7 @@ SAISON_ENT = f"""<section id="saison" class="band">
   ("Février à octobre", "Les <span class='it'>missions.</span>",
    "Les missions se font, une par une. Un salarié se propose, l'association l'accueille, "
    "puis confirme que c'est arrivé. C'est cette confirmation qui compte."),
-  ("Chaque trimestre", "Le <span class='it'>point.</span>",
+  ("Mars, juin, septembre", "Le <span class='it'>point.</span>",
    "Un rapport se génère tout seul à la clôture de chaque trimestre : ce qui a été fait, "
    "ce qui a été confirmé, ce qui reste ouvert. Vous n'avez rien à consolider."),
   ("Décembre", "Le <span class='it'>bilan.</span>",
@@ -970,6 +966,11 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
 
     <div class="fmt-bloc fmt-bloc--incruste">
       <h3 class="fmt-titre">Ce qu'une association peut proposer</h3>
+      <p class="fmt-note">Les points servent au <b>classement entre vos sites</b>, et à rien
+        d'autre. L'objectif que vous fixez à votre saison, lui, se compte en <b>personnes
+        venues</b> : c'est le seul chiffre qu'on n'atteint pas avec trois volontaires très
+        actifs. Le barème est public, il est <a class="tlink" href="/reglement.html">dans le
+        règlement</a>.</p>
       <ul class="fmt-lignes">
         <li><div><b>Une demi-journée de bénévolat</b> : chantier, collecte, entretien, encadrés par
           l'association et sans compétence requise.</div><span>150 pts</span></li>
@@ -1032,14 +1033,14 @@ def onglets(items):
 # personnel.
 # ── les trois parties de la page ───────────────────────────────────────────
 CHAP_CHALLENGE = chapitre(
-    1, "Le challenge",
+    2, "Le challenge",
     "Une saison de douze mois qui met vos équipes en mouvement, site contre site, "
     "chez des associations vérifiées près de chez elles. Les affiches arrivent quatre "
     "fois dans l'année, et chaque trimestre vous recevez le rapport de ce qui a été fait.",
     "challenge")
 
 CHAP_OUTIL = chapitre(
-    2, "L'outil RSE",
+    1, "L'outil RSE",
     "Vous demandez vos indicateurs une fois. Chaque établissement répond sur son écran, "
     "la plateforme relance à votre place, consolide, et rend le rapport du trimestre et "
     "celui de l'année, avec la pièce qui justifie chaque chiffre.",
@@ -1056,7 +1057,7 @@ CHAP_ASSOS = chapitre(
 PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss">
   <div class="layer">
 {entete("Ce que ça répond",
-        "Trois questions,<br><span class='it'>et personne n'a la réponse sous la main.</span>",
+        "Trois questions,<br><span class='it'>et personne n'a la réponse.</span>",
         "Personne n'ouvre un logiciel RSE par curiosité. On l'ouvre parce qu'on "
         "vient de vous poser une de ces trois questions, et qu'il a fallu répondre "
         "« je vais voir ».")}
@@ -1091,23 +1092,6 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss">
     <p class="s-note s-note--trois">Vos sites répondent, vos équipes agissent,
       <b>et vous avez les preuves</b>.</p>
 
-{flux([
-  ("Jour 1", "vous cochez les rubriques et la date limite"),
-  ("Jour 2", "chaque site voit sa part, sans rien installer"),
-  ("J-7, J-2", "le rappel part tout seul, il ne vient pas de vous"),
-  ("Échéance", "vous voyez qui manque, nommément"),
-  ("Le lendemain", "le rapport est là, daté, avec sa méthode"),
-])}
-
-    <p class="s-note s-note--flux">Vous ne vous en occupez qu'une fois, au début. Le reste de
-      la période, la plateforme travaille sans vous, et si personne ne répond, la période se
-      clôt <b>sans réponse</b> plutôt que d'être comblée avec celle d'avant.</p>
-
-    {capture("groupe",
-             "La vue consolidée d'un groupe dans Riseva : chaque société avec son SIREN, "
-             "chaque établissement avec son effectif, ses comptes ouverts, ses missions et "
-             "ses points",
-             "Deux sociétés, quatre établissements, un seul écran", " shot--seule")}
   </div>
 </section>"""
 
@@ -1210,6 +1194,24 @@ OUTIL_ENT = f"""<section id="outil" class="band">
       <div><dt class="mono">L'accès CSE</dt><dd>en lecture, sans nominatif, et rien qui porte
         sur moins de cinq personnes</dd></div>
     </dl>
+
+{flux([
+  ("Jour 1", "vous cochez les rubriques et la date limite"),
+  ("Jour 2", "chaque site voit sa part, sans rien installer"),
+  ("J-7, J-2", "le rappel part tout seul, il ne vient pas de vous"),
+  ("Échéance", "vous voyez qui manque, nommément"),
+  ("Le lendemain", "le rapport est là, daté, avec sa méthode"),
+])}
+
+    <p class="s-note s-note--flux">Vous ne vous en occupez qu'une fois, au début. Le reste de
+      la période, la plateforme travaille sans vous, et si personne ne répond, la période se
+      clôt <b>sans réponse</b> plutôt que d'être comblée avec celle d'avant.</p>
+
+    {capture("groupe",
+             "La vue consolidée d'un groupe dans Riseva : chaque société avec son SIREN, "
+             "chaque établissement avec son effectif, ses comptes ouverts, ses missions et "
+             "ses points",
+             "Deux sociétés, quatre établissements, un seul écran", " shot--seule")}
 
     <p class="s-note">Riseva tient le classeur ; c'est vous qui signez. Les valeurs sont celles
       que vos sites ont écrites, elles restent les vôtres, et la plateforme ne les interprète
@@ -1565,16 +1567,16 @@ CORPS_ENT = "\n\n".join([
     HERO_ENT,           # la promesse, le produit en image, quatre chiffres
     PLATEFORME_ENT,     # « concrètement, c'est quoi ? » — la carte des trois parties
 
-    CHAP_CHALLENGE,     # ── partie 1 ──────────────────────────────────────
+    CHAP_OUTIL,         # ── partie 1 ──────────────────────────────────────
+    OUTIL_ENT,          #    demander, répondre, relancer, consolider
+    PILOTAGE_ENT,       #    les écrans qui le prouvent
+    PERIMETRES_ENT,     #    groupes, sociétés, établissements
+
+    CHAP_CHALLENGE,     # ── partie 2 ──────────────────────────────────────
     SAISON_ENT,         #    le déroulé des douze mois
     EQUIPES_ENT,        #    ce que le salarié voit, et ce qu'il y gagne
     AFFICHES_ENT,       #    ce qui arrive par la poste, quatre fois dans l'année
     CHANGE_ENT,         #    ce que la saison produit, et à quelle date
-
-    CHAP_OUTIL,         # ── partie 2 ──────────────────────────────────────
-    OUTIL_ENT,          #    demander, répondre, relancer, consolider
-    PILOTAGE_ENT,       #    les écrans qui le prouvent
-    PERIMETRES_ENT,     #    groupes, sociétés, établissements
 
     CHAP_ASSOS,         # ── partie 3 ──────────────────────────────────────
     ASSOCIATIONS_ENT,   #    l'annuaire vérifié, et la confirmation

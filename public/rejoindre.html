@@ -13,11 +13,28 @@
 </head>
 <body>
 <div id="root"></div>
+<!-- La page de la porte d'entree. Elle charge la configuration comme
+     l'application, et pour la meme raison : sans cela elle tourne sur le jeu de
+     demonstration, et le lien d'inscription qu'une vraie entreprise vient de
+     creer n'existe pas de son point de vue. Le salarie lit « Ce code n'existe
+     pas » sur le seul chemin prevu pour le faire entrer.
+     C'etait le defaut le plus grave du produit : le parcours salarie etait mort
+     au seuil sur toute base autre que la demonstration. -->
+<script src="/app/config.js" onerror="void 0"></script>
 <script type="module">
-import { DB, BAREME } from "/app/data.js";
+import { DB, BAREME, demarrerVierge, connecterSupabase } from "/app/data.js";
 import { h, esc, nb, toast } from "/app/ui.js";
 
-const code = new URLSearchParams(location.search).get("code") || "";
+const params = new URLSearchParams(location.search);
+const code = params.get("code") || "";
+
+/* Le meme choix de moteur que l'application, dans le meme ordre. `?vierge=1`
+   traverse aussi cette page : la recette du premier jour passe par ici. */
+if (params.has("vierge")) demarrerVierge();
+else if (window.RISEVA_CONFIG){
+  try { await connecterSupabase(window.RISEVA_CONFIG); }
+  catch (e){ console.warn(e); }
+}
 const root = document.getElementById("root");
 
 const reseau = DB.impactReseau();

@@ -3577,3 +3577,10 @@ body{
    il les lit comme une separation, pas comme un lien. */
 .chap + section{ padding-top:clamp(20px,2.6vh,40px); }
 .chap + section > .layer > .s-head{ margin-top:0; }
+
+/* Une note sous un titre de bloc n'est pas un paragraphe de corps : sans
+   largeur maximale, elle traverse toute la carte et depasse les quatre-vingts
+   signes que la recette fait respecter. Au-dela, l'oeil perd la ligne suivante
+   en revenant a la marge. */
+.fmt-note{ max-width:72ch; margin:10px 0 0; font-size:14px; line-height:1.6;
+  color:var(--ink-soft); }

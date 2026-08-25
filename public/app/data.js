@@ -1928,7 +1928,17 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
     associations: () => s.associations,
     preinscriptions: () => s.preinscriptions,
     invitations: (eid) => s.invitations.filter(i => !eid || i.entreprise === eid),
-    invitationActive: (eid) => s.invitations.find(i => i.entreprise === eid && i.active) || null,
+    /* Le lien de l'entreprise, celui qu'on met sur l'affiche et dans le mail
+       interne. Il n'y en a qu'un, et ce n'est NI celui d'un referent NI celui
+       du CSE : ces deux-la sont nominatifs et n'ont qu'une place.
+       Ce qui se passait sans ce filtre : l'admin nommait un referent, la
+       creation mettait son invitation en tete de liste, et l'ecran « Equipe »
+       affichait desormais ce code-la comme « le lien a diffuser en interne ».
+       L'admin l'envoyait a cent vingt salaries, une seule place, verrouillee
+       sur l'adresse du referent : personne ne pouvait s'inscrire, et le vrai
+       lien n'etait plus affiche nulle part. */
+    invitationActive: (eid) => s.invitations.find(
+      i => i.entreprise === eid && i.active && !i.pour_referent && !i.pour_cse) || null,
     invitationParCode: (code) => s.invitations.find(i =>
       i.code.toUpperCase() === String(code || "").trim().toUpperCase()) || null,
     /* Douze dernières semaines, en points bruts, comptées dans les missions.
@@ -1978,7 +1988,18 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       return noms.map((nom, i) => ({ nom, points: total[i] }));
     },
 
+    /* Une annonce n'existe pour personne tant que son association n'est pas
+       verifiee. L'annuaire filtrait deja sur `valide` ; le catalogue des
+       annonces, lui, ne filtrait rien, et c'etait la porte de derriere : une
+       structure inscrite depuis dix minutes, dont le dossier attend encore la
+       verification, publiait une annonce, des salaries s'y engageaient, et
+       leurs missions etaient validees avec des points credites. Toute la
+       promesse de moderation tenait a une page qui ne la faisait pas
+       respecter.
+       `toutes` sert aux ecrans de l'association elle-meme et de Riseva, qui
+       doivent voir ce qui n'est pas encore visible pour les autres. */
     annonces: (filtre = {}) => s.annonces.filter(a =>
+      (filtre.toutes || (api.association(a.asso) || {}).valide) &&
       (!filtre.asso   || a.asso === filtre.asso) &&
       (!filtre.type   || a.type === filtre.type) &&
       (!filtre.ouvertes || a.etat === "ouverte")),
