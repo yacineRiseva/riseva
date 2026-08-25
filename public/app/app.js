@@ -7,6 +7,26 @@ import { classeur, telecharger } from "./tableur.js";
 import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, ecusson, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, couvertureAsso, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
 
 /* ------------------------------------------------------------------ */
+/* Une écriture, et son message                                        */
+/* ------------------------------------------------------------------ */
+/* En démonstration, une écriture est une mutation en mémoire : elle réussit ou
+   elle lève, tout de suite. En production, c'est un aller-retour réseau, et le
+   serveur peut refuser — une garde de rôle, une contrainte, un plafond de
+   places. L'interface a été écrite pour le premier cas : elle appelle, puis
+   affiche « enregistré ». Un `try/catch` synchrone ne voit jamais le refus d'une
+   promesse : la fenêtre se ferme, la saisie est perdue, et l'écran annonce une
+   écriture qui n'a pas eu lieu.
+   `alors` n'exécute la suite qu'une fois le serveur d'accord, dit le refus quand
+   il y en a un, et rend `false` dans ce cas : une modale qui reçoit `false` reste
+   ouverte, avec ce que la personne venait de taper. */
+function alors(promesse, apres){
+  return Promise.resolve(promesse).then(
+    (v) => { if (apres) apres(v); return v; },
+    (e) => { toast((e && e.message) || "L'enregistrement n'a pas abouti."); return false; }
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Session                                                             */
 /* ------------------------------------------------------------------ */
 const CLE = "riseva.session";
