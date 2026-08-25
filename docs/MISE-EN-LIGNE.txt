@@ -924,6 +924,34 @@ AJOUTER UN INDICATEUR
   toujours sa définition — ce qu'on compte, ce qu'on ne compte pas — et sa
   formule si c'est un taux.
 
+METTRE À JOUR UNE BASE DÉJÀ EN SERVICE
+  On rejoue les fichiers SQL dans le même ordre qu'à l'installation : 01, 02,
+  03, 04, 05, 06, 07. Pas 04b — celui-là ne sert qu'à la démonstration, et il
+  n'a rien à faire dans la base d'un client.
+
+  Une chose à savoir, parce qu'elle est invisible et qu'elle coûte cher.
+  PostgreSQL n'identifie pas une fonction par son nom mais par sa SIGNATURE :
+  le jour où l'on ajoute un paramètre à une fonction, `create or replace` ne
+  remplace rien du tout, il crée une SECONDE fonction. L'ancienne survit, garde
+  ses droits, et le serveur peut très bien continuer de l'appeler. Sur une base
+  neuve, on ne voit rien. Sur une base en service, c'est la moitié d'une mise à
+  jour qui n'arrive jamais chez le client, sans une seule erreur nulle part.
+
+  `07_ecritures.sql` retire donc lui-même, à la fin, toute signature devenue
+  inutile, et vous verrez passer une ligne « signature abandonnée retirée ».
+  C'est normal et c'est voulu. Si vous lisez au contraire « signature abandonnée
+  conservée (dépendance) », c'est qu'une vue ou une contrainte s'appuie encore
+  sur l'ancienne : notez le nom et dites-le, ne forcez rien.
+
+SIGNER LE CONTRAT D'UN CLIENT QUI S'EST INSCRIT SEUL
+  Un compte ouvert depuis le site démarre en essai : dix places, aucun montant,
+  aucune date de signature. Il n'entre pas au classement public et ne reçoit pas
+  d'affiches. Le jour où le contrat est signé, cela se fait dans la plateforme,
+  avec le compte Riseva : écran « Entreprises », colonne « Contrat », bouton
+  « Enregistrer la signature ». On y met les places convenues et le montant hors
+  taxes ; le reste suit tout seul. Ne créez surtout pas une deuxième société
+  pour le même client : vous perdriez ses salariés et ses missions.
+
 VÉRIFIER QUE VOUS N'AVEZ RIEN CASSÉ
   Une seule commande, avant chaque mise en ligne :
 

@@ -1563,16 +1563,30 @@ declare v_d public.don; v_a public.association; v_num text; v_suite integer;
 begin
   select * into v_d from public.don d where d.id = p_don;
   if not found or v_d.etat <> 'confirme' then return; end if;
-  select * into v_a from public.association a where a.id = v_d.association for update;
+  select * into v_a from public.association a where a.id = v_d.association;
   if not found then return; end if;
   -- Les cinq conditions, les mêmes qu'à l'écran : éligibilité, activation,
-  -- signataire, qualité, préfixe, et le mandat écrit.
+  -- signataire, qualité, préfixe, et le mandat écrit. Elles se testent AVANT
+  -- toute prise de verrou : la version précédente verrouillait la ligne de
+  -- l'association puis découvrait qu'il n'y avait rien à faire, et comme la
+  -- tâche de nuit s'exécute en une seule transaction, ces verrous inutiles
+  -- tenaient jusqu'au matin.
   if not v_a.recus_actif or not v_a.eligible_mecenat
      or v_a.signataire is null or v_a.qualite is null
      or v_a.recu_prefixe is null or v_a.mandat_recus_le is null then
     return;
   end if;
   -- Déjà émis : un don ne porte qu'un reçu, et le rejouer n'en crée pas un second.
+  if exists (select 1 from public.recu r where r.don = p_don) then return; end if;
+
+  -- Un verrou consultatif plutôt qu'un `for update` sur la ligne. Ce qu'on doit
+  -- sérialiser, c'est l'ATTRIBUTION D'UN NUMÉRO à cette association, rien
+  -- d'autre. Verrouiller la ligne bloquait aussi une association qui changeait
+  -- son résumé ou son IBAN au même moment — et, la nuit tournant en une seule
+  -- transaction, elle attendait jusqu'à la fin du passage.
+  perform pg_advisory_xact_lock(hashtext('recu:' || v_a.id::text));
+  -- Relu sous verrou : entre le test ci-dessus et ici, une autre session a pu
+  -- émettre le reçu de ce don.
   if exists (select 1 from public.recu r where r.don = p_don) then return; end if;
 
   -- Du plus grand suffixe DÉJÀ ÉMIS, pas d'un comptage. `count(*) + 1` retombe

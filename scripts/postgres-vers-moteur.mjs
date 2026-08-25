@@ -37,9 +37,15 @@ dit("les sociétés sont chargées", ents.length === lignes.entreprise.length);
 dit("le groupe est rattaché à sa société",
   ents.some(e => e.groupe), JSON.stringify(ents.map(e => e.groupe)));
 
-const etabs = DB.etablissements(ents.find(e => e.groupe && e.siren === "393120916")?.id
-  || ents[0].id);
-dit("les établissements d'une société sont retrouvés", etabs.length === 3, String(etabs.length));
+/* La société à trois sites du jeu de démonstration. On la cherchait par un SIREN
+   qu'aucune entreprise ne porte, et le repli `ents[0]` prenait la première ligne
+   rendue par Postgres — c'est-à-dire l'ordre physique du tas, qui change dès
+   qu'un test met à jour une ligne. La recette dépendait donc de l'ordre des
+   tests. On la désigne par son nom, qui, lui, ne bouge pas. */
+const mere = ents.find(e => e.nom === "Vaudrey Ciments") || ents[0];
+const etabs = DB.etablissements(mere.id);
+dit("les établissements d'une société sont retrouvés", etabs.length === 3,
+  `${mere.nom} : ${etabs.length}`);
 
 const ann = DB.annonces({ ouvertes: true });
 dit("les annonces ouvertes sont traduites", ann.length > 0 && ann.every(a => a.asso && a.type));

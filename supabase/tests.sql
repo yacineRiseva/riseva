@@ -2805,6 +2805,149 @@ select pg_temp.dit('le CSE ne lit aucune piece jointe',
   (select count(*) from public.piece_jointe) = 0);
 reset role;
 
+-- ---------------------------------------------------------------- le jour ou
+-- Ce que la journée du 25/08 a ajouté, et qui n'avait aucun test : la signature
+-- d'un contrat sur un compte déjà ouvert, le retrait effectif d'une annonce
+-- signalée, la vérification obligatoire d'une association, le dossier fiscal.
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000008', false);
+select set_config('request.jwt.claim.email', 'controle@riseva.fr', false);
+
+-- La signature d'un contrat. Sans elle, un compte ouvert en libre-service
+-- restait à dix places pour toute la saison, quoi qu'il signe.
+do $$
+declare v_ent uuid; v_avant integer; v_apres integer; v_signe date;
+begin
+  select ab.entreprise, ab.sieges into v_ent, v_avant
+    from public.abonnement ab
+    join public.entreprise e on e.id = ab.entreprise
+   where e.nom = 'Fonderie Morel' limit 1;
+  if v_ent is null then
+    perform pg_temp.dit('le compte libre-service existe pour être signé', false);
+  else
+    perform pg_temp.dit('un compte ouvert en libre-service démarre sur les places de l''essai',
+      v_avant <= 10);
+    perform public.signer_contrat(v_ent, 4200, 40, 'pme');
+    select ab.sieges, ab.signe_le into v_apres, v_signe
+      from public.abonnement ab where ab.entreprise = v_ent;
+    perform pg_temp.dit('la signature porte les places au nombre convenu', v_apres = 40);
+    perform pg_temp.dit('et elle date le contrat', v_signe is not null);
+  end if;
+exception when others then
+  perform pg_temp.dit('la signature d''un contrat aboutit', false);
+  raise notice 'signer_contrat : %', sqlerrm;
+end $$;
+
+select pg_temp.refuse('un contrat ne peut pas ouvrir moins de places qu''il n''y a de comptes',
+  'select public.signer_contrat((select ab.entreprise from public.abonnement ab
+     join public.entreprise e on e.id = ab.entreprise where e.siren = ''393120916'' limit 1),
+     4200, 1)');
+select pg_temp.refuse('un palier hors nomenclature est refusé',
+  'select public.signer_contrat((select entreprise from public.abonnement limit 1), 100, 5, ''xxl'')');
+
+-- « Retirer l'annonce » retire l'annonce, et prévient les deux parties.
+reset role;
+do $$
+declare v_sig uuid; v_ann uuid;
+begin
+  select a.id into v_ann from public.annonce a where a.etat = 'ouverte' limit 1;
+  insert into public.signalement (annonce, auteur, motif, precisions)
+  values (v_ann, 'aaaaaaaa-0000-4000-8000-000000000004', 'trompeur',
+          'Pour la recette : vérifier que « retirer » retire vraiment.')
+  returning id into v_sig;
+  perform set_config('riseva.sg2', v_sig::text, false);
+  perform set_config('riseva.an2', v_ann::text, false);
+end $$;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000008', false);
+select set_config('request.jwt.claim.email', 'controle@riseva.fr', false);
+do $$
+declare v_sig uuid := current_setting('riseva.sg2')::uuid;
+        v_ann uuid := current_setting('riseva.an2')::uuid;
+        v_etat public.etat_annonce; v_envois integer;
+begin
+  if v_sig is null then
+    perform pg_temp.dit('un signalement en attente existe pour la recette', false);
+  else
+    perform public.decider_signalement(v_sig, 'retire',
+      'Vérifié auprès de l''association : la description ne correspond pas à la mission.');
+    select a.etat into v_etat from public.annonce a where a.id = v_ann;
+    perform pg_temp.dit('« retirer » ferme réellement l''annonce', v_etat = 'close');
+    select count(*) into v_envois from public.envoi e
+     where e.cle like 'moderation:' || v_sig || ':%';
+    perform pg_temp.dit('la décision part au signalant ET à l''association', v_envois = 2);
+    -- Rejouer la même décision ne renotifie personne.
+    perform public.decider_signalement(v_sig, 'retire',
+      'Vérifié auprès de l''association : la description ne correspond pas à la mission.');
+    select count(*) into v_envois from public.envoi e
+     where e.cle like 'moderation:' || v_sig || ':%';
+    perform pg_temp.dit('rejouer la même décision n''envoie pas un second courriel', v_envois = 2);
+  end if;
+exception when others then
+  perform pg_temp.dit('« retirer » ferme réellement l''annonce', false);
+  raise notice 'decider_signalement : %', sqlerrm;
+end $$;
+
+-- Une association ne se met pas en ligne sans qu'on ait regardé le registre.
+reset role;
+do $$
+declare v_a uuid;
+begin
+  insert into public.association (nom, cause, ville, resume, valide)
+  values ('Test Vérification', 'Test', 'Nantes',
+          'Une association créée pour vérifier que la mise en ligne exige un contrôle.', false)
+  returning id into v_a;
+  perform set_config('riseva.av', v_a::text, false);
+end $$;
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000008', false);
+select set_config('request.jwt.claim.email', 'controle@riseva.fr', false);
+do $$
+declare v_a uuid := current_setting('riseva.av')::uuid;
+begin
+  begin
+    perform public.valider_association(v_a);
+    perform pg_temp.dit('valider sans contrôle au registre est refusé', false);
+  exception when others then
+    perform pg_temp.dit('valider sans contrôle au registre est refusé', true);
+  end;
+  perform public.controler_association(v_a, null, true);   -- panne consignée
+  perform public.valider_association(v_a);
+  perform pg_temp.dit('un contrôle consigné, même en panne, rouvre la mise en ligne',
+    (select valide from public.association where id = v_a));
+exception when others then
+  perform pg_temp.dit('valider sans contrôle au registre est refusé', false);
+  raise notice 'valider_association : %', sqlerrm;
+end $$;
+
+-- Le dossier fiscal s'écrit, et se retire.
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
+do $$
+declare v_ent uuid := private.mon_entreprise(); v_d date; v_h numeric;
+begin
+  perform public.maj_entreprise(
+    p_exercice_debut => date '2026-01-01', p_exercice_fin => date '2026-12-31',
+    p_dons_hors_riseva => 12000, p_report_anterieur => 0,
+    p_cout_heure_charge => 42, p_referent_nom => 'Claire Vaudrey',
+    p_referent_mail => 'claire@vaudrey-ciments.fr', p_efface_vides => true);
+  select e.exercice_debut, e.cout_heure_charge into v_d, v_h
+    from public.entreprise e where e.id = v_ent;
+  perform pg_temp.dit('le dossier fiscal s''enregistre vraiment',
+    v_d = date '2026-01-01' and v_h = 42);
+  perform public.maj_entreprise(p_efface_vides => true);
+  select e.exercice_debut into v_d from public.entreprise e where e.id = v_ent;
+  perform pg_temp.dit('un champ vidé sur le formulaire complet redevient vide', v_d is null);
+exception when others then
+  perform pg_temp.dit('le dossier fiscal s''enregistre vraiment', false);
+  raise notice 'maj_entreprise : %', sqlerrm;
+end $$;
+select pg_temp.refuse('une fin d''exercice avant son début est refusée avec une phrase lisible',
+  'select public.maj_entreprise(p_exercice_debut => date ''2026-06-01'',
+     p_exercice_fin => date ''2026-01-01'', p_efface_vides => true)');
+reset role;
+
 \echo ''
 do $$
 declare v integer := coalesce(current_setting('riseva.rates', true), '0')::int;
