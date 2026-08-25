@@ -1715,6 +1715,7 @@ create or replace function public.decider_signalement(
   p_signalement uuid, p_decision text, p_motivation text)
 returns void
 language plpgsql security definer set search_path = '' as $$
+declare v_auteur uuid;
 begin
   if not private.est_admin() then
     raise exception 'Réservé à Riseva' using errcode = '42501';
@@ -1724,9 +1725,28 @@ begin
   end if;
   update public.signalement s
      set decision = p_decision, motivation = p_motivation, decide_le = now()
-   where s.id = p_signalement;
+   where s.id = p_signalement
+   returning s.auteur into v_auteur;
   if not found then
     raise exception 'Signalement introuvable' using errcode = '42501';
+  end if;
+  -- Article 16 du règlement sur les services numériques : la personne qui a
+  -- signalé et dont on connaît les coordonnées est informée SANS RETARD INDU de
+  -- la décision et des voies de recours. Le commentaire au-dessus promettait
+  -- cet envoi depuis le premier jour ; il n'existait pas. Écrire la motivation
+  -- dans une colonne que le signalant ne lit jamais, ce n'est pas l'informer.
+  if v_auteur is not null then
+    insert into public.envoi (cle, type, destinataire_profil, sujet, detail, date, etat)
+    values ('moderation:' || p_signalement,
+            'moderation', v_auteur,
+            case p_decision
+              when 'retire'   then 'Votre signalement : l''annonce a été retirée'
+              when 'modifie'  then 'Votre signalement : l''annonce a été modifiée'
+              else                 'Votre signalement : l''annonce est maintenue'
+            end,
+            left(btrim(p_motivation), 380),
+            current_date, 'a_envoyer')
+    on conflict (cle) do nothing;
   end if;
 end $$;
 

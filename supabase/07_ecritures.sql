@@ -560,11 +560,18 @@ begin
     raise exception 'Réservé à Riseva' using errcode = '42501';
   end if;
   -- Un contrôle bloquant interdit la mise en ligne tant qu'il n'a pas été refait.
-  -- L'ABSENCE de contrôle, elle, n'est pas bloquante : neuf associations
-  -- déclarées sur dix n'ont pas de SIREN, et les exclure reviendrait à ne garder
-  -- que les grosses.
+  -- Son ABSENCE l'interdit aussi, désormais : la vitrine promet que Riseva
+  -- vérifie l'enregistrement administratif de chaque structure avant de la
+  -- rendre visible, et cette phrase était fausse tant qu'on pouvait valider sans
+  -- avoir rien regardé. Ça n'exclut pas les petites : `controler_association`
+  -- accepte une association sans SIREN et conclut « absent », ce qui est une
+  -- réponse datée et conservée. Ce qu'on exige, c'est d'avoir regardé.
   select c.bloquant into v_bloquant from public.controle_association c
    where c.association = p_association order by c.le desc limit 1;
+  if not found then
+    raise exception 'Aucun contrôle au registre n''a été consigné : faites-le avant la mise en ligne'
+      using errcode = '22023';
+  end if;
   if coalesce(v_bloquant, false) then
     raise exception 'Le dernier contrôle au registre est bloquant : refaites-le avant la mise en ligne'
       using errcode = '22023';
@@ -1132,6 +1139,14 @@ declare
   v_saison uuid := private.saison_ouverte();
   v_groupe uuid; v_id uuid; v_abo uuid;
   v_code text; v_indice text;
+  -- Le plafond de l'essai. Un compte ouvert en libre-service n'a rien acheté :
+  -- il ouvrait pourtant autant de places que l'effectif déclaré, c'est-à-dire
+  -- tout le produit, gratuitement et pour toute la saison. Dix places suffisent
+  -- pour faire tourner une première mission avec une équipe, et pas pour équiper
+  -- une entreprise de six cents personnes sans jamais signer. La signature du
+  -- contrat porte les places au nombre convenu ; c'est `creer_entreprise`, du
+  -- côté de Riseva, qui l'écrit.
+  v_essai constant integer := 10;
 begin
   if v_uid is null then raise exception 'Connexion requise' using errcode = '42501'; end if;
   if v_mail is null or position('@' in v_mail) = 0 then
@@ -1158,9 +1173,9 @@ begin
   update public.groupe g set societe_mere = v_id where g.id = v_groupe;
 
   -- Aucun montant, aucune date de signature : rien n'est vendu ici. Les places
-  -- suivent l'effectif déclaré tant que le contrat n'est pas signé.
+  -- sont donc celles de l'essai, pas celles de l'effectif déclaré.
   insert into public.abonnement (entreprise, saison, montant_ht, sieges, effectif_reference)
-  values (v_id, v_saison, 0, p_effectif, p_effectif)
+  values (v_id, v_saison, 0, least(p_effectif, v_essai), p_effectif)
   returning id into v_abo;
 
   insert into public.profil (id, nom)
@@ -1186,7 +1201,7 @@ begin
               encode(extensions.gen_random_bytes(16), 'base64'), '+', '-'), '/', '_'), '=', '');
   v_indice := substr(v_code, 1, 6);
   insert into public.invitation (entreprise, empreinte, indice, places, cree_par, expire_le)
-  values (v_id, extensions.digest(v_code, 'sha256'), v_indice, p_effectif,
+  values (v_id, extensions.digest(v_code, 'sha256'), v_indice, least(p_effectif, v_essai),
           v_uid, now() + interval '60 days');
   insert into public.acces (entreprise, profil, quoi, indice)
   values (v_id, v_uid, 'creation_lien', v_indice);

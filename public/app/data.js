@@ -1789,6 +1789,12 @@ const seed = {
   expeditions: [],
   rapports_generes: [],
   moteur_journal: [],
+  /* Les reçus réellement émis. Le récapitulatif annuel les comptait jusqu'ici à
+     partir des missions financières validées, ce qui est un autre nombre : une
+     association dont les réglages sont incomplets a des dons confirmés et zéro
+     reçu, et c'est le nombre de REÇUS que l'article 222 bis lui demande de
+     déclarer. */
+  recus_emis: [],
   classement_recalcule_le: null
 };
 
@@ -1925,6 +1931,10 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
                        cle = CLE_ETAT } = {}){
   const sauvegarde = persister ? lireEtat(cle) : null;
   const s = etat ? etat : (sauvegarde ? sauvegarde.etat : clone(seed));
+  /* Un état enregistré avant l'existence du registre des reçus n'a pas ce
+     tableau : sans cette ligne, le premier don confirmé après mise à jour
+     casserait l'écran au lieu d'émettre un reçu. */
+  if (!Array.isArray(s.recus_emis)) s.recus_emis = [];
   if (sauvegarde && sauvegarde.bareme)
     Object.entries(sauvegarde.bareme).forEach(([k, v]) => { if (BAREME[k]) BAREME[k].points = v; });
   let seq = sauvegarde ? sauvegarde.seq : 100;
@@ -2380,6 +2390,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       m.tranchee_le = leJour();
       if (ok){
         if (realise !== undefined && realise !== null) m.realise = Math.max(0, Number(realise) || 0);
+        api.emettreRecuSiPret(m);
       } else { m.points = 0; m.realise = 0; }
       return m;
     },
@@ -3479,6 +3490,9 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
        aucun don personnel — et un seuil de restitution sous lequel un agrégat
        désigne quelqu'un. */
     SEUIL_RESTITUTION: 5,
+    /* Places ouvertes tant qu'aucun contrat n'est signé. Le même nombre qu'en
+       base, dans `ouvrir_compte_entreprise`. */
+    SIEGES_ESSAI: 10,
     creerInvitationCSE(eid, nom, email){
       const e = api.entreprise(eid);
       if (!e) throw new Error("Entreprise inconnue");
@@ -3551,10 +3565,21 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         securite: (() => {
           const sy = api.syntheseSecurite({ societe: eid,
             debut: s.saison.debut, fin: s.saison.fin });
-          if (sy.total.evenements < seuil)
+          /* Deux conditions, pas une. Cinq EVENEMENTS ne sont pas cinq
+             PERSONNES : le meme salarie peut en declarer cinq, et le registre ne
+             conserve justement aucune identite qui permettrait de le savoir. Le
+             compte d'evenements ne peut donc pas servir de plancher de
+             reidentification a lui seul. Ce qui borne le risque, c'est la taille
+             du perimetre : dans une societe de quatre personnes, « trois
+             accidents de manutention » designe quelqu'un quel que soit le nombre
+             d'evenements. On exige donc les deux, et l'ecran dit lequel manque. */
+          const effectif = e.effectif || sal.length;
+          if (sy.total.evenements < seuil || effectif < seuil)
             return { sous_seuil: true, pareto: [], total: sy.total,
+                     motif_seuil: effectif < seuil ? "effectif" : "evenements",
                      sites_sans_registre: sy.sites_sans_registre };
           return { sous_seuil: false, pareto: sy.pareto, total: sy.total,
+                   motif_seuil: null,
                    sites_sans_registre: sy.sites_sans_registre };
         })(),
         points: pts.retenu,
@@ -3562,7 +3587,13 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         /* Ce que le CSE ne verra pas ici, écrit à l'écran plutôt que deviné. */
         exclus: [
           "Aucun nom de salarié, aucune mission individuelle, aucun don personnel.",
-          `Aucun agrégat portant sur moins de ${seuil} personnes.`,
+          `Aucun agrégat de participation portant sur moins de ${seuil} salariés.`,
+          /* Ce que le produit sait tenir, ecrit exactement. La phrase precedente
+             — « aucun agregat portant sur moins de 5 personnes » — promettait un
+             plancher que le registre ne peut pas mesurer, puisqu'il ne garde
+             aucune identite. */
+          `Aucun détail du registre de sécurité sous ${seuil} événements, ni dans une `
+          + `société de moins de ${seuil} salariés, et jamais ligne à ligne.`,
           "Aucune donnée de santé : ni diagnostic, ni nature de lésion, ni identité d'une victime.",
           "Riseva n'est pas la base de données économiques, sociales et environnementales de l'entreprise et ne s'y substitue pas."
         ]
@@ -3647,8 +3678,14 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
 
     /* ---- Création de compte ---- */
     creerCompteEntreprise({ entreprise, effectif, nom, email, secteur, ville }){
-      const e = { id:id("e"), nom:entreprise, effectif:Number(effectif) || 0,
-        sieges:Number(effectif) || 0, points:0, secteur:secteur || "", ville:ville || "" };
+      /* Un compte ouvert en libre-service n'a rien acheté : il ouvrait pourtant
+         autant de places que l'effectif déclaré, c'est-à-dire tout le produit,
+         gratuitement et pour la saison entière. Les places de l'essai sont
+         plafonnées ; la signature du contrat les porte au nombre convenu. */
+      const eff = Number(effectif) || 0;
+      const e = { id:id("e"), nom:entreprise, effectif:eff,
+        sieges:Math.min(eff, api.SIEGES_ESSAI), essai:true,
+        points:0, secteur:secteur || "", ville:ville || "" };
       s.entreprises.push(e);
       /* Un périmètre, même d'une seule société. Le modèle est à trois étages —
          groupe, société, établissement — et la collecte d'indicateurs s'attache
@@ -3689,7 +3726,18 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
          associations déclarées sur dix n'ont pas de SIREN, et les exclure
          reviendrait à ne garder que les grosses. */
       const ct = api.dernierControle(aid);
-      if (ct && ct.bloquant)
+      /* Riseva promet publiquement de vérifier l'enregistrement administratif de
+         chaque structure AVANT de la rendre visible. Tant qu'aucun contrôle n'a
+         été consigné, cette phrase est fausse : la mise en ligne se faisait sur
+         la seule confiance de celui qui cliquait. Un contrôle reste possible même
+         sans SIREN — il se conclut alors « numéro absent », et c'est une réponse
+         datée, conservée, opposable. Exiger qu'il existe n'exclut donc aucune
+         petite association : ça oblige seulement à avoir regardé. */
+      if (!ct)
+        throw new Error("Aucun contrôle au registre n'a encore été consigné pour cette "
+          + "association. Faites-le avant la mise en ligne, même s'il conclut « numéro "
+          + "absent » : c'est ce que Riseva promet publiquement de faire.");
+      if (ct.bloquant)
         throw new Error("Le registre public dit : « "
           + ETATS_CORRESPONDANCE[ct.etat].label.toLowerCase()
           + " ». Refaites le contrôle ou corrigez le numéro avant la mise en ligne.");
@@ -4306,6 +4354,20 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       if (decision === "retire"){
         const a = api.annonce(sg.annonce);
         if (a){ a.etat = "close"; a.retiree_moderation = true; }
+      }
+      /* La motivation n'est pas une note interne : l'article 16 du DSA veut que
+         le signalant dont on connait les coordonnees soit informe sans retard
+         indu de la decision ET des voies de recours. Elle dormait dans une
+         colonne que personne ne lui montrait jamais. */
+      if (sg.par && !s.envois.some(x => x.cle === `moderation:${sg.id}`)){
+        const u = api.utilisateur(sg.par);
+        s.envois.unshift({ id: id("en"), cle: `moderation:${sg.id}`, type: "moderation",
+          entreprise: u ? u.org : null, destinataire: u ? (u.email || u.nom) : null,
+          sujet: decision === "retire" ? "Votre signalement : l'annonce a été retirée"
+               : decision === "modifie" ? "Votre signalement : l'annonce a été modifiée"
+               : "Votre signalement : l'annonce est maintenue",
+          detail: sg.motivation.slice(0, 380),
+          date: leJour(), etat: u ? "à envoyer" : "sans destinataire" });
       }
       return sg;
     },
@@ -5038,8 +5100,37 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         : null;
       const reportable = plafondCalculable
         ? Math.max(0, versementsExercice - plafondEntreprise) : null;
+      /* Le taux n'est pas de 60 % partout. L'article 238 bis le ramène à 40 %
+         pour la fraction des versements de l'exercice qui dépasse deux millions
+         d'euros. Le code portait la constante depuis le début et ne s'en servait
+         jamais : au-dessus du seuil, l'écran annonçait une réduction supérieure
+         à celle que l'administration accordera, et ce chiffre-là, un dirigeant
+         le recopie dans sa liasse.
+
+         Les versements déjà faits hors Riseva et le report des exercices
+         antérieurs comptent AVANT ceux que Riseva connaît : c'est le total de
+         l'exercice qui franchit le seuil, pas la part Riseva prise isolément.
+         L'assiette Riseva occupe donc la tranche qui va de `dejaVerse` à
+         `dejaVerse + assietteRetenue`. */
+      const dejaVerse = plafondCalculable
+        ? Number(e.dons_hors_riseva) + Number(e.report_anterieur) : 0;
+      const tranches = (base, montant) => {
+        const haut = base + montant;
+        const plein = Math.max(0, Math.min(haut, FISCAL.seuil_taux_reduit)
+                                  - Math.min(base, FISCAL.seuil_taux_reduit));
+        return { plein, reduit: Math.max(0, montant - plein) };
+      };
+      const tr = plafondCalculable ? tranches(dejaVerse, assietteRetenue) : null;
       const reduction = plafondCalculable
-        ? Math.round(assietteRetenue * FISCAL.taux_reduction) : null;
+        ? Math.round(tr.plein * FISCAL.taux_reduction
+                     + tr.reduit * FISCAL.taux_reduit) : null;
+      /* Vrai dès qu'une partie de l'assiette tombe dans la tranche à 40 % : c'est
+         la seule situation où l'écran doit dire que certains organismes d'aide aux
+         personnes en difficulté restent, eux, à 60 % au-delà du seuil. Riseva ne
+         sait pas si l'association en relève ; elle ne peut donc pas le décider à
+         la place de l'expert-comptable, mais elle doit le dire. */
+      const trancheReduite = plafondCalculable && tr.reduit > 0;
+      const trMax = tranches(0, assiette);
 
       return {
         donsSalaries, donsEntreprise, demiJourneesTT, demiJourneesPerso,
@@ -5051,7 +5142,14 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         plafondEntreprise, assietteRetenue, reportable, reduction,
         /* Ce que la réduction vaudrait si rien d'autre n'avait été versé cette année.
            C'est un maximum théorique, jamais un montant déclarable. */
-        estimationMax: Math.round(assiette * FISCAL.taux_reduction),
+        estimationMax: Math.round(trMax.plein * FISCAL.taux_reduction
+                                  + trMax.reduit * FISCAL.taux_reduit),
+        /* Ce que la tranche haute a coûté par rapport à un 60 % uniforme : sans
+           ce chiffre, personne ne comprend pourquoi la réduction n'est pas
+           l'assiette multipliée par soixante pour cent. */
+        trancheReduite,
+        assiettePleine: plafondCalculable ? tr.plein : null,
+        assietteReduite: plafondCalculable ? tr.reduit : null,
         salariesConcernes: detailSalaries.length,
         /* Missions closes sans retour : hors assiette, mais dites. */
         enAttente,
@@ -5082,20 +5180,45 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       return !!(r.actif && r.eligible_mecenat && r.signataire && r.qualite && r.prefixe
                 && api.mandatRecus(aid));
     },
+    /* L'émission d'un reçu, aux mêmes conditions que `private.emettre_recu_si_pret`
+       côté base : don confirmé, association éligible, émission activée, signataire,
+       qualité, préfixe et mandat écrit. Une mission ne porte jamais deux reçus. */
+    emettreRecuSiPret(m){
+      if (!m || m.etat !== "validee") return null;
+      const an = api.annonceDe(m); if (!an || !estArgent(an.type)) return null;
+      const aid = an.asso;
+      if (!api.recusPrets(aid)) return null;
+      if (s.recus_emis.some(r => r.mission === m.id)) return null;
+      const a = api.association(aid) || {};
+      const suite = s.recus_emis.filter(r => r.association === aid).length + 1;
+      const r = { id: id("rc"), mission: m.id, association: aid,
+                  numero: String((a.recus || {}).prefixe || "") + String(suite).padStart(4, "0"),
+                  modele: m.origine === "entreprise" ? "16216*03" : "11580*05",
+                  montant: Number(m.quantite) || 0, le: leJour() };
+      s.recus_emis.unshift(r);
+      if (a.recus) a.recus.prochain_numero = suite + 1;
+      return r;
+    },
+    recusEmis: (aid) => s.recus_emis.filter(r => !aid || r.association === aid),
     /* Récapitulatif à reporter dans la déclaration annuelle des dons, obligatoire
        depuis 2021 : montant global des dons portés sur les reçus, et nombre de reçus. */
     recapRecus(aid){
-      /* Seuls les dons confirmés par l'association ont donné lieu à un reçu : côté
-         base, emettre_recu exige un don à l'état « confirme ». Déclarer un reçu qui
-         n'a pas été émis désaligne la déclaration de l'article 222 bis du CGI. */
-      const ms = api.missions({ asso: aid })
-                   .filter(m => m.etat === "validee");
+      /* La déclaration de l'article 222 bis porte sur les REÇUS délivrés, pas sur
+         les dons reçus. Compter les dons confirmés donnait un nombre toujours
+         supérieur ou égal au vrai : une association dont un réglage manque
+         encaisse et n'émet rien, et aurait déclaré des reçus qui n'existent pas.
+         On compte donc les reçus, et on dit séparément ce qui reste à émettre. */
       let montant = 0, nombre = 0;
-      ms.forEach(m => {
-        const a = api.annonceDe(m);
-        if (a && estArgent(a.type)){ montant += Number(m.quantite) || 0; nombre++; }
+      s.recus_emis.filter(r => r.association === aid).forEach(r => {
+        montant += Number(r.montant) || 0; nombre++;
       });
-      return { montant, nombre, saison: s.saison.nom };
+      const enAttente = api.missions({ asso: aid })
+        .filter(m => m.etat === "validee")
+        .filter(m => { const a = api.annonceDe(m); return a && estArgent(a.type); })
+        .filter(m => !s.recus_emis.some(r => r.mission === m.id));
+      return { montant, nombre, saison: s.saison.nom,
+               aEmettre: enAttente.length,
+               montantAEmettre: enAttente.reduce((t, m) => t + (Number(m.quantite) || 0), 0) };
     },
 
     /* ------------------------------------------------------------------ */
@@ -5276,6 +5399,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       if (an.restant === 0) an.etat = "close";
       i.etat = "recue"; i.montant_recu = recu; i.mission = m.id;
       i.confirme_le = le || leJour();
+      api.emettreRecuSiPret(m);
       return { intention: i, mission: m };
     },
     abandonnerIntentionDon(iid, motif = null){
@@ -5820,6 +5944,13 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const val = (cle) => {
         if (!ind) return null;
         const d = INDICATEURS.calcules.find(x => x.cle === cle);
+        /* Un taux dont le numerateur et le denominateur ne portent pas sur les
+           memes sites a l'air juste et ne l'est pas. A l'ecran, on l'affichait
+           avec un asterisque et la phrase « a ne pas publier tel quel ». Cette
+           fiche-ci EST la publication : elle part chez un donneur d'ordre ou chez
+           une banque, sans l'asterisque et sans la phrase. Le chiffre n'y entre
+           donc pas ; la rubrique se dit non renseignee, ce qui est la verite. */
+        if (d && ind.assise[cle] === false) return null;
         const v = d ? ind.calcules[cle] : ind.somme[cle];
         return v === undefined || v === null ? null : v;
       };
@@ -6172,6 +6303,7 @@ export function etatVierge({ saison = null } = {}){
     signalements: [], sourcing: [], acces: [], invitations: [],
     preinscriptions: [], controles: [], intentions: [], envois: [],
     expeditions: [], rapports_generes: [], moteur_journal: [], pieces: [],
+    recus_emis: [],
     classement_recalcule_le: null
   };
 }
@@ -6784,7 +6916,7 @@ async function chargerEtat(client){
          abonnements, factures, preinscriptions, reglagesAsso,
          reglagesProfil, piecesJointes,
          envois, expeditions, sourcing, sieges, rapportsBase,
-         journalMoteur, recus, rubriquesCampagne] = await Promise.all([
+         journalMoteur, recus, dons, rubriquesCampagne] = await Promise.all([
     /* SIX tables n'ont que des droits COLONNE, jamais un droit de table : ce
        sont celles qui portent une donnée qu'un salarié n'a pas à lire — le
        chiffre d'affaires, l'empreinte d'une invitation, les circonstances d'un
@@ -6848,6 +6980,11 @@ async function chargerEtat(client){
        prochain numéro. Le poser à 1 en dur faisait réafficher « 1 » à une
        association qui en était à 47. */
     lire("recu"),
+    /* Les dons. Le moteur du navigateur modélise un don comme une mission ; en
+       base, le reçu pointe le don, et le don pointe la mission. Sans cette
+       table, aucun reçu ne pouvait être rattaché à ce qui l'a justifié, et le
+       récapitulatif annuel repartait compter des missions. */
+    lire("don"),
     /* Ce que chaque collecte demande, rubrique par rubrique. Sans cette table,
        `rubriquesDe` retombait sur TOUTES les rubriques : un groupe qui ouvrait
        une collecte sur « social + sécurité » voyait ses référents recevoir un
@@ -7062,6 +7199,16 @@ async function chargerEtat(client){
       le: String(x.cree_le).slice(0, 10), ...(x.fait || {})
     })),
     rapports_generes: [],
+    /* Les reçus délivrés, rattachés à la mission que le moteur connaît. C'est
+       ce nombre-là, et pas celui des dons confirmés, que l'article 222 bis fait
+       déclarer chaque année. */
+    recus_emis: recus.map(r => {
+      const d = dons.find(x => x.id === r.don) || {};
+      return { id: r.id, mission: d.mission || null, association: r.association,
+               numero: r.numero, modele: r.modele,
+               montant: Number(d.montant) || 0,
+               le: String(r.emis_le || "").slice(0, 10) };
+    }),
     classement_recalcule_le: null
   };
 }

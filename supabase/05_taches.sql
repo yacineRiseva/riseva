@@ -360,6 +360,27 @@ begin
     v_total := v_total + v_n;
   end if;
 
+  -- Le registre de sécurité était le seul ensemble sans échéance : ses lignes
+  -- restaient telles quelles indéfiniment, texte libre compris. Une donnée
+  -- personnelle ne se conserve pas sans terme, et le registre des accidents
+  -- bénins se garde cinq ans à compter de la fin de l'exercice.
+  --
+  -- On n'efface pas la ligne pour autant : un registre dont les événements
+  -- disparaissent au bout de cinq ans casserait toute la série statistique d'un
+  -- site, et les colonnes codées — nature, gravité, type, jours d'arrêt — ne
+  -- désignent personne. Ce qui s'efface, c'est le résidu personnel : la zone,
+  -- les circonstances rédigées à la main, et qui a déclaré.
+  update public.evenement_securite e
+     set zone = null, circonstances = null, declare_par = null
+   where e.date < (current_date - interval '5 years')
+     and (e.zone is not null or e.circonstances is not null or e.declare_par is not null);
+  get diagnostics v_n = row_count;
+  if v_n > 0 then
+    insert into private.journal_purge (ensemble, lignes, motif)
+    values ('evenement_securite', v_n, 'texte libre du registre au-delà de cinq ans');
+    v_total := v_total + v_n;
+  end if;
+
   return v_total;
 end $$;
 

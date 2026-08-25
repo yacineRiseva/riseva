@@ -473,7 +473,8 @@ create table envoi (
   id           uuid primary key default gen_random_uuid(),
   cle          text not null unique check (length(cle) between 3 and 160),
   type         text not null
-                 check (type in ('rapport','recu','relance','recap','demande_validation')),
+                 check (type in ('rapport','recu','relance','recap','demande_validation',
+                                 'moderation')),
   entreprise   uuid references entreprise(id) on delete cascade,
   association  uuid references association(id) on delete cascade,
   -- `mission` est ajoutée plus bas, une fois la table mission créée : la demande

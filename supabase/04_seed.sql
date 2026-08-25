@@ -34,7 +34,12 @@ insert into private.retention (ensemble, duree, motif) values
   ('acces',          interval '6 months',  'journal de sécurité, durée glissante'),
   ('preinscription', interval '3 years',   'prospection commerciale'),
   ('invitation',     interval '12 months', 'preuve du rattachement à l''entreprise'),
-  ('moteur_journal', interval '12 months', 'traçabilité des traitements automatiques');
+  ('moteur_journal', interval '12 months', 'traçabilité des traitements automatiques'),
+  -- Le registre des accidents bénins se conserve cinq ans. Passé ce délai, ce
+  -- qui reste du texte libre — zone, circonstances, déclarant — s'efface ; les
+  -- colonnes codées restent, elles ne désignent personne et portent la série.
+  ('evenement_securite', interval '5 years',
+   'registre de sécurité : le texte libre s''efface, les compteurs restent');
 
 -- ---------------------------------------------------------------- secrets
 -- Le secret dont on dérive les jetons de réponse des associations. Il est tiré

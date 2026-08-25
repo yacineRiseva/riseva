@@ -870,9 +870,10 @@ SAISON_ENT = f"""<section id="saison" class="band">
    "Les missions se font, une par une. Un salarié se propose, l'association l'accueille, "
    "puis confirme que c'est arrivé. C'est cette confirmation qui compte."),
   ("Quatre fois dans l'année", "Le <span class='it'>point.</span>",
-   "Un rapport se génère tout seul quatorze jours après la fin de chaque trimestre, une fois "
-   "les confirmations closes : le sceller le dernier jour le figerait incomplet. Ce qui a été "
-   "fait, ce qui a été confirmé, ce qui reste ouvert. Vous n'avez rien à consolider."),
+   "Un rapport se génère tout seul à la fin de chaque trimestre, dès que les quatorze jours "
+   "de confirmation sont écoulés pour la dernière mission de la période : le sceller le "
+   "dernier jour le figerait incomplet. Ce qui a été fait, ce qui a été confirmé, ce qui "
+   "reste ouvert. Vous n'avez rien à consolider."),
   ("Mi-janvier", "Le <span class='it'>bilan.</span>",
    "Le rapport annuel est arrêté à son tour, avec le dossier de traçabilité : pièces, sources "
    "et méthode. Puis vous décidez si vous recommencez. Il n'y a pas de reconduction tacite."),
@@ -1192,8 +1193,8 @@ OUTIL_ENT = f"""<section id="outil" class="band">
         d'actions avec ses échéances</dd></div>
       <div><dt class="mono">La fiche VSME</dt><dd>les onze rubriques de la norme européenne
         volontaire, et ce qui reste vide</dd></div>
-      <div><dt class="mono">L'accès CSE</dt><dd>en lecture, sans nominatif, et rien qui porte
-        sur moins de cinq personnes</dd></div>
+      <div><dt class="mono">L'accès CSE</dt><dd>en lecture, sans nominatif : aucune
+        participation sous cinq salariés, aucun détail du registre sous cinq événements</dd></div>
     </dl>
 
 {flux([
@@ -1395,8 +1396,8 @@ FAQ_ENT = faq([
    "dû. Le solde est facturé à l'ouverture de la saison et payable à trente jours ; si le "
    "démarrage n'est pas constaté, il n'est pas dû.</p>"),
   ("Qui valide qu'une mission a bien eu lieu ?",
-   "<p>L'association, et elle seule. Elle reçoit un message après la date prévue et répond en "
-   "un clic, sans se connecter. Sans réponse de sa part sous quatorze jours, la mission est "
+   "<p>L'association, et elle seule. Elle reçoit un message après la date prévue ; le lien "
+   "ouvre une page qui pose une seule question, et elle répond sans se connecter. Sans réponse de sa part sous quatorze jours, la mission est "
    "<b>clôturée automatiquement sans confirmation</b> : les points sont crédités selon le "
    "barème, mais le résultat reste <b>estimé</b> et il est identifié comme <b>non confirmé</b> "
    "partout où il apparaît, y compris dans vos rapports.</p>"),
@@ -1628,11 +1629,13 @@ def chiffres_asso():
     <ul class="chiffres chiffres--hero rv">
       <li><b>0&nbsp;€</b><span>à payer, aujourd'hui et après, et aucune commission sur vos
         dons.<br><span class="mono">Ce sont les entreprises qui paient</span></span></li>
-      <li><b>5&nbsp;minutes</b><span>pour publier une première annonce. Six modèles sont déjà
-        écrits : vous changez la date.<br><span class="mono">Des bras, du matériel, de
+      <li><b>5&nbsp;minutes</b><span>pour écrire une première annonce. Six modèles sont déjà
+        écrits : vous changez la date. Elle paraît une fois votre enregistrement
+        vérifié.<br><span class="mono">Des bras, du matériel, de
         l'argent</span></span></li>
-      <li><b>1&nbsp;clic</b><span>pour confirmer une mission, depuis un courriel. Rien à installer,
-        aucun logiciel à apprendre.<br><span class="mono">La confirmation</span></span></li>
+      <li><b>1&nbsp;courriel</b><span>pour confirmer une mission : le lien ouvre la page de
+        décision, vous répondez, c'est fini. Rien à installer, aucun logiciel à
+        apprendre.<br><span class="mono">La confirmation</span></span></li>
       <li><b>30&nbsp;km</b><span>le rayon dans lequel les salariés des entreprises abonnées voient
         vos besoins autour de leur site.<br><span class="mono">Annuaire et
         annonces</span></span></li>
@@ -1763,12 +1766,13 @@ ARGENT_ASSO = f"""<section id="argent" class="band-moss">
       <div class="col">
         <h3>Par carte, sur votre compte HelloAsso</h3>
         <p>Vous connectez votre compte HelloAsso une fois, depuis leur page d'autorisation.
-          Ensuite, un donateur paie par carte en trois clics et l'argent arrive chez vous.
-          L'argent ne transite jamais par Riseva : ni commission de notre part, ni délai de
-          reversement, ni plafond.</p>
+          Ensuite, un donateur paie par carte sur la page de HelloAsso et l'argent arrive chez
+          vous. L'argent ne transite jamais par Riseva : ni commission de notre part, ni délai
+          de reversement, ni plafond.</p>
         <p>Le don s'enregistre dès que HelloAsso ramène le donateur sur Riseva, juste après
-          le paiement. Vous n'avez aucun relevé à rapprocher, et le donateur n'a aucune
-          référence à recopier.</p>
+          le paiement : le donateur n'a aucune référence à recopier. S'il ferme sa page avant
+          ce retour, le paiement est bien encaissé chez HelloAsso — il apparaît sur votre
+          compte là-bas, et vous l'ajoutez ici en une ligne.</p>
         <p class="mono">Pas encore de compte HelloAsso ? En ouvrir un est gratuit et prend
           quelques minutes. En attendant, le virement reste possible.</p>
       </div>
@@ -1794,9 +1798,10 @@ FAQ_ASSO = faq([
    "frais de dossier. Ce sont les entreprises qui paient l'abonnement, et c'est le seul "
    "revenu de Riseva.</p>"),
   ("Combien de temps ça me prend ?",
-   "<p>Cinq minutes pour publier une annonce, un clic pour confirmer après la mission. Il n'y "
-   "a pas de tableau de bord à surveiller, pas de fichier à tenir, pas de rapport à produire "
-   "pour l'entreprise.</p>"
+   "<p>Cinq minutes pour écrire une annonce, un courriel pour confirmer après la mission. La "
+   "première mise en ligne attend que nous ayons vérifié votre enregistrement administratif ; "
+   "ensuite, vous publiez quand vous voulez. Il n'y a pas de tableau de bord à surveiller, pas "
+   "de fichier à tenir, pas de rapport à produire pour l'entreprise.</p>"
    "<p>Si écrire l'annonce vous rebute, le formulaire propose les formats les plus demandés "
    "et vous n'avez qu'à changer la date et le nombre de places. Rien n'est publié tant que "
    "vous n'avez pas relu.</p>"),
@@ -1835,9 +1840,11 @@ FAQ_ASSO = faq([
 CONTACT_ASSO = f"""<section id="commencer">
   <div class="layer">
 {entete("S'inscrire", "Quatre lignes, un lien,<br><span class='it'>et votre espace est ouvert.</span>",
-        "Pas de dossier à monter, pas de pièce à joindre, personne à attendre. Vous entrez "
-        "quatre informations, vous ouvrez le lien qu'on vous envoie, et vous publiez votre "
-        "première annonce dans la foulée. Rien à ressaisir.")}
+        "Pas de dossier à monter, pas de pièce à joindre. Vous entrez quatre informations, "
+        "vous ouvrez le lien qu'on vous envoie, et votre espace est là : vous préparez votre "
+        "première annonce tout de suite. Elle part en ligne dès que nous avons vérifié votre "
+        "enregistrement administratif, ce que nous faisons sous deux jours ouvrés. "
+        "Rien à ressaisir.")}
     <form id="formAsso" class="join-grid" novalidate>
       <div class="rv">
         <div class="j-step mono">Quatre informations suffisent</div>

@@ -1921,7 +1921,9 @@ function vueEquipe(u){
         <p class="muted" style="font-size:var(--t-sm)">
           Un accès en <strong style="color:var(--ink)">lecture seule</strong> aux agrégats
           sociaux et sécurité, aux rapports et à la participation. Aucun nom de salarié, aucune
-          mission individuelle, aucun don personnel, et rien sous ${DB.SEUIL_RESTITUTION} personnes.
+          mission individuelle, aucun don personnel, aucun agrégat de participation sous
+          ${DB.SEUIL_RESTITUTION} salariés, et aucun détail du registre de sécurité sous
+          ${DB.SEUIL_RESTITUTION} événements.
           Vous n'avez plus à recopier ces chiffres, et les élus n'ont plus à les demander.</p>
         ${cseUser ? `<p class="muted" style="font-size:var(--t-sm);margin-top:var(--s4)">
           Ouvert à <strong style="color:var(--ink)">${esc(cseUser.nom)}</strong>
@@ -2470,9 +2472,12 @@ function vueAbonnement(u){
         <p class="muted" style="font-size:var(--t-sm);margin-top:4px;max-width:70ch">
           Vous avez ouvert votre compte vous-même : rien ne vous a été facturé, et
           rien ne le sera tant que vous n'aurez pas signé. Vous pouvez déclarer vos
-          sites, inviter vos équipes et préparer votre collecte. Ce qui attend la
-          signature, c'est l'envoi des affiches et votre place au classement
-          public — un classement qui nomme ne porte que des clients.</p></div>
+          sites, préparer votre collecte, et inviter jusqu'à
+          <strong style="color:var(--ink)">${nb(DB.SIEGES_ESSAI)} personnes</strong> —
+          de quoi faire tourner une première mission avec une équipe. La signature
+          porte les places au nombre convenu. Ce qui l'attend aussi, c'est l'envoi
+          des affiches et votre place au classement public — un classement qui
+          nomme ne porte que des clients.</p></div>
         <a class="btn btn--primary" href="/#prix" style="align-self:flex-start">Voir le tarif</a>
       </div>
     </section>` : ""}
@@ -2810,7 +2815,14 @@ function ouvrirPreuve(u){
       ${l(v.plafondCalculable ? "Réduction d'impôt estimée" : "Estimation maximale potentielle",
           v.plafondCalculable ? eur(v.reduction) : eur(v.estimationMax),
           v.plafondCalculable
-            ? "60 % de l'assiette retenue. Estimation, non déclaration : votre expert-comptable arrête le chiffre."
+            ? (v.trancheReduite
+               ? "60 % jusqu'à deux millions d'euros de versements sur l'exercice, 40 % au-delà"
+                 + " (article 238 bis). Les versements faits hors Riseva et les reports antérieurs"
+                 + " comptent d'abord : c'est le total de l'exercice qui franchit le seuil."
+                 + " Certains organismes d'aide aux personnes en difficulté restent à 60 % au-delà"
+                 + " du seuil ; Riseva ne le sait pas et ne l'applique pas. Estimation, non"
+                 + " déclaration : votre expert-comptable arrête le chiffre."
+               : "60 % de l'assiette retenue. Estimation, non déclaration : votre expert-comptable arrête le chiffre.")
             : "60 % de la seule assiette connue de Riseva, plafond non appliqué. Non utilisable pour la déclaration.")}
     </tbody>
   </table>
@@ -2986,9 +2998,16 @@ function vueParametres(u){
             <input class="input" id="annu" value="${esc((DB.contrat(u.org) || {}).annuaire_id || "")}"
               placeholder="SIRET ou routage"></div>
         </div>
+        <!-- La phrase disait « nous vous adressons vos factures dessus ». Aucune
+             ligne de code n'envoie quoi que ce soit vers une plateforme agréée :
+             on enregistrait un nom et un identifiant d'annuaire, rien de plus.
+             Promettre l'acheminement, c'est promettre le raccordement d'un tiers. -->
         <p class="hint">À compter du 1<sup>er</sup> septembre 2026, toute entreprise doit pouvoir
           recevoir ses factures par une plateforme agréée : un PDF par courriel ne vaudra plus facture.
-          Dites-nous laquelle vous utilisez et nous vous adressons vos factures dessus.</p>
+          Nous conservons ici la vôtre et votre identifiant d'annuaire pour préparer ce
+          raccordement. Tant qu'il n'est pas en service, vos factures vous parviennent par
+          courriel et depuis cet écran — nous vous préviendrons du jour où elles partiront
+          sur votre plateforme.</p>
         <div class="row" style="gap:var(--s4);align-items:stretch">
           <div class="field" style="flex:1"><label>Référent Riseva</label>
             <input class="input" id="ref" value="${esc(e.referent || "")}"></div>
@@ -4127,10 +4146,14 @@ function vueAdminAssos(){
         corps.querySelector("#reg").appendChild(blocRegistre(a, { admin:true }));
         modal((a.valide ? "Revérifier " : "Valider ") + a.nom, corps,
         [{ label:"Annuler" },
-         { label:"Valider pour une saison", classe:"btn--primary", onClick: (md) => {
+         { label:"Valider pour une saison", classe:"btn--primary", onClick: async (md) => {
              const toutes = [...md.querySelectorAll(".v")].every(x => x.checked || x.disabled);
              if (!toutes){ toast("Cochez les cinq points, sinon la vérification ne vaut rien."); return false; }
-             try { DB.validerAssociation(a.id); }
+             /* `await` : en production l'écriture est un aller-retour réseau, et un
+                refus du serveur — contrôle absent, contrôle bloquant — arrive dans
+                une promesse rejetée que le `try` synchrone ne voyait pas. La modale
+                se fermait sur un succès qui n'avait pas eu lieu. */
+             try { await DB.validerAssociation(a.id); }
              catch (e){ toast(e.message); return false; }
              toast("Association vérifiée pour une saison."); rendre(); }}]);
       };
@@ -4954,8 +4977,14 @@ function vueMecenat(u){
     <div class="kpis">
       ${kpi(v.plafondCalculable ? "Réduction d'impôt estimée" : "Estimation maximale potentielle",
             v.plafondCalculable ? eur(v.reduction) : eur(v.estimationMax),
+            /* Le taux affiché sous le chiffre doit être celui qui a servi. Écrire
+               « 60 % » sous une réduction calculée en partie à 40 % ferait douter
+               du chiffre juste, ce qui est pire qu'un chiffre faux assumé. */
             v.plafondCalculable
-              ? `${Math.round(FISCAL.taux_reduction * 100)} % de ${eur(v.assietteRetenue)}`
+              ? (v.trancheReduite
+                 ? `${Math.round(FISCAL.taux_reduction * 100)} % sur ${eur(v.assiettePleine)}, `
+                   + `${Math.round(FISCAL.taux_reduit * 100)} % sur ${eur(v.assietteReduite)}`
+                 : `${Math.round(FISCAL.taux_reduction * 100)} % de ${eur(v.assietteRetenue)}`)
               : `${Math.round(FISCAL.taux_reduction * 100)} % de ${eur(v.assiette)}, plafond non appliqué`,
             "", "kpi--tete grain")}
       ${kpi("Mécénat de compétences", eur(v.competencesRetenu),
@@ -5524,9 +5553,15 @@ function vueRecus(u){
 
     <div class="stack" style="--gap:var(--s5)">
       <section class="card kpi kpi--tete grain">
-        <span class="kpi__label">Dons de la saison</span>
+        <span class="kpi__label">Reçus délivrés cette saison</span>
         <span class="kpi__value">${eur(recap.montant)}</span>
-        <span class="kpi__delta">${recap.nombre} reçu${recap.nombre > 1 ? "s" : ""} à émettre</span>
+        <!-- Deux nombres, parce que ce sont deux choses. Le bloc annonçait les
+             dons confirmés en les appelant « reçus à émettre » : une association
+             à qui il manque un réglage voyait un compte de reçus alors qu'aucun
+             n'était sorti. -->
+        <span class="kpi__delta">${recap.nombre} reçu${recap.nombre > 1 ? "s" : ""} délivré${
+          recap.nombre > 1 ? "s" : ""}${recap.aEmettre
+            ? `, ${recap.aEmettre} don${recap.aEmettre > 1 ? "s" : ""} encore sans reçu` : ""}</span>
       </section>
 
       <section class="card">
@@ -5536,12 +5571,18 @@ function vueRecus(u){
           montant global des dons portés sur ses reçus et leur nombre, dans les trois mois
           suivant la clôture de son exercice.</p>
         <div class="stack" style="--gap:var(--s3);margin-top:var(--s5);font-size:var(--t-sm)">
-          <div class="between"><span class="muted">Montant global</span>
+          <div class="between"><span class="muted">Montant global porté sur les reçus</span>
             <strong class="tnum">${eur(recap.montant)}</strong></div>
-          <div class="between"><span class="muted">Nombre de reçus</span>
+          <div class="between"><span class="muted">Nombre de reçus délivrés</span>
             <strong class="tnum">${recap.nombre}</strong></div>
           <div class="between"><span class="muted">Exercice</span><span>${esc(recap.saison)}</span></div>
         </div>
+        ${recap.aEmettre ? `<p class="hint" style="margin-top:var(--s4)">
+          ${nb(recap.aEmettre)} don${recap.aEmettre > 1 ? "s" : ""} confirmé${
+            recap.aEmettre > 1 ? "s" : ""} (${eur(recap.montantAEmettre)}) n'${
+            recap.aEmettre > 1 ? "ont" : "a"} pas encore donné lieu à un reçu : il manque un
+          réglage ci-dessus. ${recap.aEmettre > 1 ? "Ces montants ne figurent" : "Ce montant ne figure"}
+          pas dans la déclaration tant qu'aucun reçu n'est délivré.</p>` : ""}
         <button class="btn btn--ghost btn--block" style="margin-top:var(--s6)" id="csvR">Exporter le détail des dons</button>
       </section>
     </div>
@@ -7653,9 +7694,13 @@ function vueCSE(u){
       style="background:var(--warn-bg);border-color:transparent">
       <h3 style="font-size:var(--t-lg)">Événements de sécurité</h3>
       <p class="muted" style="font-size:var(--t-sm);margin-top:4px">
-        Moins de ${d.seuil} événements déclarés sur la saison : le détail n'est pas restitué.
-        Un décompte par type, à ce volume, désigne quelqu'un. Les taux calculés, eux, restent
-        dans le tableau ci-dessus.</p>
+        ${secu.motif_seuil === "effectif"
+          ? `Moins de ${d.seuil} salariés dans la société : le détail n'est pas restitué, quel
+             que soit le nombre d'événements. À cet effectif, un décompte par type désigne
+             quelqu'un.`
+          : `Moins de ${d.seuil} événements déclarés sur la saison : le détail n'est pas restitué.
+             Un décompte par type, à ce volume, désigne quelqu'un.`}
+        Les taux calculés, eux, restent dans le tableau ci-dessus.</p>
     </section>` : ""}
     ${secu.pareto.length ? `<section class="card">
       <h3>Événements de sécurité de la saison</h3>

@@ -1456,7 +1456,17 @@ def main():
         p.evaluate("()=>document.querySelectorAll('.modal .v').forEach(c=>c.checked=true)")
         p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Valider pour/.test(b.textContent)).click()")
         p.wait_for_timeout(400)
-        verifie("la vérification complète est acceptée", "vérifiée pour une saison" in p.inner_text(".toast"))
+        # Riseva promet publiquement de verifier l'enregistrement administratif
+        # AVANT la mise en ligne. Cocher cinq cases n'est pas un controle : tant
+        # qu'aucun n'a ete consigne, la mise en ligne est refusee.
+        verifie("cocher les cinq points ne remplace pas un contrôle au registre",
+                "contrôle au registre" in p.inner_text(".toast"), p.inner_text(".toast"))
+        p.evaluate("""async ()=>{ const d = await import('/app/data.js');
+          d.DB.controlerEnregistrement('a5', { panne:true }); }""")
+        p.evaluate("()=>[...document.querySelectorAll('.modal .btn')].find(b=>/Valider pour/.test(b.textContent)).click()")
+        p.wait_for_timeout(400)
+        verifie("un contrôle consigné, même en panne de registre, rouvre la mise en ligne",
+                "vérifiée pour une saison" in p.inner_text(".toast"), p.inner_text(".toast"))
 
         print("\nDossier de preuve")
         connecte(p, "u2", "#/rapports")
@@ -2156,8 +2166,14 @@ def main():
         # L'employeur ouvre l'accès, et cet accès ne consomme pas une place.
         connecte(p, "u2", "#/equipe")
         eq = norm(p.inner_text(".content"))
+        # Le texte disait « rien sous 5 personnes ». Le registre de sécurité ne
+        # garde aucune identité : son seuil porte sur les ÉVÉNEMENTS, et cinq
+        # événements peuvent être ceux d'une seule personne. L'écran dit
+        # maintenant les deux planchers, chacun avec ce qu'il compte vraiment.
         verifie("l'employeur voit à quoi sert l'accès CSE",
-                "Accès du CSE" in eq and "rien sous 5 personnes" in eq)
+                "Accès du CSE" in eq
+                and "aucun agrégat de participation sous 5 salariés" in eq
+                and "aucun détail du registre de sécurité sous 5 événements" in eq, eq[:400])
         cse2 = p.evaluate("""async () => {
           const d = await import('/app/data.js');
           const avant = d.DB.sieges('e1').restants;

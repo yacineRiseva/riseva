@@ -125,6 +125,24 @@ const corpsRapport = (d: { sujet: string; detail: string | null }) => `
   incomplet, c'est qu'une mission n'a pas été déclarée à temps : elle comptera dans la
   période suivante.</p>`;
 
+/* Article 16 du règlement sur les services numériques : la personne qui signale
+   et dont on connaît les coordonnées doit être informée de la décision ET des
+   voies de recours. Le second point n'est pas décoratif : sans lui, informer ne
+   suffit pas au texte. */
+const corpsModeration = (d: { sujet: string; detail: string | null }) => `
+  <p>Bonjour,</p>
+  <p><strong>${echappe(d.sujet)}</strong></p>
+  <p>Votre signalement a été examiné par une personne, pas par un automate. Voici la
+  motivation de la décision&nbsp;:</p>
+  <blockquote style="margin:18px 0;padding:12px 18px;border-left:3px solid #1F5C4A;
+    background:#F4F7F5;color:#25352F">${echappe(d.detail ?? "")}</blockquote>
+  <p>Si cette décision vous paraît mal fondée, vous pouvez demander son réexamen en
+  répondant à ce message. Vous pouvez aussi saisir un organe de règlement extrajudiciaire
+  des litiges certifié, ou le juge&nbsp;: aucune de ces voies ne vous est fermée par la
+  décision ci-dessus.</p>
+  <p style="color:#8A9A93;font-size:13px">Ce message vous est adressé parce que vous avez
+  signalé une annonce sur Riseva.</p>`;
+
 /* Une file, un rédacteur. `demande_validation` est la seule qui demande un jeton
    à usage unique, et donc un aller-retour de plus avec la base. */
 async function traiter(f: { id: string; type: string; sujet: string; detail: string | null;
@@ -153,6 +171,8 @@ async function traiter(f: { id: string; type: string; sujet: string; detail: str
     html = corps({ ...d, lien: `${URL_VALIDATION}?j=${encodeURIComponent(d.jeton)}` });
   } else if (f.type === "relance") {
     html = corpsRelance(f);
+  } else if (f.type === "moderation") {
+    html = corpsModeration(f);
   } else {
     html = corpsRapport(f);
   }
@@ -180,7 +200,7 @@ Deno.serve(async (req) => {
   const { data: files, error } = await sb
     .from("envoi")
     .select("id, type, sujet, detail, destinataire_profil, tentatives")
-    .in("type", ["demande_validation", "relance", "rapport"])
+    .in("type", ["demande_validation", "relance", "rapport", "moderation"])
     /* `echec` aussi. Un 429 ou un 500 passager de Resend marquait la ligne en
        échec, et plus aucune requête ne la sélectionnait jamais : le message
        était perdu sans qu'un humain le sache. Le compteur de tentatives évite
