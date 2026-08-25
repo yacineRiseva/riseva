@@ -614,6 +614,33 @@ begin
   return v_id;
 end $$;
 
+-- ------------------------------------------------------------- qui suis-je
+-- Le rôle d'une personne, son entreprise, son site, son groupe. Ces colonnes
+-- vivent dans le schéma privé et n'en sortent pas : ouvrir `appartenance` à
+-- `authenticated` donnerait à chaque salarié l'organigramme de toute la base.
+--
+-- Sans cette fonction, l'application n'avait AUCUN moyen de connaître le rôle de
+-- la personne connectée : `chargerEtat` posait `role: null` sur chaque profil,
+-- le routeur cherchait `ROUTES[null]`, et l'écran restait blanc. La
+-- démonstration marchait — son jeu de données porte les rôles — et la
+-- production ne s'ouvrait pour personne.
+--
+-- Elle ne rend QUE la ligne de l'appelant. Pas de paramètre : il n'y a rien à
+-- demander, la réponse est celle du jeton.
+create or replace function public.mon_profil()
+returns table (id uuid, nom text, role public.role_utilisateur,
+               entreprise uuid, association uuid, etablissement uuid,
+               groupe uuid, actif boolean)
+language sql stable security definer set search_path = '' as $$
+  -- Pas d'adresse : elle vit dans `auth.users`, que cette fonction n'a pas à
+  -- pouvoir lire. Le navigateur a déjà la sienne par sa propre session.
+  select p.id, p.nom, a.role, a.entreprise, a.association, a.etablissement,
+         a.groupe, a.actif
+    from private.appartenance a
+    join public.profil p on p.id = a.profil
+   where a.profil = auth.uid() and a.actif and not a.pseudonymise
+$$;
+
 -- ---------------------------------------------------------------- exécution
 -- `03_rls.sql` a retiré l'exécution par défaut sur tout ce qui serait créé
 -- ensuite : sans les lignes ci-dessous, ces fonctions existent et ne sont
@@ -641,7 +668,8 @@ grant execute on function
   public.clore_campagne(uuid),
   public.valider_association(uuid),
   public.suspendre_association(uuid, text),
-  public.ouvrir_compte_association(text, text, text, text)
+  public.ouvrir_compte_association(text, text, text, text),
+  public.mon_profil()
 to authenticated;
 
 -- La préinscription vient du site public : c'est la seule écriture ouverte à qui

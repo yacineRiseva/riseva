@@ -2099,6 +2099,37 @@ end $$;
 reset role;
 
 \echo ''
+\echo 'Qui suis-je : le rôle rendu au navigateur'
+-- Sans cette fonction, l'application ne savait pas quel rôle avait la personne
+-- connectée : le rôle vit dans le schéma privé, `chargerEtat` posait `null`, et
+-- le routeur n'avait aucun menu à ouvrir. La démonstration marchait, la
+-- production ne s'ouvrait pour personne.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
+do $$
+declare v record;
+begin
+  select * into v from public.mon_profil();
+  perform pg_temp.dit('elle sait qui elle est', v.id is not null);
+  perform pg_temp.dit('et avec quel rôle', v.role = 'entreprise_admin');
+  perform pg_temp.dit('et pour quelle entreprise',
+    v.entreprise = '22222222-2222-4222-8222-222222222222');
+  perform pg_temp.dit('la fonction ne rend qu''une ligne, la sienne',
+    (select count(*) from public.mon_profil()) = 1);
+end $$;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
+select set_config('request.jwt.claim.email', 'malik@vaudrey-ciments.fr', false);
+do $$
+declare v record;
+begin
+  select * into v from public.mon_profil();
+  perform pg_temp.dit('un salarié reçoit son propre rôle, pas celui du voisin',
+    v.role = 'salarie' and v.id = 'aaaaaaaa-0000-4000-8000-000000000002');
+end $$;
+reset role;
+
+\echo ''
 \echo 'Les relances de collecte, et la clôture à l''échéance'
 -- Trois promesses de la page « outil RSE », qu'aucune ligne de code ne tenait :
 -- les relances partent seules, un site qui a répondu n'est plus relancé, et une

@@ -1,7 +1,7 @@
 import { DB, BAREME, ETATS_MISSION, CATEGORIES, PLAFOND_PAR_FORMAT, DELAI_VALIDATION_JOURS, FISCAL, cerfaPour, FACTURATION, UNITES, INDICATEURS, INDICATEURS_LIMITES, SEUIL_ECART, TARIFS, devisPour, NATURES_EVENEMENT, GRAVITES_EVENEMENT, TYPES_EVENEMENT, ETATS_ACTION, MAX_CIRCONSTANCES, KITS_SAISON, ETATS_EXPEDITION, DON, MANDAT_RECUS, ibanLisible, ANNUAIRE, ANNUAIRE_LIMITES, ETATS_CORRESPONDANCE, chercherStructure, comparerFiche, lienPublic, connecterSupabase, demoDemandee, envoyerLienConnexion, sessionAuth, jetonAuth,
   seDeconnecter, brancherEvenements, estArgent, estTemps, estPrive, heuresPour,
   RUBRIQUES, rubrique, rubriquesDe, saisisDe, calculesDe, sectionsDe,
-  demarrerVierge } from "./data.js";
+  demarrerVierge, leJour } from "./data.js";
 import { qrSvg } from "./qr.js";
 import { classeur, telecharger } from "./tableur.js";
 import { h, esc, nb, pct, eur, dateFR, dateCourte, initiales, ecusson, rangFR, ICONS, toast, modal, kpi, spark, riviere, jauge, vignette, couvertureAsso, carteFrance, foret, versCSV, vide, bandeauRealisations } from "./ui.js";
@@ -123,6 +123,12 @@ const MENUS = {
 /* ------------------------------------------------------------------ */
 /* Écran de connexion                                                  */
 /* ------------------------------------------------------------------ */
+/* Un message a afficher sur l'ecran de connexion au prochain rendu, pose par le
+   retour de la vitrine. On ne le passe pas en parametre : `rendre()` construit
+   l'ecran tout seul, depuis le routeur, et lui ajouter un argument obligerait
+   les six appels a le transporter pour rien. */
+let annonceConnexion = null;
+
 function vueConnexion(){
   /* Les cinq accès de la démonstration. Sur une installation neuve, aucun
      d'entre eux n'existe : l'écran les filtre au lieu de tomber sur le premier
@@ -208,6 +214,15 @@ function vueConnexion(){
      même action demande un lien à Supabase. */
   const msg = el.querySelector("#loginMsg");
   const bouton = el.querySelector("#loginGo");
+  /* Le retour de la vitrine : l'adresse est deja connue, et le lien vient de
+     partir. Le dire ici plutot que dans une notification qui s'efface — la
+     personne doit pouvoir relire la phrase apres avoir ouvert sa messagerie. */
+  if (annonceConnexion){
+    if (annonceConnexion.mail) el.querySelector("#loginMail").value = annonceConnexion.mail;
+    msg.style.color = annonceConnexion.erreur ? "var(--danger, #B4564A)" : "var(--ink-600)";
+    msg.textContent = annonceConnexion.texte;
+    annonceConnexion = null;
+  }
   const entrer = async () => {
     const mail = el.querySelector("#loginMail").value.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(mail)){
@@ -3158,7 +3173,7 @@ function tableauAsso(u){
   const rappels = [];
   if (aValider.length) rappels.push({ ton:"alerte", vers:"#/avalider", texte:
     `${aValider.length} mission${aValider.length > 1 ? "s" : ""} à confirmer, sans réponse sous quatorze jours, elle${aValider.length > 1 ? "s seront clôturées automatiquement sans confirmation" : " sera clôturée automatiquement sans confirmation"}` });
-  if (asso.a_reverifier_le && asso.a_reverifier_le <= new Date(2026, 7, 20).toISOString().slice(0, 10))
+  if (asso.a_reverifier_le && asso.a_reverifier_le <= leJour())
     rappels.push({ ton:"alerte", vers:"#/dossier", texte:
       "Votre vérification annuelle est échue : refaites le contrôle au registre "
       + "depuis votre dossier, il prend quelques secondes" });
@@ -4259,9 +4274,9 @@ function tableauSalarie(u){
   const mes = DB.missions({ salarie: u.id });
   const validees = mes.filter(m => ["validee", "validee_auto"].includes(m.etat));
   const aDeclarer = mes.filter(m => m.etat === "engagee"
-    && m.date < new Date(2026, 7, 20).toISOString().slice(0, 10));
+    && m.date < leJour());
   const aVenir = mes.filter(m => m.etat === "engagee"
-    && m.date >= new Date(2026, 7, 20).toISOString().slice(0, 10));
+    && m.date >= leJour());
   const enAttente = mes.filter(m => m.etat === "a_valider");
   const mesPoints = DB.pointsVisiblesEmployeur(u.id);
   const res = DB.reseau();
@@ -9583,24 +9598,74 @@ addEventListener("unhandledrejection", (e) => {
    choses a completer : le numero au registre, l'IBAN et une photo. Rien n'est
    demande deux fois. */
 const CLE_NOUVELLE_ASSO = "riseva.nouvelleAsso";
-function ouvrirCompteDepuisVitrine(){
+async function ouvrirCompteDepuisVitrine(){
   let brut;
   try { brut = localStorage.getItem(CLE_NOUVELLE_ASSO); } catch (e) { return false; }
   if (!brut) return false;
-  try { localStorage.removeItem(CLE_NOUVELLE_ASSO); } catch (e) {}
+  /* On n'oublie PAS le depot avant d'avoir ouvert le compte. L'ancienne version
+     l'effacait en premier : une ouverture refusee — pas encore connecte, reseau
+     coupe, policy — et les quatre reponses de la presidente etaient perdues sans
+     un mot, avec un ecran de connexion pour tout accueil. */
+  const oublier = () => { try { localStorage.removeItem(CLE_NOUVELLE_ASSO); } catch (e) {} };
   let d;
-  try { d = JSON.parse(brut); } catch (e) { return false; }
-  if (!d || !d.asso || !d.mail) return false;
-  try {
-    const r = DB.creerCompteAssociation({
-      association: d.asso, ville: d.ville || "", cause: "",
-      resume: d.mot ? `Ce qui nous manque le plus en ce moment : ${d.mot}.` : "",
-      nom: d.contact || d.asso, email: d.mail });
-    setSession(r.utilisateur.id);
+  try { d = JSON.parse(brut); } catch (e) { oublier(); return false; }
+  if (!d || !d.asso || !d.mail){ oublier(); return false; }
+
+  const champs = { association: d.asso, ville: d.ville || "", cause: "",
+    resume: d.mot ? `Ce qui nous manque le plus en ce moment : ${d.mot}.` : "",
+    nom: d.contact || d.asso, email: d.mail };
+
+  const entrerDansLeDossier = () => {
     location.hash = "#/dossier";
     setTimeout(() => toast("Compte ouvert. Il reste trois champs pour être visible."), 400);
+  };
+
+  /* En demonstration, tout vit en memoire : le compte s'ouvre immediatement et
+     la session se pose sur l'utilisateur cree. */
+  if (DB.mode !== "supabase"){
+    try {
+      const r = DB.creerCompteAssociation(champs);
+      oublier(); setSession(r.utilisateur.id); entrerDansLeDossier();
+      return true;
+    } catch (e) { oublier(); return false; }
+  }
+
+  /* En production, ouvrir un compte demande d'etre authentifie : la fonction
+     rattache l'association au compte connecte, et sans jeton elle refuse. La
+     personne arrive de la vitrine sans session — on lui envoie donc le lien a
+     l'adresse qu'elle vient de saisir, et le depot RESTE : au retour du lien,
+     ce meme code repasse, la session existe, et le compte s'ouvre. */
+  let sess = null;
+  try { sess = await sessionAuth(); } catch (e) { sess = null; }
+  if (!sess || !sess.user){
+    try {
+      await envoyerLienConnexion(d.mail, { retour: location.origin + "/app/" });
+      annonceConnexion = { mail: d.mail, texte:
+        "Nous avons envoyé un lien à " + d.mail + ". Ouvrez-le : votre compte "
+        + "s'ouvrira tout seul avec ce que vous venez de nous dire. Rien à ressaisir." };
+    } catch (e){
+      annonceConnexion = { mail: d.mail, erreur: true, texte:
+        "Le lien n'a pas pu être envoyé. Votre demande est conservée : "
+        + "redemandez un lien avec cette adresse et le compte s'ouvrira." };
+    }
+    return false;
+  }
+
+  try {
+    await DB.creerCompteAssociation(champs);
+    oublier(); setSession(sess.user.id); entrerDansLeDossier();
     return true;
-  } catch (e) { return false; }
+  } catch (e){
+    /* Le compte existe deja : la personne est revenue deux fois sur le lien.
+       Ce n'est pas un echec, c'est exactement ce qu'elle voulait. */
+    if (/appartient|existe/i.test(e && e.message || "")){
+      oublier(); setSession(sess.user.id); entrerDansLeDossier();
+      return true;
+    }
+    annonceConnexion = { mail: d.mail, erreur: true, texte:
+      (e && e.message) || "Le compte n'a pas pu être ouvert. Votre demande est conservée." };
+    return false;
+  }
 }
 
 (async () => {
@@ -9632,6 +9697,6 @@ function ouvrirCompteDepuisVitrine(){
       }
     } catch (e) { console.warn(e); }
   }
-  if (!vierge) ouvrirCompteDepuisVitrine();
+  if (!vierge) await ouvrirCompteDepuisVitrine();
   rendre();
 })();

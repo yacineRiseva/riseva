@@ -242,7 +242,7 @@ export async function geocoder(adresse, { signal } = {}){
     return { lat, lon, label: f.properties.label,
              ville: f.properties.city, code_postal: f.properties.postcode,
              precision: f.properties.type, score: f.properties.score,
-             source: "BAN", le: new Date().toISOString().slice(0, 10) };
+             source: "BAN", le: leJour() };
   } catch { return null; }   // hors ligne ou service indisponible : on continue sans
 }
 
@@ -1275,7 +1275,30 @@ export const ETATS_MISSION = {
   refusee:      { label: "Refusée",     labelAsso: "Refusée",     badge: "badge--danger" }
 };
 
-const J = (n) => { const d = new Date(2026, 7, 20); d.setDate(d.getDate() + n); return d.toISOString().slice(0,10); };
+/* La date du jour, une seule fois. Elle était écrite en dur — « 2026-08-20 » — à
+   quatorze endroits du moteur, et le moteur est le MÊME code en démonstration et
+   en production : la liste des rapports d'un client réel restait figée au
+   deuxième trimestre 2026 pour toujours, ses places fondateur expiraient un jour
+   qui ne venait jamais, et le contrôle « un événement ne se déclare pas à une
+   date future » aurait refusé, à partir du 21 août 2026, toute déclaration
+   portant la date du jour. */
+/* Minuit aujourd'hui, dans le fuseau de celui qui regarde. Pas `toISOString` :
+   celle-ci convertit en UTC, et un client à Paris qui ouvre l'application à
+   00 h 30 se serait vu répondre « hier ». Sur un écran qui compte des jours
+   avant échéance, un jour d'écart est une erreur qu'on voit. */
+const minuit = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+export const leJour = () => {
+  const d = minuit();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+export { minuit };
+
+/* Le jeu de démonstration, lui, est daté : ses factures, ses signatures et ses
+   annonces portent des jours précis, et une capture d'écran doit rendre deux
+   fois la même image. Son ancre est ici, nommée, pour que la mise à jour du jeu
+   de démonstration soit une ligne et non une chasse. */
+const ANCRE_DEMO = [2026, 7, 20];
+const J = (n) => { const d = new Date(...ANCRE_DEMO); d.setDate(d.getDate() + n); return d.toISOString().slice(0,10); };
 
 /* ------------------------------------------------------------------ */
 /* Jeu de démonstration                                                */
@@ -1796,7 +1819,7 @@ const NOMS = ["Perrin","Bouchard","Nguyen","Lefèvre","Diallo","Roussel","Barbie
 function engendrerReseau(base){
   const r = alea(20260821);
   const jour = (n) => {
-    const d = new Date(2026, 7, 20);
+    const d = minuit();
     d.setDate(d.getDate() - n);
     return d.toISOString().slice(0, 10);
   };
@@ -1945,7 +1968,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
        C'étaient douze nombres écrits à la main : une courbe qui monte joliment
        et ne dit rien. Une courbe qui ne vient pas des données n'est pas un
        graphique, c'est une illustration. */
-    semaines(eid = null, { combien = 12, aujourdhui = new Date(2026, 7, 20) } = {}){
+    semaines(eid = null, { combien = 12, aujourdhui = minuit() } = {}){
       const seaux = new Array(combien).fill(0);
       s.missions.forEach(m => {
         if (eid && m.entreprise !== eid) return;
@@ -2276,7 +2299,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
                   etablissement: sal.etablissement || null,
                   points: api.pointsPour(a.type, quantite), etat:"engagee", date:a.date,
                   consentement: a.temps_travail
-                    ? { donne_le: new Date().toISOString().slice(0, 10),
+                    ? { donne_le: leJour(),
                         /* Figé au moment de l'accord. Si le gabarit change l'an
                            prochain, la convention doit produire le texte d'alors,
                            pas celui d'aujourd'hui. */
@@ -2292,7 +2315,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const m = s.missions.find(x => x.id === mid);
       if (!m) return null;
       m.etat = "a_valider";
-      m.declaree_le = new Date().toISOString().slice(0, 10);
+      m.declaree_le = leJour();
       if (realisePropose !== undefined && realisePropose !== null)
         m.realise_propose = Math.max(0, Number(realisePropose) || 0);
       return m;
@@ -2317,7 +2340,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
     /* Jours restants avant la validation automatique. */
     joursAvantAuto(m){
       if (m.etat !== "a_valider") return null;
-      return Math.max(0, Math.ceil((api.echeanceAuto(m) - new Date(2026, 7, 20)) / 864e5));
+      return Math.max(0, Math.ceil((api.echeanceAuto(m) - minuit()) / 864e5));
     },
     /* Deuxième administrateur : un seul compte admin par entreprise est trop fragile. */
     promouvoirAdmin(uid){
@@ -2348,7 +2371,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
     validerMission(mid, ok, realise){
       const m = s.missions.find(x => x.id === mid); if (!m) return null;
       m.etat = ok ? "validee" : "refusee";
-      m.tranchee_le = new Date(2026, 7, 20).toISOString().slice(0, 10);
+      m.tranchee_le = leJour();
       if (ok){
         if (realise !== undefined && realise !== null) m.realise = Math.max(0, Number(realise) || 0);
       } else { m.points = 0; m.realise = 0; }
@@ -2746,7 +2769,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
 
     joursAvant(date){
       if (!date) return null;
-      return Math.ceil((new Date(date) - new Date(2026, 7, 20)) / 864e5);
+      return Math.ceil((new Date(date) - minuit()) / 864e5);
     },
 
     /* Le contributeur saisit, l'approbateur verrouille. Deux gestes, deux personnes
@@ -2926,7 +2949,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
           + `un événement réel et une erreur de saisie se ressemblent exactement dans une base.`);
       if (!o){
         o = { id:id("o"), campagne:cid, etablissement:etid, etat:"declare", version:1,
-              saisi_par:uid, saisi_le:new Date().toISOString().slice(0,10),
+              saisi_par:uid, saisi_le:leJour(),
               approuve_par:null, approuve_le:null, valeurs:propres,
               source_registre: !!derive,
               commentaire: mot || null, ecarts };
@@ -2939,7 +2962,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         o.commentaire = mot || o.commentaire || null;
         o.ecarts = ecarts;
         o.etat = "declare";
-        o.saisi_par = uid; o.saisi_le = new Date().toISOString().slice(0,10);
+        o.saisi_par = uid; o.saisi_le = leJour();
         o.approuve_par = null; o.approuve_le = null;
       }
       return o;
@@ -2963,7 +2986,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         version: INDICATEURS.version,
         campagne: c ? { id:c.id, libelle:c.libelle, debut:c.debut, fin:c.fin,
                         echeance:c.echeance, etat:c.etat } : null,
-        edite_le: "2026-08-20",
+        edite_le: leJour(),
         seuil_ecart: SEUIL_ECART,
         collecte: c ? {
           sites_attendus: e.sites.length,
@@ -3137,7 +3160,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         throw new Error("La personne qui a saisi ne peut pas approuver sa propre saisie.");
       o.etat = "approuve";
       o.approuve_par = uid;
-      o.approuve_le = new Date().toISOString().slice(0,10);
+      o.approuve_le = leJour();
       return o;
     },
     /* Ouvrir une campagne, c'est décider deux choses : sur quelle période on
@@ -3156,7 +3179,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       if (lib.length < 3) throw new Error("Donnez un nom à la période, il sera lu par chaque site.");
       if (!debut || !fin || !echeance) throw new Error("Il manque une date.");
       if (fin < debut) throw new Error("La fin de la période précède son début.");
-      const aujourdhui = new Date(2026, 7, 20).toISOString().slice(0, 10);
+      const aujourdhui = leJour();
       /* On ne demande pas des chiffres pour une période qui n'a pas eu lieu : le
          site les invente ou ne répond pas, et les deux se ressemblent. */
       if (fin > aujourdhui)
@@ -3184,7 +3207,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       /* Une période ne se clôt pas avant d'être finie. Sinon on demande le
          second semestre au mois d'août et on appelle « clos » un trimestre qui
          n'a pas eu lieu. */
-      const aujourdhui = new Date(2026, 7, 20).toISOString().slice(0, 10);
+      const aujourdhui = leJour();
       if (e.campagne.fin > aujourdhui)
         throw new Error(`La période court jusqu'au ${e.campagne.fin} : elle ne peut pas `
           + `être clôturée avant. Pour un point d'étape, ouvrez une campagne dédiée.`);
@@ -3317,7 +3340,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       u.actif = false;
       u.nom = "Salarié retiré " + String(rang).padStart(2, "0");
       u.email = null;
-      u.retire_le = new Date().toISOString().slice(0, 10);
+      u.retire_le = leJour();
       const inv = api.invitationActive(u.org);
       if (inv && inv.utilisees > 0) inv.utilisees -= 1;
       api.tracer(u.org, uid, "retrait", null);
@@ -3384,7 +3407,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const inv = { id:id("i"), entreprise:eid, etablissement,
         code: api.codeLien(et ? `${e.nom}${et.ville}` : e.nom),
         places: n, utilisees:0, active:true, pour_referent:false,
-        cree_le:new Date().toISOString().slice(0,10),
+        cree_le:leJour(),
         expire_le:new Date(Date.now() + 120 * 864e5).toISOString().slice(0,10) };
       s.invitations.unshift(inv);
       api.tracer(eid, null, "creation_lien",
@@ -3405,7 +3428,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const inv = { id:id("i"), entreprise:et.societe, etablissement:etid,
         code: api.codeLien(`REF${et.ville}`), pour_referent:true,
         nom, email, places:1, utilisees:0, active:true,
-        cree_le:new Date().toISOString().slice(0,10),
+        cree_le:leJour(),
         expire_le:new Date(Date.now() + 30 * 864e5).toISOString().slice(0,10) };
       s.invitations.unshift(inv);
       api.tracer(et.societe, null, "lien_referent", `${nom}, ${et.nom} ${et.ville}`);
@@ -3450,7 +3473,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const inv = { id:id("i"), entreprise:eid, etablissement:null,
         code: api.codeLien(`CSE${e.nom}`), pour_cse:true,
         nom, email, places:1, utilisees:0, active:true,
-        cree_le:new Date().toISOString().slice(0,10),
+        cree_le:leJour(),
         expire_le:new Date(Date.now() + 30 * 864e5).toISOString().slice(0,10) };
       s.invitations.unshift(inv);
       api.tracer(eid, null, "lien_cse", `${nom}, ${e.nom}`);
@@ -3557,7 +3580,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
                           .sort((x, y) => String(y.date).localeCompare(String(x.date))),
     tracer(entreprise, utilisateur, quoi, code){
       s.acces.unshift({ id:id("ac"), entreprise, utilisateur, quoi, code,
-        date:new Date().toISOString().slice(0,10) });
+        date:leJour() });
     },
 
     /* Inscription d'un salarié depuis le lien public. */
@@ -3565,7 +3588,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const inv = api.invitationParCode(code);
       if (!inv) throw new Error("Ce lien n'existe pas ou a été révoqué");
       if (!inv.active) throw new Error("Ce lien a été désactivé par l'entreprise");
-      if (inv.expire_le < new Date().toISOString().slice(0,10)) throw new Error("Ce lien a expiré");
+      if (inv.expire_le < leJour()) throw new Error("Ce lien a expiré");
       if (inv.utilisees >= inv.places) throw new Error("Toutes les places de ce lien ont été prises");
       if (!api.domaineAutorise(inv.entreprise, email)){
         const l = api.domaines(inv.entreprise);
@@ -3612,7 +3635,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
          partir de deux sociétés. Le jour où elle en rachète une, il est déjà là. */
       const g = { id:id("g"), nom:entreprise, societe_mere:e.id,
                   classement_sites:false,
-                  cree_le:new Date().toISOString().slice(0, 10) };
+                  cree_le:leJour() };
       s.groupes.push(g);
       e.groupe = g.id;
       const u = { id:id("u"), nom, email, role:"entreprise_admin", org:e.id,
@@ -3630,7 +3653,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       return { association:a, utilisateur:u };
     },
     preinscrire(p){
-      const n = { id:id("p"), etat:"preinscrite", date:new Date().toISOString().slice(0,10), ...p };
+      const n = { id:id("p"), etat:"preinscrite", date:leJour(), ...p };
       s.preinscriptions.unshift(n); return n;
     },
     /* Vérification d'éligibilité : datée, avec échéance de revérification.
@@ -3649,8 +3672,8 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
           + " ». Refaites le contrôle ou corrigez le numéro avant la mise en ligne.");
       if (a){
         a.valide = true; a.suspendue = false; a.motif_suspension = null;
-        a.verifiee_le = new Date(2026, 7, 20).toISOString().slice(0, 10);
-        const d = new Date(2026, 7, 20); d.setFullYear(d.getFullYear() + 1);
+        a.verifiee_le = leJour();
+        const d = minuit(); d.setFullYear(d.getFullYear() + 1);
         a.a_reverifier_le = d.toISOString().slice(0, 10);
       }
       return a;
@@ -3663,7 +3686,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       return a;
     },
     aReverifier(){
-      const auj = "2026-08-20";
+      const auj = leJour();
       return s.associations.filter(a => a.valide && a.a_reverifier_le && a.a_reverifier_le < auj);
     },
 
@@ -4112,7 +4135,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const deja = api.zoneSignalee(etid);
       if (deja) return deja;
       const z = { id: id("z"), etablissement: etid, societe: et.societe,
-                  par: uid, le: new Date().toISOString().slice(0, 10), traite_le: null };
+                  par: uid, le: leJour(), traite_le: null };
       s.sourcing.unshift(z);
       return z;
     },
@@ -4243,7 +4266,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       if (!a) throw new Error("Annonce introuvable");
       const sg = { id:id("sg"), annonce, association:a.asso, par, motif,
         precisions: precisions || "", etat:"recu", decision:null, motivation:null,
-        recu_le: new Date().toISOString().slice(0, 10), decide_le:null };
+        recu_le: leJour(), decide_le:null };
       s.signalements.unshift(sg);
       return sg;
     },
@@ -4256,7 +4279,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       if (!motivation || !motivation.trim())
         throw new Error("Une décision doit être motivée, le règlement l'exige");
       sg.etat = "traite"; sg.decision = decision; sg.motivation = motivation.trim();
-      sg.decide_le = new Date().toISOString().slice(0, 10);
+      sg.decide_le = leJour();
       if (decision === "retire"){
         const a = api.annonce(sg.annonce);
         if (a){ a.etat = "close"; a.retiree_moderation = true; }
@@ -4425,7 +4448,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
     },
     /* Places de lancement. Dérivé des contrats, jamais compté à part : un
        compteur qu'on incrémente est un compteur qu'on oublie de décrémenter. */
-    placesFondateur({ aujourdhui = "2026-08-20" } = {}){
+    placesFondateur({ aujourdhui = leJour() } = {}){
       const pris = s.contrats.filter(c => c.fondateur).length;
       const ouvert = aujourdhui <= TARIFS.fondateur.jusquau;
       return { places: TARIFS.fondateur.places, pris,
@@ -4441,7 +4464,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
     etatFacturation(eid){
       const c = api.contrat(eid);
       if (!c) return { statut:"aucun", enRetard:[], du:0 };
-      const aujourdhui = "2026-08-20";
+      const aujourdhui = leJour();
       const enRetard = c.factures.filter(f => f.etat !== "payee" && f.echeance < aujourdhui);
       const du = c.factures.filter(f => f.etat !== "payee").reduce((n, f) => n + f.montant, 0);
       return { statut:c.statut, enRetard, du, contrat:c };
@@ -4473,7 +4496,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
     },
     joursAvantFinSaison(){
       const fin = new Date(s.saison.fin);
-      return Math.max(0, Math.ceil((fin - new Date(2026, 7, 20)) / 864e5));
+      return Math.max(0, Math.ceil((fin - minuit()) / 864e5));
     },
 
     /* Trois positions, et la valeur par défaut est celle qui protège. « auto »
@@ -4667,7 +4690,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
          ne compte que ceux qui ont fini par agir, et ceux qui n'ont jamais agi
          n'ont pas de délai — pas un délai long, pas de délai du tout. Les
          afficher à côté est la seule façon honnête de donner le chiffre. */
-      const auj = new Date("2026-08-20");
+      const auj = new Date(leJour());
       const attente = gens.filter(u => !act(u).premiere && u.cree_le)
         .map(u => Math.round((auj - new Date(u.cree_le)) / 86400000))
         .filter(x => x >= 0).sort((a, b) => a - b);
@@ -5096,7 +5119,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       if (!/^[a-z0-9-]{1,120}$/.test(v))
         throw new Error("Ce nom d'organisation ne ressemble pas à celui d'une page HelloAsso.");
       a.helloasso_slug = v;
-      a.helloasso_lie_le = new Date().toISOString().slice(0, 10);
+      a.helloasso_lie_le = leJour();
       return a;
     },
     delierHelloAsso(aid){
@@ -5157,7 +5180,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       if (!nom || !qualite)
         throw new Error("Le mandat nomme la personne qui l'accorde et sa qualité.");
       a.mandat_recus = { version: MANDAT_RECUS.version, par: par || null,
-                         nom, qualite, accepte_le: new Date().toISOString().slice(0, 10) };
+                         nom, qualite, accepte_le: leJour() };
       return a.mandat_recus;
     },
     revoquerMandatRecus(aid){
@@ -5181,7 +5204,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       if (m < DON.montant_min) throw new Error(`Le minimum est de ${DON.montant_min} €.`);
       if (!api.donsOuverts(an.asso))
         throw new Error("Cette association n'a pas encore renseigné son compte bancaire.");
-      const auj = new Date(2026, 7, 20);
+      const auj = minuit();
       const exp = new Date(auj); exp.setDate(exp.getDate() + DON.validite_jours);
       const nid = id("int");
       const i = { id: nid, annonce, association: an.asso, salarie, entreprise,
@@ -5223,13 +5246,13 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
                   etablissement: (api.utilisateur(i.salarie) || {}).etablissement || null,
                   points: api.pointsPour("don_financier", recu),
                   etat: "validee", date: le || i.declare_le,
-                  declaree_le: i.declare_le, tranchee_le: le || "2026-08-20",
+                  declaree_le: i.declare_le, tranchee_le: le || leJour(),
                   origine: i.origine, don: { reference: i.reference, circuit: "virement" } };
       s.missions.unshift(m);
       an.restant = Math.max(0, an.restant - recu);
       if (an.restant === 0) an.etat = "close";
       i.etat = "recue"; i.montant_recu = recu; i.mission = m.id;
-      i.confirme_le = le || "2026-08-20";
+      i.confirme_le = le || leJour();
       return { intention: i, mission: m };
     },
     abandonnerIntentionDon(iid, motif = null){
@@ -5287,7 +5310,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
     /* L'état de la saison en supports, pour une entreprise : les quatre vagues,
        et où en est chacune. Une vague sans expédition n'est pas « en retard » :
        elle est simplement à venir tant que son mois n'est pas atteint. */
-    supportsDe(eid, { aujourdhui = "2026-08-20" } = {}){
+    supportsDe(eid, { aujourdhui = leJour() } = {}){
       const sa = s.saison;
       const debut = new Date(sa.debut);
       return KITS_SAISON.map(k => {
@@ -5306,8 +5329,8 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const deja = s.expeditions.find(x => x.entreprise === eid && x.kit === kit);
       if (deja) throw new Error("Cette vague a déjà été expédiée à cette entreprise.");
       const x = { id: id("ex"), entreprise: eid, etablissement, kit,
-                  cree_le: new Date(2026, 7, 20).toISOString().slice(0, 10),
-                  expedie_le: le || new Date(2026, 7, 20).toISOString().slice(0, 10),
+                  cree_le: leJour(),
+                  expedie_le: le || leJour(),
                   suivi: String(suivi || "").trim() || null, recu_le: null };
       s.expeditions.unshift(x);
       return x;
@@ -5317,12 +5340,12 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
        jour où il dit n'avoir rien eu. */
     confirmerReception(exid){
       const x = s.expeditions.find(y => y.id === exid); if (!x) return null;
-      x.recu_le = new Date(2026, 7, 20).toISOString().slice(0, 10);
+      x.recu_le = leJour();
       return x;
     },
     /* Ce que Riseva a à préparer, tous clients confondus. C'est l'écran qui
        remplace le tableau à la main. */
-    aExpedier({ aujourdhui = "2026-08-20" } = {}){
+    aExpedier({ aujourdhui = leJour() } = {}){
       const l = [];
       s.entreprises.forEach(e => {
         api.supportsDe(e.id, { aujourdhui }).forEach(x => {
@@ -5389,7 +5412,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       if (!et) throw new Error("Site inconnu");
       const d = String(champs.date || "").slice(0, 10);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new Error("La date de l'événement est obligatoire.");
-      if (d > "2026-08-20") throw new Error("Un événement ne se déclare pas à une date future.");
+      if (d > leJour()) throw new Error("Un événement ne se déclare pas à une date future.");
       if (!NATURES_EVENEMENT[champs.nature]) throw new Error("Nature inconnue.");
       if (!GRAVITES_EVENEMENT[champs.gravite]) throw new Error("Gravité inconnue.");
       if (!TYPES_EVENEMENT[champs.type]) throw new Error("Type inconnu.");
@@ -5415,7 +5438,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
                    zone: zone || null,
                    jours_arret: jours, circonstances: circ || null,
                    declare_par: uid || null,
-                   declare_le: new Date(2026, 7, 20).toISOString().slice(0, 10),
+                   declare_le: leJour(),
                    annule_le: null, motif_annulation: null };
       s.evenements.unshift(ev);
       return ev;
@@ -5426,7 +5449,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
     annulerEvenement(evid, motif){
       const ev = api.evenement(evid); if (!ev) return null;
       if (!String(motif || "").trim()) throw new Error("Annuler une déclaration exige un motif.");
-      ev.annule_le = new Date(2026, 7, 20).toISOString().slice(0, 10);
+      ev.annule_le = leJour();
       ev.motif_annulation = String(motif).trim().slice(0, 200);
       return ev;
     },
@@ -5519,7 +5542,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
                   quoi: String(quoi).trim().slice(0, 240),
                   responsable: String(responsable).trim().slice(0, 120),
                   echeance, etat: "a_faire",
-                  cree_le: new Date(2026, 7, 20).toISOString().slice(0, 10), fait_le: null };
+                  cree_le: leJour(), fait_le: null };
       s.actions.unshift(a);
       return a;
     },
@@ -5527,11 +5550,11 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
       const a = s.actions.find(x => x.id === aid); if (!a) return null;
       if (!ETATS_ACTION[etat]) throw new Error("État d'action inconnu.");
       a.etat = etat;
-      a.fait_le = etat === "faite" ? new Date(2026, 7, 20).toISOString().slice(0, 10) : null;
+      a.fait_le = etat === "faite" ? leJour() : null;
       return a;
     },
     actionsEnRetard(filtre = {}){
-      const auj = "2026-08-20";
+      const auj = leJour();
       return api.actions(filtre).filter(a =>
         ["a_faire", "en_cours"].includes(a.etat) && a.echeance < auj);
     },
@@ -5577,7 +5600,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         etat = c.etat; ecarts = c.ecarts;
       }
       const c = {
-        id: id("ct"), association: aid, le: new Date().toISOString().slice(0, 10),
+        id: id("ct"), association: aid, le: leJour(),
         par, etat, ecarts,
         bloquant: !!(ETATS_CORRESPONDANCE[etat] || {}).bloquant,
         numero, fiche: fiche || null, source: ANNUAIRE.source
@@ -5604,7 +5627,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
        association en ligne, et ce que l'association voit d'elle-même. Les deux
        lisent le même objet : deux vues divergentes du même dossier finissent
        toujours par se contredire devant quelqu'un. */
-    dossierAdministratif(aid, { aujourdhui = "2026-08-20" } = {}){
+    dossierAdministratif(aid, { aujourdhui = leJour() } = {}){
       const a = api.association(aid); if (!a) return null;
       const c = api.dernierControle(aid);
       const perime = c ? (function(){
@@ -5642,7 +5665,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
        ici elles s'exécutent au chargement, ce qui donne exactement le même résultat.
        Chaque passage est daté et consigné : une automatisation qu'on ne peut pas
        auditer inquiète plus qu'elle ne rassure. */
-    moteur(aujourdhui = new Date().toISOString().slice(0, 10)){
+    moteur(aujourdhui = leJour()){
       const fait = { validations_auto:0, annonces_fermees:0, intentions_expirees:0,
                      rapports:0, classement:false, le: aujourdhui };
 
@@ -5909,7 +5932,7 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
 
       const pct = (n, d) => d ? Math.round((n / d) * 1000) / 10 : null;
       const ouvertes = s.annonces.filter(a => a.etat === "ouverte");
-      const fraiches = ouvertes.filter(a => a.date >= "2026-08-20");
+      const fraiches = ouvertes.filter(a => a.date >= leJour());
 
       return {
         reperes: { I0, S0, R30, R90, A, X },
@@ -5983,19 +6006,29 @@ function creerMoteur({ etat = null, persister = true, mode = "demo",
         const f = new Date(debut); f.setMonth(f.getMonth() + (i + 1) * 3); f.setDate(f.getDate() - 1);
         return { nom: "T" + (i + 1), debut: d.toISOString().slice(0, 10), fin: f.toISOString().slice(0, 10) };
       });
-      const aujourdhui = "2026-08-20";
+      const aujourdhui = leJour();
+      /* Un rapport ne se scelle pas le dernier jour de sa période : il se scelle
+         quand les validations sont closes, quatorze jours plus tard. L'arrêter
+         plus tôt le fige incomplet — deux semaines de missions déclarées en fin
+         de période n'y figureraient jamais. Le serveur applique cette règle
+         depuis toujours ; l'écran, lui, annonçait « généré » deux semaines
+         d'avance, et le client cherchait un courriel qui n'était pas parti. */
+      const arrete = (fin) => {
+        const d = new Date(fin); d.setDate(d.getDate() + DELAI_VALIDATION_JOURS);
+        return d.toISOString().slice(0, 10);
+      };
       const trimestres = api.trimestres(eid);
       const l = bornes.map((b, i) => ({
         id: "t" + (i + 1), portee: "trimestriel", titre: "Rapport " + b.nom,
         periode: b, points: (trimestres[i] || {}).points || 0,
-        etat: b.fin <= aujourdhui ? "genere" : "a_venir",
-        genere_le: b.fin <= aujourdhui ? b.fin : null
+        etat: arrete(b.fin) < aujourdhui ? "genere" : "a_venir",
+        genere_le: arrete(b.fin) < aujourdhui ? arrete(b.fin) : null
       }));
       l.push({ id: "annuel", portee: "annuel", titre: "Rapport annuel",
         periode: { nom: sa.nom, debut: sa.debut, fin: sa.fin },
         points: api.pointsDe(eid).retenu,
-        etat: sa.fin <= aujourdhui ? "genere" : "a_venir",
-        genere_le: sa.fin <= aujourdhui ? sa.fin : null });
+        etat: arrete(sa.fin) < aujourdhui ? "genere" : "a_venir",
+        genere_le: arrete(sa.fin) < aujourdhui ? arrete(sa.fin) : null });
       return l;
     },
 
@@ -6457,7 +6490,7 @@ const versEtat = {
   contrat: (a, factures, saisons) => {
     const sa = (saisons || []).find(x => x.id === a.saison) || {};
     const mes = (factures || []).filter(f => f.abonnement === a.id);
-    const auj = new Date().toISOString().slice(0, 10);
+    const auj = leJour();
     return {
       entreprise: a.entreprise,
       statut: sa.fin && sa.fin < auj ? "termine" : "actif",
@@ -6575,7 +6608,8 @@ async function chargerEtat(client){
          acces, signalements, intentions, controles,
          evenements, actionsCorrectives,
          abonnements, factures, preinscriptions, reglagesAsso,
-         reglagesProfil, piecesJointes] = await Promise.all([
+         reglagesProfil, piecesJointes,
+         envois, expeditions, sourcing, rapportsBase] = await Promise.all([
     lire("saison"), lire("bareme"), lire("entreprise"), lire("groupe"),
     lire("etablissement"), lire("association"), lire("annonce"), lire("mission"),
     lire("profil"), lire("invitation"), lire("campagne_indicateurs"),
@@ -6589,7 +6623,19 @@ async function chargerEtat(client){
     lire("association_reglages"), lire("profil_reglages"),
     /* Le coffre. On ne charge que les lignes : le fichier reste dans le
        stockage, et ne descend que sur un clic, par un lien signe. */
-    lire("piece_jointe")
+    lire("piece_jointe"),
+    /* Trois tables de plus qui n'étaient jamais lues. `s.envois`, `s.expeditions`
+       et `s.sourcing` restaient donc `undefined` en production — pas vides :
+       absents — et le premier `.filter` dessus jetait une TypeError. L'écran
+       « Vos rapports » d'un vrai client tombait en panne à l'ouverture, celui
+       des affiches aussi, et le bouton « signaler la zone » d'un référent
+       également. En démonstration tout marchait : le jeu de démonstration, lui,
+       porte les trois listes. */
+    lire("envoi"), lire("expedition"), lire("sourcing"),
+    /* Les rapports arrêtés en base. Le moteur dérive lui-même la liste des
+       périodes ; ce qu'il ne peut pas deviner, c'est lequel a déjà été envoyé.
+       On lit donc la table pour recoller l'envoi à sa période. */
+    lire("rapport")
   ]);
 
   const saison = saisons.find(x => x.etat === "ouverte") || saisons[0] || null;
@@ -6602,6 +6648,20 @@ async function chargerEtat(client){
   });
 
   const moi = (await client.auth.getUser()).data?.user || null;
+
+  /* Qui est la personne connectée. Le rôle, l'entreprise, le site et le groupe
+     vivent dans le schéma privé : ils ne sortent que par cette fonction, et
+     seulement pour elle. Sans eux, `role` valait `null` sur chaque profil, le
+     routeur cherchait un menu qui n'existe pas, et l'application ne s'ouvrait
+     pour personne en production — alors que la démonstration, dont le jeu de
+     données porte les rôles, marchait parfaitement. */
+  let identite = null;
+  if (moi){
+    try {
+      const { data } = await client.rpc("mon_profil");
+      identite = Array.isArray(data) ? data[0] || null : data || null;
+    } catch (e){ identite = null; }
+  }
 
   return {
     saison: { id: saison.id, nom: saison.nom, debut: saison.debut, fin: saison.fin,
@@ -6626,11 +6686,30 @@ async function chargerEtat(client){
     /* Les reglages d'une personne ne sortent que pour elle : ils viennent d'une
        vue filtree sur `auth.uid()`, jamais de la colonne, que la policy de
        `profil` aurait ouverte a tous les collegues. */
-    utilisateurs: profils.map(r => ({
+    utilisateurs: [...profils.map(r => ({
       id: r.id, nom: r.nom, email: r.id === (moi && moi.id) ? (moi.email || null) : null,
-      role: null, org: null, actif: true, anonyme: false,
+      /* Le rôle des AUTRES ne la regarde pas, et il reste donc nul : c'est la
+         frontière, pas un oubli. Le sien vient de `mon_profil()`. */
+      role: identite && r.id === identite.id ? identite.role : null,
+      org: identite && r.id === identite.id
+             ? (identite.entreprise || identite.association || null) : null,
+      etablissement: identite && r.id === identite.id ? identite.etablissement : null,
+      groupe: identite && r.id === identite.id ? identite.groupe : null,
+      actif: identite && r.id === identite.id ? identite.actif !== false : true,
+      anonyme: false,
       prefs: (reglagesProfil.find(x => x.id === r.id) || {}).preferences || undefined
     })),
+    /* La personne connectée, si la table des profils ne l'a pas rendue. Une
+       policy peut très bien lui refuser la ligne des autres et la sienne du
+       même mouvement ; l'application, elle, doit toujours savoir qui elle est,
+       sans quoi elle se déconnecte toute seule au premier rendu. */
+    ...(identite && !profils.some(x => x.id === identite.id) ? [{
+      id: identite.id, nom: identite.nom,
+      email: (moi && moi.email) || null,
+      role: identite.role, org: identite.entreprise || identite.association || null,
+      etablissement: identite.etablissement, groupe: identite.groupe,
+      actif: identite.actif !== false, anonyme: false
+    }] : [])],
     invitations: invitations.map(versEtat.invitation),
     campagnes: campagnes.map(versEtat.campagne),
     observations: observations.map(versEtat.observation),
@@ -6655,6 +6734,41 @@ async function chargerEtat(client){
       nom: p.nom, type: p.type_mime, taille: p.taille, empreinte: p.empreinte,
       chemin: p.chemin, contenu: null,
       depose_par: p.depose_par, depose_le: p.depose_le, retire_le: null
+    })),
+    /* Ce qui est réellement parti. La clé de la base porte l'identifiant du
+       rapport ; l'écran, lui, cherche `rapport:<entreprise>:<t1|…|annuel>`,
+       parce que c'est la forme que le moteur produit tout seul. On traduit ici,
+       une fois, plutôt que d'imposer deux formes à l'écran. */
+    envois: envois.map(e => {
+      const m = /^rapport:([0-9a-f-]{36})$/.exec(e.cle || "");
+      const r = m ? rapportsBase.find(x => x.id === m[1]) : null;
+      const dest = profils.find(x => x.id === e.destinataire_profil);
+      return {
+        id: e.id,
+        cle: r ? `rapport:${r.entreprise}:${String(r.periode).toLowerCase()}` : e.cle,
+        type: e.type, entreprise: e.entreprise, association: e.association,
+        mission: e.mission,
+        /* La tâche planifiée ne compose aucune adresse : elle désigne un profil,
+           et c'est la fonction Edge qui détient la clé de service qui résout
+           l'adresse. On affiche donc le nom, jamais un courriel inventé. */
+        destinataire: e.destinataire || (dest ? dest.nom : null),
+        sujet: e.sujet, detail: e.detail, date: e.date,
+        etat: { a_envoyer: "à envoyer", envoye: "envoyé",
+                sans_destinataire: "sans destinataire", echec: "échec" }[e.etat] || e.etat
+      };
+    }),
+    expeditions: expeditions.map(x => ({
+      id: x.id, entreprise: x.entreprise, etablissement: null, kit: x.kit,
+      cree_le: String(x.cree_le || x.expedie_le).slice(0, 10),
+      expedie_le: x.expedie_le, suivi: x.suivi, recu_le: x.recu_le
+    })),
+    sourcing: sourcing.map(z => ({
+      id: z.id, etablissement: z.etablissement,
+      /* La table ne porte pas la société : elle se déduit du site, qui est déjà
+         chargé. La déduire ici évite une colonne dénormalisée en base. */
+      societe: (etablissements.find(e => e.id === z.etablissement) || {}).societe || null,
+      par: z.par, le: String(z.le).slice(0, 10),
+      traite_le: z.traite_le ? String(z.traite_le).slice(0, 10) : null
     })),
     moteur_journal: [], rapports_generes: [],
     classement_recalcule_le: null
