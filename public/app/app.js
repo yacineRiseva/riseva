@@ -6098,8 +6098,19 @@ function ouvrirRapportGroupe(u){
           )).join("")}
       ${INDICATEURS.calcules.map(d => l(d.libelle,
           ind.calcules[d.cle] === null ? `<span class="manque">non calculé</span>`
-            : nb2(ind.calcules[d.cle]) + (d.unite ? " " + d.unite : ""),
+            : nb2(ind.calcules[d.cle]) + (d.unite ? " " + d.unite : "")
+              /* Un taux dont le numérateur et le dénominateur ne portent pas sur
+                 les mêmes sites est un taux faux qui a l'air juste. Le moteur le
+                 signalait déjà — `assise` — et personne ne lisait ce drapeau :
+                 il s'affichait exactement comme un taux complet. */
+              + (ind.assise[d.cle] === false
+                 ? ` <span class="manque">(assise partielle)</span>` : ""),
           d.formule + ", rapport de sommes sur le périmètre, jamais moyenne des taux."
+            + (ind.assise[d.cle] === false
+               ? " ATTENTION : les termes de ce rapport ne portent pas sur les mêmes"
+                 + " sites. Le chiffre est donné pour information et ne doit pas être"
+                 + " publié tel quel."
+               : "")
             + (d.note ? " " + d.note : ""))).join("")}
     </tbody>
   </table>
@@ -7607,9 +7618,13 @@ function vueCSE(u){
           <td><strong>${esc(x.libelle)}</strong></td>
           <td class="tnum" style="text-align:right">${ind.calcules[x.cle] !== null
             ? nb2(ind.calcules[x.cle]) + (x.unite ? " " + x.unite : "")
+              + (ind.assise[x.cle] === false ? ` <span class="manque">*</span>` : "")
             : `<span class="muted">non disponible</span>`}</td>
           <td class="muted" style="font-size:var(--t-xs)">${esc(x.formule)}${
-            x.reglementaire ? "" : ", indicateur interne, non réglementaire"}</td>
+            x.reglementaire ? "" : ", indicateur interne, non réglementaire"}${
+            ind.assise[x.cle] === false
+              ? ". * Numérateur et dénominateur ne portent pas sur les mêmes sites : "
+                + "chiffre indicatif, à ne pas publier tel quel." : ""}</td>
         </tr>`).join("")}
         ${INDICATEURS.saisis.map(x => `<tr>
           <td>${esc(x.libelle)}</td>

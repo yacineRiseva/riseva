@@ -1507,10 +1507,51 @@ begin
   update public.annonce a set restant = greatest(0, a.restant - p_montant)
    where a.id = p_annonce;
 
+  -- Le reçu, si l'association a tout ce qu'il faut. C'est ce que l'écran promet,
+  -- et ce que personne n'appelait.
+  perform private.emettre_recu_si_pret(v_don);
   return v_don;
 end $$;
 
 -- ---------------------------------------------------------------- reçus
+-- L'ÉMISSION AUTOMATIQUE. L'écran des réglages d'une association propose, en
+-- toutes lettres, « Émettre automatiquement un reçu à chaque don encaissé » —
+-- et `emettre_recu` n'était appelée par AUCUN écran, aucune tâche, aucune
+-- fonction Edge. Une association pouvait cocher la case, tout renseigner, signer
+-- son mandat, et n'émettre jamais un seul reçu. Pour un donateur, le reçu est la
+-- seule chose qui transforme un don en réduction d'impôt ; pour l'association,
+-- c'est ce qu'elle promet à ses donateurs.
+--
+-- La règle reste stricte : rien n'est émis si l'association n'a pas tout ce
+-- qu'il faut. Le silence de cette fonction n'est pas une panne, c'est un refus
+-- documenté — et l'écran dit déjà ce qui manque.
+create or replace function private.emettre_recu_si_pret(p_don uuid)
+returns void
+language plpgsql security definer set search_path = '' as $$
+declare v_d public.don; v_a public.association; v_num text; v_suite integer;
+begin
+  select * into v_d from public.don d where d.id = p_don;
+  if not found or v_d.etat <> 'confirme' then return; end if;
+  select * into v_a from public.association a where a.id = v_d.association for update;
+  if not found then return; end if;
+  -- Les cinq conditions, les mêmes qu'à l'écran : éligibilité, activation,
+  -- signataire, qualité, préfixe, et le mandat écrit.
+  if not v_a.recus_actif or not v_a.eligible_mecenat
+     or v_a.signataire is null or v_a.qualite is null
+     or v_a.recu_prefixe is null or v_a.mandat_recus_le is null then
+    return;
+  end if;
+  -- Déjà émis : un don ne porte qu'un reçu, et le rejouer n'en crée pas un second.
+  if exists (select 1 from public.recu r where r.don = p_don) then return; end if;
+
+  select count(*) + 1 into v_suite from public.recu r where r.association = v_a.id;
+  v_num := v_a.recu_prefixe || lpad(v_suite::text, 4, '0');
+  insert into public.recu (don, association, numero, modele)
+  values (p_don, v_a.id, v_num,
+          case when v_d.origine = 'entreprise' then '16216*03' else '11580*05' end)
+  on conflict do nothing;
+end $$;
+
 create or replace function public.emettre_recu(p_don uuid)
 returns text
 language plpgsql security definer set search_path = '' as $$
@@ -1985,6 +2026,7 @@ begin
   update public.intention_don i
      set etat = 'recue', montant_recu = v_recu, confirme_le = current_date, mission = v_mission
    where i.id = p_intention;
+  perform private.emettre_recu_si_pret(v_don);
   return v_don;
 end $$;
 

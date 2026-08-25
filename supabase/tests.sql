@@ -2551,6 +2551,49 @@ select pg_temp.refuse('on n''écrit pas dans la collecte d''un autre client',
      current_setting(''riseva.et2'')::uuid, ''{}''::jsonb)');
 reset role;
 
+-- --- Le reçu fiscal part tout seul, ou ne part pas du tout ---------------
+-- L'écran des réglages promet « émettre automatiquement un reçu à chaque don
+-- encaissé », et rien n'appelait jamais la fonction qui les émet.
+do $$
+declare v_a uuid := '33333333-3333-4333-8333-333333333333';
+        v_don uuid; v_avant integer; v_apres integer;
+begin
+  -- Sans mandat écrit, rien ne part : c'est le refus, pas la panne.
+  update public.association set recus_actif = false where id = v_a;
+  select count(*) into v_avant from public.recu where association = v_a;
+  v_don := public.confirmer_don('essai', 'sans-mandat-1',
+    (select id from public.annonce a where a.association = v_a
+       and a.type = 'don_financier' limit 1), 120, 'entreprise',
+    'aaaaaaaa-0000-4000-8000-000000000002');
+  select count(*) into v_apres from public.recu where association = v_a;
+  perform pg_temp.dit('une association qui n''émet pas de reçus n''en émet pas',
+    v_apres = v_avant);
+
+  -- Avec tout ce qu'il faut, le reçu est émis sans que personne le demande.
+  update public.association
+     set recus_actif = true, eligible_mecenat = true,
+         signataire = coalesce(signataire, 'Élise Tournier'),
+         qualite = coalesce(qualite, 'Présidente'),
+         recu_prefixe = coalesce(recu_prefixe, 'QV-2027-'),
+         mandat_recus_le = coalesce(mandat_recus_le, now())
+   where id = v_a;
+  v_don := public.confirmer_don('essai', 'avec-mandat-1',
+    (select id from public.annonce a where a.association = v_a
+       and a.type = 'don_financier' limit 1), 150, 'entreprise',
+    'aaaaaaaa-0000-4000-8000-000000000002');
+  perform pg_temp.dit('un don encaissé émet son reçu tout seul',
+    exists (select 1 from public.recu r where r.don = v_don));
+  perform pg_temp.dit('et le numéro suit le préfixe de l''association',
+    (select r.numero from public.recu r where r.don = v_don) like 'QV-2027-%');
+  -- Rejouer ne crée pas un second reçu pour le même don.
+  perform private.emettre_recu_si_pret(v_don);
+  perform pg_temp.dit('un don ne porte qu''un seul reçu',
+    (select count(*) from public.recu r where r.don = v_don) = 1);
+exception when others then
+  perform pg_temp.dit('un don encaissé émet son reçu tout seul', false);
+  raise notice 'recu auto : %', sqlerrm;
+end $$;
+
 -- --- Le registre ne reçoit pas de diagnostic ------------------------------
 set role authenticated;
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000005', false);
