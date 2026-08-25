@@ -806,7 +806,15 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
       return { g:r.left, h:r.top, l:r.width, t:r.height };
     });
   }
+  /* Trois occasions de remesurer, et pas une de plus : un redimensionnement,
+     un changement de taille reel de la section (rotation d'un telephone, zoom
+     du navigateur, police qui arrive tard), et l'entree du pointeur dans la
+     section. Jamais pendant un `pointermove`. */
   addEventListener('resize', function(){ boites = null; }, { passive:true });
+  sect.addEventListener('pointerenter', function(){ boites = null; }, { passive:true });
+  if(window.ResizeObserver){
+    new ResizeObserver(function(){ boites = null; }).observe(sect);
+  }
 
   var x = 0, y = 0, prevu = false;
 

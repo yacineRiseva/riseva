@@ -3683,7 +3683,7 @@ body{
   /* Le bleu d'eau, en haut a droite, la ou le panneau de tete le traverse. */
   width:58%; height:62%; right:-12%; top:-8%;
   background:radial-gradient(ellipse at 50% 50%,
-    rgba(61,130,173,.62) 0%, rgba(61,130,173,.20) 38%, rgba(61,130,173,0) 74%);
+    rgba(61,130,173,.52) 0%, rgba(61,130,173,.17) 38%, rgba(61,130,173,0) 74%);
   animation:verre-derive-b 31s ease-in-out infinite alternate;
 }
 .verre-champ i:nth-child(3){
@@ -3754,16 +3754,25 @@ body{
    connaisse comme un ANGLE et non comme une chaine : sans cette declaration il
    n'est pas interpolable, et une valeur ecrite par le script produirait un saut
    au lieu d'un glissement. */
-@property --verre-arc{ syntax:"<angle>"; inherits:false; initial-value:210deg; }
-/* Et les deux coordonnees du reflet de surface. Les declarer sert a deux
-   choses, et la seconde est la vraie : une propriete personnalisee NON declaree
-   herite, donc l'ecrire sur un panneau invalide tout son sous-arbre a chaque
-   image du pointeur ; declaree `inherits:false`, elle n'invalide que la
-   peinture de l'element. Trois cartes qui portent chacune une maquette de
-   quinze lignes, c'est la difference entre un reflet gratuit et un reflet qui
-   se paie en images perdues. */
-@property --mx{ syntax:"<length>"; inherits:false; initial-value:0px; }
-@property --my{ syntax:"<length>"; inherits:false; initial-value:0px; }
+@property --verre-arc{ syntax:"<angle>"; inherits:true; initial-value:210deg; }
+/* Et les deux coordonnees du reflet de surface. Les trois sont declarees
+   HERITABLES, et c'est le contraire de ce qu'un reflexe de performance
+   dicterait : une propriete heritable ecrite sur un element invalide le style
+   de tout son sous-arbre, soixante fois par seconde pendant qu'on survole.
+
+   Sauf qu'une propriete `inherits:false` n'est pas lisible depuis les
+   pseudo-elements de l'element sur lequel on l'ecrit : un pseudo-element est un
+   enfant, il ne recoit que ce qui herite, et il reprendrait ici l'
+   `initial-value` sans que rien ne le signale. Le reflet se figerait a 210
+   degres et personne ne verrait le bug, puisque le degrade serait toujours la.
+
+   Les deux exigences se concilient d'une seule facon : rendre les proprietes
+   heritables ET les ecrire sur un element VIDE. C'est ce que fait
+   `.verre-lumiere`. Le sous-arbre qu'il invalide, ce sont ses deux
+   pseudo-elements ; les quarante noeuds de la carte ne sont pas ses
+   descendants. */
+@property --mx{ syntax:"<length>"; inherits:true; initial-value:0px; }
+@property --my{ syntax:"<length>"; inherits:true; initial-value:0px; }
 
 /* Et c'est pour la MEME raison que la lumiere du panneau est portee par un
    element vide plutot que par les pseudo-elements du panneau lui-meme. Une
@@ -3777,6 +3786,17 @@ body{
 .verre-lumiere{
   position:absolute; inset:0; border-radius:inherit;
   pointer-events:none; z-index:2;
+  /* L'epaisseur optique, du cote OPPOSE a la lumiere. Un verre epais ne
+     s'eclaire pas de partout : la ou la lumiere entre, l'arete brille ; a
+     l'oppose, la matiere renvoie une ombre courte a l'interieur. C'est ce qui
+     separe « une surface translucide tres propre » de « de la matiere ».
+     `cos()` et `sin()` font le calcul en CSS : l'ombre tourne avec l'angle sans
+     une ligne de script de plus. La ou elles manquent, la declaration est
+     invalide et il n'y a pas d'ombre : personne ne voit un defaut. */
+  box-shadow:
+    inset calc(cos(var(--verre-arc) + 138deg) * 2.4px)
+          calc(sin(var(--verre-arc) + 138deg) * 2.4px)
+          3px -1px rgba(11,38,32,.5);
 }
 
 /* L'arete speculaire : un degrade d'un pixel, en masque, sans image ni SVG.
@@ -3850,7 +3870,10 @@ body{
 }
 .verre-chiffre span{
   display:block; margin-top:6px; font-size:13px; letter-spacing:.02em;
-  color:var(--moss);
+  /* Papier et non mousse : c'est le seul libelle de la section qui se trouve
+     au-dessus de la nappe bleue, la partie la plus claire du fond. En mousse il
+     tombait a 4,60 pour un seuil de 4,5, et la nappe bouge. */
+  color:rgba(242,240,233,.92);
 }
 
 .verre-rail{
@@ -3861,7 +3884,12 @@ body{
 .verre-puce{
   align-self:flex-start; display:inline-block; white-space:nowrap;
   padding:5px 11px; border-radius:999px;
-  background:rgba(201,242,75,.14); color:var(--lime);
+  /* Un fond assombri sous la pastille, et non teinte de lime. Mesure : sur la
+     nappe lime, le lime sur lime tombait a 4,77 pour un seuil de 4,5. Une
+     marge de trois centiemes n'est pas une marge : le fond de cette section
+     bouge, et ce qui passe a un instant peut ne plus passer deux secondes plus
+     tard, a une autre position du pointeur. */
+  background:rgba(11,38,32,.52); color:var(--lime);
   font-size:12px; letter-spacing:.06em; text-transform:uppercase;
 }
 .verre-carte h3{

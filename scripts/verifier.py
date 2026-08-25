@@ -161,6 +161,15 @@ def main():
         code, sortie = lancer("python3 scripts/contraste.py")
         print(sortie.rstrip())
         if code: echecs.append("contraste")
+
+        # Le contraste declare ne dit rien sous un panneau de verre : la chaine
+        # des fonds s'arrete a la premiere couleur opaque, et ce n'est pas ce
+        # qu'on voit derriere le texte. Celui-ci mesure le pixel compose, a
+        # plusieurs phases d'animation et plusieurs positions de pointeur.
+        titre("Contraste sous le verre")
+        code, sortie = lancer(f"python3 scripts/contraste-verre.py {PORT}")
+        print(sortie.rstrip())
+        if code: echecs.append("contraste sous le verre")
     finally:
         os.killpg(os.getpgid(srv.pid), signal.SIGTERM)
 
