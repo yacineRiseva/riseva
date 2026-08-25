@@ -1085,6 +1085,12 @@ def main():
                 73 <= moitie <= 77, str(moitie) + " %")
         p.fill("#fa-mail", "contact@bocage.org"); p.wait_for_timeout(400)
 
+        # On clique VRAIMENT sur le bouton, sans arranger la page avant : c'est
+        # ce clic-la qui a revele que la ligne d'aide changeait de hauteur au
+        # moment ou le champ perd le focus, faisait descendre le bouton de
+        # soixante pixels entre l'appui et le relachement, et empechait le
+        # formulaire de partir. Rendre la recette indulgente aurait cache le
+        # defaut au lieu de le corriger.
         p.click("#formAsso [type=submit]")
         p.wait_for_url("**/app/**", timeout=8000)
         p.wait_for_timeout(900)

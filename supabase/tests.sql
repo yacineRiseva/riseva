@@ -2099,6 +2099,160 @@ end $$;
 reset role;
 
 \echo ''
+\echo 'La porte d''entrée : un code, un lien, une place'
+-- Le parcours d'inscription salarié était mort au seuil en production, et rien
+-- ne l'aurait dit : la page résolvait le code en lisant la table `invitation`,
+-- que la RLS réserve à l'administrateur. Ces tests portent sur la fonction qui
+-- la remplace, ouverte à qui n'est pas encore connecté, et sur les trois règles
+-- de comptage que les deux moteurs appliquaient différemment.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
+do $$
+declare v_code text; v_r record;
+begin
+  v_code := public.creer_invitation(3, 30);
+  perform set_config('riseva.code', v_code, false);
+  perform pg_temp.dit('le code rendu est un vrai code, pas un indice de six caractères',
+    length(v_code) > 12);
+
+  select * into v_r from public.resoudre_invitation(v_code);
+  perform pg_temp.dit('le lien se résout, et nomme l''entreprise',
+    v_r.entreprise = '22222222-2222-4222-8222-222222222222'
+    and v_r.entreprise_nom is not null);
+  perform pg_temp.dit('il dit combien de places il lui reste',
+    v_r.places = 3 and v_r.utilisees = 0 and v_r.restantes = 3);
+  perform pg_temp.dit('il dit les domaines acceptés, avant la saisie',
+    coalesce(array_length(v_r.domaines, 1), 0) > 0);
+  perform pg_temp.dit('un code inconnu ne rend rien du tout',
+    not exists (select 1 from public.resoudre_invitation('code-qui-n-existe-pas')));
+end $$;
+reset role;
+
+-- Anonyme : c'est tout l'objet d'un lien d'inscription.
+set role anon;
+do $$
+declare v_r record;
+begin
+  select * into v_r from public.resoudre_invitation(current_setting('riseva.code'));
+  perform pg_temp.dit('quelqu''un qui n''est pas connecté peut résoudre son lien',
+    v_r.entreprise_nom is not null);
+end $$;
+reset role;
+
+-- Le lien général ne coupe pas les liens nominatifs, et ne s'ouvre pas à eux.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
+do $$
+declare v_cse text; v_apres boolean;
+begin
+  v_cse := public.creer_invitation_cse('Nadia Berrada', 'nadia-cse@vaudrey-ciments.fr');
+  perform public.creer_invitation(5, 30);   -- on régénère le lien collectif
+  perform set_config('riseva.cse', v_cse, false);
+  -- La lecture de la colonne `active` n'est pas accordée à `authenticated` : on
+  -- vérifie donc ce que la personne concernée constaterait — son lien résout
+  -- encore, et il se dit valable.
+  select r.active into v_apres from public.resoudre_invitation(v_cse) r;
+  perform pg_temp.dit('régénérer le lien collectif ne coupe pas celui du CSE',
+    coalesce(v_apres, false));
+exception when others then
+  perform pg_temp.dit('régénérer le lien collectif ne coupe pas celui du CSE', false);
+  raise notice 'cse : %', sqlerrm;
+end $$;
+reset role;
+
+-- Un lien nominatif n'est pas un lien d'inscription salarié.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-00000000000b', false);
+select set_config('request.jwt.claim.email', 'nouvelle@vaudrey-ciments.fr', false);
+select pg_temp.refuse('le lien du CSE n''ouvre pas un compte de salarié',
+  'select public.rejoindre_entreprise(current_setting(''riseva.cse''))');
+reset role;
+
+\echo ''
+\echo 'Nommer, rétrograder, suspendre : qui a le droit'
+-- Trois fonctions qui changent les droits d'une personne, et pas un seul test.
+-- Les gardes existaient ; rien n'aurait signalé leur disparition.
+set role authenticated;
+-- Malik, salarié : il ne se promeut pas, ne rétrograde personne, ne suspend personne.
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000002', false);
+select set_config('request.jwt.claim.email', 'malik@vaudrey-ciments.fr', false);
+select pg_temp.refuse('un salarié ne se nomme pas administrateur',
+  'select public.promouvoir_admin(''aaaaaaaa-0000-4000-8000-000000000002'')');
+select pg_temp.refuse('un salarié ne rétrograde pas son administratrice',
+  'select public.retrograder_admin(''aaaaaaaa-0000-4000-8000-000000000001'')');
+select pg_temp.refuse('un salarié ne suspend pas un collègue',
+  'select public.suspendre_acces(''aaaaaaaa-0000-4000-8000-000000000004'', true)');
+
+-- Karim, référent de site : il pilote son site, pas les droits de la société.
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000005', false);
+select set_config('request.jwt.claim.email', 'karim@vaudrey-ciments.fr', false);
+select pg_temp.refuse('un référent de site ne nomme pas d''administrateur',
+  'select public.promouvoir_admin(''aaaaaaaa-0000-4000-8000-000000000002'')');
+select pg_temp.refuse('un référent de site ne suspend personne',
+  'select public.suspendre_acces(''aaaaaaaa-0000-4000-8000-000000000002'', true)');
+
+-- L'administratrice d'une AUTRE société ne touche pas aux gens de celle-ci.
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000007', false);
+select set_config('request.jwt.claim.email', 'theo@atelier-rialland.fr', false);
+select pg_temp.refuse('l''administrateur d''une autre société ne promeut pas ici',
+  'select public.promouvoir_admin(''aaaaaaaa-0000-4000-8000-000000000002'')');
+select pg_temp.refuse('il ne suspend personne ici non plus',
+  'select public.suspendre_acces(''aaaaaaaa-0000-4000-8000-000000000002'', true)');
+
+-- Claire, administratrice : elle peut, et le dernier administrateur est protégé.
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
+do $$
+declare v_malik uuid := 'aaaaaaaa-0000-4000-8000-000000000002';
+begin
+  perform public.promouvoir_admin(v_malik);
+  perform pg_temp.dit('une administratrice nomme un second administrateur', true);
+  perform public.suspendre_acces(v_malik, true);
+  perform pg_temp.dit('elle suspend un accès', true);
+  perform public.suspendre_acces(v_malik, false);
+  perform public.retrograder_admin(v_malik);
+  perform pg_temp.dit('et le rétrograde', true);
+exception when others then
+  perform pg_temp.dit('une administratrice nomme un second administrateur', false);
+  raise notice 'droits : %', sqlerrm;
+end $$;
+select pg_temp.refuse('le dernier administrateur ne se rétrograde pas lui-même',
+  'select public.retrograder_admin(''aaaaaaaa-0000-4000-8000-000000000001'')');
+reset role;
+
+\echo ''
+\echo 'Le périmètre des rubriques et des indicateurs'
+-- Trois fonctions SECURITY DEFINER ouvertes à `authenticated` prenaient un
+-- identifiant libre et le servaient sans contrôler le périmètre : n'importe quel
+-- compte apprenait CE QUE MESURE n'importe quel client, en devinant seulement
+-- l'identifiant d'une campagne — et les identifiants d'entreprise sont publics.
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000003', false);
+select set_config('request.jwt.claim.email', 'elise@quatrevents.org', false);
+do $$
+begin
+  perform pg_temp.dit('une association ne lit pas les rubriques d''une entreprise',
+    coalesce(array_length(
+      public.rubriques_entreprise('22222222-2222-4222-8222-222222222222'), 1), 0) = 0);
+  perform pg_temp.dit('ni le catalogue d''une campagne qui ne la regarde pas',
+    coalesce(array_length(
+      public.rubriques_de('c1000000-0000-4000-8000-000000000001'), 1), 0) = 0);
+  perform pg_temp.dit('ni les indicateurs qu''elle demande',
+    not exists (select 1 from public.indicateurs_de('c1000000-0000-4000-8000-000000000001')));
+end $$;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claim.email', 'claire@vaudrey-ciments.fr', false);
+do $$
+begin
+  perform pg_temp.dit('son administratrice, elle, les lit',
+    coalesce(array_length(
+      public.rubriques_entreprise('22222222-2222-4222-8222-222222222222'), 1), 0) > 0);
+end $$;
+reset role;
+
+\echo ''
 \echo 'Qui suis-je : le rôle rendu au navigateur'
 -- Sans cette fonction, l'application ne savait pas quel rôle avait la personne
 -- connectée : le rôle vit dans le schéma privé, `chargerEtat` posait `null`, et

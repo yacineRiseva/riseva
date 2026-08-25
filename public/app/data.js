@@ -1679,7 +1679,7 @@ const seed = {
      ne se modifie pas en silence : elle se corrige avec une nouvelle version. */
   observations: [
     { id:"o1", campagne:"c1", etablissement:"et1", etat:"approuve", version:1,
-      saisi_par:"u2",  saisi_le:J(-34), approuve_par:"u2", approuve_le:J(-31),
+      saisi_par:"u13", saisi_le:J(-34), approuve_par:"u2", approuve_le:J(-31),
       valeurs:{ effectif_fin:60, entrees:4, sorties:3, heures_travaillees:52_400,
                 at_avec_arret:1, at_sans_arret:2, at_trajet:1, jours_arret:14,
                 formation_heures:640, formation_benef:38, femmes:31, boeth:3 } },
@@ -1750,6 +1750,12 @@ const seed = {
     { id:"u6", nom:"Nadia Berrada",   email:"nadia@vaudrey-ciments.fr", role:"salarie",          org:"e1", etablissement:"et3", actif:false, cree_le:J(-150) },
     /* Les référents de site : ils invitent leurs propres salariés, dans la limite du
        quota que le groupe leur a alloué, et ne voient rien des autres sites. */
+    /* Le siège a son propre référent, comme les deux autres sites. Sans lui, la
+       saisie du siège était faite ET approuvée par la même personne dans le jeu
+       de démonstration — exactement ce que la règle interdit, et exactement ce
+       que la page de vente affirme impossible. Une donnée d'exemple qui
+       contredit la règle qu'elle illustre décrédibilise les deux. */
+    { id:"u13", nom:"Yann Prigent",   email:"yann@vaudrey-ciments.fr",  role:"site_referent",    org:"e1", etablissement:"et1", actif:true, cree_le:J(-110) },
     { id:"u10", nom:"Karim Belhadj",  email:"karim@vaudrey-ciments.fr", role:"site_referent",    org:"e1", etablissement:"et2", actif:true, cree_le:J(-100) },
     { id:"u11", nom:"Léa Mercier",    email:"lea@vaudrey-ciments.fr",   role:"site_referent",    org:"e1", etablissement:"et3", actif:true, cree_le:J(-80) },
     { id:"u7", nom:"Élise Tournier",  email:"elise@quatrevents.org",    role:"association",      org:"a1", cree_le:J(-260) },

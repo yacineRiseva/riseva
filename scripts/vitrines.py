@@ -752,8 +752,8 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
           le siège consolide.</li>
         <li><b>Indicateurs.</b> Vous choisissez les rubriques, la plateforme calcule les taux
           et garde la formule à côté du chiffre.</li>
-        <li><b>Preuves.</b> Chaque valeur porte qui l'a saisie, qui l'a approuvée et le
-          justificatif joint.</li>
+        <li><b>Preuves.</b> Chaque saisie de site porte qui l'a remplie, qui l'a approuvée
+          et les justificatifs joints.</li>
       </ul>
       <div class="hero-cta">
         <a class="btn btn-lg" href="#prix"><span class="dot"></span>Calculer mon tarif</a>
@@ -869,12 +869,13 @@ SAISON_ENT = f"""<section id="saison" class="band">
   ("Février à octobre", "Les <span class='it'>missions.</span>",
    "Les missions se font, une par une. Un salarié se propose, l'association l'accueille, "
    "puis confirme que c'est arrivé. C'est cette confirmation qui compte."),
-  ("Mars, juin, septembre", "Le <span class='it'>point.</span>",
-   "Un rapport se génère tout seul à la clôture de chaque trimestre : ce qui a été fait, "
-   "ce qui a été confirmé, ce qui reste ouvert. Vous n'avez rien à consolider."),
-  ("Décembre", "Le <span class='it'>bilan.</span>",
-   "Le rapport annuel arrive, avec le dossier de traçabilité : pièces, sources et méthode. "
-   "Puis vous décidez si vous recommencez. Il n'y a pas de reconduction tacite."),
+  ("Quatre fois dans l'année", "Le <span class='it'>point.</span>",
+   "Un rapport se génère tout seul quatorze jours après la fin de chaque trimestre, une fois "
+   "les confirmations closes : le sceller le dernier jour le figerait incomplet. Ce qui a été "
+   "fait, ce qui a été confirmé, ce qui reste ouvert. Vous n'avez rien à consolider."),
+  ("Mi-janvier", "Le <span class='it'>bilan.</span>",
+   "Le rapport annuel est arrêté à son tour, avec le dossier de traçabilité : pièces, sources "
+   "et méthode. Puis vous décidez si vous recommencez. Il n'y a pas de reconduction tacite."),
 ])}
 
   </div>
@@ -957,8 +958,8 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss">
     <ul class="trois">
       <li><b>Aucun abonnement, aucune commission.</b> Une association ne paie jamais rien, et
         Riseva ne prélève rien sur ses dons.</li>
-      <li><b>Une confirmation courte, sans se connecter.</b> Trois boutons dans un message
-        après la date prévue, et c'est terminé.</li>
+      <li><b>Une confirmation courte, sans se connecter.</b> Un lien dans un message après
+        la date prévue, trois réponses sur la page qu'il ouvre, et c'est terminé.</li>
       <li><b>Rien à produire pour vous.</b> Passé quatorze jours sans réponse, la mission est
         clôturée et son résultat reste marqué <b>estimé</b> partout où il apparaît, vos
         rapports compris.</li>
@@ -1072,8 +1073,9 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss">
   ("« D'où sort ce chiffre&nbsp;? »",
    "Posée par un donneur d'ordre, dans un questionnaire fournisseur",
    f"{CATALOGUE['saisis']} valeurs collectées, {CATALOGUE['calcules']} taux calculés en "
-   "rapport de sommes et jamais en moyenne de taux. Chaque valeur porte qui l'a saisie, qui "
-   "l'a approuvée (jamais la même personne) et <b>la pièce jointe qui la justifie</b>. Le "
+   "rapport de sommes et jamais en moyenne de taux. Chaque saisie de site porte qui l'a "
+   "remplie, qui l'a approuvée (jamais la même personne) et <b>les pièces jointes qui la "
+   "justifient</b>. Le "
    "rapport sort en classeur et en CSV, avec sa méthode et le nombre de sites derrière "
    "chaque somme.",
    "Écrans : Rapports, Fiche VSME, Mécénat"),
@@ -1709,8 +1711,9 @@ COMMENT_ASSO = f"""<section id="comment" class="band">
    "Les salariés des entreprises abonnées proches de chez vous voient l'annonce et se "
    "proposent. Vous voyez qui vient et pour quelle date."),
   ("Vous confirmez", "En <span class='it'>un clic.</span>",
-   "Après la date, vous recevez un courriel avec trois boutons. Vous cliquez, c'est terminé. "
-   "Rien à ressaisir dans votre espace, aucun rapport à écrire."),
+   "Après la date, vous recevez un courriel avec un lien. Il ouvre une page qui pose une "
+   "seule question, avec trois réponses possibles — dont « réalisée partiellement », avec le "
+   "chiffre réel. Rien à ressaisir dans votre espace, aucun rapport à écrire."),
 ])}
   </div>
 </section>"""
@@ -1763,8 +1766,9 @@ ARGENT_ASSO = f"""<section id="argent" class="band-moss">
           Ensuite, un donateur paie par carte en trois clics et l'argent arrive chez vous.
           L'argent ne transite jamais par Riseva : ni commission de notre part, ni délai de
           reversement, ni plafond.</p>
-        <p>Le don se confirme tout seul. Vous n'avez aucun relevé à rapprocher, et le donateur
-          n'a aucune référence à recopier.</p>
+        <p>Le don s'enregistre dès que HelloAsso ramène le donateur sur Riseva, juste après
+          le paiement. Vous n'avez aucun relevé à rapprocher, et le donateur n'a aucune
+          référence à recopier.</p>
         <p class="mono">Pas encore de compte HelloAsso ? En ouvrir un est gratuit et prend
           quelques minutes. En attendant, le virement reste possible.</p>
       </div>
@@ -1830,17 +1834,18 @@ FAQ_ASSO = faq([
 
 CONTACT_ASSO = f"""<section id="commencer">
   <div class="layer">
-{entete("S'inscrire", "Quatre lignes,<br><span class='it'>et votre compte est ouvert.</span>",
+{entete("S'inscrire", "Quatre lignes, un lien,<br><span class='it'>et votre espace est ouvert.</span>",
         "Pas de dossier à monter, pas de pièce à joindre, personne à attendre. Vous entrez "
-        "quatre informations, votre espace s'ouvre, et vous publiez votre première annonce "
-        "dans la foulée.")}
+        "quatre informations, vous ouvrez le lien qu'on vous envoie, et vous publiez votre "
+        "première annonce dans la foulée. Rien à ressaisir.")}
     <form id="formAsso" class="join-grid" novalidate>
       <div class="rv">
         <div class="j-step mono">Quatre informations suffisent</div>
         <p class="j-sentence">Nous sommes <span class="blank"><label class="sr-only" for="fa-asso">Nom de l'association</label><input id="fa-asso" class="bk" type="text" name="asso" data-key="asso" data-label="le nom de votre association" placeholder="votre association" spellcheck="false" required><span class="ghost" aria-hidden="true"></span></span>, à <span class="blank"><label class="sr-only" for="fa-ville">Ville</label><input id="fa-ville" class="bk" type="text" name="ville" data-key="ville" data-label="votre ville" placeholder="votre ville" required><span class="ghost" aria-hidden="true"></span></span>. Ce qui nous manque le plus en ce moment, c'est <span class="blank"><label class="sr-only" for="fa-mot">Ce qui vous manque</label><input id="fa-mot" class="bk" type="text" name="mot" data-key="mot" data-label="ce qui vous manque" placeholder="des bras un samedi matin" required><span class="ghost" aria-hidden="true"></span></span>. Notre adresse est <span class="blank"><label class="sr-only" for="fa-mail">Adresse e-mail</label><input id="fa-mail" class="bk" type="email" name="mail" data-key="mail" data-label="votre adresse e-mail" placeholder="nom@association.fr" spellcheck="false" required><span class="ghost" aria-hidden="true"></span></span>.</p>
-        <p class="j-hint" id="jHint">Votre espace s'ouvre tout de suite. Votre page devient
-          visible une fois votre enregistrement vérifié, et votre espace vous dit ce qu'il
-          reste à faire.</p>
+        <p class="j-hint" id="jHint">Nous vous envoyons un lien de connexion : en l'ouvrant,
+          votre espace se crée avec ce que vous venez d'écrire. Aucun mot de passe. Votre page
+          devient visible une fois votre enregistrement vérifié, et votre espace vous dit ce
+          qu'il reste à faire.</p>
         <div class="j-cta">
           <button type="submit" class="btn btn-lg"><span class="dot"></span>Ouvrir mon espace</button>
           <span class="mono">Gratuit, sans exclusivité, sans commission</span>
@@ -1879,7 +1884,7 @@ BANDEAU_ASSO = """<section id="rejoindre" class="bandeau">
   <div class="layer">
     <div class="bandeau-in">
       <div>
-        <h2>Quatre lignes, et votre espace est ouvert.</h2>
+        <h2>Quatre lignes, un lien, et votre espace est ouvert.</h2>
         <p>Vous décrivez ce que vous faites et vous préparez votre première annonce. Nous
           vérifions votre enregistrement pendant ce temps : votre page devient visible des
           entreprises une fois cette vérification faite. Rien à installer, rien à payer.</p>

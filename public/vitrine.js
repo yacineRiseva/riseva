@@ -257,6 +257,38 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
   };
   var BASE = hint ? hint.textContent : '';
 
+  /* Le message d'aide change avec le champ survole, et les textes n'ont pas la
+     meme longueur : la ligne d'aide passait de une a quatre lignes, et TOUT ce
+     qui est en dessous descendait de soixante pixels — dont le bouton
+     « Ouvrir mon espace ». Ce n'est pas un detail d'affichage : le mouvement se
+     produit au moment ou l'on appuie, parce que le champ perd le focus a cet
+     instant precis. Le bouton se derobe sous le doigt entre l'appui et le
+     relachement, le navigateur ne compte pas de clic, et le formulaire ne part
+     pas. On reserve donc la hauteur du plus long des messages, une fois pour
+     toutes, et plus rien ne bouge.
+
+     La mesure se refait a chaque changement de largeur : le nombre de lignes
+     depend de la place disponible. */
+  function reserverHauteurAide(){
+    if(!hint) return;
+    var garde = hint.textContent, classe = hint.className;
+    hint.style.minHeight = '';
+    hint.className = 'j-hint';
+    hint.textContent = BASE;
+    var h = hint.getBoundingClientRect().height;
+    for(var k in HINTS){ if(!HINTS.hasOwnProperty(k)) continue;
+      hint.textContent = HINTS[k];
+      h = Math.max(h, hint.getBoundingClientRect().height); }
+    hint.textContent = garde; hint.className = classe;
+    hint.style.minHeight = Math.ceil(h) + 'px';
+  }
+  reserverHauteurAide();
+  var minuteurAide = null;
+  addEventListener('resize', function(){
+    clearTimeout(minuteurAide);
+    minuteurAide = setTimeout(reserverHauteurAide, 150);
+  });
+
   /* La largeur du champ suit son contenu, ou son placeholder tant qu'il est
      vide. Un fantome cache mesure le texte et donne la largeur.
 
@@ -424,8 +456,13 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
         return;
       }
       msg.className='j-msg ok';
-      msg.textContent='Compte en cours d\u2019ouverture...';
-      if(stamp) stamp.textContent='Compte ouvert';
+      msg.textContent='Un instant, on vous emm\u00e8ne...';
+      /* Le tampon disait « Compte ouvert » AVANT que quoi que ce soit soit
+         ouvert : en production, l'application envoie d'abord un lien de
+         connexion, et le compte n'existe qu'au retour de ce lien. Annoncer un
+         fait avant qu'il soit vrai est la seule chose qu'un formulaire ne doit
+         jamais faire. */
+      if(stamp) stamp.textContent='Demande enregistr\u00e9e';
       location.href='/app/';
       return;
     }
