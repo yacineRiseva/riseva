@@ -364,6 +364,51 @@ def main():
         verifie("aucun placeholder n'est coupé dans la phrase à remplir",
                 not coupes, str(coupes))
 
+        # ── les phrases cassees par une reecriture ──────────────────────────
+        # « neuf associations declarees SUR DIX n'ont pas de SIREN » est devenu
+        # « beaucoup d'associations declarees DIX n'ont pas de SIREN » : le
+        # remplacement a mange la moitie de la tournure et laisse un chiffre
+        # orphelin au milieu de la phrase. Ni le controle des caracteres, ni
+        # celui des contrastes, ni celui des liens ne voient ce genre de defaut,
+        # et il tombe dans la FAQ, la ou une presidente lit vraiment avant de
+        # s'inscrire. Cette liste est celle des fautes deja commises : on ne la
+        # devine pas, on l'allonge quand on en corrige une nouvelle.
+        # On ne met ici QUE des fautes reellement commises. Les motifs generiques
+        # (double espace, espace avant une virgule, deux points de suite) ont ete
+        # essayes et retires : « RSV-AS-.... » dans l'apercu de fiche les declenche,
+        # et un test qui crie pour rien est un test qu'on finit par ignorer.
+        FAUTES = ["déclarées dix", "associations déclarées dix"]
+        revenues = []
+        for page in ("/", "/associations.html", "/asso.html?id=a1",
+                     "/charte-associations.html", "/inscription.html",
+                     "/rejoindre.html", "/cgv.html", "/reglement.html"):
+            p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(250)
+            txt = p.evaluate("()=>document.body.innerText")
+            for f in FAUTES:
+                if f in txt:
+                    revenues.append(page + " : " + f)
+        verifie("aucune faute deja corrigee n'est revenue dans une page publique",
+                not revenues, str(revenues[:6]))
+
+        # ── deux fois le meme titre ─────────────────────────────────────────
+        # Le bandeau de fin repetait mot pour mot le titre du formulaire, deux
+        # ecrans plus haut : « Quatre lignes, un lien, et votre espace est
+        # ouvert. » Celui qui lit en diagonale ne lit que les titres ; en voyant
+        # deux fois le meme, il croit etre remonte par erreur et il s'arrete.
+        doublons = []
+        for page in ("/", "/associations.html", "/rejoindre.html",
+                     "/charte-associations.html", "/inscription.html"):
+            p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(250)
+            titres = p.evaluate("""()=>[...document.querySelectorAll('h1,h2')]
+                .filter(e=>e.offsetParent!==null)
+                .map(e=>e.innerText.replace(/\s+/g,' ').trim().toLowerCase())
+                .filter(t=>t.length>12)""")
+            for t_ in set(titres):
+                if titres.count(t_) > 1:
+                    doublons.append(page + " : " + t_[:60])
+        verifie("aucun titre n'apparait deux fois dans la meme page",
+                not doublons, str(doublons[:5]))
+
         # ── la longueur de ligne ────────────────────────────────────────────
         # Au-dela de quatre-vingts signes par ligne, l'oeil rate le retour a la
         # ligne suivante et relit la meme. Un texte qu'on relit deux fois passe
