@@ -465,14 +465,34 @@ p{text-wrap:pretty;}
 @media (min-width:1001px){
   .nav-sheet{display:none!important;}
 }
+/* Le panneau du menu (z-index 880) se posait par-dessus la barre (400), et le
+   bouton qui l'ouvre est aussi celui qui le ferme : la croix se retrouvait
+   dessous, intouchable. `elementFromPoint` au centre du bouton rendait
+   `.nav-sheet`, pas le bouton. Restaient la touche Echap — que personne n'a
+   sur un telephone — et suivre un lien. Autrement dit, sur telephone, un menu
+   qu'on ouvre et qu'on ne peut plus refermer.
+   Le panneau reserve deja cent quatre pixels en haut pour laisser voir la
+   barre : il ne manquait qu'a la faire passer devant pendant qu'il est
+   ouvert. La barre est transparente tant qu'on n'a pas defile, elle ne
+   recouvre donc rien. */
+.nav:has(.nav-burger[aria-expanded="true"]){z-index:900;}
 /* la barre ne doit pas etre trop serree quand le bouton apparait */
 @media (max-width:560px){
   .nav{gap:10px;}
   /* `.btn` porte `overflow:hidden` et se laissait comprimer dans un flex : le
      premier appel a l'action de la page affichait « Ouvrir la demonstratio »,
      le « n » coupe net, sur tout telephone. Un bouton principal au mot mutile
-     ne demande qu'une chose, c'est de ne pas etre clique. */
-  .nav .btn{flex:none;white-space:nowrap;padding:9px 13px;font-size:12px;}
+     ne demande qu'une chose, c'est de ne pas etre clique.
+     Le corriger avec `flex:none` a deplace le probleme au lieu de le resoudre :
+     le bouton gardait sa largeur entiere et c'est le bouton de menu, dernier de
+     la rangee, qui sortait de l'ecran. Mesure faite sur un telephone de 390 px,
+     il allait de 371 a 415 : vingt-cinq pixels dehors, un carre de touche
+     coupe, et le menu injoignable sur telephone.
+     Sur cette largeur, la barre ne porte donc plus que le logo et le menu. La
+     demonstration n'y perd rien : elle est le premier bouton du panneau que le
+     menu ouvre, et le premier appel a l'action du premier ecran. */
+  .nav .btn{display:none;}
+  .nav-burger{margin-left:0;}
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -2183,7 +2203,8 @@ section{
 .ong:has(#ong-miss:checked) .ong-p[data-ong="miss"],
 .ong:has(#ong-rapp:checked) .ong-p[data-ong="rapp"],
 .ong:has(#ong-meca:checked) .ong-p[data-ong="meca"],
-.ong:has(#ong-indi:checked) .ong-p[data-ong="indi"]{display:block;}
+.ong:has(#ong-indi:checked) .ong-p[data-ong="indi"],
+.ong:has(#ong-grpe:checked) .ong-p[data-ong="grpe"]{display:block;}
 /* Repli pour les navigateurs sans :has() — tout est affiché plutôt que rien.
    Une preuve empilée reste une preuve ; une preuve invisible n'en est pas une. */
 @supports not selector(:has(*)){
@@ -2966,51 +2987,56 @@ body{
   .vd .duo--affiche .shot--affiche{transition:none;}
 }
 
-/* ── le prix, sur fond sombre ───────────────────────────────────────────────
-   La deuxieme masse foret de la page, et c'est celle-la qu'on veut : un tarif
-   affiche sur fond sombre se lit comme une decision, pas comme un tableau
-   qu'on subit. Les montants passent au double de leur taille. */
-.vd #prix .tar-t tr{border-color:rgba(242,240,233,.16);}
-.vd #prix .tar-eff{color:var(--paper-2);font-size:clamp(16px,1.25vw,19px);}
+/* ── le prix, sur fond clair ────────────────────────────────────────────────
+   Il etait sur fond sombre, et colle a la section associations qui l'est aussi :
+   4 255 pixels de vert fonce d'un seul tenant, un quart de la page, sans un
+   repere pour dire ou l'un finit et ou l'autre commence. Les deux relectures
+   l'ont vu chacune de leur cote. La section revient donc au papier, et le fond
+   sombre reprend un sens : il ne marque plus une section de plus, il marque un
+   changement de sujet.
+   Le tableau, lui, n'avait jamais eu de version claire : ses couleurs etaient
+   ecrites pour le vert et donnaient du blanc casse sur de l'ivoire. Elles sont
+   reecrites ici, avec la meme intention qu'avant — les montants au double de
+   leur taille, un tarif qui se lit comme une decision. */
+.vd #prix .tar-t tr{border-color:var(--line);}
+.vd #prix .tar-eff{color:var(--ink);font-size:clamp(16px,1.25vw,19px);}
 .vd #prix .tar-t td{padding:clamp(18px,2vw,28px) 0;}
 .vd #prix .tar-prix b{
-  font-size:clamp(30px,3vw,46px);letter-spacing:-.042em;color:var(--paper-2);
+  font-size:clamp(30px,3vw,46px);letter-spacing:-.042em;color:var(--ink);
 }
-.vd #prix .tar-ht{color:rgba(242,240,233,.55);}
-.vd #prix .tar-sites{color:rgba(242,240,233,.62);}
-.vd #prix .tar-n{color:rgba(242,240,233,.66);}
-.vd #prix .tar-n b{color:var(--paper-2);}
-.vd #prix .tar-l li{color:rgba(242,240,233,.80);}
-.vd #prix .col--oui li::before{color:var(--lime);}
-.vd #prix .col--non li::before{color:rgba(242,240,233,.45);}
+.vd #prix .tar-ht{color:var(--faint);}
+.vd #prix .tar-sites{color:var(--stone);}
+.vd #prix .tar-n{color:var(--stone);}
+.vd #prix .tar-n b{color:var(--ink);}
+.vd #prix .tar-l li{color:var(--ink-soft);}
+.vd #prix .col--oui li::before{color:var(--brand-800);}
+.vd #prix .col--non li::before{color:var(--faint);}
 .vd #prix .tar-sim{
-  background:rgba(242,240,233,.06);border:1px solid rgba(242,240,233,.16);
+  background:var(--paper-2);border:1px solid var(--line);
   border-radius:var(--r-lg);
 }
-.vd #prix .tar-sim .mono{color:var(--lime);}
-.vd #prix .tar-sim label{color:rgba(242,240,233,.72);}
+.vd #prix .tar-sim .mono{color:var(--forest-700);}
+.vd #prix .tar-sim label{color:var(--stone);}
 .vd #prix .tar-in{
-  background:rgba(242,240,233,.10);border-color:rgba(242,240,233,.26);color:var(--paper-2);
+  background:#fff;border-color:var(--line-hard);color:var(--ink);
 }
-.vd #prix .tar-sim-out{color:var(--paper-2);}
-.vd #prix .tar-sim-out b{color:var(--lime);}
-.vd #prix .btn{--bg:var(--lime);--fg:var(--ink);}
-.vd #prix .btn .dot{background:var(--ink);}
+.vd #prix .tar-sim-out{color:var(--ink);}
+.vd #prix .tar-sim-out b{color:var(--forest-700);}
 
 /* Les deux colonnes du prix etaient des cartes ivoire a demi transparentes
    posees sur du vert : la couleur qui en sortait n'etait ni l'une ni l'autre.
    Elles redeviennent du texte, separees par un filet. Tout ne merite pas une
    carte, et le vide fait partie du dessin. */
 .vd #prix .deux-col .col{
-  background:none;border:0;border-top:1px solid rgba(242,240,233,.24);
+  background:none;border:0;border-top:1px solid var(--line-hard);
   border-radius:0;padding:clamp(18px,2vw,26px) 0 0;
 }
-.vd #prix .deux-col h3{color:var(--paper-2);font-size:clamp(18px,1.4vw,22px);}
+.vd #prix .deux-col h3{color:var(--ink);font-size:clamp(18px,1.4vw,22px);}
 .vd #prix .tar-sim-cta{
   display:flex;align-items:center;gap:clamp(12px,1.6vw,22px);flex-wrap:wrap;
   margin-top:clamp(16px,1.8vw,24px);
 }
-.vd #prix .tar-sim-cta .mono{color:rgba(242,240,233,.62);}
+.vd #prix .tar-sim-cta .mono{color:var(--stone);}
 
 /* ── le dernier ecran ───────────────────────────────────────────────────────
    Trois cent quatre-vingts pixels pour la seule section qui demande quelque
@@ -3434,7 +3460,9 @@ body{
    2 000 salaries et la note en dessous parlait d'un devis : un prospect a 2 500
    lisait les deux et ne savait pas lequel l'engageait. */
 .tar-apd{color:var(--faint);font-size:12px;font-weight:600;letter-spacing:.04em;}
-.vd #prix .tar-apd{color:rgba(242,240,233,.55);}
+/* Ecrite pour le fond sombre, cette teinte laissait « a partir de » a
+   1,00 de contraste sur l'ivoire : invisible, pas discrete. */
+.vd #prix .tar-apd{color:var(--faint);}
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -3605,6 +3633,14 @@ body{
 @media (max-width:560px){ .flux{grid-template-columns:minmax(0,1fr);} }
 
 .s-note--flux{ margin-top:clamp(18px,2vw,26px); max-width:78ch; }
+
+/* La ligne qui annonce les captures. Elle etait un H2 : « Chaque chiffre garde
+   sa source », en tete d'une section entiere qui ne contenait que des images.
+   La phrase valait mieux que la section, alors elle est restee et la section
+   est partie. En tete de titre elle allongeait la liste de fonctionnalites que
+   l'oeil parcourt ; ici elle introduit ce qu'on va voir. */
+.s-note--preuve{ margin-top:clamp(30px,3.4vw,44px); max-width:62ch; }
+.s-note--preuve b{ font-weight:600; color:var(--ink); }
 
 /* La troisieme question porte une image. Elle est la seule, et c'est voulu :
    deux images auraient fait une galerie, trois auraient fait un triptyque, et

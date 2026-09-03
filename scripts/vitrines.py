@@ -413,9 +413,8 @@ PIED_ENT = pied(
     "Riseva met des entreprises françaises au service des associations qui protègent "
     "le vivant, partout en France. Une saison, un barème public, un rapport qui tient debout.",
     [("La saison", [("#plateforme", "Ce que ça répond"), ("#outil-rse", "L'outil RSE"),
-                    ("#pilotage", "La preuve, écran par écran"),
-                    ("#challenge", "Le challenge"), ("#equipes", "Côté salariés"),
-                    ("#affiches", "Les affiches"),
+                                   ("#challenge", "Le challenge"),
+                    ("#equipes", "Côté salariés"),
                     ("#associations", "Côté associations"),
                     ("#prix", "Le prix")]),
      ("Les règles", [("/reglement.html", "Le règlement du barème"),
@@ -815,7 +814,7 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
        "Dix taux calculés, chacun avec sa formule à côté du chiffre.", "outil-rse"),
       ("La preuve", "Chaque chiffre<br><span class='it'>garde sa source.</span>",
        "Sa date, la personne qui l'a saisie, celle qui l'a approuvée, ses pièces.",
-       "pilotage"),
+       "outil-rse"),
     ])}
 
     {chiffres_hero()}
@@ -873,10 +872,18 @@ CHALLENGE_ENT = f"""<section id="challenge" class="chal verre-sect">
 </section>"""
 
 
+# ── cote salaries ───────────────────────────────────────────
+# C'etait deux sections : « Deux ecrans, et chacun se propose » (1018 px pour
+# 59 mots) puis « Ce qui se met au-dessus de la machine a cafe » (1105 px).
+# Elles repondaient a la meme question, la seule que se pose un dirigeant
+# multi-sites devant ce produit : comment des gens repartis sur vingt sites
+# commencent-ils vraiment. La reponse tient en deux objets, un lien et une
+# affiche, et elle n'avait pas besoin de deux titres pour se dire.
 EQUIPES_ENT = f"""<section id="equipes">
   <div class="layer">
-{entete("Côté salariés", "Deux écrans,<br><span class='it'>et chacun se propose.</span>",
-        "Un salarié qui se sent inscrit d'office ne revient pas une deuxième fois.")}
+{entete("Côté salariés", "Un lien, une affiche,<br><span class='it'>et chacun se propose.</span>",
+        "Un salarié qui se sent inscrit d'office ne revient pas une deuxième fois. Il faut "
+        "donc qu'il croise l'information là où il est, et qu'il y aille de lui-même.")}
 
     <div class="duo duo--pile">
       {capture("salarie-saison",
@@ -890,6 +897,31 @@ EQUIPES_ENT = f"""<section id="equipes">
     <p class="s-note s-note--grand">L'objectif de la saison se compte en <b>personnes venues</b>,
       pas en points : il ne s'atteint qu'en allant chercher quelqu'un qui n'est pas encore
       venu. <a class="tlink" href="/app/?demo=1">Explorer l'espace salarié</a></p>
+
+    <div class="aff-scene">
+      {photo("affiche-bureau",
+             "L'affiche A3 que Riseva génère, entière, posée devant un plateau de bureaux : "
+             "le nom d'une entreprise de démonstration, la saison, les formats proposés, le "
+             "lien d'inscription et son code QR", "", " photo--mur")}
+      <p class="aff-mention mono">Affiche sortie du jeu de démonstration : le nom d'entreprise
+        et les nombres du bas de page en viennent, ils ne décrivent aucune saison réalisée.</p>
+      <div class="aff-encart">
+        {photo("affiche-qr",
+               "Le bas de l'affiche : le code QR et le lien d'inscription de l'entreprise, "
+               "en toutes lettres à côté", "", " shot--affiche")}
+        <p class="mono">Le code QR porte le lien de vos équipes. Il se scanne pour de bon.</p>
+      </div>
+      <div class="aff-texte">
+        <h3>Elle porte le lien de votre entreprise</h3>
+        <p>Chaque affiche est générée avec le lien d'inscription de vos équipes et le code QR
+          qui va avec. Un salarié le scanne depuis la salle de pause et son compte est ouvert
+          avant qu'il soit remonté à son poste.</p>
+        <h3>Quatre envois compris</h3>
+        <p>Elles partent imprimées, en nombre suffisant pour tous vos sites, à quatre moments
+          de la saison. Un site qui ouvre en cours d'année la réimprime lui-même.</p>
+        <p class="s-note"><a class="tlink" href="/app/?demo=1">Voir l'écran des supports</a></p>
+      </div>
+    </div>
   </div>
 </section>"""
 
@@ -905,14 +937,12 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss verre-sect">
         "ni contrôle ni certification, mais c'est déjà tout autre chose qu'un chiffre que vous "
         "auriez écrit vous-même.")}
 
-    <div class="photos3">
-      {photo("refuge", "Un chien de refuge trotte en laisse au soleil, à côté de la personne "
-             "qui le sort", "")}
-      {photo("plantation", "Deux paires de mains tassent la terre autour d'un jeune arbre "
-             "qui vient d'être planté", "")}
-      {photo("maraude", "Un bol chaud passe de main en main au-dessus d'une table de "
-             "distribution, devant une camionnette", "")}
-    </div>
+    <!-- Trois photographies en vignettes tenaient ici, refuge, plantation, maraude.
+         Une rangee de trois images egales, sans legende, juste sous une photographie
+         de couverture : quatre images pour la meme idee, et le motif se reconnait
+         avant qu'on regarde ce qu'il y a dessus. La couverture reste, seule et
+         grande ; ce que les trois vignettes montraient est nomme en toutes lettres
+         dans la liste des formats, quelques lignes plus bas. -->
 
     <div class="verre asso-verre verre-anim">
       <i class="verre-lumiere" aria-hidden="true"></i>
@@ -927,9 +957,9 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss verre-sect">
         Riseva ne prélève rien sur ses dons.</li>
       <li><b>Une confirmation courte, sans se connecter.</b> Un lien dans un message après
         la date prévue, trois réponses sur la page qu'il ouvre, et c'est terminé.</li>
-      <li><b>Rien à produire pour vous.</b> Passé quatorze jours sans réponse, la mission est
-        clôturée et son résultat reste marqué <b>estimé</b> partout où il apparaît, vos
-        rapports compris.</li>
+      <li><b>Rien à produire pour vous.</b> Passé quatorze jours sans réponse, c'est la
+        <b>clôture automatique</b> : la mission se ferme et son résultat reste marqué
+        <b>estimé</b> partout où il apparaît, vos rapports compris.</li>
     </ul>
 
     <div class="fmt-bloc fmt-bloc--incruste">
@@ -1174,51 +1204,24 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss verre-sect">
   </div>
 </section>"""
 
-PILOTAGE_ENT = f"""<section id="pilotage">
-  <div class="layer">
-{entete("La preuve", "Chaque chiffre<br><span class='it'>garde sa source.</span>",
-        "Quatre écrans de l'application, tels qu'ils s'affichent, avec un jeu de "
-        "démonstration.")}
-
-{onglets([
-  ("miss", "Les missions", capture("missions",
-      "La liste des missions d'une entreprise, avec leur état de confirmation",
-      "Chaque mission, son association, son état")),
-  ("rapp", "Les rapports", capture("rapports",
-      "Le rapport trimestriel d'une entreprise dans Riseva",
-      "Les rapports, en CSV et en PDF")),
-  ("meca", "Le dossier de mécénat", capture("mecenat",
-      "Le calcul du mécénat ligne par ligne : dons versés, mécénat de compétences au coût "
-      "de revient, assiette, plafond, report",
-      "Le calcul, ligne par ligne")),
-  ("indi", "Les indicateurs", capture("indicateurs-formule",
-      "Les taux de sécurité consolidés, chacun avec sa formule sous son libellé, et la "
-      "colonne approuvé séparée de la colonne provisoire",
-      "Chaque taux avec sa formule")),
-])}
-
-    {capture("groupe",
-             "La vue consolidée d'un groupe : sociétés, sites et indicateurs réunis",
-             "Un groupe, ses sociétés, ses établissements", " shot--seule")}
-
-    <dl class="faits4 faits4--serre">
-      <div><dt class="mono">Trois niveaux</dt><dd>le groupe, les sociétés avec leur SIREN,
-        les établissements</dd></div>
-      <div><dt class="mono">Cloisonné</dt><dd>payer la facture ne donne pas accès aux
-        personnes d'une filiale</dd></div>
-      <div><dt class="mono">Clôture automatique</dt><dd>passé quatorze jours sans réponse, la
-        mission est clôturée et son résultat reste <b>estimé</b></dd></div>
-      <div><dt class="mono">Rien à installer</dt><dd>un lien à diffuser, chaque salarié ouvre
-        son compte lui-même</dd></div>
-    </dl>
-  </div>
-</section>"""
-
-
+# ── l'outil RSE ─────────────────────────────────────────────
+# Cette section en etait deux. « Ce que vous ne referez plus a la main »
+# occupait 1651 px pour 182 mots ; « Chaque chiffre garde sa source » en
+# occupait 2081 pour 93 mots et cinq captures, soit un huitieme de la page pour
+# une galerie. Les deux defendaient le meme argument, et leurs listes de faits
+# portaient un doublon litteral : « Trois niveaux » d'un cote, « Groupes et
+# filiales » de l'autre, avec la meme phrase dessous.
+#
+# Elles n'en font plus qu'une, dans l'ordre ou un acheteur decide : l'argument,
+# puis le calendrier qui montre que ca tourne sans lui, puis les ecrans comme
+# preuve, puis les quatre faits qui tranchent. La capture de collecte a saute :
+# l'onglet « Les indicateurs » montrait deja l'ecran d'apres, et l'ecran de
+# groupe est devenu le cinquieme onglet au lieu d'une sixieme grande image.
 OUTIL_ENT = f"""<section id="outil-rse" class="band">
   <div class="layer">
 {entete("L'outil RSE", "Ce que vous ne referez plus<br><span class='it'>à la main.</span>",
-        "Obtenir les chiffres de chaque site, et relancer jusqu'à ce que le dernier réponde.")}
+        "Obtenir les chiffres de chaque site, relancer jusqu'à ce que le dernier réponde, "
+        "et garder sous chaque total la trace de qui l'a saisi.")}
 
     <ul class="benef">
       <li class="rv">
@@ -1238,17 +1241,35 @@ OUTIL_ENT = f"""<section id="outil-rse" class="band">
       </li>
     </ul>
 
-    {capture("indicateurs",
-             "L'écran de collecte des indicateurs dans Riseva : l'état de chaque site, les "
-             "totaux par rubrique et les taux calculés",
-             "La collecte, et le rapport qui en sort", " shot--seule")}
-
 {flux([
   ("Jour 1", "vous cochez les rubriques et la date limite"),
   ("Jour 2", "chaque site voit sa part, sans rien installer"),
   ("J-7, J-2", "le rappel part tout seul"),
   ("Échéance", "vous voyez qui manque, nommément"),
   ("Le lendemain", "le rapport est là, daté, avec sa méthode"),
+])}
+
+    <p class="s-note s-note--preuve"><b>Et chaque chiffre garde sa source.</b> Cinq écrans de
+      l'application, tels qu'ils s'affichent, avec un jeu de démonstration.</p>
+
+{onglets([
+  ("miss", "Les missions", capture("missions",
+      "La liste des missions d'une entreprise, avec leur état de confirmation",
+      "Chaque mission, son association, son état")),
+  ("rapp", "Les rapports", capture("rapports",
+      "Le rapport trimestriel d'une entreprise dans Riseva",
+      "Les rapports, en CSV et en PDF")),
+  ("meca", "Le dossier de mécénat", capture("mecenat",
+      "Le calcul du mécénat ligne par ligne : dons versés, mécénat de compétences au coût "
+      "de revient, assiette, plafond, report",
+      "Le calcul, ligne par ligne")),
+  ("indi", "Les indicateurs", capture("indicateurs-formule",
+      "Les taux de sécurité consolidés, chacun avec sa formule sous son libellé, et la "
+      "colonne approuvé séparée de la colonne provisoire",
+      "Chaque taux avec sa formule")),
+  ("grpe", "Le groupe entier", capture("groupe",
+      "La vue consolidée d'un groupe : sociétés, sites et indicateurs réunis",
+      "Un groupe, ses sociétés, ses établissements")),
 ])}
 
     <dl class="faits4 faits4--serre">
@@ -1258,92 +1279,78 @@ OUTIL_ENT = f"""<section id="outil-rse" class="band">
         d'actions</dd></div>
       <div><dt class="mono">La fiche VSME</dt><dd>les onze rubriques de la norme européenne
         volontaire</dd></div>
-      <div><dt class="mono">Groupes et filiales</dt><dd>trois niveaux : groupe, sociétés,
-        établissements</dd></div>
+      <div><dt class="mono">Groupes et filiales</dt><dd>trois niveaux, chaque société avec son
+        SIREN, et <b>payer la facture ne donne pas accès aux personnes d'une filiale</b></dd></div>
     </dl>
   </div>
 </section>"""
 
 
-# ── ce que ça change ────────────────────────────────────────────────────────
-# Trois bénéfices, et chacun porte son chiffre. Dans la version précédente,
-# celui du milieu n'en avait pas : au lieu de trois colonnes, l'œil voyait deux
-# colonnes et un trou. Le rang a donc changé, et le troisième a reçu le sien.
-AFFICHES_ENT = f"""<section id="affiches">
-  <div class="layer">
-{entete("Les affiches", "Ce qui se met<br><span class='it'>au-dessus de la machine à café.</span>",
-        "Un lien envoyé une fois par courriel se perd. Une affiche reste, et elle parle aux "
-        "gens qui n'ouvrent jamais leurs mails.")}
-
-    <div class="aff-scene">
-      {photo("affiche-bureau",
-             "L'affiche A3 que Riseva génère, entière, posée devant un plateau de bureaux : "
-             "le nom d'une entreprise de démonstration, la saison, les formats proposés, le "
-             "lien d'inscription et son code QR", "", " photo--mur")}
-      <p class="aff-mention mono">Affiche sortie du jeu de démonstration : le nom d'entreprise
-        et les nombres du bas de page en viennent, ils ne décrivent aucune saison réalisée.</p>
-      <div class="aff-encart">
-        {photo("affiche-qr",
-               "Le bas de l'affiche : le code QR et le lien d'inscription de l'entreprise, "
-               "en toutes lettres à côté", "", " shot--affiche")}
-        <p class="mono">Le code QR porte le lien de vos équipes. Il se scanne pour de bon.</p>
-      </div>
-      <div class="aff-texte">
-        <h3>Elle porte le lien de votre entreprise</h3>
-        <p>Chaque affiche est générée avec le lien d'inscription de vos équipes et le code QR
-          qui va avec. Un salarié le scanne depuis la salle de pause et son compte est ouvert
-          avant qu'il soit remonté à son poste.</p>
-        <h3>Quatre envois compris</h3>
-        <p>Elles partent imprimées, en nombre suffisant pour tous vos sites, à quatre moments
-          de la saison. Un site qui ouvre en cours d'année la réimprime lui-même.</p>
-        <p class="s-note"><a class="tlink" href="/app/?demo=1">Voir l'écran des supports</a></p>
-      </div>
-    </div>
-  </div>
-</section>"""
-
-
+# ── le dernier ecran ────────────────────────────────────────
+# Il finissait sur « Vingt places au tarif fondateur ». Les vingt places sont
+# vraies, mais en faire le titre du dernier ecran, c'est finir une page sans un
+# seul client par un compte a rebours : le procede se reconnait avant qu'on lise
+# la phrase, et il remplace la preuve qu'on n'a pas par une urgence qu'on
+# fabrique. La relecture croisee s'est divisee la-dessus — l'une y voyait un bon
+# levier faute de preuve sociale, l'autre le tic de la startup traduite — et
+# c'est justement l'argument « faute de preuve » qui tranche : on ne comble pas
+# une preuve manquante par une pression.
+#
+# Ce qui la remplace etait deja ecrit, dans les engagements de service, la ou
+# personne ne va : cinq points constates avec le client, et si l'un manque,
+# acompte rembourse et solde non du. Une entreprise sans references ne peut pas
+# dire « ils nous font confiance » ; elle peut dire « vous ne payez pas si ca ne
+# marche pas », et c'est verifiable. Les vingt places restent, comme condition.
 BANDEAU_ENT = """<section id="rejoindre" class="bandeau">
   <div class="layer">
     <div class="bandeau-in">
       <div>
-        <h2>Vingt places au tarif fondateur.</h2>
-        <p>La remise de lancement est limitée à vingt entreprises, et au 31 décembre 2026.
-          Avant que le solde soit facturé, les cinq critères de démarrage écrits dans les
-          engagements de service sont constatés avec vous.</p>
+        <h2>On ne vous facture pas une promesse.</h2>
+        <p>Une saison commence quand l'outil marche chez vous, pas à la signature. Cinq
+          points sont constatés ensemble, vous les vérifiez vous-même, et s'il en manque
+          un, <b>l'acompte est remboursé et le solde n'est pas dû</b>. C'est écrit dans nos
+          <a href="/engagements.html">engagements de service</a>.</p>
       </div>
       <div class="bandeau-cta">
         <a class="btn btn-lg" href="/inscription.html"><span class="dot"></span>Réserver une place</a>
-        <span class="mono">Préinscription gratuite, sans carte bancaire,
-          sans engagement.</span>
+        <span class="mono">Préinscription gratuite, sans carte bancaire, sans engagement.
+          Remise de lancement&nbsp;: vingt entreprises, jusqu'au 31&nbsp;décembre 2026.</span>
       </div>
     </div>
   </div>
 </section>"""
 
 
+# ── les questions qui decident ─────────────────────────────
+# « Riseva a-t-elle deja des resultats a montrer ? » etait la huitieme et
+# derniere question, en bas d'une liste que personne ne descend. C'est pourtant
+# la seule que tout le monde se pose devant une entreprise sans un client, et sa
+# reponse — non, aucun, et voici ce qui est contractuel des le premier jour —
+# est ce que cette page a de plus credible. Elle est donc premiere, et c'est
+# elle qui est ouverte quand on arrive : les sept qui suivent se lisent alors
+# comme de la franchise et non comme un argumentaire.
 FAQ_ENT = faq([
+  ("Riseva a-t-elle déjà des résultats à montrer ?",
+   "<p>Non, et cette page n'en affiche aucun. La première saison démarre en janvier : les "
+   "écrans montrés ici viennent d'un jeu de démonstration et servent à montrer la forme des "
+   "restitutions. Les chiffres publics de la page sont des faits extérieurs, datés et "
+   "sourcés.</p>"
+   "<p>Ce qui est contractuel dès le premier jour est écrit dans "
+   "<a href='/engagements.html'>les engagements de service</a> : les cinq critères de "
+   "démarrage, l'acompte remboursé s'ils ne sont pas constatés, et le délai de quatorze "
+   "jours au terme duquel un résultat non confirmé reste marqué comme estimé.</p>"),
+
+  # La reponse recopiait la grille : les six paliers, la remise fondateur et le
+  # devis au-dela de deux mille salaries, mot pour mot, a mille deux cents
+  # pixels du tableau qui les affiche deja. Elle ne dit plus que ce que le
+  # tableau ne dit pas, et renvoie a lui pour le reste.
   ("Combien coûte une saison ?",
-   f"<p>La grille est <a href='#prix'>affichée sur cette page</a> : de "
-   # `[:-2]` coupait « € » et laissait « &nbsp » sans point-virgule : l'entite
-   # restait a moitie ecrite dans la page. Et la fourchette annoncait le dernier
-   # palier comme un prix ferme, alors que le heros et la note sous la grille
-   # disent « a partir de ». Les trois disent maintenant la meme chose.
-   f"<b>{EUR(TARIFS['paliers'][0]['prix']).replace('&nbsp;€', '')} à "
-   f"{EUR(TARIFS['paliers'][-2]['prix'])} HT</b> pour douze mois, selon votre effectif, "
-   f"un à {EN_LETTRES.get(TARIFS['paliers'][-2]['sites'], TARIFS['paliers'][-2]['sites'])} "
-   f"sites compris selon la tranche. Au-delà de deux mille salariés, sur devis à partir de "
-   f"{EUR(TARIFS['paliers'][-1]['prix'])}, "
-   f"{EN_LETTRES.get(TARIFS['paliers'][-1]['sites'], TARIFS['paliers'][-1]['sites'])} "
-   f"sites compris. "
-   f"Les {TARIFS['fondateur_places']} premières entreprises signataires bénéficient de "
-   f"{int(TARIFS['fondateur_taux'] * 100)} % de remise sur leur première saison.</p>"
-   "<p>Pas de facturation par salarié, pas de module en supplément, pas de commission sur les "
-   "dons. Les associations, elles, ne paient jamais rien.</p>"
+   "<p>La grille complète est <a href='#prix'>juste au-dessus</a>, avec le simulateur qui "
+   "donne le montant exact pour votre effectif. Ce qu'elle ne dit pas et qui compte autant : "
+   "<b>pas de facturation par salarié, pas de module en supplément, pas de commission sur "
+   "les dons</b>. Les associations, elles, ne paient jamais rien.</p>"
    "<p>Nous ne comparons pas notre prix à celui d'un concurrent que nous ne nommerions pas : "
-   "une fourchette annoncée sans source ne vous aide pas à décider. La grille complète est "
-   "publique, elle est plus bas sur cette page, et le simulateur donne le montant exact pour "
-   "votre effectif.</p>"),
+   "une fourchette annoncée sans source ne vous aide pas à décider.</p>"),
   ("Qu'est-ce qui est compris dans l'abonnement ?",
    "<p>Une saison d'un an, avec les comptes correspondant à votre effectif, les formats du "
    "barème, l'accompagnement au lancement, les affiches et les supports, et les rapports "
@@ -1403,15 +1410,6 @@ FAQ_ENT = faq([
    "<a href='/engagements.html'>les engagements de service</a>.</p>"
    "<p><b>Ce qui reste à votre charge</b>, et qui n'est donc pas compris dans l'abonnement :</p>"
    "<ul class='qa-l'>" + "".join(f"<li>{x}</li>" for x in TARIFS["exclus"]) + "</ul>"),
-  ("Riseva a-t-elle déjà des résultats à montrer ?",
-   "<p>Non, et cette page n'en affiche aucun. La première saison démarre en janvier : les "
-   "écrans montrés ici viennent d'un jeu de démonstration et servent à montrer la forme des "
-   "restitutions. Les chiffres publics de la page sont des faits extérieurs, datés et "
-   "sourcés.</p>"
-   "<p>Ce qui est contractuel dès le premier jour est écrit dans "
-   "<a href='/engagements.html'>les engagements de service</a> : les cinq critères de "
-   "démarrage, l'acompte remboursé s'ils ne sont pas constatés, et le délai de quatorze "
-   "jours au terme duquel un résultat non confirmé reste marqué comme estimé.</p>"),
 ])
 
 
@@ -1461,7 +1459,7 @@ def grille_tarifaire():
           <td class="tar-sites">{p['sites']} site{'s' if p['sites'] > 1 else ''} inclus</td>
         </tr>"""
     inclus = "".join(f"<li>{x}</li>" for x in TARIFS["inclus"])
-    return f"""<section id="prix" class="band-moss">
+    return f"""<section id="prix">
   <div class="layer">
 {entete("Le prix", "Un tarif public,<br><span class='it'>avant de décider.</span>",
         "Une saison de douze mois, tout compris. Le tarif suit votre effectif parce que c'est "
@@ -1525,11 +1523,9 @@ PRIX_ENT = grille_tarifaire()
 CORPS_ENT = "\n\n".join([
     HERO_ENT,           # ce que c'est, ce que ca coute, a quoi ca ressemble
     PLATEFORME_ENT,     # la console de verre : les trois questions, et leurs ecrans
-    OUTIL_ENT,          # trois benefices, une capture, cinq dates
-    PILOTAGE_ENT,       # la demonstration, quatre onglets
+    OUTIL_ENT,          # l'argument, le calendrier, les cinq ecrans
     CHALLENGE_ENT,      # la photographie pleine largeur, et le panneau de verre
     EQUIPES_ENT,        # les deux ecrans du salarie, alignes
-    AFFICHES_ENT,       # ce qui arrive par la poste
     ASSOCIATIONS_ENT,   # l'annuaire verifie, et la confirmation
     PRIX_ENT,           # la grille, et le devis a cote
     FAQ_ENT,            # les questions qui decident vraiment

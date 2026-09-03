@@ -336,7 +336,7 @@ def main():
         # C'est le seul objet Riseva qu'un salarié voit sans ouvrir un écran, et
         # la section qui le montre avait disparu. Elle montre l'affiche telle
         # qu'elle sort de la plateforme, pas une photo d'affiche posée sur un mur.
-        aff = norm(p.inner_text("#affiches"))
+        aff = norm(p.inner_text(".aff-scene"))
         verifie("la vitrine montre l'affiche et ce qu'elle porte",
                 "code QR" in aff and "lien d'inscription" in aff
                 and "quatre moments de la saison" in aff)
@@ -344,7 +344,7 @@ def main():
         # `scripts/captures.py` a partir de l'affiche que la plateforme genere :
         # la scene entiere et le detail du code QR. La section montrait aupavant
         # une affiche de synthese, coupee en bas, a cote de la vraie.
-        srcs = p.eval_on_selector_all("#affiches img", "l=>l.map(e=>e.getAttribute('src'))")
+        srcs = p.eval_on_selector_all(".aff-scene img", "l=>l.map(e=>e.getAttribute('src'))")
         verifie("l'affiche montrée est une vraie sortie de la plateforme",
                 len(srcs) == 2 and all("/photos/affiche-" in x for x in srcs), str(srcs))
         gen = (RACINE.parent / "scripts" / "captures.py").read_text(encoding="utf-8")
@@ -408,6 +408,117 @@ def main():
                     doublons.append(page + " : " + t_[:60])
         verifie("aucun titre n'apparait deux fois dans la meme page",
                 not doublons, str(doublons[:5]))
+
+        # ── les ancres internes ─────────────────────────────────────────────
+        # En fusionnant deux sections, la section #pilotage a disparu de la page
+        # et trois liens ont continue a pointer dessus : un pilier du premier
+        # ecran et deux entrees du pied de page. Un lien d'ancre mort ne casse
+        # rien de visible — le navigateur ne bouge pas, et c'est tout — donc
+        # personne ne le voit, ni en relisant le code, ni en regardant la page.
+        # Il se mesure, en revanche, et en une ligne : chaque href="#quelque
+        # chose" doit trouver son element dans la meme page.
+        mortes = []
+        for page in ("/", "/associations.html", "/rejoindre.html", "/inscription.html",
+                     "/charte-associations.html", "/cgv.html", "/reglement.html",
+                     "/mentions.html", "/confidentialite.html", "/securite.html",
+                     "/engagements.html", "/moderation.html"):
+            p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(200)
+            perdues = p.evaluate("""()=>[...document.querySelectorAll('a[href^="#"]')]
+                .map(a=>a.getAttribute('href'))
+                .filter(h=>h.length>1 && h!=='#top' && !document.getElementById(h.slice(1)))""")
+            for h in perdues:
+                mortes.append(page + " -> " + h)
+        verifie("aucun lien d'ancre ne pointe vers une section qui n'existe plus",
+                not mortes, str(mortes[:8]))
+
+        # ── le contraste du texte ───────────────────────────────────────────
+        # En passant la section du prix du vert fonce a l'ivoire, deux teintes
+        # ecrites pour le fond sombre sont restees : la grille tarifaire entiere
+        # s'est retrouvee en blanc casse sur ivoire, et « a partir de » est passe
+        # a 1,00 de contraste, c'est-a-dire exactement la couleur du fond. Rien
+        # ne plante, rien n'est signale, et on ne le voit pas en relisant du CSS :
+        # il faut mesurer la couleur reellement calculee contre le fond
+        # reellement peint. Le seuil est celui du WCAG AA : 4,5 pour le texte
+        # courant, 3,0 des 24 px ou des 18,66 px en gras.
+        # Les elements aria-hidden sont exclus : les chiffres en filigrane du
+        # panneau de verre sont a 7 % d'opacite parce qu'ils sont un decor, et un
+        # test qui les signale est un test qu'on apprend a ignorer.
+        MESURE_CONTRASTE = """()=>{
+          const lum=c=>{const [r,g,b]=c.map(v=>{v/=255;
+            return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)});
+            return .2126*r+.7152*g+.0722*b;};
+          const parse=s=>{const m=s.match(/[\d.]+/g); if(!m) return null;
+            return {c:[+m[0],+m[1],+m[2]], a:m.length>3?+m[3]:1};};
+          const fond=e=>{let n=e;
+            while(n && n!==document.documentElement){
+              const p=parse(getComputedStyle(n).backgroundColor);
+              if(p && p.a>0.9) return p.c; n=n.parentElement;}
+            return [255,255,255];};
+          const out=[];
+          document.querySelectorAll('body *').forEach(e=>{
+            let t=''; for(const c of e.childNodes) if(c.nodeType===3) t+=c.textContent.trim();
+            if(!t || e.offsetParent===null) return;
+            if(e.closest('[aria-hidden="true"]')) return;
+            const s=getComputedStyle(e); const f=parse(s.color); if(!f) return;
+            const bg=fond(e);
+            const eff=f.c.map((v,i)=>v*f.a + bg[i]*(1-f.a));
+            const l1=lum(eff), l2=lum(bg);
+            const r=(Math.max(l1,l2)+.05)/(Math.min(l1,l2)+.05);
+            const px=parseFloat(s.fontSize), gras=parseInt(s.fontWeight)>=700;
+            const seuil=(px>=24 || (px>=18.66 && gras)) ? 3.0 : 4.5;
+            if(r < seuil) out.push(r.toFixed(2)+' < '+seuil+'  '+e.tagName+'.'
+              +String(e.className).slice(0,24)+'  '+Math.round(px)+'px | '+t.slice(0,36));
+          });
+          return out;}"""
+        for page in ("/", "/associations.html", "/rejoindre.html", "/inscription.html",
+                     "/reglement.html", "/engagements.html"):
+            p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(300)
+            haut = p.evaluate("()=>document.documentElement.scrollHeight")
+            for y in range(0, haut, 600):
+                p.evaluate(f"window.scrollTo(0,{y})"); p.wait_for_timeout(40)
+            faibles = p.evaluate(MESURE_CONTRASTE)
+            verifie(f"tout le texte atteint le contraste AA sur {page}",
+                    not faibles, str(faibles[:4]))
+
+        # ── la barre de navigation sur telephone ────────────────────────────
+        # Deux defauts sont passes ici l'un apres l'autre, et le second a ete
+        # cree en corrigeant le premier. D'abord le bouton « Ouvrir la
+        # demonstration » se laissait comprimer et perdait son dernier « n » ;
+        # on lui a mis `flex:none`, il a garde sa largeur entiere, et c'est le
+        # bouton de menu — dernier de la rangee — qui est sorti de l'ecran :
+        # sur un telephone de 390 px, il allait de 371 a 415. Ensuite, le
+        # panneau du menu passait par-dessus la barre, donc par-dessus la croix
+        # qui le ferme : un menu qu'on ouvre et qu'on ne peut plus refermer.
+        # Aucun des deux ne casse quoi que ce soit, aucun des deux ne se voit
+        # sur un ecran d'ordinateur, et les deux rendent le site inutilisable
+        # sur telephone. Ils se mesurent, eux.
+        for largeur in (320, 360, 390, 430):
+            mctx = nav.new_context(viewport={"width": largeur, "height": 800},
+                                   locale="fr-FR", reduced_motion="reduce")
+            m = mctx.new_page()
+            m.goto(BASE + "/", wait_until="networkidle"); m.wait_for_timeout(300)
+            dehors = m.evaluate("""(w)=>{const out=[];
+                document.querySelectorAll('.nav *').forEach(e=>{
+                  if(e.offsetParent===null) return;
+                  const r=e.getBoundingClientRect();
+                  if(r.right>w+1 || r.left<-1)
+                    out.push(e.tagName+'.'+String(e.className).slice(0,20)
+                             +' '+Math.round(r.left)+'..'+Math.round(r.right));});
+                return out;}""", largeur)
+            verifie(f"rien ne sort de la barre de navigation a {largeur} px",
+                    not dehors, str(dehors[:4]))
+            m.click(".nav-burger"); m.wait_for_timeout(450)
+            verifie(f"le menu s'ouvre a {largeur} px", m.is_visible("#navSheet"))
+            dessus = m.evaluate("""()=>{const b=document.querySelector('.nav-burger');
+                const r=b.getBoundingClientRect();
+                const e=document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);
+                return b===e || b.contains(e);}""")
+            verifie(f"et la croix qui le referme reste au-dessus du panneau a {largeur} px",
+                    dessus, "le panneau recouvre le bouton du menu")
+            m.click(".nav-burger"); m.wait_for_timeout(450)
+            verifie(f"un second appui referme le menu a {largeur} px",
+                    not m.is_visible("#navSheet"))
+            m.close(); mctx.close()
 
         # ── la longueur de ligne ────────────────────────────────────────────
         # Au-dela de quatre-vingts signes par ligne, l'oeil rate le retour a la
