@@ -347,7 +347,7 @@ def faits(items):
 # Le titre et le chapeau se passent en argument : les deux vitrines partagent le
 # composant mais pas le public. « Les questions qui decident d'une signature »
 # s'adressait aussi a des associations, qui ne signent rien et ne paient rien.
-def faq(items, titre, note, eyebrow="La FAQ"):
+def faq(items, titre, note, invite, eyebrow="La FAQ"):
     idx = "\n      ".join(
         f'<li><button class="qa-link mono{" is-on" if not i else ""}" type="button" '
         f'role="tab" aria-selected="{"true" if not i else "false"}">'
@@ -361,9 +361,12 @@ def faq(items, titre, note, eyebrow="La FAQ"):
   <div class="layer">
 {entete(eyebrow, titre, note)}
     <div class="qa-split">
-      <ol class="qa-index rv" id="qaIndex" role="tablist" aria-label="Sommaire des questions">
-      {idx}
-      </ol>
+      <div class="qa-colonne rv">
+        <ol class="qa-index" id="qaIndex" role="tablist" aria-label="Sommaire des questions">
+        {idx}
+        </ol>
+        <p class="qa-invite">{invite}</p>
+      </div>
       <div class="qa-panel rv d2" id="qaPanel">
       {cards}
       </div>
@@ -900,9 +903,15 @@ EQUIPES_ENT = f"""<section id="equipes">
                "Les besoins près de chez lui")}
     </div>
 
-    <p class="s-note s-note--grand">L'objectif de la saison se compte en <b>personnes venues</b>,
-      pas en points : il ne s'atteint qu'en allant chercher quelqu'un qui n'est pas encore
-      venu. <a class="tlink" href="/app/?demo=1">Explorer l'espace salarié</a></p>
+    <!-- La phrase disait mot pour mot ce que la capture de gauche affiche deja,
+         deux cents pixels plus haut. Tant que la capture etait recadree et
+         illisible, le doublon ne se voyait pas ; entiere, il saute aux yeux.
+         Elle dit maintenant ce que la capture ne dit pas : a quoi sert de
+         compter ainsi. -->
+    <p class="s-note s-note--grand">Le compteur d'un site ne bouge que lorsqu'une personne
+      y va <b>pour la première fois</b>. C'est ce qui empêche une saison entière de se jouer
+      entre les cinq mêmes volontaires.
+      <a class="tlink" href="/app/?demo=1">Explorer l'espace salarié</a></p>
 
     <div class="aff-scene">
       {photo("affiche-bureau",
@@ -1342,7 +1351,7 @@ BANDEAU_ENT = """<section id="rejoindre" class="bandeau">
 # elle qui est ouverte quand on arrive : les sept qui suivent se lisent alors
 # comme de la franchise et non comme un argumentaire.
 QUESTIONS_ENT = [
-  ("Riseva a-t-elle déjà des résultats à montrer ?",
+  ("Riseva a-t-elle déjà des résultats à montrer&nbsp;?",
    "<p>Non, et cette page n'en affiche aucun. La première saison démarre en janvier : les "
    "écrans montrés ici viennent d'un jeu de démonstration et servent à montrer la forme des "
    "restitutions. Les chiffres publics de la page sont des faits extérieurs, datés et "
@@ -1356,14 +1365,14 @@ QUESTIONS_ENT = [
   # devis au-dela de deux mille salaries, mot pour mot, a mille deux cents
   # pixels du tableau qui les affiche deja. Elle ne dit plus que ce que le
   # tableau ne dit pas, et renvoie a lui pour le reste.
-  ("Combien coûte une saison ?",
+  ("Combien coûte une saison&nbsp;?",
    "<p>La grille complète est <a href='#prix'>juste au-dessus</a>, avec le simulateur qui "
    "donne le montant exact pour votre effectif. Ce qu'elle ne dit pas et qui compte autant : "
    "<b>pas de facturation par salarié, pas de module en supplément, pas de commission sur "
    "les dons</b>. Les associations, elles, ne paient jamais rien.</p>"
    "<p>Nous ne comparons pas notre prix à celui d'un concurrent que nous ne nommerions pas : "
    "une fourchette annoncée sans source ne vous aide pas à décider.</p>"),
-  ("Qu'est-ce qui est compris dans l'abonnement ?",
+  ("Qu'est-ce qui est compris dans l'abonnement&nbsp;?",
    "<p>Une saison d'un an, avec les comptes correspondant à votre effectif, les formats du "
    "barème, l'accompagnement au lancement, les affiches et les supports, et les rapports "
    "trimestriels et annuel.</p>"
@@ -1373,7 +1382,7 @@ QUESTIONS_ENT = [
    "commission de notre part, et rien à attendre d'un reversement de Riseva puisque l'argent "
    "ne passe pas par elle. Les délais et les frais éventuels relèvent des conditions de "
    "HelloAsso, entre l'association et lui.</p>"),
-  ("Qu'est-ce que « démarrer » veut dire, précisément ?",
+  ("Qu'est-ce que « démarrer » veut dire, précisément&nbsp;?",
    "<p>Cinq critères, constatés à la date convenue : votre espace est ouvert et le lien "
    "d'inscription fonctionne depuis un de vos postes ; les comptes commandés sont "
    "disponibles ; les formats contractuels sont actifs ; l'inventaire associatif convenu "
@@ -1382,7 +1391,7 @@ QUESTIONS_ENT = [
    "quinze jours de plus, <b>l'acompte est remboursé intégralement</b> et aucun solde n'est "
    "dû. Le solde est facturé à l'ouverture de la saison et payable à trente jours ; si le "
    "démarrage n'est pas constaté, il n'est pas dû.</p>"),
-  ("Est-ce que la dépense est déductible ?",
+  ("Est-ce que la dépense est déductible&nbsp;?",
    "<p>Deux lignes, deux régimes. L'abonnement Riseva est une prestation de services : il "
    "entre dans vos charges, TVA récupérable. Le mécénat suit l'article 238 bis du CGI et "
    "donne droit à 60 % de réduction d'impôt jusqu'à <b>2 millions d'euros de dons sur "
@@ -1391,14 +1400,14 @@ QUESTIONS_ENT = [
    "<p>Riseva calcule une estimation à partir de ce qu'elle connaît, et attend votre chiffre "
    "d'affaires, vos dons faits ailleurs et vos reports antérieurs avant d'afficher un "
    "plafond : sans eux, le chiffre serait faux. Votre expert-comptable arrête le montant.</p>"),
-  ("Quelles données sortent de chez nous ?",
+  ("Quelles données sortent de chez nous&nbsp;?",
    "<p>Le strict nécessaire, hébergé dans l'Union européenne. L'employeur ne voit jamais le "
    "détail nominatif des dons personnels de ses salariés, et un salarié peut se retirer sans "
    "avoir à se justifier. La base légale est l'intérêt légitime, pas le consentement : nous "
    "n'affichons donc pas de case à cocher qui n'en serait pas une.</p>"
    "<p>Consulter une page publique de riseva.fr ne déclenche aucune requête vers un domaine "
    "extérieur, polices comprises. Un test de la recette échoue si ce n'est plus vrai.</p>"),
-  ("Le classement, il sert à quoi ?",
+  ("Le classement, il sert à quoi&nbsp;?",
    "<p>À donner un rendez-vous que personne n'a besoin d'imposer. Il se joue entre "
    "entreprises, jamais entre salariés : personne n'est noté individuellement et une équipe "
    "qui passe son tour ne pénalise personne. La moitié basse n'est jamais nommée.</p>"
@@ -1406,7 +1415,7 @@ QUESTIONS_ENT = [
    "catégorie. Le décile, lui, n'apparaît qu'à partir de <b>dix entreprises</b> dans la "
    "catégorie : un « top 10 % » sur onze entreprises désigne la première et lui prête une "
    "avance qu'elle n'a pas.</p>"),
-  ("Quel est le périmètre exact de la plateforme ?",
+  ("Quel est le périmètre exact de la plateforme&nbsp;?",
    "<p>Riseva documente l'enregistrement administratif des associations avec la date du "
    "contrôle, les validations et qui les a faites, les méthodes de calcul publiées et "
    "refaisables à la main, les accès, les exports et les envois, ainsi que les engagements "
@@ -1420,8 +1429,22 @@ QUESTIONS_ENT = [
    "traité en détail dans "
    "<a href='/reglement.html'>le règlement</a> et dans "
    "<a href='/engagements.html'>les engagements de service</a>.</p>"
-   "<p><b>Ce qui reste à votre charge</b>, et qui n'est donc pas compris dans l'abonnement :</p>"
-   "<ul class='qa-l'>" + "".join(f"<li>{x}</li>" for x in TARIFS["exclus"]) + "</ul>"),
+   "<p>Ce qui reste à votre charge est écrit noir sur blanc, dans la question "
+   "« Qu'est-ce qui reste à ma charge&nbsp;? ».</p>"),
+  # Cette liste vivait a la fin de la question sur le perimetre. Mesure faite,
+  # cette reponse-la faisait 778 px quand les sept autres tenaient entre 342 et
+  # 425 : comme les fiches sont empilees sur la meme case de grille pour que
+  # rien ne saute d'une question a l'autre, le panneau gardait 778 px pour
+  # toutes, et il restait quatre cents pixels de cadre vide sous chacune des
+  # sept autres. Un encadre a moitie vide se lit comme un bloc casse.
+  # La liste devient donc la question qu'un acheteur pose de toute facon, avec
+  # ces mots-la, et plus aucune reponse n'est deux fois plus longue que les
+  # autres.
+  ("Qu'est-ce qui reste à ma charge&nbsp;?",
+   "<p>Ce qui n'est pas compris dans l'abonnement, écrit noir sur blanc :</p>"
+   "<ul class='qa-l'>" + "".join(f"<li>{x}</li>" for x in TARIFS["exclus"]) + "</ul>"
+   "<p>Le reste, c'est-à-dire les comptes, les rapports, les supports et "
+   "l'accompagnement, est <a href='#prix'>dans la grille</a>.</p>"),
 ]
 
 # « Ce qu'on nous demande vraiment » etait, sur une page sans un seul client,
@@ -1433,8 +1456,10 @@ FAQ_ENT = faq(QUESTIONS_ENT,
               # deja « Un tarif public, avant de decider ». Deux titres de suite qui
               # finissent sur les memes trois mots se lisent comme un seul.
               "Ce que vous voudrez vérifier<br><span class='it'>avant de signer.</span>",
-              "Les questions qui décident d'une signature, et nos réponses. Si la vôtre "
-              "manque, écrivez-la-nous à contact@riseva.fr : elle finira ici.")
+              "Les questions qui décident d'une signature, et nos réponses.",
+              "Il en manque une&nbsp;? Écrivez-la-nous à "
+              "<a class='tlink' href='mailto:contact@riseva.fr'>contact@riseva.fr</a>&nbsp;: "
+              "elle finira ici, avec sa réponse.")
 
 
 def jalons(eyebrow, titre, note, items, ident="preuve", bande=" class=\"band-moss\"",
@@ -1752,11 +1777,11 @@ ARGENT_ASSO = f"""<section id="argent" class="band-moss">
 
 FAQ_ASSO = faq(
   [
-  ("C'est vraiment gratuit ?",
+  ("C'est vraiment gratuit&nbsp;?",
    "<p>Oui. Les associations ne paient rien, ni abonnement, ni commission sur les dons, ni "
    "frais de dossier. Ce sont les entreprises qui paient l'abonnement, et c'est le seul "
    "revenu de Riseva.</p>"),
-  ("Combien de temps ça me prend ?",
+  ("Combien de temps ça me prend&nbsp;?",
    "<p>Cinq minutes pour écrire une annonce, un courriel pour confirmer après la mission. La "
    "première mise en ligne attend que nous ayons vérifié votre enregistrement administratif ; "
    "ensuite, vous publiez quand vous voulez. Il n'y a pas de tableau de bord à surveiller, pas "
@@ -1764,22 +1789,22 @@ FAQ_ASSO = faq(
    "<p>Si écrire l'annonce vous rebute, le formulaire propose les formats les plus demandés "
    "et vous n'avez qu'à changer la date et le nombre de places. Rien n'est publié tant que "
    "vous n'avez pas relu.</p>"),
-  ("Est-ce que je peux refuser quelqu'un ?",
+  ("Est-ce que je peux refuser quelqu'un&nbsp;?",
    "<p>Oui, sans avoir à vous justifier. Vous fixez le nombre de places, les dates, ce que "
    "vous acceptez et ce que vous n'acceptez pas. Une proposition peut être déclinée d'un "
    "clic.</p>"),
-  ("Et si je ne réponds pas à temps ?",
+  ("Et si je ne réponds pas à temps&nbsp;?",
    "<p>Rien de grave. Sans réponse de votre part sous quatorze jours, la mission est "
    "<b>clôturée automatiquement sans confirmation</b> : l'entreprise marque ses points, mais "
    "le résultat reste écrit comme estimé partout où il apparaît. Ce n'est pas une faute, ça "
    "n'entraîne aucune suspension, et vous pouvez répondre plus tard.</p>"),
-  ("Et si personne ne vient ?",
+  ("Et si personne ne vient&nbsp;?",
    "<p>Ça peut arriver, surtout la première saison : Riseva démarre et les entreprises "
    "abonnées ne couvrent pas encore tout le territoire. Vous ne perdez rien, votre annonce "
    "reste publiée, et votre tableau de bord affiche noir sur blanc combien d'entreprises "
    "abonnées ont un site à moins de trente kilomètres de chez vous. Si la réponse est zéro, "
    "il l'écrit.</p>"),
-  ("Qui peut s'inscrire ?",
+  ("Qui peut s'inscrire&nbsp;?",
    "<p>Toute association déclarée, y compris de droit local d'Alsace-Moselle. Un numéro, RNA "
    "ou SIREN, accélère la vérification sans être obligatoire : beaucoup d'associations déclarées "
    "n'ont pas de SIREN. Nous vérifions "
@@ -1788,7 +1813,7 @@ FAQ_ASSO = faq(
    "<p>Pour les dons ouvrant droit à un reçu fiscal, c'est vous qui appréciez votre "
    "éligibilité au titre de l'article 200 ou 238 bis du CGI, comme aujourd'hui. "
    "<a href='/charte-associations.html'>La charte</a> détaille ce point.</p>"),
-  ("Qu'est-ce que vous faites de nos données ?",
+  ("Qu'est-ce que vous faites de nos données&nbsp;?",
    "<p>Votre page publique contient ce que vous y mettez, rien d'autre. Nous ne revendons "
    "aucune donnée, nous n'envoyons pas les coordonnées de vos bénévoles aux entreprises, et "
    "vous pouvez fermer votre compte quand vous voulez. "
@@ -1796,7 +1821,10 @@ FAQ_ASSO = faq(
   ],
   "Ce que vous voudrez vérifier<br><span class='it'>avant de vous inscrire.</span>",
   "Les questions qu'une association se pose avant de publier une première annonce, et nos "
-  "réponses. Si la vôtre manque, écrivez-la-nous à contact@riseva.fr : elle finira ici.")
+  "réponses.",
+  "Il en manque une&nbsp;? Écrivez-la-nous à "
+  "<a class='tlink' href='mailto:contact@riseva.fr'>contact@riseva.fr</a>&nbsp;: "
+  "elle finira ici, avec sa réponse.")
 
 
 CONTACT_ASSO = f"""<section id="commencer">

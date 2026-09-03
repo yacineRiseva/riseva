@@ -1720,14 +1720,37 @@ section{
    une, et la reponse s'installe dans un panneau qui reste au
    niveau des yeux.
    ══════════════════════════════════════════════════════════ */
+/* Les deux colonnes ne faisaient pas la meme hauteur : le sommaire 446 px, le
+   panneau de reponse 808. Trois cent soixante pixels d'ivoire sur ivoire au bas
+   de la colonne gauche, dans le dernier quart de la page — c'est ce vide-la
+   qu'une relecture a pris pour une section manquante. Deux corrections, aucune
+   qui ajoute du remplissage : la colonne du sommaire retrecit, donc ses
+   questions passent a la ligne et elle grandit, pendant que le panneau
+   s'elargit et raccourcit ; et l'invitation a poser sa question descend sous le
+   sommaire, la ou quelqu'un vient justement de ne pas trouver la sienne. */
 .qa-split{
   display:grid;
-  grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);
+  grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr);
   gap:clamp(30px,4.4vw,72px);
   align-items:start;
   margin-top:clamp(30px,3.6vw,48px);
 }
 .qa-index{list-style:none;border-top:1px solid var(--ink);}
+/* Les deux vitrines n'ont pas la meme FAQ : huit questions et des reponses
+   longues d'un cote, sept questions et des reponses courtes de l'autre. La
+   meme proportion de colonnes creuse donc un vide different. Mesure faite aux
+   deux endroits, l'ecart entre les deux colonnes tombe de 266 a 126 px sur
+   l'accueil en retrecissant le sommaire, et de 143 a 99 px sur la page
+   associations en l'elargissant. */
+/* Apres avoir scinde la question du perimetre, le panneau est passe de 778 a
+   530 px et l'equilibre a change de sens : c'est le sommaire qui devenait
+   trop haut. Mesure refaite, l'ecart tombe a 35 px a cette proportion. */
+.vd .qa-split{ grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr); }
+.va .qa-split{ grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr); }
+.qa-invite{
+  margin:clamp(18px,2vw,26px) 0 0; max-width:34ch;
+  font-size:14.5px; line-height:1.6; color:var(--stone);
+}
 .qa-index li{border-bottom:1px solid var(--line);}
 .qa-link{
   width:100%;display:grid;
@@ -3081,7 +3104,19 @@ body{
   align-items:start;gap:clamp(18px,2.2vw,32px);
 }
 .vd .duo--pile .shot:nth-child(2){margin-top:clamp(34px,4vw,64px);}
-.vd .duo--pile .shot img{max-height:clamp(280px,26vw,400px);}
+/* Les deux captures etaient recadrees a une hauteur fixe, en `object-fit:cover`
+   et `object-position:top` — c'est-a-dire centrees horizontalement. Sur des
+   photographies, un recadrage ne se voit pas. Sur des CAPTURES D'ECRAN, il
+   coupe les mots : « personnes » devenait « nnes », « Villeurbanne » devenait
+   « leurbanne », et « 1 personne mobilisee sur 6 » devenait « sur 6 ». La page
+   montrait des ecrans casses pour prouver que le produit marche.
+   Les images reprennent donc leur proportion naturelle. Elles y gagnent meme en
+   hauteur : a 707 px de large, la premiere passe de 340 px recadres a 224 px
+   entiers. */
+.vd .duo--pile .shot{height:auto;}
+.vd .duo--pile .shot img{
+  height:auto; max-height:none; object-fit:fill; min-width:0;
+}
 @media (max-width:880px){
   .vd .duo--pile{grid-template-columns:1fr;}
   .vd .duo--pile .shot:nth-child(2){margin-top:0;}
