@@ -1814,7 +1814,7 @@ BANDEAU_ASSO = """<section id="rejoindre" class="bandeau">
   <div class="layer">
     <div class="bandeau-in">
       <div>
-        <h2>Quatre lignes, un lien, et votre espace est ouvert.</h2>
+        <h2>Votre première annonce peut être en ligne cette semaine.</h2>
         <p>Vous décrivez ce que vous faites et vous préparez votre première annonce. Nous
           vérifions votre enregistrement pendant ce temps : votre page devient visible des
           entreprises une fois cette vérification faite. Rien à installer, rien à payer.</p>
