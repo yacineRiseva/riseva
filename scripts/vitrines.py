@@ -456,7 +456,30 @@ def dimensions(chemin):
     raise ValueError(f"dimensions introuvables : {chemin}")
 
 
-def capture(nom, alt, legende, classe="", eager=False):
+def sources_webp(dossier, nom, tailles):
+    """Le <source> WebP d'une image, ou rien si les variantes n'existent pas.
+
+    Le JPEG reste dans le <img> : c'est lui qui porte l'alt, les dimensions et la
+    solution de repli. Le WebP passe devant parce qu'il pèse quatre-vingt-cinq
+    pour cent de moins, et parce que la premiere image de la vitrine
+    associations est celle que le navigateur mesure comme LCP.
+
+    `tailles` decrit la largeur d'affichage reelle, pas une valeur decorative :
+    sans elle le navigateur suppose 100vw et telecharge la plus grande variante
+    pour une image qui en occupe la moitie.
+
+    Si les fichiers manquent, on n'ecrit pas de <source> : une page qui pointe
+    vers un fichier absent est pire qu'une page qui sert le JPEG."""
+    d = PUBLIC / dossier
+    dispo = []
+    for w in (760, 1120):
+        if (d / f"{nom}-{w}.webp").exists():
+            dispo.append(f"/{dossier}/{nom}-{w}.webp {w}w")
+    if not dispo:
+        return ""
+    return (f'<source type="image/webp" srcset="{", ".join(dispo)}" sizes="{tailles}">\n        ')
+
+def capture(nom, alt, legende, classe="", eager=False, tailles=""):
     """Une capture de l'application, avec ce qu'elle est écrit dessous.
 
     La légende n'est pas décorative : elle dit de quel écran il s'agit et que
@@ -476,13 +499,14 @@ def capture(nom, alt, legende, classe="", eager=False):
     # bande claire de vingt pixels sous l'image, qu'on prenait pour un defaut de
     # cadrage de la capture. Pas de legende, pas de bloc.
     bas = f'\n        <figcaption class="mono">{legende}</figcaption>' if legende else ""
+    src = sources_webp("captures", nom, tailles or "(max-width: 900px) 92vw, 70vw")
     return f"""<figure class="shot{classe}">
-        <img src="/captures/{nom}.jpg" alt="{alt}" {charge} decoding="async"
-             width="{w}" height="{h}">{bas}
+        <picture>{src}<img src="/captures/{nom}.jpg" alt="{alt}" {charge} decoding="async"
+             width="{w}" height="{h}"></picture>{bas}
       </figure>"""
 
 
-def photo(nom, alt, legende, classe="", eager=False):
+def photo(nom, alt, legende, classe="", eager=False, tailles=""):
     """Une illustration, et ce qu'elle est écrit dessous.
 
     Riseva n'a aucune photographie de mission réelle : elle n'a pas encore de
@@ -515,9 +539,10 @@ def photo(nom, alt, legende, classe="", eager=False):
     # des nombres, et sous l'image du premier ecran de la vitrine associations,
     # qui est legendee. Partout ailleurs, aucune image ne pretend etre la trace
     # d'un resultat et aucune ne nomme personne : c'est ce qui est verifie.
+    src = sources_webp("photos", nom, tailles or "(max-width: 900px) 92vw, 46vw")
     return f"""<figure class="photo{classe}">
-        <img src="/photos/{nom}.jpg" alt="{alt}" {charge} decoding="async"
-             width="{w}" height="{h}">
+        <picture>{src}<img src="/photos/{nom}.jpg" alt="{alt}" {charge} decoding="async"
+             width="{w}" height="{h}"></picture>
       </figure>"""
 
 
@@ -1663,16 +1688,16 @@ CHALLENGE_ASSO = f"""<section id="challenge">
     </div>
 
     <div class="trois3">
-      <div><h4>C'est vous qui confirmez</h4>
+      <div><h3>C'est vous qui confirmez</h3>
         <p>Vous dites si la mission a eu lieu, en un clic, depuis un courriel. Sans réponse
           sous quatorze jours, elle est comptée mais reste écrite comme non confirmée, et le
           résultat comme estimé. Ce n'est pas une faute, et vous pouvez répondre plus tard.</p></div>
-      <div><h4>Elles cherchent près de chez vous</h4>
+      <div><h3>Elles cherchent près de chez vous</h3>
         <p>Votre fiche entre dans l'annuaire de chaque entreprise abonnée dès que votre
           enregistrement est vérifié, que vous ayez publié une annonce ou non : leurs salariés
           peuvent vous trouver, lire ce que vous faites et vous contacter. Une annonce ouverte
           vous fait remonter en plus dans les besoins à trente kilomètres de leurs sites.</p></div>
-      <div><h4>Vous ne leur devez rien</h4>
+      <div><h3>Vous ne leur devez rien</h3>
         <p>Pas de contrepartie, pas de logo obligatoire, pas de compte à rendre. Vous acceptez
           ou vous refusez une proposition sans avoir à vous justifier.</p></div>
     </div>
@@ -1746,7 +1771,7 @@ FAQ_ASSO = faq([
   ("Qui peut s'inscrire ?",
    "<p>Toute association déclarée, y compris de droit local d'Alsace-Moselle. Un numéro, RNA "
    "ou SIREN, accélère la vérification sans être obligatoire : beaucoup d'associations déclarées "
-   "dix n'ont pas de SIREN. Nous vérifions "
+   "n'ont pas de SIREN. Nous vérifions "
    "l'enregistrement administratif avant de publier votre page, et nous vous disons ce qui "
    "manque le cas échéant.</p>"
    "<p>Pour les dons ouvrant droit à un reçu fiscal, c'est vous qui appréciez votre "
