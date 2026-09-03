@@ -1307,7 +1307,13 @@ export { minuit };
    annonces portent des jours précis, et une capture d'écran doit rendre deux
    fois la même image. Son ancre est ici, nommée, pour que la mise à jour du jeu
    de démonstration soit une ligne et non une chasse. */
-const ANCRE_DEMO = [2026, 7, 20];
+/* Deplacee le 3 septembre 2026. Elle avait quinze jours : passe le quatorzieme,
+   la seule mission qui attendait la reponse de l'association etait cloturee
+   d'office par le moteur, et l'ecran « Missions a confirmer » s'ouvrait sur une
+   ligne sans bouton. C'est l'ecran montre en demonstration. La recette le
+   surveille desormais (« le jeu de demonstration n'a pas vieilli ») : quand elle
+   echoue, c'est cette ligne qu'il faut avancer, et elle seule. */
+export const ANCRE_DEMO = [2026, 8, 3];
 const J = (n) => { const d = new Date(...ANCRE_DEMO); d.setDate(d.getDate() + n); return d.toISOString().slice(0,10); };
 
 /* ------------------------------------------------------------------ */
@@ -1729,7 +1735,7 @@ export const seed = {
     { id:"m2", annonce:"an2", entreprise:"e1", salarie:"u4", etablissement:"et3", etat:"validee",     quantite:3, points:450,  date:J(-9), declaree_le:J(-8), tranchee_le:J(-7), realise:118,
       consentement:{ donne_le:J(-14), mission:"Atelier réparation vélos", date_mission:J(-9) } },
     { id:"m3", annonce:"an4", entreprise:"e1", salarie:"u3", etablissement:"et2", etat:"validee",     quantite:600, points:60, date:J(-7), declaree_le:J(-7), tranchee_le:J(-6), realise:68 },
-    { id:"m4", annonce:"an5", entreprise:"e1", salarie:"u5", etablissement:"et1", etat:"a_valider",   quantite:3, points:300,  date:J(-2), declaree_le:J(-2), valeur_declaree:840, nature:"Trois ordinateurs portables renouvelés",
+    { id:"m4", annonce:"an5", entreprise:"e1", salarie:"u5", etablissement:"et1", etat:"a_valider",   quantite:3, points:300,  date:J(-2), declaree_le:J(0), valeur_declaree:840, nature:"Trois ordinateurs portables renouvelés",
       categorie_comptable:"immobilisation", reference_actif:"IMMO-2023-0412 à 0414",
       sortie_le:J(-2), effacement_donnees:true,
       justificatif:"Fiche de sortie d'immobilisation signée" },

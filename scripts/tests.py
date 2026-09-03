@@ -896,6 +896,21 @@ def main():
                 not p.eval_on_selector(".modal #tt", "e=>e.disabled"))
 
         print("\nAssociation")
+        # Le jeu de demonstration est date : son ancre est fixe, le moteur tourne sur
+        # le jour reel. Passe le delai de validation, la seule mission qui attendait la
+        # reponse de l'association est cloturee d'office, et l'ecran « Missions a
+        # confirmer » s'ouvre sur une ligne sans bouton — sans un mot pour dire pourquoi.
+        # C'est l'ecran montre en demonstration, et il pourrissait en silence. Ce test
+        # le dit tout haut : quand il tombe, avancer ANCRE_DEMO dans public/app/data.js.
+        connecte(p, "u7", "#/avalider")
+        attente = p.evaluate("""async () => {
+          const d = await import('/app/data.js');
+          const u = d.DB.utilisateur('u7');
+          return d.DB.missions({ asso:u.org, etat:'a_valider' }).length;
+        }""")
+        verifie("le jeu de demonstration n'a pas vieilli : une mission attend encore "
+                "la reponse de l'association", attente > 0,
+                "ANCRE_DEMO est trop ancienne dans public/app/data.js")
         connecte(p, "u7", "#/mesannonces")
         n0 = p.eval_on_selector_all("tbody tr", "r=>r.length")
         p.evaluate("()=>document.querySelector('#np').click()"); p.wait_for_timeout(250)
@@ -1942,7 +1957,7 @@ def main():
         env = p.evaluate("""async () => {
           const d = await import('/app/data.js');
           const avant = d.DB.envois({ entreprise:'e1', type:'rapport' }).length;
-          const f = d.DB.moteur('2026-08-20');
+          const f = d.DB.moteur(new Date(...d.ANCRE_DEMO).toISOString().slice(0,10));
           const apres = d.DB.envois({ entreprise:'e1', type:'rapport' }).length;
           const cles = d.DB.envois({ type:'rapport' }).map(x => x.cle);
           return { avant, apres, rapports:f.rapports,
