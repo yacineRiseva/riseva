@@ -1576,7 +1576,7 @@ def chiffres_asso():
     return """
     <ul class="chiffres chiffres--hero rv">
       <li><b>0&nbsp;€</b><span>à payer, aujourd'hui et après, et aucune commission sur vos
-        dons.<br><span class="mono">Ce sont les entreprises qui paient</span></span></li>
+        dons.<br><span class="mono">Ce que ça vous coûte</span></span></li>
       <li><b>5&nbsp;minutes</b><span>pour écrire une première annonce. Six modèles sont déjà
         écrits : vous changez la date. Elle paraît une fois votre enregistrement
         vérifié.<br><span class="mono">Des bras, du matériel, de
@@ -1592,21 +1592,20 @@ def chiffres_asso():
 
 HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
   <div class="layer">
-    <p class="eyebrow mono">Gratuit pour les associations, sans exclusivité</p>
-    <h1 class="h1 h1--doc h1--court">Il vous manque des bras un samedi.<br>
-      <span class="it">Des salariés d'à côté viennent les donner.</span></h1>
+    <p class="eyebrow mono">Gratuit. Ce sont les entreprises qui paient</p>
+    <h1 class="h1 h1--doc h1--court">Écrivez ce qui vous manque.<br>
+      <span class="it">Des entreprises d'à côté peuvent y répondre.</span></h1>
 
     <div class="doc-tete doc-tete--apercu">
       <div class="doc-intro">
-        <p class="doc-accroche">Sortir les chiens, tenir une distribution, planter une
-          parcelle, porter des cartons : vous écrivez ce dont vous avez besoin, des salariés
-          d'entreprises abonnées se proposent, et <b>c'est vous qui confirmez</b> ce qui a eu
-          lieu.</p>
+        <p class="doc-accroche">Des bras pour une demi-journée, du matériel dont une
+          entreprise n'a plus l'usage, ou un don. Vous décidez de ce que vous acceptez, et
+          <b>c'est vous qui confirmez</b> ce qui a eu lieu.</p>
         <div class="hero-cta">
           <a class="btn btn-lg" href="#commencer"><span class="dot"></span>Ouvrir mon espace</a>
           <a class="tlink" href="#comment">Voir comment ça marche</a>
         </div>
-        <p class="doc-garanties">Gratuit. Sans exclusivité. Sans commission sur vos dons.
+        <p class="doc-garanties">Sans exclusivité. Sans commission sur vos dons.
           Rien à installer.</p>
         <p class="doc-micro">Quatre lignes pour ouvrir votre espace, cinq minutes pour votre
           première annonce.</p>
@@ -1629,16 +1628,6 @@ HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
           abonnées autour de vous, et elle s'efface une fois que le contact est pris.</p>
       </div>
 
-      <dl class="fiche">
-        <div><dt class="mono">Prix</dt><dd>gratuit, aujourd'hui et après. Ce sont les
-          entreprises abonnées qui paient</dd></div>
-        <div><dt class="mono">Engagement</dt><dd>aucune exclusivité, vous continuez tout ce que
-          vous faites ailleurs</dd></div>
-        <div><dt class="mono">Sur vos dons</dt><dd>aucune commission. L'argent va du donateur à
-          votre compte, sans passer par nous</dd></div>
-        <div><dt class="mono">Technique</dt><dd>rien à installer. Vous ouvrez votre espace
-          vous-même, et vous confirmez vos missions depuis un courriel</dd></div>
-      </dl>
     </div>
 
     {capture("asso-tableau",
@@ -1673,10 +1662,12 @@ COMMENT_ASSO = f"""<section id="comment" class="band">
 CHALLENGE_ASSO = f"""<section id="challenge">
   <div class="layer">
 {entete("Pourquoi les entreprises viennent",
-        "Les entreprises jouent<br><span class='it'>une saison.</span>",
-        "C'est vous qui dites si une mission a eu lieu. Sans réponse de votre part sous "
-        "quatorze jours, elle est comptée, et reste marquée comme non confirmée partout "
-        "où elle apparaît.")}
+        "Ce qu'une entreprise<br><span class='it'>vient chercher ici.</span>",
+        "Elle paie un abonnement, ses salariés veulent une action concrète près de chez eux, "
+        "et le mécénat de compétences comme le don en nature ouvrent droit à une réduction "
+        "d'impôt prévue par l'article 238 bis du code général des impôts. Voilà pourquoi "
+        "c'est gratuit pour vous : vous n'êtes pas le produit, vous êtes ce qu'elles "
+        "cherchent.")}
 
     <div class="photos3">
       {photo("refuge-sortie", "Deux bénévoles sortent quatre chiens de refuge sur un chemin "
@@ -1717,18 +1708,17 @@ ARGENT_ASSO = f"""<section id="argent" class="band-moss">
           Ensuite, un donateur paie par carte sur la page de HelloAsso et l'argent arrive chez
           vous. L'argent ne transite jamais par Riseva : ni commission de notre part, ni délai
           de reversement, ni plafond.</p>
-        <p>Le don s'enregistre dès que HelloAsso ramène le donateur sur Riseva, juste après
-          le paiement : le donateur n'a aucune référence à recopier. S'il ferme sa page avant
-          ce retour, le paiement est bien encaissé chez HelloAsso : il apparaît sur votre
-          compte là-bas, et vous l'ajoutez ici en une ligne.</p>
+        <p>Le don apparaît chez vous tout de suite après le paiement, sans référence à
+          recopier ni rapprochement à faire.</p>
         <p class="mono">Pas encore de compte HelloAsso ? En ouvrir un est gratuit et prend
           quelques minutes. En attendant, le virement reste possible.</p>
       </div>
       <div class="col">
         <h3>Les reçus fiscaux restent les vôtres</h3>
-        <p>Si vous activez cette option sous mandat écrit, Riseva prépare le reçu à partir de
-          vos informations. Votre association l'émet et en reste responsable. Sans mandat, nous
-          ne préparons rien.</p>
+        <p>Rien ne change : c'est vous qui les émettez, comme aujourd'hui. Si vous nous le
+          demandez par écrit, nous préparons le document à partir de vos informations pour
+          vous éviter la saisie, et vous le relisez avant de le signer. Sans cette demande
+          écrite, nous ne préparons rien du tout.</p>
         <p><a class="tlink" href="/charte-associations.html">La charte des associations</a></p>
       </div>
     </div>
