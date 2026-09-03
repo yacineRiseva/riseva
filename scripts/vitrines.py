@@ -18,7 +18,7 @@ Règles qui tiennent sur les deux pages, et que la recette vérifie :
 , la formule canonique des quatorze jours, mot pour mot ;
 , aucune requête vers un domaine tiers, polices comprises.
 """
-import io, pathlib, re
+import io, json, pathlib, re
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent
 PUBLIC = RACINE / "public"
@@ -189,7 +189,7 @@ def ticker(mots):
 
 
 def page(*, fichier, titre, description, corps, nav_html, pied_html, canonique,
-         classe_corps="", rubans=True):
+         classe_corps="", rubans=True, entetes_sup=""):
     """`rubans` : les lianes vertes qui traversent la page de haut en bas.
 
     Elles ne représentent ni une progression, ni un réseau, ni une donnée : ce
@@ -216,13 +216,17 @@ def page(*, fichier, titre, description, corps, nav_html, pied_html, canonique,
 <meta property="og:url" content="https://riseva.fr{canonique}">
 <link rel="icon" href="/brand/{FEUILLE}.png">
 <link rel="stylesheet" href="/styles/polices.css">
-<link rel="stylesheet" href="/styles/vitrine.css">
+<!-- La feuille servie est engendree depuis vitrine.css par scripts/css.py :
+     meme regles, sans les commentaires. 206 Ko deviennent 117, et 52 Ko
+     compresses deviennent 23, sur la ressource qui bloque le premier rendu.
+     Les corrections vont dans vitrine.css, jamais ici. -->
+<link rel="stylesheet" href="/styles/vitrine.min.css">
 <!-- Une classe posée avant le premier rendu, et rien d'autre. Les apparitions au
      défilement sont écrites « .js .rv », donc sans script le contenu est visible
      dès le départ : c'est le seul moyen qu'une animation ne puisse jamais
      conditionner l'affichage de ce qu'elle accompagne. -->
 <script>document.documentElement.className+=" js";</script>
-</head>
+{entetes_sup}</head>
 <body{classe}>
 {decor}
 
@@ -340,7 +344,10 @@ def faits(items):
     return f'    <ol class="facts-list">{out}\n    </ol>'
 
 
-def faq(items):
+# Le titre et le chapeau se passent en argument : les deux vitrines partagent le
+# composant mais pas le public. « Les questions qui decident d'une signature »
+# s'adressait aussi a des associations, qui ne signent rien et ne paient rien.
+def faq(items, titre, note, eyebrow="La FAQ"):
     idx = "\n      ".join(
         f'<li><button class="qa-link mono{" is-on" if not i else ""}" type="button" '
         f'role="tab" aria-selected="{"true" if not i else "false"}">'
@@ -352,8 +359,7 @@ def faq(items):
         for i, (q, r) in enumerate(items))
     return f"""<section id="faq" class="band">
   <div class="layer">
-{entete("La FAQ", "Ce qu'on nous demande<br><span class='it'>vraiment.</span>",
-        "Les questions qui décident d'une signature, et nos réponses. Si la vôtre manque, écrivez-la-nous à contact@riseva.fr : elle finira ici.")}
+{entete(eyebrow, titre, note)}
     <div class="qa-split">
       <ol class="qa-index rv" id="qaIndex" role="tablist" aria-label="Sommaire des questions">
       {idx}
@@ -413,9 +419,8 @@ PIED_ENT = pied(
     "Riseva met des entreprises françaises au service des associations qui protègent "
     "le vivant, partout en France. Une saison, un barème public, un rapport qui tient debout.",
     [("La saison", [("#plateforme", "Ce que ça répond"), ("#outil-rse", "L'outil RSE"),
-                    ("#pilotage", "La preuve, écran par écran"),
-                    ("#challenge", "Le challenge"), ("#equipes", "Côté salariés"),
-                    ("#affiches", "Les affiches"),
+                                   ("#challenge", "Le challenge"),
+                    ("#equipes", "Côté salariés"),
                     ("#associations", "Côté associations"),
                     ("#prix", "Le prix")]),
      ("Les règles", [("/reglement.html", "Le règlement du barème"),
@@ -815,7 +820,7 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
        "Dix taux calculés, chacun avec sa formule à côté du chiffre.", "outil-rse"),
       ("La preuve", "Chaque chiffre<br><span class='it'>garde sa source.</span>",
        "Sa date, la personne qui l'a saisie, celle qui l'a approuvée, ses pièces.",
-       "pilotage"),
+       "outil-rse"),
     ])}
 
     {chiffres_hero()}
@@ -853,7 +858,7 @@ CHALLENGE_ENT = f"""<section id="challenge" class="chal verre-sect">
       <i class="verre-eclat" aria-hidden="true"></i>
       <div class="chal-tete">
         <p class="eyebrow mono">Le challenge</p>
-        <h2>Douze mois,<br><span class="it">et vos équipes y sont allées.</span></h2>
+        <h2>Douze mois plus tard,<br><span class="it">le bilan s'est écrit tout seul.</span></h2>
         <p class="chal-p">Des associations vérifiées publient ce dont elles ont besoin près de
           chacun de vos sites. Vos équipes s'y rendent ensemble.</p>
       </div>
@@ -873,10 +878,18 @@ CHALLENGE_ENT = f"""<section id="challenge" class="chal verre-sect">
 </section>"""
 
 
+# ── cote salaries ───────────────────────────────────────────
+# C'etait deux sections : « Deux ecrans, et chacun se propose » (1018 px pour
+# 59 mots) puis « Ce qui se met au-dessus de la machine a cafe » (1105 px).
+# Elles repondaient a la meme question, la seule que se pose un dirigeant
+# multi-sites devant ce produit : comment des gens repartis sur vingt sites
+# commencent-ils vraiment. La reponse tient en deux objets, un lien et une
+# affiche, et elle n'avait pas besoin de deux titres pour se dire.
 EQUIPES_ENT = f"""<section id="equipes">
   <div class="layer">
-{entete("Côté salariés", "Deux écrans,<br><span class='it'>et chacun se propose.</span>",
-        "Un salarié qui se sent inscrit d'office ne revient pas une deuxième fois.")}
+{entete("Côté salariés", "Un lien, une affiche,<br><span class='it'>et chacun peut se proposer.</span>",
+        "Un salarié qui se sent inscrit d'office ne revient pas une deuxième fois. Il faut "
+        "donc qu'il croise l'information là où il est, et qu'il y aille de lui-même.")}
 
     <div class="duo duo--pile">
       {capture("salarie-saison",
@@ -890,6 +903,31 @@ EQUIPES_ENT = f"""<section id="equipes">
     <p class="s-note s-note--grand">L'objectif de la saison se compte en <b>personnes venues</b>,
       pas en points : il ne s'atteint qu'en allant chercher quelqu'un qui n'est pas encore
       venu. <a class="tlink" href="/app/?demo=1">Explorer l'espace salarié</a></p>
+
+    <div class="aff-scene">
+      {photo("affiche-bureau",
+             "L'affiche A3 que Riseva génère, entière, posée devant un plateau de bureaux : "
+             "le nom d'une entreprise de démonstration, la saison, les formats proposés, le "
+             "lien d'inscription et son code QR", "", " photo--mur")}
+      <p class="aff-mention mono">Affiche sortie du jeu de démonstration : le nom d'entreprise
+        et les nombres du bas de page en viennent, ils ne décrivent aucune saison réalisée.</p>
+      <div class="aff-encart">
+        {photo("affiche-qr",
+               "Le bas de l'affiche : le code QR et le lien d'inscription de l'entreprise, "
+               "en toutes lettres à côté", "", " shot--affiche")}
+        <p class="mono">Le code QR porte le lien de vos équipes. Il se scanne pour de bon.</p>
+      </div>
+      <div class="aff-texte">
+        <h3>Elle porte le lien de votre entreprise</h3>
+        <p>Chaque affiche est générée avec le lien d'inscription de vos équipes et le code QR
+          qui va avec. Un salarié le scanne depuis la salle de pause et son compte est ouvert
+          avant qu'il soit remonté à son poste.</p>
+        <h3>Quatre envois compris</h3>
+        <p>Elles partent imprimées, en nombre suffisant pour tous vos sites, à quatre moments
+          de la saison. Un site qui ouvre en cours d'année la réimprime lui-même.</p>
+        <p class="s-note"><a class="tlink" href="/app/?demo=1">Voir l'écran des supports</a></p>
+      </div>
+    </div>
   </div>
 </section>"""
 
@@ -905,14 +943,12 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss verre-sect">
         "ni contrôle ni certification, mais c'est déjà tout autre chose qu'un chiffre que vous "
         "auriez écrit vous-même.")}
 
-    <div class="photos3">
-      {photo("refuge", "Un chien de refuge trotte en laisse au soleil, à côté de la personne "
-             "qui le sort", "")}
-      {photo("plantation", "Deux paires de mains tassent la terre autour d'un jeune arbre "
-             "qui vient d'être planté", "")}
-      {photo("maraude", "Un bol chaud passe de main en main au-dessus d'une table de "
-             "distribution, devant une camionnette", "")}
-    </div>
+    <!-- Trois photographies en vignettes tenaient ici, refuge, plantation, maraude.
+         Une rangee de trois images egales, sans legende, juste sous une photographie
+         de couverture : quatre images pour la meme idee, et le motif se reconnait
+         avant qu'on regarde ce qu'il y a dessus. La couverture reste, seule et
+         grande ; ce que les trois vignettes montraient est nomme en toutes lettres
+         dans la liste des formats, quelques lignes plus bas. -->
 
     <div class="verre asso-verre verre-anim">
       <i class="verre-lumiere" aria-hidden="true"></i>
@@ -927,9 +963,9 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss verre-sect">
         Riseva ne prélève rien sur ses dons.</li>
       <li><b>Une confirmation courte, sans se connecter.</b> Un lien dans un message après
         la date prévue, trois réponses sur la page qu'il ouvre, et c'est terminé.</li>
-      <li><b>Rien à produire pour vous.</b> Passé quatorze jours sans réponse, la mission est
-        clôturée et son résultat reste marqué <b>estimé</b> partout où il apparaît, vos
-        rapports compris.</li>
+      <li><b>Rien à produire pour vous.</b> Passé quatorze jours sans réponse, c'est la
+        <b>clôture automatique</b> : la mission se ferme et son résultat reste marqué
+        <b>estimé</b> partout où il apparaît, vos rapports compris.</li>
     </ul>
 
     <div class="fmt-bloc fmt-bloc--incruste">
@@ -1091,15 +1127,17 @@ def verre_zone(n, qui, question, reponse, visuel, ecrans, large=False):
 # Et il n'y a qu'UN panneau. Quatre panneaux de verre cote a cote, c'est quatre
 # fois la depense de `backdrop-filter` ; et surtout, trois cartes parlent DE la
 # plateforme quand un seul panneau EST la plateforme.
+# Zone 3 : la phrase qui decrivait le tour complet est descendue en bas de
+# section, ou elle est devenue la chaine elle-meme. Ce qui reste dans la zone
+# est ce que la chaine ne dit pas : ce qui peut passer par cet ecran.
 PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss verre-sect">
   <div class="verre-champ" aria-hidden="true"><i></i><i></i><i></i></div>
 {lianes_verre()}
   <div class="layer">
 {entete("Ce que ça répond",
         "Trois questions,<br><span class='it'>et personne n'a la réponse.</span>",
-        "Personne n'ouvre un logiciel RSE par curiosité. On l'ouvre parce qu'on "
-        "vient de vous poser une de ces trois questions, et qu'il a fallu répondre "
-        "« je vais voir ».")}
+        "On n'ouvre pas un logiciel RSE par curiosité. On l'ouvre parce qu'on vient "
+        "de vous poser une de ces trois questions.")}
 
     <div class="verre verre-anim">
       <i class="verre-lumiere" aria-hidden="true"></i>
@@ -1111,9 +1149,8 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss verre-sect">
       </div>
 
       <div class="verre-intro">
-        <p>Une saison d'un an, un écran par métier, et <b>la même donnée du site
-          jusqu'au rapport</b>. Rien n'est ressaisi, et rien n'est estimé sans que
-          la page le dise.</p>
+        <p><b>La même donnée, du site jusqu'au rapport.</b> Rien n'est ressaisi, et
+          rien n'est estimé sans que la page le dise.</p>
         <div class="verre-chiffres">
           <span class="verre-chiffre"><b>{CATALOGUE['rubriques']}</b><span>rubriques au choix</span></span>
           <span class="verre-chiffre"><b>{CATALOGUE['saisis']}</b><span>valeurs collectées</span></span>
@@ -1125,10 +1162,9 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss verre-sect">
 {verre_zone(1,
   "En réunion budget",
   "« Combien de vos sites ont répondu&nbsp;?&nbsp;»",
-  f"Vous cochez les rubriques d'une période parmi {CATALOGUE['rubriques']} : effectifs, "
-  "sécurité, formation, énergie, déchets, mobilité, achats. Chaque établissement voit sa "
-  "part sur son écran, avec ce qu'on compte et ce qu'on ne compte pas. La plateforme "
-  "relance à sa place, et <b>vous voyez qui manque, nommément</b>.",
+  f"Vous cochez les rubriques d'une période parmi {CATALOGUE['rubriques']}. Chaque "
+  "établissement voit sa part sur son écran, avec <b>ce qu'on compte et ce qu'on ne "
+  "compte pas</b>.",
   mini_ecran("Sites et quotas", [
       ("Rennes - Sud", "Approuvé", "ok"),
       ("Lyon - Vaise", "Approuvé", "ok"),
@@ -1143,9 +1179,8 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss verre-sect">
   "Questionnaire fournisseur",
   "« D'où sort ce chiffre&nbsp;?&nbsp;»",
   f"{CATALOGUE['saisis']} valeurs collectées, {CATALOGUE['calcules']} taux calculés en "
-  "rapport de sommes et jamais en moyenne de taux. Chaque saisie de site porte qui l'a "
-  "remplie, qui l'a approuvée (jamais la même personne) et <b>les pièces jointes qui la "
-  "justifient</b>.",
+  "rapport de sommes, jamais en moyenne de taux. Chaque saisie porte qui l'a remplie, qui "
+  "l'a approuvée (jamais la même personne) et <b>les pièces qui la justifient</b>.",
   mini_ecran("Rapport, taux de fréquence", [
       ("Formule", "AT x 1 000 000 / heures", None),
       ("Période", "2026, 4e trimestre", None),
@@ -1159,66 +1194,46 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss verre-sect">
 {verre_zone(3,
   "Vos salariés, vos candidats",
   "« Qu'est-ce que vos équipes ont fait cette année&nbsp;?&nbsp;»",
-  "Des associations vérifiées près de chaque site publient ce dont elles ont besoin, vos "
-  "équipes s'y rendent ensemble, et <b>c'est l'association qui confirme</b>. Bénévolat, "
-  "dons de matériel, mécénat de compétences et dons en argent passent par le même écran.",
+  "Bénévolat, dons de matériel, mécénat de compétences et dons en argent passent par le "
+  "même écran, et <b>c'est l'association qui confirme</b> chacun.",
   photo("refuge-sortie", "Deux bénévoles sortent quatre chiens de refuge sur un chemin de "
         "campagne, en plein soleil", "", " verre-photo"),
   "Écrans : Annonces, Nos missions, Associations")}
       </div>
     </div>
 
-    <p class="s-note s-note--trois">Vos sites répondent, vos équipes agissent,
-      <b>et vous avez les preuves</b>.</p>
+    <p class="s-note s-note--trois">Ce que vous restituerez ne vient pas de vous&nbsp;:
+      <b>c'est l'association qui l'a confirmé</b>.</p>
 
-  </div>
-</section>"""
-
-PILOTAGE_ENT = f"""<section id="pilotage">
-  <div class="layer">
-{entete("La preuve", "Chaque chiffre<br><span class='it'>garde sa source.</span>",
-        "Quatre écrans de l'application, tels qu'ils s'affichent, avec un jeu de "
-        "démonstration.")}
-
-{onglets([
-  ("miss", "Les missions", capture("missions",
-      "La liste des missions d'une entreprise, avec leur état de confirmation",
-      "Chaque mission, son association, son état")),
-  ("rapp", "Les rapports", capture("rapports",
-      "Le rapport trimestriel d'une entreprise dans Riseva",
-      "Les rapports, en CSV et en PDF")),
-  ("meca", "Le dossier de mécénat", capture("mecenat",
-      "Le calcul du mécénat ligne par ligne : dons versés, mécénat de compétences au coût "
-      "de revient, assiette, plafond, report",
-      "Le calcul, ligne par ligne")),
-  ("indi", "Les indicateurs", capture("indicateurs-formule",
-      "Les taux de sécurité consolidés, chacun avec sa formule sous son libellé, et la "
-      "colonne approuvé séparée de la colonne provisoire",
-      "Chaque taux avec sa formule")),
+{flux([
+  ("L'association", "publie un besoin, à moins de trente kilomètres d'un de vos sites"),
+  ("Vos équipes", "le voient sur leur écran et s'y rendent ensemble"),
+  ("L'association", "confirme ce qui a eu lieu. Sans elle, le résultat reste estimé"),
+  ("Riseva", "consolide, avec la date et la source de chaque ligne"),
+  ("Vous", "retrouvez le résultat dans votre rapport, sans l'avoir écrit"),
 ])}
 
-    {capture("groupe",
-             "La vue consolidée d'un groupe : sociétés, sites et indicateurs réunis",
-             "Un groupe, ses sociétés, ses établissements", " shot--seule")}
-
-    <dl class="faits4 faits4--serre">
-      <div><dt class="mono">Trois niveaux</dt><dd>le groupe, les sociétés avec leur SIREN,
-        les établissements</dd></div>
-      <div><dt class="mono">Cloisonné</dt><dd>payer la facture ne donne pas accès aux
-        personnes d'une filiale</dd></div>
-      <div><dt class="mono">Clôture automatique</dt><dd>passé quatorze jours sans réponse, la
-        mission est clôturée et son résultat reste <b>estimé</b></dd></div>
-      <div><dt class="mono">Rien à installer</dt><dd>un lien à diffuser, chaque salarié ouvre
-        son compte lui-même</dd></div>
-    </dl>
   </div>
 </section>"""
 
-
+# ── l'outil RSE ─────────────────────────────────────────────
+# Cette section en etait deux. « Ce que vous ne referez plus a la main »
+# occupait 1651 px pour 182 mots ; « Chaque chiffre garde sa source » en
+# occupait 2081 pour 93 mots et cinq captures, soit un huitieme de la page pour
+# une galerie. Les deux defendaient le meme argument, et leurs listes de faits
+# portaient un doublon litteral : « Trois niveaux » d'un cote, « Groupes et
+# filiales » de l'autre, avec la meme phrase dessous.
+#
+# Elles n'en font plus qu'une, dans l'ordre ou un acheteur decide : l'argument,
+# puis le calendrier qui montre que ca tourne sans lui, puis les ecrans comme
+# preuve, puis les quatre faits qui tranchent. La capture de collecte a saute :
+# l'onglet « Les indicateurs » montrait deja l'ecran d'apres, et l'ecran de
+# groupe est devenu le cinquieme onglet au lieu d'une sixieme grande image.
 OUTIL_ENT = f"""<section id="outil-rse" class="band">
   <div class="layer">
 {entete("L'outil RSE", "Ce que vous ne referez plus<br><span class='it'>à la main.</span>",
-        "Obtenir les chiffres de chaque site, et relancer jusqu'à ce que le dernier réponde.")}
+        "Obtenir les chiffres de chaque site, relancer jusqu'à ce que le dernier réponde, "
+        "et garder sous chaque total la trace de qui l'a saisi.")}
 
     <ul class="benef">
       <li class="rv">
@@ -1238,17 +1253,35 @@ OUTIL_ENT = f"""<section id="outil-rse" class="band">
       </li>
     </ul>
 
-    {capture("indicateurs",
-             "L'écran de collecte des indicateurs dans Riseva : l'état de chaque site, les "
-             "totaux par rubrique et les taux calculés",
-             "La collecte, et le rapport qui en sort", " shot--seule")}
-
 {flux([
   ("Jour 1", "vous cochez les rubriques et la date limite"),
   ("Jour 2", "chaque site voit sa part, sans rien installer"),
   ("J-7, J-2", "le rappel part tout seul"),
   ("Échéance", "vous voyez qui manque, nommément"),
   ("Le lendemain", "le rapport est là, daté, avec sa méthode"),
+])}
+
+    <p class="s-note s-note--preuve"><b>Et chaque chiffre garde sa source.</b> Cinq écrans de
+      l'application, tels qu'ils s'affichent, avec un jeu de démonstration.</p>
+
+{onglets([
+  ("miss", "Les missions", capture("missions",
+      "La liste des missions d'une entreprise, avec leur état de confirmation",
+      "Chaque mission, son association, son état")),
+  ("rapp", "Les rapports", capture("rapports",
+      "Le rapport trimestriel d'une entreprise dans Riseva",
+      "Les rapports, en CSV et en PDF")),
+  ("meca", "Le dossier de mécénat", capture("mecenat",
+      "Le calcul du mécénat ligne par ligne : dons versés, mécénat de compétences au coût "
+      "de revient, assiette, plafond, report",
+      "Le calcul, ligne par ligne")),
+  ("indi", "Les indicateurs", capture("indicateurs-formule",
+      "Les taux de sécurité consolidés, chacun avec sa formule sous son libellé, et la "
+      "colonne approuvé séparée de la colonne provisoire",
+      "Chaque taux avec sa formule")),
+  ("grpe", "Le groupe entier", capture("groupe",
+      "La vue consolidée d'un groupe : sociétés, sites et indicateurs réunis",
+      "Un groupe, ses sociétés, ses établissements")),
 ])}
 
     <dl class="faits4 faits4--serre">
@@ -1258,92 +1291,78 @@ OUTIL_ENT = f"""<section id="outil-rse" class="band">
         d'actions</dd></div>
       <div><dt class="mono">La fiche VSME</dt><dd>les onze rubriques de la norme européenne
         volontaire</dd></div>
-      <div><dt class="mono">Groupes et filiales</dt><dd>trois niveaux : groupe, sociétés,
-        établissements</dd></div>
+      <div><dt class="mono">Groupes et filiales</dt><dd>trois niveaux, chaque société avec son
+        SIREN, et <b>payer la facture ne donne pas accès aux personnes d'une filiale</b></dd></div>
     </dl>
   </div>
 </section>"""
 
 
-# ── ce que ça change ────────────────────────────────────────────────────────
-# Trois bénéfices, et chacun porte son chiffre. Dans la version précédente,
-# celui du milieu n'en avait pas : au lieu de trois colonnes, l'œil voyait deux
-# colonnes et un trou. Le rang a donc changé, et le troisième a reçu le sien.
-AFFICHES_ENT = f"""<section id="affiches">
-  <div class="layer">
-{entete("Les affiches", "Ce qui se met<br><span class='it'>au-dessus de la machine à café.</span>",
-        "Un lien envoyé une fois par courriel se perd. Une affiche reste, et elle parle aux "
-        "gens qui n'ouvrent jamais leurs mails.")}
-
-    <div class="aff-scene">
-      {photo("affiche-bureau",
-             "L'affiche A3 que Riseva génère, entière, posée devant un plateau de bureaux : "
-             "le nom d'une entreprise de démonstration, la saison, les formats proposés, le "
-             "lien d'inscription et son code QR", "", " photo--mur")}
-      <p class="aff-mention mono">Affiche sortie du jeu de démonstration : le nom d'entreprise
-        et les nombres du bas de page en viennent, ils ne décrivent aucune saison réalisée.</p>
-      <div class="aff-encart">
-        {photo("affiche-qr",
-               "Le bas de l'affiche : le code QR et le lien d'inscription de l'entreprise, "
-               "en toutes lettres à côté", "", " shot--affiche")}
-        <p class="mono">Le code QR porte le lien de vos équipes. Il se scanne pour de bon.</p>
-      </div>
-      <div class="aff-texte">
-        <h3>Elle porte le lien de votre entreprise</h3>
-        <p>Chaque affiche est générée avec le lien d'inscription de vos équipes et le code QR
-          qui va avec. Un salarié le scanne depuis la salle de pause et son compte est ouvert
-          avant qu'il soit remonté à son poste.</p>
-        <h3>Quatre envois compris</h3>
-        <p>Elles partent imprimées, en nombre suffisant pour tous vos sites, à quatre moments
-          de la saison. Un site qui ouvre en cours d'année la réimprime lui-même.</p>
-        <p class="s-note"><a class="tlink" href="/app/?demo=1">Voir l'écran des supports</a></p>
-      </div>
-    </div>
-  </div>
-</section>"""
-
-
+# ── le dernier ecran ────────────────────────────────────────
+# Il finissait sur « Vingt places au tarif fondateur ». Les vingt places sont
+# vraies, mais en faire le titre du dernier ecran, c'est finir une page sans un
+# seul client par un compte a rebours : le procede se reconnait avant qu'on lise
+# la phrase, et il remplace la preuve qu'on n'a pas par une urgence qu'on
+# fabrique. La relecture croisee s'est divisee la-dessus — l'une y voyait un bon
+# levier faute de preuve sociale, l'autre le tic de la startup traduite — et
+# c'est justement l'argument « faute de preuve » qui tranche : on ne comble pas
+# une preuve manquante par une pression.
+#
+# Ce qui la remplace etait deja ecrit, dans les engagements de service, la ou
+# personne ne va : cinq points constates avec le client, et si l'un manque,
+# acompte rembourse et solde non du. Une entreprise sans references ne peut pas
+# dire « ils nous font confiance » ; elle peut dire « vous ne payez pas si ca ne
+# marche pas », et c'est verifiable. Les vingt places restent, comme condition.
 BANDEAU_ENT = """<section id="rejoindre" class="bandeau">
   <div class="layer">
     <div class="bandeau-in">
       <div>
-        <h2>Vingt places au tarif fondateur.</h2>
-        <p>La remise de lancement est limitée à vingt entreprises, et au 31 décembre 2026.
-          Avant que le solde soit facturé, les cinq critères de démarrage écrits dans les
-          engagements de service sont constatés avec vous.</p>
+        <h2>On ne vous facture pas une promesse.</h2>
+        <p>Une saison commence quand l'outil marche chez vous, pas à la signature. Cinq
+          points sont constatés ensemble, vous les vérifiez vous-même, et s'il en manque
+          un, <b>l'acompte est remboursé et le solde n'est pas dû</b>. C'est écrit dans nos
+          <a href="/engagements.html">engagements de service</a>.</p>
       </div>
       <div class="bandeau-cta">
         <a class="btn btn-lg" href="/inscription.html"><span class="dot"></span>Réserver une place</a>
-        <span class="mono">Préinscription gratuite, sans carte bancaire,
-          sans engagement.</span>
+        <span class="mono">Préinscription gratuite, sans carte bancaire, sans engagement.
+          Remise de lancement&nbsp;: vingt entreprises, jusqu'au 31&nbsp;décembre 2026.</span>
       </div>
     </div>
   </div>
 </section>"""
 
 
-FAQ_ENT = faq([
+# ── les questions qui decident ─────────────────────────────
+# « Riseva a-t-elle deja des resultats a montrer ? » etait la huitieme et
+# derniere question, en bas d'une liste que personne ne descend. C'est pourtant
+# la seule que tout le monde se pose devant une entreprise sans un client, et sa
+# reponse — non, aucun, et voici ce qui est contractuel des le premier jour —
+# est ce que cette page a de plus credible. Elle est donc premiere, et c'est
+# elle qui est ouverte quand on arrive : les sept qui suivent se lisent alors
+# comme de la franchise et non comme un argumentaire.
+QUESTIONS_ENT = [
+  ("Riseva a-t-elle déjà des résultats à montrer ?",
+   "<p>Non, et cette page n'en affiche aucun. La première saison démarre en janvier : les "
+   "écrans montrés ici viennent d'un jeu de démonstration et servent à montrer la forme des "
+   "restitutions. Les chiffres publics de la page sont des faits extérieurs, datés et "
+   "sourcés.</p>"
+   "<p>Ce qui est contractuel dès le premier jour est écrit dans "
+   "<a href='/engagements.html'>les engagements de service</a> : les cinq critères de "
+   "démarrage, l'acompte remboursé s'ils ne sont pas constatés, et le délai de quatorze "
+   "jours au terme duquel un résultat non confirmé reste marqué comme estimé.</p>"),
+
+  # La reponse recopiait la grille : les six paliers, la remise fondateur et le
+  # devis au-dela de deux mille salaries, mot pour mot, a mille deux cents
+  # pixels du tableau qui les affiche deja. Elle ne dit plus que ce que le
+  # tableau ne dit pas, et renvoie a lui pour le reste.
   ("Combien coûte une saison ?",
-   f"<p>La grille est <a href='#prix'>affichée sur cette page</a> : de "
-   # `[:-2]` coupait « € » et laissait « &nbsp » sans point-virgule : l'entite
-   # restait a moitie ecrite dans la page. Et la fourchette annoncait le dernier
-   # palier comme un prix ferme, alors que le heros et la note sous la grille
-   # disent « a partir de ». Les trois disent maintenant la meme chose.
-   f"<b>{EUR(TARIFS['paliers'][0]['prix']).replace('&nbsp;€', '')} à "
-   f"{EUR(TARIFS['paliers'][-2]['prix'])} HT</b> pour douze mois, selon votre effectif, "
-   f"un à {EN_LETTRES.get(TARIFS['paliers'][-2]['sites'], TARIFS['paliers'][-2]['sites'])} "
-   f"sites compris selon la tranche. Au-delà de deux mille salariés, sur devis à partir de "
-   f"{EUR(TARIFS['paliers'][-1]['prix'])}, "
-   f"{EN_LETTRES.get(TARIFS['paliers'][-1]['sites'], TARIFS['paliers'][-1]['sites'])} "
-   f"sites compris. "
-   f"Les {TARIFS['fondateur_places']} premières entreprises signataires bénéficient de "
-   f"{int(TARIFS['fondateur_taux'] * 100)} % de remise sur leur première saison.</p>"
-   "<p>Pas de facturation par salarié, pas de module en supplément, pas de commission sur les "
-   "dons. Les associations, elles, ne paient jamais rien.</p>"
+   "<p>La grille complète est <a href='#prix'>juste au-dessus</a>, avec le simulateur qui "
+   "donne le montant exact pour votre effectif. Ce qu'elle ne dit pas et qui compte autant : "
+   "<b>pas de facturation par salarié, pas de module en supplément, pas de commission sur "
+   "les dons</b>. Les associations, elles, ne paient jamais rien.</p>"
    "<p>Nous ne comparons pas notre prix à celui d'un concurrent que nous ne nommerions pas : "
-   "une fourchette annoncée sans source ne vous aide pas à décider. La grille complète est "
-   "publique, elle est plus bas sur cette page, et le simulateur donne le montant exact pour "
-   "votre effectif.</p>"),
+   "une fourchette annoncée sans source ne vous aide pas à décider.</p>"),
   ("Qu'est-ce qui est compris dans l'abonnement ?",
    "<p>Une saison d'un an, avec les comptes correspondant à votre effectif, les formats du "
    "barème, l'accompagnement au lancement, les affiches et les supports, et les rapports "
@@ -1403,16 +1422,19 @@ FAQ_ENT = faq([
    "<a href='/engagements.html'>les engagements de service</a>.</p>"
    "<p><b>Ce qui reste à votre charge</b>, et qui n'est donc pas compris dans l'abonnement :</p>"
    "<ul class='qa-l'>" + "".join(f"<li>{x}</li>" for x in TARIFS["exclus"]) + "</ul>"),
-  ("Riseva a-t-elle déjà des résultats à montrer ?",
-   "<p>Non, et cette page n'en affiche aucun. La première saison démarre en janvier : les "
-   "écrans montrés ici viennent d'un jeu de démonstration et servent à montrer la forme des "
-   "restitutions. Les chiffres publics de la page sont des faits extérieurs, datés et "
-   "sourcés.</p>"
-   "<p>Ce qui est contractuel dès le premier jour est écrit dans "
-   "<a href='/engagements.html'>les engagements de service</a> : les cinq critères de "
-   "démarrage, l'acompte remboursé s'ils ne sont pas constatés, et le délai de quatorze "
-   "jours au terme duquel un résultat non confirmé reste marqué comme estimé.</p>"),
-])
+]
+
+# « Ce qu'on nous demande vraiment » etait, sur une page sans un seul client,
+# une petite fiction de plus : personne ne nous a encore rien demande. Le titre
+# dit maintenant ce que la section fait reellement, c'est-a-dire repondre avant
+# qu'on demande.
+FAQ_ENT = faq(QUESTIONS_ENT,
+              # Pas « avant de decider » : la section du prix, deux titres plus haut, dit
+              # deja « Un tarif public, avant de decider ». Deux titres de suite qui
+              # finissent sur les memes trois mots se lisent comme un seul.
+              "Ce que vous voudrez vérifier<br><span class='it'>avant de signer.</span>",
+              "Les questions qui décident d'une signature, et nos réponses. Si la vôtre "
+              "manque, écrivez-la-nous à contact@riseva.fr : elle finira ici.")
 
 
 def jalons(eyebrow, titre, note, items, ident="preuve", bande=" class=\"band-moss\"",
@@ -1461,7 +1483,7 @@ def grille_tarifaire():
           <td class="tar-sites">{p['sites']} site{'s' if p['sites'] > 1 else ''} inclus</td>
         </tr>"""
     inclus = "".join(f"<li>{x}</li>" for x in TARIFS["inclus"])
-    return f"""<section id="prix" class="band-moss">
+    return f"""<section id="prix">
   <div class="layer">
 {entete("Le prix", "Un tarif public,<br><span class='it'>avant de décider.</span>",
         "Une saison de douze mois, tout compris. Le tarif suit votre effectif parce que c'est "
@@ -1525,11 +1547,9 @@ PRIX_ENT = grille_tarifaire()
 CORPS_ENT = "\n\n".join([
     HERO_ENT,           # ce que c'est, ce que ca coute, a quoi ca ressemble
     PLATEFORME_ENT,     # la console de verre : les trois questions, et leurs ecrans
-    OUTIL_ENT,          # trois benefices, une capture, cinq dates
-    PILOTAGE_ENT,       # la demonstration, quatre onglets
+    OUTIL_ENT,          # l'argument, le calendrier, les cinq ecrans
     CHALLENGE_ENT,      # la photographie pleine largeur, et le panneau de verre
     EQUIPES_ENT,        # les deux ecrans du salarie, alignes
-    AFFICHES_ENT,       # ce qui arrive par la poste
     ASSOCIATIONS_ENT,   # l'annuaire verifie, et la confirmation
     PRIX_ENT,           # la grille, et le devis a cote
     FAQ_ENT,            # les questions qui decident vraiment
@@ -1730,7 +1750,8 @@ ARGENT_ASSO = f"""<section id="argent" class="band-moss">
 </section>"""
 
 
-FAQ_ASSO = faq([
+FAQ_ASSO = faq(
+  [
   ("C'est vraiment gratuit ?",
    "<p>Oui. Les associations ne paient rien, ni abonnement, ni commission sur les dons, ni "
    "frais de dossier. Ce sont les entreprises qui paient l'abonnement, et c'est le seul "
@@ -1772,7 +1793,10 @@ FAQ_ASSO = faq([
    "aucune donnée, nous n'envoyons pas les coordonnées de vos bénévoles aux entreprises, et "
    "vous pouvez fermer votre compte quand vous voulez. "
    "<a href='/confidentialite.html'>Le détail est ici</a>.</p>"),
-])
+  ],
+  "Ce que vous voudrez vérifier<br><span class='it'>avant de vous inscrire.</span>",
+  "Les questions qu'une association se pose avant de publier une première annonce, et nos "
+  "réponses. Si la vôtre manque, écrivez-la-nous à contact@riseva.fr : elle finira ici.")
 
 
 CONTACT_ASSO = f"""<section id="commencer">
@@ -1854,20 +1878,77 @@ CORPS_ASSO = "\n\n".join([
 ])
 
 
+# ── les donnees structurees ─────────────────────────────────────────────────
+# Aucune page n'en portait. Un moteur qui ne trouve rien de structure sur un
+# site francais tout neuf n'a que le texte pour deviner ce qu'est Riseva, et
+# une FAQ de huit questions reelles est exactement ce qu'il sait afficher.
+#
+# La regle est la meme que partout ailleurs ici : rien d'invente. Pas de note
+# moyenne, pas d'avis, pas d'effectif, pas de date de fondation qu'on ne
+# pourrait pas prouver. Et les questions ne sont pas recopiees : elles sont
+# generees a partir de la MEME liste que la page affiche, donc elles ne peuvent
+# pas s'en ecarter avec le temps. Un balisage qui promet une question que la
+# page ne montre pas est une penalite, pas un gain.
+def sans_balises(html):
+    txt = re.sub(r"<[^>]+>", " ", html)
+    txt = (txt.replace("&nbsp;", "\u00a0").replace("&amp;", "&")
+              .replace("&lt;", "<").replace("&gt;", ">").replace("&#39;", "'"))
+    return re.sub(r"\s+", " ", txt).strip()
+
+
+def donnees_structurees(questions=None):
+    orga = {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Riseva",
+        "url": "https://riseva.fr/",
+        "logo": "https://riseva.fr/brand/riseva-full.png",
+        "description": ("Plateforme RSE francaise pour entreprises multi-sites : collecte des "
+                        "indicateurs, rapports trimestriels, et missions aupres d'associations "
+                        "verifiees pres de chaque site."),
+        "areaServed": "FR",
+        "contactPoint": [{
+            "@type": "ContactPoint",
+            "contactType": "sales",
+            "email": "contact@riseva.fr",
+            "availableLanguage": ["fr"],
+        }],
+    }
+    blocs = [orga]
+    if questions:
+        blocs.append({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [{
+                "@type": "Question",
+                "name": sans_balises(q),
+                "acceptedAnswer": {"@type": "Answer", "text": sans_balises(r)},
+            } for q, r in questions],
+        })
+    return "".join(
+        '<script type="application/ld+json">'
+        + json.dumps(b, ensure_ascii=False, separators=(",", ":"))
+        + "</script>\n" for b in blocs)
+
+
 def main():
     a = page(fichier="index.html", canonique="/",
              titre="Riseva, la plateforme RSE qui commence par les associations",
-             description="Des associations vérifiées publient des besoins concrets près de vos "
-                         "sites, vos équipes y répondent autour d'un même objectif, et la gestion "
-                         "RSE suit : indicateurs sociaux, registre de sécurité multi-sites, accès "
-                         "CSE, rapports trimestriels et annuel envoyés tout seuls.",
+             # Elle faisait 269 signes : les moteurs en affichent environ 155, donc
+             # les cent derniers ne servaient a personne, et la phrase utile —
+             # ce que Riseva fait — se perdait dans une liste de rubriques.
+             description="Vos sites RSE dans un seul rapport, et vos équipes chez des "
+                         "associations vérifiées à côté de chacun d'eux. Tarif public, "
+                         "sans commission sur les dons.",
+             entetes_sup=donnees_structurees(QUESTIONS_ENT),
              corps=CORPS_ENT, nav_html=NAV_ENT, pied_html=PIED_ENT,
              classe_corps="vd", rubans=False)
     b = page(fichier="associations.html", canonique="/associations.html",
              titre="Riseva, pour les associations",
-             description="Publiez un besoin concret, des salariés d'entreprises abonnées peuvent "
-                         "y répondre. Gratuit, sans intégration technique, sans exclusivité et "
-                         "sans commission sur vos dons.",
+             description="Publiez un besoin concret, des salariés d'entreprises abonnées "
+                         "peuvent y répondre. Gratuit, sans exclusivité, sans commission "
+                         "sur vos dons.",
+             entetes_sup=donnees_structurees(),
              corps=CORPS_ASSO, nav_html=NAV_ASSO, pied_html=PIED_ASSO,
              classe_corps="va", rubans=False)
     for f in (a, b):

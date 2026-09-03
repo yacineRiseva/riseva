@@ -37,6 +37,14 @@ GABARIT = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Riseva, {titre}</title>
 <meta name="description" content="{description}">
+<meta name="theme-color" content="#FCFBF8">
+<link rel="canonical" href="https://riseva.fr/{fichier}">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Riseva">
+<meta property="og:title" content="Riseva, {titre}">
+<meta property="og:description" content="{description}">
+<meta property="og:url" content="https://riseva.fr/{fichier}">
 <link rel="icon" href="/brand/riseva-mark.png">
 <link rel="stylesheet" href="/styles/polices.css">
 <link rel="stylesheet" href="/styles/tokens.css">
@@ -100,6 +108,9 @@ MAJ = "20 août 2026"
 
 def ecrire(fichier, **kw):
     kw.setdefault("maj", MAJ)
+    # La page connait son propre nom : le canonique et les balises Open Graph
+    # s'en deduisent, il n'y a donc rien a tenir a jour a cote.
+    kw.setdefault("fichier", fichier)
     (RACINE / fichier).write_text(GABARIT.format(**kw), encoding="utf-8")
     print("écrit", fichier)
 

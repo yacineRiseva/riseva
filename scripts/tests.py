@@ -7,7 +7,7 @@ au premier échec.
 
     python3 scripts/tests.py
 """
-import http.server, socketserver, threading, functools, pathlib, sys, contextlib, subprocess
+import http.server, socketserver, threading, functools, pathlib, sys, contextlib, subprocess, os
 from playwright.sync_api import sync_playwright
 import re
 
@@ -80,6 +80,22 @@ def main():
         print("\nUn module ne se charge pas : inutile d'ouvrir un navigateur.")
         sys.exit(1)
     print("  ok   les trois modules se chargent")
+
+    # ── les pages sont refabriquees avant d'etre mesurees ───────────────────
+    # Une f-string a refuse un « # » place dans un de ses arguments, le
+    # generateur s'est arrete, et comme la commande etait lancee avec
+    # « >/dev/null 2>&1 » personne n'a rien vu : la recette a tourne trois
+    # minutes sur les pages de la veille et les a declarees vertes. Une recette
+    # qui mesure un fichier perime ne mesure rien. Les generateurs tournent donc
+    # ici, et leur silence est verifie.
+    print("\nFabrication des pages")
+    for recette in ("vitrines.py", "pages.py", "css.py"):
+        r = subprocess.run([sys.executable, str(RACINE.parent / "scripts" / recette)],
+                           capture_output=True, text=True)
+        if r.returncode:
+            print(f"  RATÉ {recette}\n{(r.stdout + r.stderr).strip()[-800:]}")
+            sys.exit(1)
+        print(f"  ok   {recette} a produit ses fichiers")
 
     erreurs_js = []
     with serveur(), sync_playwright() as pw:
@@ -336,7 +352,7 @@ def main():
         # C'est le seul objet Riseva qu'un salarié voit sans ouvrir un écran, et
         # la section qui le montre avait disparu. Elle montre l'affiche telle
         # qu'elle sort de la plateforme, pas une photo d'affiche posée sur un mur.
-        aff = norm(p.inner_text("#affiches"))
+        aff = norm(p.inner_text(".aff-scene"))
         verifie("la vitrine montre l'affiche et ce qu'elle porte",
                 "code QR" in aff and "lien d'inscription" in aff
                 and "quatre moments de la saison" in aff)
@@ -344,7 +360,7 @@ def main():
         # `scripts/captures.py` a partir de l'affiche que la plateforme genere :
         # la scene entiere et le detail du code QR. La section montrait aupavant
         # une affiche de synthese, coupee en bas, a cote de la vraie.
-        srcs = p.eval_on_selector_all("#affiches img", "l=>l.map(e=>e.getAttribute('src'))")
+        srcs = p.eval_on_selector_all(".aff-scene img", "l=>l.map(e=>e.getAttribute('src'))")
         verifie("l'affiche montrée est une vraie sortie de la plateforme",
                 len(srcs) == 2 and all("/photos/affiche-" in x for x in srcs), str(srcs))
         gen = (RACINE.parent / "scripts" / "captures.py").read_text(encoding="utf-8")
@@ -408,6 +424,261 @@ def main():
                     doublons.append(page + " : " + t_[:60])
         verifie("aucun titre n'apparait deux fois dans la meme page",
                 not doublons, str(doublons[:5]))
+
+        # ── les ancres internes ─────────────────────────────────────────────
+        # En fusionnant deux sections, la section #pilotage a disparu de la page
+        # et trois liens ont continue a pointer dessus : un pilier du premier
+        # ecran et deux entrees du pied de page. Un lien d'ancre mort ne casse
+        # rien de visible — le navigateur ne bouge pas, et c'est tout — donc
+        # personne ne le voit, ni en relisant le code, ni en regardant la page.
+        # Il se mesure, en revanche, et en une ligne : chaque href="#quelque
+        # chose" doit trouver son element dans la meme page.
+        mortes = []
+        for page in ("/", "/associations.html", "/rejoindre.html", "/inscription.html",
+                     "/charte-associations.html", "/cgv.html", "/reglement.html",
+                     "/mentions.html", "/confidentialite.html", "/securite.html",
+                     "/engagements.html", "/moderation.html"):
+            p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(200)
+            perdues = p.evaluate("""()=>[...document.querySelectorAll('a[href^="#"]')]
+                .map(a=>a.getAttribute('href'))
+                .filter(h=>h.length>1 && h!=='#top' && !document.getElementById(h.slice(1)))""")
+            for h in perdues:
+                mortes.append(page + " -> " + h)
+        verifie("aucun lien d'ancre ne pointe vers une section qui n'existe plus",
+                not mortes, str(mortes[:8]))
+
+        # ── le contraste du texte ───────────────────────────────────────────
+        # En passant la section du prix du vert fonce a l'ivoire, deux teintes
+        # ecrites pour le fond sombre sont restees : la grille tarifaire entiere
+        # s'est retrouvee en blanc casse sur ivoire, et « a partir de » est passe
+        # a 1,00 de contraste, c'est-a-dire exactement la couleur du fond. Rien
+        # ne plante, rien n'est signale, et on ne le voit pas en relisant du CSS :
+        # il faut mesurer la couleur reellement calculee contre le fond
+        # reellement peint. Le seuil est celui du WCAG AA : 4,5 pour le texte
+        # courant, 3,0 des 24 px ou des 18,66 px en gras.
+        # Les elements aria-hidden sont exclus : les chiffres en filigrane du
+        # panneau de verre sont a 7 % d'opacite parce qu'ils sont un decor, et un
+        # test qui les signale est un test qu'on apprend a ignorer.
+        MESURE_CONTRASTE = """()=>{
+          const lum=c=>{const [r,g,b]=c.map(v=>{v/=255;
+            return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)});
+            return .2126*r+.7152*g+.0722*b;};
+          const parse=s=>{const m=s.match(/[\d.]+/g); if(!m) return null;
+            return {c:[+m[0],+m[1],+m[2]], a:m.length>3?+m[3]:1};};
+          const fond=e=>{let n=e;
+            while(n && n!==document.documentElement){
+              const p=parse(getComputedStyle(n).backgroundColor);
+              if(p && p.a>0.9) return p.c; n=n.parentElement;}
+            return [255,255,255];};
+          const out=[];
+          document.querySelectorAll('body *').forEach(e=>{
+            let t=''; for(const c of e.childNodes) if(c.nodeType===3) t+=c.textContent.trim();
+            if(!t || e.offsetParent===null) return;
+            if(e.closest('[aria-hidden="true"]')) return;
+            const s=getComputedStyle(e); const f=parse(s.color); if(!f) return;
+            const bg=fond(e);
+            const eff=f.c.map((v,i)=>v*f.a + bg[i]*(1-f.a));
+            const l1=lum(eff), l2=lum(bg);
+            const r=(Math.max(l1,l2)+.05)/(Math.min(l1,l2)+.05);
+            const px=parseFloat(s.fontSize), gras=parseInt(s.fontWeight)>=700;
+            const seuil=(px>=24 || (px>=18.66 && gras)) ? 3.0 : 4.5;
+            if(r < seuil) out.push(r.toFixed(2)+' < '+seuil+'  '+e.tagName+'.'
+              +String(e.className).slice(0,24)+'  '+Math.round(px)+'px | '+t.slice(0,36));
+          });
+          return out;}"""
+        for page in ("/", "/associations.html", "/rejoindre.html", "/inscription.html",
+                     "/reglement.html", "/engagements.html"):
+            p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(300)
+            haut = p.evaluate("()=>document.documentElement.scrollHeight")
+            for y in range(0, haut, 600):
+                p.evaluate(f"window.scrollTo(0,{y})"); p.wait_for_timeout(40)
+            faibles = p.evaluate(MESURE_CONTRASTE)
+            verifie(f"tout le texte atteint le contraste AA sur {page}",
+                    not faibles, str(faibles[:4]))
+
+        # ── la barre de navigation sur telephone ────────────────────────────
+        # Deux defauts sont passes ici l'un apres l'autre, et le second a ete
+        # cree en corrigeant le premier. D'abord le bouton « Ouvrir la
+        # demonstration » se laissait comprimer et perdait son dernier « n » ;
+        # on lui a mis `flex:none`, il a garde sa largeur entiere, et c'est le
+        # bouton de menu — dernier de la rangee — qui est sorti de l'ecran :
+        # sur un telephone de 390 px, il allait de 371 a 415. Ensuite, le
+        # panneau du menu passait par-dessus la barre, donc par-dessus la croix
+        # qui le ferme : un menu qu'on ouvre et qu'on ne peut plus refermer.
+        # Aucun des deux ne casse quoi que ce soit, aucun des deux ne se voit
+        # sur un ecran d'ordinateur, et les deux rendent le site inutilisable
+        # sur telephone. Ils se mesurent, eux.
+        for largeur in (320, 360, 390, 430):
+            mctx = nav.new_context(viewport={"width": largeur, "height": 800},
+                                   locale="fr-FR", reduced_motion="reduce")
+            m = mctx.new_page()
+            m.goto(BASE + "/", wait_until="networkidle"); m.wait_for_timeout(300)
+            dehors = m.evaluate("""(w)=>{const out=[];
+                document.querySelectorAll('.nav *').forEach(e=>{
+                  if(e.offsetParent===null) return;
+                  const r=e.getBoundingClientRect();
+                  if(r.right>w+1 || r.left<-1)
+                    out.push(e.tagName+'.'+String(e.className).slice(0,20)
+                             +' '+Math.round(r.left)+'..'+Math.round(r.right));});
+                return out;}""", largeur)
+            verifie(f"rien ne sort de la barre de navigation a {largeur} px",
+                    not dehors, str(dehors[:4]))
+            m.click(".nav-burger"); m.wait_for_timeout(450)
+            verifie(f"le menu s'ouvre a {largeur} px", m.is_visible("#navSheet"))
+            dessus = m.evaluate("""()=>{const b=document.querySelector('.nav-burger');
+                const r=b.getBoundingClientRect();
+                const e=document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);
+                return b===e || b.contains(e);}""")
+            verifie(f"et la croix qui le referme reste au-dessus du panneau a {largeur} px",
+                    dessus, "le panneau recouvre le bouton du menu")
+            m.click(".nav-burger"); m.wait_for_timeout(450)
+            verifie(f"un second appui referme le menu a {largeur} px",
+                    not m.is_visible("#navSheet"))
+            m.close(); mctx.close()
+
+        # ── ce qu'un moteur et un partage voient ────────────────────────────
+        # Dix des douze pages publiques n'avaient ni canonique ni Open Graph :
+        # une adresse partagee dans un message tombait sans titre ni resume, et
+        # deux chemins menant a la meme page n'avaient rien pour dire lequel
+        # compte. Les deux pages de conversion — celle ou l'on reserve une place
+        # et celle ou un salarie ouvre son compte — n'avaient meme pas de
+        # description. Celle de l'accueil, elle, faisait 269 signes la ou les
+        # moteurs en affichent environ 155 : la moitie ne servait a personne.
+        for page in ("/", "/associations.html", "/rejoindre.html", "/inscription.html",
+                     "/reglement.html", "/engagements.html", "/securite.html",
+                     "/confidentialite.html", "/cgv.html", "/mentions.html",
+                     "/moderation.html", "/charte-associations.html"):
+            p.goto(BASE + page, wait_until="domcontentloaded"); p.wait_for_timeout(120)
+            meta = p.evaluate("""()=>({
+                titre: document.title,
+                desc: (document.querySelector('meta[name=description]')||{}).content||'',
+                canon: (document.querySelector('link[rel=canonical]')||{}).href||'',
+                og: document.querySelectorAll('meta[property^="og:"]').length,
+                h1: document.querySelectorAll('h1').length,
+                lang: document.documentElement.lang})""")
+            verifie(f"{page} porte un titre, une description et une adresse canonique",
+                    meta["titre"] and meta["desc"] and meta["canon"], str(meta))
+            verifie(f"{page} : la description tient dans ce qu'un moteur affiche",
+                    0 < len(meta["desc"]) <= 160, f'{len(meta["desc"])} signes')
+            verifie(f"{page} se partage avec un titre et un resume",
+                    meta["og"] >= 6, str(meta["og"]) + " balises og")
+            verifie(f"{page} n'a qu'un seul h1, en francais",
+                    meta["h1"] == 1 and meta["lang"] == "fr", str(meta))
+
+        # Les donnees structurees sont generees a partir de la meme liste que la
+        # page affiche. Le test le verifie plutot que de le supposer : un
+        # balisage qui annonce a un moteur une question absente de la page est
+        # une penalite, pas un gain.
+        p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(250)
+        struct = p.evaluate("""()=>[...document.querySelectorAll('script[type="application/ld+json"]')]
+            .map(e=>JSON.parse(e.textContent))""")
+        types = [b.get("@type") for b in struct]
+        verifie("l'accueil porte les donnees structurees de l'organisation et de la FAQ",
+                "Organization" in types and "FAQPage" in types, str(types))
+        faqld = next(b for b in struct if b.get("@type") == "FAQPage")
+        balisees = [q["name"].strip() for q in faqld["mainEntity"]]
+        affichees = p.evaluate("""()=>[...document.querySelectorAll('#faq h3')]
+            .map(e=>e.innerText.replace(/\s+/g,' ').trim())""")
+        verifie("chaque question balisee est bien affichee sur la page, dans le meme ordre",
+                balisees == affichees, str(balisees[:2]) + " / " + str(affichees[:2]))
+        verifie("aucune reponse balisee n'est vide",
+                all(len(q["acceptedAnswer"]["text"]) > 40 for q in faqld["mainEntity"]))
+        # Rien d'invente : ni note moyenne, ni avis, ni effectif.
+        brut = p.evaluate("""()=>[...document.querySelectorAll('script[type="application/ld+json"]')]
+            .map(e=>e.textContent).join(' ')""")
+        verifie("les donnees structurees n'annoncent ni note, ni avis, ni effectif",
+                not any(x in brut for x in ("aggregateRating", "reviewCount", "ratingValue",
+                                            "numberOfEmployees", "Review")), brut[:120])
+
+        # ── la derive du systeme de dessin ──────────────────────────────────
+        # Compte fait sur la feuille de la vitrine : trois jetons d'ombre
+        # existent (--sh-1, --sh-2, --sh-3) et deux seulement sont employes,
+        # pendant que dix-huit ombres sont ecrites a la main, chacune avec ses
+        # propres decalages et ses propres opacites. Meme chose pour les
+        # transparences : vingt-cinq opacites differentes du meme ivoire.
+        #
+        # Ce n'est pas un defaut qu'on corrige a la volee : ramener vingt-cinq
+        # opacites a six, ou dix-huit ombres a trois, change ce qu'on voit, et
+        # cela se decide en regardant le resultat, pas en remplacant du texte.
+        # Ce test ne corrige donc rien : il empeche seulement que ca empire. Les
+        # plafonds sont les valeurs du jour ou il a ete ecrit. Quand la
+        # consolidation sera faite, on les baissera.
+        feuille = (RACINE / "styles" / "vitrine.css").read_text(encoding="utf-8")
+        feuille = re.sub(r"/\*.*?\*/", "", feuille, flags=re.S)
+        ombres = {o.strip() for o in re.findall(r"box-shadow:\s*([^;}]+)", feuille)
+                  if "var(--sh" not in o and o.strip() not in ("none", "inherit")}
+        verifie("le nombre d'ombres ecrites a la main n'augmente pas",
+                len(ombres) <= 18, f"{len(ombres)} ombres distinctes, plafond 18")
+        for encre, plafond in (("242,240,233", 25), ("19,21,16", 21),
+                               ("11,38,32", 16), ("252,251,248", 12)):
+            motif = r"rgba\(" + encre.replace(",", r",\s*") + r",\s*([.\d]+)\)"
+            alphas = set(re.findall(motif, feuille))
+            verifie(f"les opacites de rgba({encre}) n'augmentent pas",
+                    len(alphas) <= plafond,
+                    f"{len(alphas)} opacites distinctes, plafond {plafond}")
+        verifie("aucun rayon de bordure n'est ecrit en dur a la place du jeton",
+                "border-radius:999px" not in feuille
+                and "border-radius: 999px" not in feuille)
+
+        # ── ce qui apparait au defilement ───────────────────────────────────
+        # Les apparitions sont pilotees par un IntersectionObserver, et un
+        # observateur ne promet rien quand la page bouge plus vite que lui : en
+        # faisant defiler par bonds de cinq cents pixels toutes les cent
+        # millisecondes, vingt blocs restaient a zero d'opacite. La mesure
+        # affolait pour rien — refaite au rythme d'une main humaine, avec la
+        # touche Fin, avec un lien d'ancre et avec une adresse qui porte deja
+        # son ancre, aucun bloc PRESENT A L'ECRAN n'est transparent.
+        #
+        # C'est cette phrase-la, et pas le compte total, qui est l'invariant :
+        # un bloc qu'on n'a pas encore atteint a le droit d'attendre son tour,
+        # un bloc qu'on regarde n'a pas le droit d'etre invisible.
+        # « A l'ecran » veut dire ce que le lecteur regarde, pas ce qui depasse.
+        # Premiere version : un seul pixel visible suffisait a compter. Elle
+        # signalait les quatre pilliers du premier ecran, dont treize pixels sur
+        # deux cent quarante-huit passent au-dessus de la ligne de flottaison a
+        # l'ouverture : ils n'apparaissent pas parce qu'on ne les a pas encore
+        # atteints, et c'est exactement ce qu'on leur demande. L'observateur des
+        # apparitions se declenche a six pour cent de la surface ; le test exige
+        # donc plus que lui, la moitie de la hauteur, pour ne signaler que ce
+        # qu'on est vraiment en train de lire.
+        A_L_ECRAN = """()=>[...document.querySelectorAll('.rv,.rl')].filter(e=>{
+            const r=e.getBoundingClientRect();
+            if(!r.height) return false;
+            const vu=Math.min(r.bottom,innerHeight)-Math.max(r.top,0);
+            if(vu < r.height*0.5) return false;
+            return parseFloat(getComputedStyle(e).opacity) < 0.9;})
+            .map(e=>e.tagName+'.'+String(e.className).slice(0,24))"""
+
+        p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
+        p.keyboard.press("End"); p.wait_for_timeout(1500)
+        verifie("touche Fin : rien de transparent a l'ecran",
+                not p.evaluate(A_L_ECRAN), str(p.evaluate(A_L_ECRAN)[:4]))
+
+        p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
+        p.click('.nav a[href="#prix"]'); p.wait_for_timeout(1600)
+        verifie("saut par le menu : rien de transparent a l'ecran",
+                not p.evaluate(A_L_ECRAN), str(p.evaluate(A_L_ECRAN)[:4]))
+
+        p.goto(BASE + "/#faq", wait_until="networkidle"); p.wait_for_timeout(1600)
+        verifie("adresse partagee avec une ancre : rien de transparent a l'ecran",
+                not p.evaluate(A_L_ECRAN), str(p.evaluate(A_L_ECRAN)[:4]))
+
+        # Premiere version de ce controle : verifier a chaque bond de 90 px. Elle
+        # signalait les quatre pilliers du premier ecran, qui n'ont rien : ils
+        # etaient simplement EN TRAIN d'apparaitre, la transition durant six
+        # dixiemes de seconde. Un bloc qui s'affiche n'est pas un bloc invisible.
+        # On s'arrete donc a douze endroits de la page, on laisse le temps a ce
+        # qui arrive d'arriver, et c'est la qu'on regarde.
+        p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
+        haut = p.evaluate("()=>document.documentElement.scrollHeight")
+        restes = []
+        for n in range(12):
+            p.evaluate(f"window.scrollTo(0,{int(n * (haut - 900) / 11)})")
+            p.wait_for_timeout(1300)
+            restes += p.evaluate(A_L_ECRAN)
+        verifie("a l'arret, nulle part sur la page, rien de transparent a l'ecran",
+                not restes, str(restes[:5]))
+        p.goto(BASE + "/", wait_until="networkidle")
 
         # ── la longueur de ligne ────────────────────────────────────────────
         # Au-dela de quatre-vingts signes par ligne, l'oeil rate le retour a la
@@ -2708,6 +2979,81 @@ def main():
 
         print("\nAccessibilité et robustesse")
         p.goto(BASE + "/", wait_until="networkidle")
+
+        # ── ce qui s'affiche doit pouvoir se taper ──────────────────────────
+        # `scripts/clavier.py` existait deja, tres bien documente, et n'etait
+        # lance par rien : il fallait y penser. Ce soir un tiret cadratin est
+        # entre dans une phrase de la section « Trois questions » et n'a ete vu
+        # qu'en s'en souvenant. Une regle qu'on doit se rappeler n'est pas une
+        # regle, c'est une chance. La recette est donc appelee ici, contre le
+        # meme serveur, et son echec fait echouer la suite.
+        recette = subprocess.run(
+            [sys.executable, str(RACINE.parent / "scripts" / "clavier.py"), "--strict"],
+            capture_output=True, text=True,
+            env={**os.environ, "RISEVA_PORT": str(PORT)})
+        verifie("tout le texte affiche se tape sur un clavier francais",
+                recette.returncode == 0,
+                (recette.stdout + recette.stderr).strip()[-300:])
+
+        # ── la feuille servie et la feuille ecrite ──────────────────────────
+        # `vitrine.css` fait 206 Ko dont 42 % de commentaires : ils gardent la
+        # memoire de chaque decision et doivent rester dans la source, mais ils
+        # partaient aussi chez le visiteur, sur la ressource qui bloque le
+        # premier rendu. Les pages chargent donc `vitrine.min.css`, engendree
+        # par scripts/css.py : memes regles, sans les commentaires ni
+        # l'indentation. 206 Ko deviennent 117, et 52 Ko compresses deviennent
+        # 23.
+        #
+        # Deux choses a garantir, et deux tests. D'abord que la feuille servie
+        # n'a pas pris de retard sur la source : sinon on corrige un defaut dans
+        # l'une et le visiteur voit l'autre. Ensuite que le decoupage n'a rien
+        # change : la premiere version, qui protegeait les chaines avec une
+        # expression reguliere, a pris l'apostrophe de « l'ecran » dans un
+        # commentaire francais pour un debut de chaine, a mange le « :root{ » et
+        # a rendu la page entiere en Times New Roman. La comparaison ci-dessous
+        # porte sur le style CALCULE de chaque element, aux deux largeurs.
+        frais = subprocess.run(
+            [sys.executable, str(RACINE.parent / "scripts" / "css.py"), "--verifie"],
+            capture_output=True, text=True)
+        verifie("la feuille servie est bien celle qu'on vient d'ecrire",
+                frais.returncode == 0, (frais.stdout + frais.stderr).strip()[-200:])
+
+        EMPREINTE = """() => {
+          const out = [];
+          for (const e of document.querySelectorAll('body *')) {
+            const s = getComputedStyle(e), r = e.getBoundingClientRect();
+            out.push([Math.round(r.x), Math.round(r.y), Math.round(r.width),
+              Math.round(r.height), s.color, s.backgroundColor, s.fontSize, s.fontWeight,
+              s.fontFamily, s.lineHeight, s.display, s.position, s.margin, s.padding,
+              s.border, s.borderRadius, s.boxShadow, s.opacity, s.transform, s.zIndex,
+              s.overflow, s.gridTemplateColumns, s.flexDirection, s.textAlign,
+              s.letterSpacing, s.whiteSpace, s.objectFit, s.maxWidth, s.minHeight
+            ].join('|'));
+          }
+          return out; }"""
+        BASCULE = """(f) => { for (const l of document.querySelectorAll('link[rel=stylesheet]'))
+            if (l.href.indexOf('vitrine') !== -1) l.href = f; }"""
+
+        for largeur in (1440, 390):
+            c2 = nav.new_context(viewport={"width": largeur, "height": 900},
+                                 locale="fr-FR", reduced_motion="reduce")
+            q = c2.new_page()
+            empreintes = []
+            for feuille in (None, "/styles/vitrine.css"):
+                q.goto(BASE + "/", wait_until="networkidle"); q.wait_for_timeout(400)
+                if feuille:
+                    q.evaluate(BASCULE, feuille); q.wait_for_timeout(900)
+                haut = q.evaluate("() => document.documentElement.scrollHeight")
+                for y in range(0, haut, 700):
+                    q.evaluate("y => window.scrollTo(0, y)", y); q.wait_for_timeout(30)
+                q.evaluate("() => window.scrollTo(0, 0)"); q.wait_for_timeout(400)
+                empreintes.append(q.evaluate(EMPREINTE))
+            servie, source = empreintes
+            ecarts = [i for i, (x, y) in enumerate(zip(servie, source)) if x != y]
+            verifie(f"la feuille servie rend exactement comme la source a {largeur} px",
+                    not ecarts and len(servie) == len(source),
+                    f"{len(ecarts)} elements differents sur {len(servie)}")
+            q.close(); c2.close()
         sans_alt = p.eval_on_selector_all("img", "l=>l.filter(i=>!i.hasAttribute('alt')).length")
         verifie("toutes les images ont un alt", sans_alt == 0, f"{sans_alt} sans alt")
 
