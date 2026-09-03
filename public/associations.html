@@ -15,7 +15,11 @@
 <meta property="og:url" content="https://riseva.fr/associations.html">
 <link rel="icon" href="/brand/riseva-mark.png">
 <link rel="stylesheet" href="/styles/polices.css">
-<link rel="stylesheet" href="/styles/vitrine.css">
+<!-- La feuille servie est engendree depuis vitrine.css par scripts/css.py :
+     meme regles, sans les commentaires. 206 Ko deviennent 117, et 52 Ko
+     compresses deviennent 23, sur la ressource qui bloque le premier rendu.
+     Les corrections vont dans vitrine.css, jamais ici. -->
+<link rel="stylesheet" href="/styles/vitrine.min.css">
 <!-- Une classe posée avant le premier rendu, et rien d'autre. Les apparitions au
      défilement sont écrites « .js .rv », donc sans script le contenu est visible
      dès le départ : c'est le seul moyen qu'une animation ne puisse jamais
@@ -252,9 +256,9 @@
     <div class="s-head">
       <div class="rv">
         <div class="eyebrow mono">La FAQ</div>
-        <h2>Ce qu'on nous demande<br><span class='it'>vraiment.</span></h2>
+        <h2>Ce que vous voudrez vérifier<br><span class='it'>avant de vous inscrire.</span></h2>
       </div>
-      <p class="s-note rv d2">Les questions qui décident d'une signature, et nos réponses. Si la vôtre manque, écrivez-la-nous à contact@riseva.fr : elle finira ici.</p>
+      <p class="s-note rv d2">Les questions qu'une association se pose avant de publier une première annonce, et nos réponses. Si la vôtre manque, écrivez-la-nous à contact@riseva.fr : elle finira ici.</p>
     </div>
     <div class="qa-split">
       <ol class="qa-index rv" id="qaIndex" role="tablist" aria-label="Sommaire des questions">

@@ -7,7 +7,7 @@ au premier échec.
 
     python3 scripts/tests.py
 """
-import http.server, socketserver, threading, functools, pathlib, sys, contextlib, subprocess
+import http.server, socketserver, threading, functools, pathlib, sys, contextlib, subprocess, os
 from playwright.sync_api import sync_playwright
 import re
 
@@ -80,6 +80,22 @@ def main():
         print("\nUn module ne se charge pas : inutile d'ouvrir un navigateur.")
         sys.exit(1)
     print("  ok   les trois modules se chargent")
+
+    # ── les pages sont refabriquees avant d'etre mesurees ───────────────────
+    # Une f-string a refuse un « # » place dans un de ses arguments, le
+    # generateur s'est arrete, et comme la commande etait lancee avec
+    # « >/dev/null 2>&1 » personne n'a rien vu : la recette a tourne trois
+    # minutes sur les pages de la veille et les a declarees vertes. Une recette
+    # qui mesure un fichier perime ne mesure rien. Les generateurs tournent donc
+    # ici, et leur silence est verifie.
+    print("\nFabrication des pages")
+    for recette in ("vitrines.py", "pages.py", "css.py"):
+        r = subprocess.run([sys.executable, str(RACINE.parent / "scripts" / recette)],
+                           capture_output=True, text=True)
+        if r.returncode:
+            print(f"  RATÉ {recette}\n{(r.stdout + r.stderr).strip()[-800:]}")
+            sys.exit(1)
+        print(f"  ok   {recette} a produit ses fichiers")
 
     erreurs_js = []
     with serveur(), sync_playwright() as pw:
@@ -616,9 +632,20 @@ def main():
         # C'est cette phrase-la, et pas le compte total, qui est l'invariant :
         # un bloc qu'on n'a pas encore atteint a le droit d'attendre son tour,
         # un bloc qu'on regarde n'a pas le droit d'etre invisible.
+        # « A l'ecran » veut dire ce que le lecteur regarde, pas ce qui depasse.
+        # Premiere version : un seul pixel visible suffisait a compter. Elle
+        # signalait les quatre pilliers du premier ecran, dont treize pixels sur
+        # deux cent quarante-huit passent au-dessus de la ligne de flottaison a
+        # l'ouverture : ils n'apparaissent pas parce qu'on ne les a pas encore
+        # atteints, et c'est exactement ce qu'on leur demande. L'observateur des
+        # apparitions se declenche a six pour cent de la surface ; le test exige
+        # donc plus que lui, la moitie de la hauteur, pour ne signaler que ce
+        # qu'on est vraiment en train de lire.
         A_L_ECRAN = """()=>[...document.querySelectorAll('.rv,.rl')].filter(e=>{
             const r=e.getBoundingClientRect();
-            if(r.bottom<=0 || r.top>=innerHeight) return false;
+            if(!r.height) return false;
+            const vu=Math.min(r.bottom,innerHeight)-Math.max(r.top,0);
+            if(vu < r.height*0.5) return false;
             return parseFloat(getComputedStyle(e).opacity) < 0.9;})
             .map(e=>e.tagName+'.'+String(e.className).slice(0,24))"""
 
@@ -636,15 +663,20 @@ def main():
         verifie("adresse partagee avec une ancre : rien de transparent a l'ecran",
                 not p.evaluate(A_L_ECRAN), str(p.evaluate(A_L_ECRAN)[:4]))
 
+        # Premiere version de ce controle : verifier a chaque bond de 90 px. Elle
+        # signalait les quatre pilliers du premier ecran, qui n'ont rien : ils
+        # etaient simplement EN TRAIN d'apparaitre, la transition durant six
+        # dixiemes de seconde. Un bloc qui s'affiche n'est pas un bloc invisible.
+        # On s'arrete donc a douze endroits de la page, on laisse le temps a ce
+        # qui arrive d'arriver, et c'est la qu'on regarde.
         p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
         haut = p.evaluate("()=>document.documentElement.scrollHeight")
-        pos, restes = 0, []
-        while pos < haut:
-            pos += 90
-            p.evaluate(f"window.scrollTo(0,{pos})"); p.wait_for_timeout(16)
+        restes = []
+        for n in range(12):
+            p.evaluate(f"window.scrollTo(0,{int(n * (haut - 900) / 11)})")
+            p.wait_for_timeout(1300)
             restes += p.evaluate(A_L_ECRAN)
-        p.wait_for_timeout(900)
-        verifie("defilement au rythme d'une main : rien de transparent a l'ecran",
+        verifie("a l'arret, nulle part sur la page, rien de transparent a l'ecran",
                 not restes, str(restes[:5]))
         p.goto(BASE + "/", wait_until="networkidle")
 
@@ -2947,6 +2979,81 @@ def main():
 
         print("\nAccessibilité et robustesse")
         p.goto(BASE + "/", wait_until="networkidle")
+
+        # ── ce qui s'affiche doit pouvoir se taper ──────────────────────────
+        # `scripts/clavier.py` existait deja, tres bien documente, et n'etait
+        # lance par rien : il fallait y penser. Ce soir un tiret cadratin est
+        # entre dans une phrase de la section « Trois questions » et n'a ete vu
+        # qu'en s'en souvenant. Une regle qu'on doit se rappeler n'est pas une
+        # regle, c'est une chance. La recette est donc appelee ici, contre le
+        # meme serveur, et son echec fait echouer la suite.
+        recette = subprocess.run(
+            [sys.executable, str(RACINE.parent / "scripts" / "clavier.py"), "--strict"],
+            capture_output=True, text=True,
+            env={**os.environ, "RISEVA_PORT": str(PORT)})
+        verifie("tout le texte affiche se tape sur un clavier francais",
+                recette.returncode == 0,
+                (recette.stdout + recette.stderr).strip()[-300:])
+
+        # ── la feuille servie et la feuille ecrite ──────────────────────────
+        # `vitrine.css` fait 206 Ko dont 42 % de commentaires : ils gardent la
+        # memoire de chaque decision et doivent rester dans la source, mais ils
+        # partaient aussi chez le visiteur, sur la ressource qui bloque le
+        # premier rendu. Les pages chargent donc `vitrine.min.css`, engendree
+        # par scripts/css.py : memes regles, sans les commentaires ni
+        # l'indentation. 206 Ko deviennent 117, et 52 Ko compresses deviennent
+        # 23.
+        #
+        # Deux choses a garantir, et deux tests. D'abord que la feuille servie
+        # n'a pas pris de retard sur la source : sinon on corrige un defaut dans
+        # l'une et le visiteur voit l'autre. Ensuite que le decoupage n'a rien
+        # change : la premiere version, qui protegeait les chaines avec une
+        # expression reguliere, a pris l'apostrophe de « l'ecran » dans un
+        # commentaire francais pour un debut de chaine, a mange le « :root{ » et
+        # a rendu la page entiere en Times New Roman. La comparaison ci-dessous
+        # porte sur le style CALCULE de chaque element, aux deux largeurs.
+        frais = subprocess.run(
+            [sys.executable, str(RACINE.parent / "scripts" / "css.py"), "--verifie"],
+            capture_output=True, text=True)
+        verifie("la feuille servie est bien celle qu'on vient d'ecrire",
+                frais.returncode == 0, (frais.stdout + frais.stderr).strip()[-200:])
+
+        EMPREINTE = """() => {
+          const out = [];
+          for (const e of document.querySelectorAll('body *')) {
+            const s = getComputedStyle(e), r = e.getBoundingClientRect();
+            out.push([Math.round(r.x), Math.round(r.y), Math.round(r.width),
+              Math.round(r.height), s.color, s.backgroundColor, s.fontSize, s.fontWeight,
+              s.fontFamily, s.lineHeight, s.display, s.position, s.margin, s.padding,
+              s.border, s.borderRadius, s.boxShadow, s.opacity, s.transform, s.zIndex,
+              s.overflow, s.gridTemplateColumns, s.flexDirection, s.textAlign,
+              s.letterSpacing, s.whiteSpace, s.objectFit, s.maxWidth, s.minHeight
+            ].join('|'));
+          }
+          return out; }"""
+        BASCULE = """(f) => { for (const l of document.querySelectorAll('link[rel=stylesheet]'))
+            if (l.href.indexOf('vitrine') !== -1) l.href = f; }"""
+
+        for largeur in (1440, 390):
+            c2 = nav.new_context(viewport={"width": largeur, "height": 900},
+                                 locale="fr-FR", reduced_motion="reduce")
+            q = c2.new_page()
+            empreintes = []
+            for feuille in (None, "/styles/vitrine.css"):
+                q.goto(BASE + "/", wait_until="networkidle"); q.wait_for_timeout(400)
+                if feuille:
+                    q.evaluate(BASCULE, feuille); q.wait_for_timeout(900)
+                haut = q.evaluate("() => document.documentElement.scrollHeight")
+                for y in range(0, haut, 700):
+                    q.evaluate("y => window.scrollTo(0, y)", y); q.wait_for_timeout(30)
+                q.evaluate("() => window.scrollTo(0, 0)"); q.wait_for_timeout(400)
+                empreintes.append(q.evaluate(EMPREINTE))
+            servie, source = empreintes
+            ecarts = [i for i, (x, y) in enumerate(zip(servie, source)) if x != y]
+            verifie(f"la feuille servie rend exactement comme la source a {largeur} px",
+                    not ecarts and len(servie) == len(source),
+                    f"{len(ecarts)} elements differents sur {len(servie)}")
+            q.close(); c2.close()
         sans_alt = p.eval_on_selector_all("img", "l=>l.filter(i=>!i.hasAttribute('alt')).length")
         verifie("toutes les images ont un alt", sans_alt == 0, f"{sans_alt} sans alt")
 

@@ -70,7 +70,7 @@ for source, cible in [("index.html", "riseva-site.html"),
                       ("associations.html", "riseva-associations.html")]:
     v = (R/source).read_text(encoding="utf-8")
     v = re.sub(r'\s*<script src="/app/config.js"[^>]*></script>', "", v)
-    v = inline(v, ["polices.css", "vitrine.css"])
+    v = inline(v, ["polices.css", "vitrine.min.css"])
     v = photos(v)
     v = v.replace('<script src="/vitrine.js" defer></script>',
                   "<script>\n" + (R/"vitrine.js").read_text(encoding="utf-8") + "\n</script>")

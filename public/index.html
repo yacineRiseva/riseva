@@ -15,7 +15,11 @@
 <meta property="og:url" content="https://riseva.fr/">
 <link rel="icon" href="/brand/riseva-mark.png">
 <link rel="stylesheet" href="/styles/polices.css">
-<link rel="stylesheet" href="/styles/vitrine.css">
+<!-- La feuille servie est engendree depuis vitrine.css par scripts/css.py :
+     meme regles, sans les commentaires. 206 Ko deviennent 117, et 52 Ko
+     compresses deviennent 23, sur la ressource qui bloque le premier rendu.
+     Les corrections vont dans vitrine.css, jamais ici. -->
+<link rel="stylesheet" href="/styles/vitrine.min.css">
 <!-- Une classe posée avant le premier rendu, et rien d'autre. Les apparitions au
      défilement sont écrites « .js .rv », donc sans script le contenu est visible
      dès le départ : c'est le seul moyen qu'une animation ne puisse jamais
@@ -152,7 +156,7 @@
         <div class="eyebrow mono">Ce que ça répond</div>
         <h2>Trois questions,<br><span class='it'>et personne n'a la réponse.</span></h2>
       </div>
-      <p class="s-note rv d2">Personne n'ouvre un logiciel RSE par curiosité. On l'ouvre parce qu'on vient de vous poser une de ces trois questions, et qu'il a fallu répondre « je vais voir ».</p>
+      <p class="s-note rv d2">On n'ouvre pas un logiciel RSE par curiosité. On l'ouvre parce qu'on vient de vous poser une de ces trois questions.</p>
     </div>
 
     <div class="verre verre-anim">
@@ -165,9 +169,8 @@
       </div>
 
       <div class="verre-intro">
-        <p>Une saison d'un an, un écran par métier, et <b>la même donnée du site
-          jusqu'au rapport</b>. Rien n'est ressaisi, et rien n'est estimé sans que
-          la page le dise.</p>
+        <p><b>La même donnée, du site jusqu'au rapport.</b> Rien n'est ressaisi, et
+          rien n'est estimé sans que la page le dise.</p>
         <div class="verre-chiffres">
           <span class="verre-chiffre"><b>8</b><span>rubriques au choix</span></span>
           <span class="verre-chiffre"><b>27</b><span>valeurs collectées</span></span>
@@ -181,7 +184,7 @@
         <div class="verre-zone-texte">
           <span class="verre-puce mono">En réunion budget</span>
           <h3>« Combien de vos sites ont répondu&nbsp;?&nbsp;»</h3>
-          <p>Vous cochez les rubriques d'une période parmi 8 : effectifs, sécurité, formation, énergie, déchets, mobilité, achats. Chaque établissement voit sa part sur son écran, avec ce qu'on compte et ce qu'on ne compte pas. La plateforme relance à sa place, et <b>vous voyez qui manque, nommément</b>.</p>
+          <p>Vous cochez les rubriques d'une période parmi 8. Chaque établissement voit sa part sur son écran, avec <b>ce qu'on compte et ce qu'on ne compte pas</b>.</p>
           <p class="verre-ecrans mono">Écrans : Données sociales, Sites et quotas, Vue consolidée</p>
         </div>
         <figure class="mini">
@@ -202,7 +205,7 @@
         <span class="verre-num" aria-hidden="true">2</span>
         <span class="verre-puce mono">Questionnaire fournisseur</span>
         <h3>« D'où sort ce chiffre&nbsp;?&nbsp;»</h3>
-        <p>27 valeurs collectées, 10 taux calculés en rapport de sommes et jamais en moyenne de taux. Chaque saisie de site porte qui l'a remplie, qui l'a approuvée (jamais la même personne) et <b>les pièces jointes qui la justifient</b>.</p>
+        <p>27 valeurs collectées, 10 taux calculés en rapport de sommes, jamais en moyenne de taux. Chaque saisie porte qui l'a remplie, qui l'a approuvée (jamais la même personne) et <b>les pièces qui la justifient</b>.</p>
         <figure class="mini">
           <div class="mini-barre"><i></i><i></i><i></i><span class="mono">Rapport, taux de fréquence</span></div>
           <div class="mini-corps">
@@ -221,7 +224,7 @@
         <span class="verre-num" aria-hidden="true">3</span>
         <span class="verre-puce mono">Vos salariés, vos candidats</span>
         <h3>« Qu'est-ce que vos équipes ont fait cette année&nbsp;?&nbsp;»</h3>
-        <p>Des associations vérifiées près de chaque site publient ce dont elles ont besoin, vos équipes s'y rendent ensemble, et <b>c'est l'association qui confirme</b>. Bénévolat, dons de matériel, mécénat de compétences et dons en argent passent par le même écran.</p>
+        <p>Bénévolat, dons de matériel, mécénat de compétences et dons en argent passent par le même écran, et <b>c'est l'association qui confirme</b> chacun.</p>
         <figure class="photo verre-photo">
         <picture><source type="image/webp" srcset="/photos/refuge-sortie-760.webp 760w, /photos/refuge-sortie-1120.webp 1120w" sizes="(max-width: 900px) 92vw, 46vw">
         <img src="/photos/refuge-sortie.jpg" alt="Deux bénévoles sortent quatre chiens de refuge sur un chemin de campagne, en plein soleil" loading="lazy" decoding="async"
@@ -232,8 +235,10 @@
       </div>
     </div>
 
-    <p class="s-note s-note--trois">Vos sites répondent, vos équipes agissent,
-      <b>et vous avez les preuves</b>.</p>
+    <p class="s-note s-note--trois">Ce que vous restituerez ne vient pas de vous&nbsp;:
+      <b>c'est l'association qui l'a confirmé</b>.</p>
+
+    <ol class="flux"><li class="flux-c rv d0"><b class="mono">L'association</b><span>publie un besoin, à moins de trente kilomètres d'un de vos sites</span></li><li class="flux-c rv d1"><b class="mono">Vos équipes</b><span>le voient sur leur écran et s'y rendent ensemble</span></li><li class="flux-c rv d2"><b class="mono">L'association</b><span>confirme ce qui a eu lieu. Sans elle, le résultat reste estimé</span></li><li class="flux-c rv d3"><b class="mono">Riseva</b><span>consolide, avec la date et la source de chaque ligne</span></li><li class="flux-c rv d4"><b class="mono">Vous</b><span>retrouvez le résultat dans votre rapport, sans l'avoir écrit</span></li></ol>
 
   </div>
 </section>
@@ -325,7 +330,7 @@
       <i class="verre-eclat" aria-hidden="true"></i>
       <div class="chal-tete">
         <p class="eyebrow mono">Le challenge</p>
-        <h2>Douze mois,<br><span class="it">et vos équipes y sont allées.</span></h2>
+        <h2>Douze mois plus tard,<br><span class="it">le bilan s'est écrit tout seul.</span></h2>
         <p class="chal-p">Des associations vérifiées publient ce dont elles ont besoin près de
           chacun de vos sites. Vos équipes s'y rendent ensemble.</p>
       </div>
@@ -349,7 +354,7 @@
     <div class="s-head">
       <div class="rv">
         <div class="eyebrow mono">Côté salariés</div>
-        <h2>Un lien, une affiche,<br><span class='it'>et chacun se propose.</span></h2>
+        <h2>Un lien, une affiche,<br><span class='it'>et chacun peut se proposer.</span></h2>
       </div>
       <p class="s-note rv d2">Un salarié qui se sent inscrit d'office ne revient pas une deuxième fois. Il faut donc qu'il croise l'information là où il est, et qu'il y aille de lui-même.</p>
     </div>
@@ -568,7 +573,7 @@
     <div class="s-head">
       <div class="rv">
         <div class="eyebrow mono">La FAQ</div>
-        <h2>Ce qu'on nous demande<br><span class='it'>vraiment.</span></h2>
+        <h2>Ce que vous voudrez vérifier<br><span class='it'>avant de signer.</span></h2>
       </div>
       <p class="s-note rv d2">Les questions qui décident d'une signature, et nos réponses. Si la vôtre manque, écrivez-la-nous à contact@riseva.fr : elle finira ici.</p>
     </div>
