@@ -1674,11 +1674,11 @@ section{
   margin-top:clamp(16px,2vw,22px);
 }
 .bl-track{
-  flex:1;display:block;height:6px;border-radius:999px;
+  flex:1;display:block;height:6px;border-radius:var(--r-pill);
   background:rgba(19,21,16,.12);overflow:hidden;
 }
 .bl-fill{
-  display:block;height:100%;width:0;border-radius:999px;
+  display:block;height:100%;width:0;border-radius:var(--r-pill);
   background:var(--brand-700);
   transition:width .45s var(--e);
 }
@@ -4066,7 +4066,7 @@ body{
 .verre-puce{
   position:relative; z-index:1;
   align-self:flex-start; display:inline-block; white-space:nowrap;
-  padding:5px 11px; border-radius:999px;
+  padding:5px 11px; border-radius:var(--r-pill);
   /* Un fond assombri sous la pastille, et non teinte de lime. Mesure : sur la
      nappe lime, le lime sur lime tombait a 4,77 pour un seuil de 4,5. Une
      marge de trois centiemes n'est pas une marge : le fond de cette section
@@ -4128,13 +4128,13 @@ body{
 }
 .mini-ligne span:first-child{ color:rgba(242,240,233,.8); }
 .mini-etat{
-  padding:3px 9px; border-radius:999px; font-size:12px; white-space:nowrap;
+  padding:3px 9px; border-radius:var(--r-pill); font-size:12px; white-space:nowrap;
 }
 .mini-etat--ok{ background:rgba(11,38,32,.55); color:var(--lime); }
 .mini-etat--attente{ background:rgba(11,38,32,.55); color:#F0C07A; }
 .mini-etat--muet{ background:rgba(11,38,32,.5); color:rgba(242,240,233,.85); }
 .mini-jauge{
-  height:5px; border-radius:999px; background:rgba(223,230,208,.14);
+  height:5px; border-radius:var(--r-pill); background:rgba(223,230,208,.14);
   overflow:hidden; margin-top:4px;
 }
 .mini-jauge i{ display:block; height:100%; background:var(--lime); border-radius:inherit; }

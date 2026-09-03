@@ -18,7 +18,7 @@ Règles qui tiennent sur les deux pages, et que la recette vérifie :
 , la formule canonique des quatorze jours, mot pour mot ;
 , aucune requête vers un domaine tiers, polices comprises.
 """
-import io, pathlib, re
+import io, json, pathlib, re
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent
 PUBLIC = RACINE / "public"
@@ -189,7 +189,7 @@ def ticker(mots):
 
 
 def page(*, fichier, titre, description, corps, nav_html, pied_html, canonique,
-         classe_corps="", rubans=True):
+         classe_corps="", rubans=True, entetes_sup=""):
     """`rubans` : les lianes vertes qui traversent la page de haut en bas.
 
     Elles ne représentent ni une progression, ni un réseau, ni une donnée : ce
@@ -222,7 +222,7 @@ def page(*, fichier, titre, description, corps, nav_html, pied_html, canonique,
      dès le départ : c'est le seul moyen qu'une animation ne puisse jamais
      conditionner l'affichage de ce qu'elle accompagne. -->
 <script>document.documentElement.className+=" js";</script>
-</head>
+{entetes_sup}</head>
 <body{classe}>
 {decor}
 
@@ -1329,7 +1329,7 @@ BANDEAU_ENT = """<section id="rejoindre" class="bandeau">
 # est ce que cette page a de plus credible. Elle est donc premiere, et c'est
 # elle qui est ouverte quand on arrive : les sept qui suivent se lisent alors
 # comme de la franchise et non comme un argumentaire.
-FAQ_ENT = faq([
+QUESTIONS_ENT = [
   ("Riseva a-t-elle déjà des résultats à montrer ?",
    "<p>Non, et cette page n'en affiche aucun. La première saison démarre en janvier : les "
    "écrans montrés ici viennent d'un jeu de démonstration et servent à montrer la forme des "
@@ -1410,7 +1410,9 @@ FAQ_ENT = faq([
    "<a href='/engagements.html'>les engagements de service</a>.</p>"
    "<p><b>Ce qui reste à votre charge</b>, et qui n'est donc pas compris dans l'abonnement :</p>"
    "<ul class='qa-l'>" + "".join(f"<li>{x}</li>" for x in TARIFS["exclus"]) + "</ul>"),
-])
+]
+
+FAQ_ENT = faq(QUESTIONS_ENT)
 
 
 def jalons(eyebrow, titre, note, items, ident="preuve", bande=" class=\"band-moss\"",
@@ -1850,20 +1852,77 @@ CORPS_ASSO = "\n\n".join([
 ])
 
 
+# ── les donnees structurees ─────────────────────────────────────────────────
+# Aucune page n'en portait. Un moteur qui ne trouve rien de structure sur un
+# site francais tout neuf n'a que le texte pour deviner ce qu'est Riseva, et
+# une FAQ de huit questions reelles est exactement ce qu'il sait afficher.
+#
+# La regle est la meme que partout ailleurs ici : rien d'invente. Pas de note
+# moyenne, pas d'avis, pas d'effectif, pas de date de fondation qu'on ne
+# pourrait pas prouver. Et les questions ne sont pas recopiees : elles sont
+# generees a partir de la MEME liste que la page affiche, donc elles ne peuvent
+# pas s'en ecarter avec le temps. Un balisage qui promet une question que la
+# page ne montre pas est une penalite, pas un gain.
+def sans_balises(html):
+    txt = re.sub(r"<[^>]+>", " ", html)
+    txt = (txt.replace("&nbsp;", "\u00a0").replace("&amp;", "&")
+              .replace("&lt;", "<").replace("&gt;", ">").replace("&#39;", "'"))
+    return re.sub(r"\s+", " ", txt).strip()
+
+
+def donnees_structurees(questions=None):
+    orga = {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Riseva",
+        "url": "https://riseva.fr/",
+        "logo": "https://riseva.fr/brand/riseva-full.png",
+        "description": ("Plateforme RSE francaise pour entreprises multi-sites : collecte des "
+                        "indicateurs, rapports trimestriels, et missions aupres d'associations "
+                        "verifiees pres de chaque site."),
+        "areaServed": "FR",
+        "contactPoint": [{
+            "@type": "ContactPoint",
+            "contactType": "sales",
+            "email": "contact@riseva.fr",
+            "availableLanguage": ["fr"],
+        }],
+    }
+    blocs = [orga]
+    if questions:
+        blocs.append({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [{
+                "@type": "Question",
+                "name": sans_balises(q),
+                "acceptedAnswer": {"@type": "Answer", "text": sans_balises(r)},
+            } for q, r in questions],
+        })
+    return "".join(
+        '<script type="application/ld+json">'
+        + json.dumps(b, ensure_ascii=False, separators=(",", ":"))
+        + "</script>\n" for b in blocs)
+
+
 def main():
     a = page(fichier="index.html", canonique="/",
              titre="Riseva, la plateforme RSE qui commence par les associations",
-             description="Des associations vérifiées publient des besoins concrets près de vos "
-                         "sites, vos équipes y répondent autour d'un même objectif, et la gestion "
-                         "RSE suit : indicateurs sociaux, registre de sécurité multi-sites, accès "
-                         "CSE, rapports trimestriels et annuel envoyés tout seuls.",
+             # Elle faisait 269 signes : les moteurs en affichent environ 155, donc
+             # les cent derniers ne servaient a personne, et la phrase utile —
+             # ce que Riseva fait — se perdait dans une liste de rubriques.
+             description="Vos sites RSE dans un seul rapport, et vos équipes chez des "
+                         "associations vérifiées à côté de chacun d'eux. Tarif public, "
+                         "sans commission sur les dons.",
+             entetes_sup=donnees_structurees(QUESTIONS_ENT),
              corps=CORPS_ENT, nav_html=NAV_ENT, pied_html=PIED_ENT,
              classe_corps="vd", rubans=False)
     b = page(fichier="associations.html", canonique="/associations.html",
              titre="Riseva, pour les associations",
-             description="Publiez un besoin concret, des salariés d'entreprises abonnées peuvent "
-                         "y répondre. Gratuit, sans intégration technique, sans exclusivité et "
-                         "sans commission sur vos dons.",
+             description="Publiez un besoin concret, des salariés d'entreprises abonnées "
+                         "peuvent y répondre. Gratuit, sans exclusivité, sans commission "
+                         "sur vos dons.",
+             entetes_sup=donnees_structurees(),
              corps=CORPS_ASSO, nav_html=NAV_ASSO, pied_html=PIED_ASSO,
              classe_corps="va", rubans=False)
     for f in (a, b):

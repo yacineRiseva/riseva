@@ -520,6 +520,134 @@ def main():
                     not m.is_visible("#navSheet"))
             m.close(); mctx.close()
 
+        # ── ce qu'un moteur et un partage voient ────────────────────────────
+        # Dix des douze pages publiques n'avaient ni canonique ni Open Graph :
+        # une adresse partagee dans un message tombait sans titre ni resume, et
+        # deux chemins menant a la meme page n'avaient rien pour dire lequel
+        # compte. Les deux pages de conversion — celle ou l'on reserve une place
+        # et celle ou un salarie ouvre son compte — n'avaient meme pas de
+        # description. Celle de l'accueil, elle, faisait 269 signes la ou les
+        # moteurs en affichent environ 155 : la moitie ne servait a personne.
+        for page in ("/", "/associations.html", "/rejoindre.html", "/inscription.html",
+                     "/reglement.html", "/engagements.html", "/securite.html",
+                     "/confidentialite.html", "/cgv.html", "/mentions.html",
+                     "/moderation.html", "/charte-associations.html"):
+            p.goto(BASE + page, wait_until="domcontentloaded"); p.wait_for_timeout(120)
+            meta = p.evaluate("""()=>({
+                titre: document.title,
+                desc: (document.querySelector('meta[name=description]')||{}).content||'',
+                canon: (document.querySelector('link[rel=canonical]')||{}).href||'',
+                og: document.querySelectorAll('meta[property^="og:"]').length,
+                h1: document.querySelectorAll('h1').length,
+                lang: document.documentElement.lang})""")
+            verifie(f"{page} porte un titre, une description et une adresse canonique",
+                    meta["titre"] and meta["desc"] and meta["canon"], str(meta))
+            verifie(f"{page} : la description tient dans ce qu'un moteur affiche",
+                    0 < len(meta["desc"]) <= 160, f'{len(meta["desc"])} signes')
+            verifie(f"{page} se partage avec un titre et un resume",
+                    meta["og"] >= 6, str(meta["og"]) + " balises og")
+            verifie(f"{page} n'a qu'un seul h1, en francais",
+                    meta["h1"] == 1 and meta["lang"] == "fr", str(meta))
+
+        # Les donnees structurees sont generees a partir de la meme liste que la
+        # page affiche. Le test le verifie plutot que de le supposer : un
+        # balisage qui annonce a un moteur une question absente de la page est
+        # une penalite, pas un gain.
+        p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(250)
+        struct = p.evaluate("""()=>[...document.querySelectorAll('script[type="application/ld+json"]')]
+            .map(e=>JSON.parse(e.textContent))""")
+        types = [b.get("@type") for b in struct]
+        verifie("l'accueil porte les donnees structurees de l'organisation et de la FAQ",
+                "Organization" in types and "FAQPage" in types, str(types))
+        faqld = next(b for b in struct if b.get("@type") == "FAQPage")
+        balisees = [q["name"].strip() for q in faqld["mainEntity"]]
+        affichees = p.evaluate("""()=>[...document.querySelectorAll('#faq h3')]
+            .map(e=>e.innerText.replace(/\s+/g,' ').trim())""")
+        verifie("chaque question balisee est bien affichee sur la page, dans le meme ordre",
+                balisees == affichees, str(balisees[:2]) + " / " + str(affichees[:2]))
+        verifie("aucune reponse balisee n'est vide",
+                all(len(q["acceptedAnswer"]["text"]) > 40 for q in faqld["mainEntity"]))
+        # Rien d'invente : ni note moyenne, ni avis, ni effectif.
+        brut = p.evaluate("""()=>[...document.querySelectorAll('script[type="application/ld+json"]')]
+            .map(e=>e.textContent).join(' ')""")
+        verifie("les donnees structurees n'annoncent ni note, ni avis, ni effectif",
+                not any(x in brut for x in ("aggregateRating", "reviewCount", "ratingValue",
+                                            "numberOfEmployees", "Review")), brut[:120])
+
+        # ── la derive du systeme de dessin ──────────────────────────────────
+        # Compte fait sur la feuille de la vitrine : trois jetons d'ombre
+        # existent (--sh-1, --sh-2, --sh-3) et deux seulement sont employes,
+        # pendant que dix-huit ombres sont ecrites a la main, chacune avec ses
+        # propres decalages et ses propres opacites. Meme chose pour les
+        # transparences : vingt-cinq opacites differentes du meme ivoire.
+        #
+        # Ce n'est pas un defaut qu'on corrige a la volee : ramener vingt-cinq
+        # opacites a six, ou dix-huit ombres a trois, change ce qu'on voit, et
+        # cela se decide en regardant le resultat, pas en remplacant du texte.
+        # Ce test ne corrige donc rien : il empeche seulement que ca empire. Les
+        # plafonds sont les valeurs du jour ou il a ete ecrit. Quand la
+        # consolidation sera faite, on les baissera.
+        feuille = (RACINE / "styles" / "vitrine.css").read_text(encoding="utf-8")
+        feuille = re.sub(r"/\*.*?\*/", "", feuille, flags=re.S)
+        ombres = {o.strip() for o in re.findall(r"box-shadow:\s*([^;}]+)", feuille)
+                  if "var(--sh" not in o and o.strip() not in ("none", "inherit")}
+        verifie("le nombre d'ombres ecrites a la main n'augmente pas",
+                len(ombres) <= 18, f"{len(ombres)} ombres distinctes, plafond 18")
+        for encre, plafond in (("242,240,233", 25), ("19,21,16", 21),
+                               ("11,38,32", 16), ("252,251,248", 12)):
+            motif = r"rgba\(" + encre.replace(",", r",\s*") + r",\s*([.\d]+)\)"
+            alphas = set(re.findall(motif, feuille))
+            verifie(f"les opacites de rgba({encre}) n'augmentent pas",
+                    len(alphas) <= plafond,
+                    f"{len(alphas)} opacites distinctes, plafond {plafond}")
+        verifie("aucun rayon de bordure n'est ecrit en dur a la place du jeton",
+                "border-radius:999px" not in feuille
+                and "border-radius: 999px" not in feuille)
+
+        # ── ce qui apparait au defilement ───────────────────────────────────
+        # Les apparitions sont pilotees par un IntersectionObserver, et un
+        # observateur ne promet rien quand la page bouge plus vite que lui : en
+        # faisant defiler par bonds de cinq cents pixels toutes les cent
+        # millisecondes, vingt blocs restaient a zero d'opacite. La mesure
+        # affolait pour rien — refaite au rythme d'une main humaine, avec la
+        # touche Fin, avec un lien d'ancre et avec une adresse qui porte deja
+        # son ancre, aucun bloc PRESENT A L'ECRAN n'est transparent.
+        #
+        # C'est cette phrase-la, et pas le compte total, qui est l'invariant :
+        # un bloc qu'on n'a pas encore atteint a le droit d'attendre son tour,
+        # un bloc qu'on regarde n'a pas le droit d'etre invisible.
+        A_L_ECRAN = """()=>[...document.querySelectorAll('.rv,.rl')].filter(e=>{
+            const r=e.getBoundingClientRect();
+            if(r.bottom<=0 || r.top>=innerHeight) return false;
+            return parseFloat(getComputedStyle(e).opacity) < 0.9;})
+            .map(e=>e.tagName+'.'+String(e.className).slice(0,24))"""
+
+        p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
+        p.keyboard.press("End"); p.wait_for_timeout(1500)
+        verifie("touche Fin : rien de transparent a l'ecran",
+                not p.evaluate(A_L_ECRAN), str(p.evaluate(A_L_ECRAN)[:4]))
+
+        p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
+        p.click('.nav a[href="#prix"]'); p.wait_for_timeout(1600)
+        verifie("saut par le menu : rien de transparent a l'ecran",
+                not p.evaluate(A_L_ECRAN), str(p.evaluate(A_L_ECRAN)[:4]))
+
+        p.goto(BASE + "/#faq", wait_until="networkidle"); p.wait_for_timeout(1600)
+        verifie("adresse partagee avec une ancre : rien de transparent a l'ecran",
+                not p.evaluate(A_L_ECRAN), str(p.evaluate(A_L_ECRAN)[:4]))
+
+        p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
+        haut = p.evaluate("()=>document.documentElement.scrollHeight")
+        pos, restes = 0, []
+        while pos < haut:
+            pos += 90
+            p.evaluate(f"window.scrollTo(0,{pos})"); p.wait_for_timeout(16)
+            restes += p.evaluate(A_L_ECRAN)
+        p.wait_for_timeout(900)
+        verifie("defilement au rythme d'une main : rien de transparent a l'ecran",
+                not restes, str(restes[:5]))
+        p.goto(BASE + "/", wait_until="networkidle")
+
         # ── la longueur de ligne ────────────────────────────────────────────
         # Au-dela de quatre-vingts signes par ligne, l'oeil rate le retour a la
         # ligne suivante et relit la meme. Un texte qu'on relit deux fois passe
