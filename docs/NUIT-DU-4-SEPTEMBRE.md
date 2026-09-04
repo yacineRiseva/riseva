@@ -75,7 +75,7 @@ pas sur la majorite. Le detail est au point 3.
 
 | | avant | apres |
 |---|---|---|
-| Accueil, hauteur | 16 844 px | **14 377 px** (-15 %) |
+| Accueil, hauteur | 16 844 px | **14 308 px** (-15 %) |
 | Accueil, titres H1+H2 | 10 | **9** |
 | Accueil, sections | 11 | **9** |
 | Plus grand espace sans contenu | 252 px | **211 px** |
@@ -85,7 +85,10 @@ pas sur la majorite. Le detail est au point 3.
 | Pages sans description | 2 | **0** |
 | Donnees structurees | aucune | organisation + FAQ, engendrees depuis la page |
 | Contrastes sous le seuil AA | 4 | **0** |
-| Tests automatises | 654 | **748** |
+| Liens focusables dans un bloc invisible | 4 | **0** |
+| Appuis sur Tab pour traverser le sommaire de la FAQ | 9 | **1** |
+| Texte cache expose aux lecteurs d'ecran | 5 125 signes | **0** |
+| Tests automatises | 654 | **758** |
 
 La page associations, refaite en debut de nuit, fait 7 161 px pour 1 587 mots.
 
@@ -197,6 +200,70 @@ declarer vertes. Les generateurs tournent maintenant en tete de recette.
 **Un tiret cadratin.** Entre dans une phrase, vu seulement en s'en souvenant.
 `scripts/clavier.py` existait, tres bien documente, et n'etait lance par rien.
 Il l'est.
+
+**Quatre liens invisibles qui prenaient le focus au clavier.** Les neuf fiches de
+reponse de la FAQ sont empilees sur la meme case de grille, et les huit qui ne
+sont pas affichees etaient masquees a l'opacite seule. Une opacite nulle ne cache
+rien a personne d'autre qu'a l'oeil : mesure faite, **cinq mille cent vingt-cinq
+signes** de reponses restaient exposes aux lecteurs d'ecran, et **quatre liens**
+prenaient le focus. En tabulant dans la FAQ, on atterrissait sur des liens
+invisibles, dans des reponses qu'on n'avait pas ouvertes. Le test qui protege
+cette correction est general et ne parle pas de la FAQ : rien de focusable ne
+doit vivre dans un bloc transparent. Il distingue les deux cas legitimes, un bloc
+qui est en train d'apparaitre au defilement, et une case a cocher invisible
+derriere son etiquette, qui doit rester focusable puisque c'est elle le controle.
+
+**Un jeu d'onglets a moitie ecrit.** Le sommaire de la FAQ portait
+`role="tab"` et `aria-selected`, mais rien ne reliait un bouton a sa reponse :
+un lecteur d'ecran annoncait « onglet, selectionne » sans pouvoir dire de quoi.
+Et les neuf boutons etaient dans le parcours de tabulation, donc il fallait
+appuyer neuf fois sur Tab pour traverser un sommaire. Le motif est complet :
+chaque bouton designe sa reponse, chaque reponse nomme son bouton, un seul
+onglet est atteignable au Tab, et les fleches parcourent la liste en emmenant le
+focus avec elles.
+
+**Trois cartes pour trois nombres.** Les trois chiffres du panneau de verre
+etaient trois cartes arrondies, avec fond et ombre interieure, dans un panneau de
+verre, lui-meme dans une section arrondie : trois niveaux de conteneur pour trois
+nombres. Ils sont separes par un filet, comme les quatre faits de la section
+outil et comme les quatre temps de la saison juste en dessous. Et surtout comme
+le tableau de bord de la plateforme, qui separe ses trois nombres par un filet
+depuis toujours : la vitrine ne s'invente pas un idiome, elle rejoint celui du
+produit qu'elle montre.
+
+**Quatre piliers qui ne commencaient pas a la meme hauteur.** Chacune des quatre
+grilles se dimensionnait sur son propre contenu : un titre de deux lignes a cote
+d'un titre de quatre, et les quatre paragraphes demarraient a quatre hauteurs
+differentes. Les rangees sont maintenant partagees.
+
+**Une ligne du temps qui annoncait quatre moments pour trois etapes.** La grille
+avait quatre colonnes et la ligne quatre points, la section trois etapes : trois
+cent dix-neuf pixels de colonne vide et un point pose au-dessus de rien.
+
+**La meme photographie deux fois sur la page associations**, a mille deux cents
+pixels d'ecart. Celle qui la remplace montre en plus ce que la page ne montrait
+nulle part, des salaries en tenue de travail qui partent en mission, alors que
+tout le reste etait du cote de la campagne et des animaux.
+
+---
+
+## 5 bis. La lecture en diagonale, mesuree
+
+C'etait la demande d'origine : « qu'on comprenne bien le concept en lisant en
+diagonale ». Un outil extrait ce qu'un lecteur presse voit vraiment, c'est-a-dire
+ce qui est gros, gras, en petites capitales ou chiffre, et rien d'autre.
+
+**757 mots sur 3 144**, soit un quart de la page. Lus dans l'ordre, ils donnent :
+la promesse et la fourchette de prix des les huit premiers pour cent, les quatre
+piliers, les trois questions puis la boucle L'ASSOCIATION -> VOS EQUIPES ->
+RISEVA -> VOUS, les trois benefices de l'outil et son calendrier, douze mois plus
+tard le bilan s'ecrit tout seul, un lien et une affiche, l'association publie
+puis confirme avec son bareme, un tarif public avec sa grille et son simulateur,
+neuf questions dont la premiere est « avez-vous des resultats », et enfin « on ne
+vous facture pas une promesse » avec sa clause de remboursement.
+
+C'est un argumentaire complet et verifiable en 757 mots. La reponse a la question
+est oui, avec le chiffre a cote.
 
 ---
 
