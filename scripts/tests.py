@@ -176,8 +176,14 @@ def main():
         # refonte, et rien n'empeche une refonte suivante de la reperdre.
         verifie("le premier écran montre le produit",
                 p.locator(".hero .apercu img").count() == 1)
-        verifie("le premier écran porte quatre chiffres",
-                p.locator(".hero .chiffres--hero li").count() == 4)
+        # Trois, et plus quatre : le quatrieme (« 8 rubriques, 27 valeurs, 10
+        # taux ») repetait mot pour mot le panneau de verre deux ecrans plus
+        # bas. Ce que ce test protege n'a pas change — le premier ecran doit
+        # porter des reperes chiffres avant tout defilement — mais il ne doit
+        # plus exiger un doublon. Le compte reste fige : sans lui, la liste
+        # regrossit a la premiere idee de chiffre.
+        verifie("le premier écran porte trois chiffres",
+                p.locator(".hero .chiffres--hero li").count() == 3)
         t = norm(p.inner_text(".hero"))
         verifie("le prix est visible dès l'accueil", "2 400" in t and "18 500 €" in t)
         verifie("la remise de lancement est plafonnée en nombre",
@@ -246,8 +252,17 @@ def main():
         verifie("l'acompte est justifié par ce qu'il paie",
                 "premier envoi d'affiches" in prixT)
 
+        # Le paragraphe d'accroche a ete reecrit pour NOMMER le lien entre les
+        # deux moities du produit, au lieu de les juxtaposer : « relie vos sites
+        # a des associations proches [...] et range ces declarations avec le
+        # reste de votre reporting RSE ». Le mot « verifiees » y a disparu au
+        # profit du fait lui-meme (« fait confirmer ce qui a reellement eu
+        # lieu »), qui est plus verifiable et moins auto-decerne. Le test suit
+        # l'intention, pas l'ancienne formule : les deux axes, plus le mot qui
+        # les relie.
         verifie("l'accueil positionne la plateforme RSE sans lâcher l'axe associatif",
-                "outil RSE" in t and "associations vérifiées" in t)
+                "outil RSE" in t and "associations proches" in t
+                and "reporting RSE" in t)
         # Les quatre dimensions du produit doivent se lire sans défiler : le
         # terrain, le collectif, l'outil, la preuve. Dissoutes dans un
         # paragraphe, un visiteur en retenait une sur quatre.
@@ -488,6 +503,29 @@ def main():
                 mortes.append(page + " -> " + h)
         verifie("aucun lien d'ancre ne pointe vers une section qui n'existe plus",
                 not mortes, str(mortes[:8]))
+
+        # ── un commentaire de source dans la page ───────────────────────────
+        # Les gabarits sont des f-strings de plusieurs centaines de lignes. Un
+        # commentaire Python place a l'interieur du texte, et non avant la
+        # constante, n'est plus un commentaire : c'est du contenu. Cinq lignes
+        # expliquant pourquoi une section avait change de mission se sont
+        # affichees en toutes lettres au milieu de la page, en gros, sur fond
+        # sombre. Rien ne plante, la recette etait verte, et il a fallu regarder
+        # la page pour le voir.
+        MOTIF_FUITE = ("()=>document.body.innerText.split(String.fromCharCode(10))"
+                       ".map(l=>l.trim())"
+                       ".filter(l=>l.startsWith('#') || l.startsWith('/*')"
+                       " || l.startsWith('//') || /[{][a-z_]+[(]/.test(l))")
+        fuites = []
+        for page in ("/", "/associations.html", "/rejoindre.html", "/inscription.html",
+                     "/reglement.html", "/engagements.html", "/securite.html",
+                     "/confidentialite.html", "/cgv.html", "/mentions.html",
+                     "/moderation.html", "/charte-associations.html"):
+            p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(200)
+            for l in p.evaluate(MOTIF_FUITE)[:2]:
+                fuites.append(page + " : " + l[:70])
+        verifie("aucun commentaire ni gabarit de source ne s'affiche dans une page",
+                not fuites, str(fuites[:3]))
 
         # ── le contraste du texte ───────────────────────────────────────────
         # En passant la section du prix du vert fonce a l'ivoire, deux teintes
@@ -803,15 +841,28 @@ def main():
         # capitales par la feuille de style, et c'est une decision de mise en
         # page, pas une decision de contenu.
         ch = norm(p.inner_text(".hero")).lower()
+        # « catalogue de la plateforme » etait la source du quatrieme chiffre,
+        # parti avec lui. Plutot que de retirer une chaine et d'affaiblir la
+        # recette, on remplace l'enumeration par l'invariant qu'elle essayait
+        # d'approcher : CHAQUE chiffre de tete porte sa ligne de source, quel
+        # que soit leur nombre. Un chiffre ajoute demain sans source fera
+        # echouer ce test, ce que la liste figee ne faisait pas.
+        verifie("l. 2152-7 et 238 bis restent les sources exterieures du premier écran",
+                "l. 2152-7" in ch and "238 bis" in ch)
         verifie("les chiffres de tête sont sourcés ou ne dépendent que de nous",
-                "l. 2152-7" in ch and "238 bis" in ch
-                and "catalogue de la plateforme" in ch)
+                p.locator(".hero .chiffres--hero li .mono").count()
+                == p.locator(".hero .chiffres--hero li").count()
+                == 3)
         # Les sources sont composees en capitales par la feuille de style : on
         # compare donc sur le texte replie en minuscules, sinon la recette
         # depend d'un `text-transform`.
         hero = norm(p.inner_text(".chiffres--hero")).lower()
+        # Meme cause : la troisieme source lue ici n'est plus le catalogue mais
+        # le deploiement (« 1 lien a diffuser »). Les trois sources attendues
+        # sont donc l'article du CGI, le deploiement, et le renvoi vers la
+        # grille publique plus bas dans la page.
         verifie("les chiffres du premier écran portent leur source",
-                "238 bis" in hero and "catalogue de la plateforme" in hero
+                "238 bis" in hero and "déploiement" in hero
                 and "grille publique" in hero)
         verifie("aucun n'est présenté comme un résultat obtenu par un client",
                 "clients" not in ch and "nos clients" not in ch

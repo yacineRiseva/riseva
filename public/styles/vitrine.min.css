@@ -2613,6 +2613,11 @@ width:10px; height:10px; border-radius:50%; background:var(--forest-700);
 @media (max-width:560px){ .flux{grid-template-columns:minmax(0,1fr);} }
 .s-note--flux{ margin-top:clamp(18px,2vw,26px); max-width:78ch; }
 .s-note--preuve{ margin-top:clamp(30px,3.4vw,44px); max-width:62ch; }
+.s-note--franchise{
+margin:clamp(22px,2.6vw,34px) 0 0; max-width:64ch;
+padding-top:clamp(14px,1.6vw,20px); border-top:1px solid var(--line-hard);
+}
+.s-note--franchise b{ font-weight:600; color:var(--ink); }
 .s-note--preuve b{ font-weight:600; color:var(--ink); }
 .qst--img .qst-q .shot{ margin:clamp(16px,1.8vw,24px) 0 0; }
 .qst--img .qst-q .shot img{ border-radius:var(--r-md);
@@ -3065,8 +3070,13 @@ margin:clamp(14px,1.6vw,20px) 0 0; max-width:44ch;
 color:rgba(242,240,233,.86);
 font-size:clamp(17px,1.4vw,20px); line-height:1.55;
 }
+.chal-cle{
+margin:clamp(20px,2.4vw,30px) 0 0;
+font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+color:rgba(242,240,233,.72);
+}
 .chal-chiffres{
-margin-top:clamp(22px,2.6vw,34px);
+margin-top:clamp(10px,1.2vw,16px);
 grid-template-columns:repeat(3,minmax(0,1fr));
 }
 .chal-temps{

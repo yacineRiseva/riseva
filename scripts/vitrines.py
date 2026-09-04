@@ -665,7 +665,7 @@ def objection(question, reponse):
 
 
 def chiffres_hero():
-    """Quatre chiffres, dans le premier ecran, et pas un de plus.
+    """Trois chiffres, dans le premier ecran, et pas un de plus.
 
     La regle qui les gouverne : Riseva n'a AUCUN client et AUCUNE mission
     realisee. Aucun de ces chiffres ne peut donc etre un resultat. Ce sont soit
@@ -673,14 +673,21 @@ def chiffres_hero():
     produit — ce que contient le catalogue, ce que coute une saison, ce que dure
     l'engagement. Un chiffre gonfle sur cette page se paierait au premier
     rendez-vous, quand l'acheteur demandera lequel de ses concurrents l'a
-    obtenu."""
+    obtenu.
+
+    Ils etaient quatre. Le quatrieme repetait mot pour mot le panneau de verre
+    de la section suivante ; il est parti, et le compte de trois est tenu par
+    la recette."""
     return f"""
     <ul class="chiffres chiffres--hero rv">
       <li><b>60&nbsp;%</b><span>de réduction d'impôt sur vos dons, jusqu'à deux millions
         d'euros.<br><span class="mono">Article 238 bis du CGI</span></span></li>
-      <li><b>{CATALOGUE['rubriques']}&nbsp;rubriques</b><span>{CATALOGUE['saisis']} valeurs,
-        {CATALOGUE['calcules']} taux, chacun avec sa formule.<br><span class="mono">Catalogue de
-        la plateforme</span></span></li>
+      <!-- « 8 rubriques, 27 valeurs, 10 taux » a saute : le panneau de verre,
+           deux ecrans plus bas, affiche exactement ces trois nombres en grand.
+           Le premier ecran demandait huit reperes avant que la page commence,
+           quatre piliers et quatre chiffres ; un dirigeant a trois minutes en
+           retient deux et ignore les six autres. Celui-la etait le seul
+           doublon litteral, donc le seul a pouvoir partir sans rien couter. -->
       <li><b>1&nbsp;lien</b><span>à diffuser. Chaque salarié ouvre son compte
         lui-même.<br><span class="mono">Déploiement</span></span></li>
       <!-- Le chiffre disait « 2 400 a 13 800 EUR », et la grille, mille pixels
@@ -815,10 +822,17 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
 
     <div class="doc-tete doc-tete--apercu">
     <div class="doc-intro">
-      <p class="doc-accroche">Chaque site saisit ses chiffres, la plateforme relance,
-        consolide et sort le rapport. Et pendant douze mois, vos équipes vont chez des
-        <b>associations vérifiées</b> près de chez elles : refuges, plantations,
-        distributions de repas.</p>
+      <!-- Le titre est une juxtaposition : le rapport d'un cote, le terrain de
+           l'autre. Le paragraphe l'etait aussi, deux moities cousues par un
+           « Et », si bien que le lecteur devait reconstruire le lien lui-meme :
+           « donc il y a un logiciel de reporting, plus une plateforme
+           associative, et les deux communiquent ». Il depensait ses premieres
+           secondes a classer le produit au lieu de decider s'il l'interesse.
+           La premiere phrase nomme donc le lien, et le reste peut vendre. -->
+      <p class="doc-accroche">Riseva relie vos sites à des associations proches, <b>fait
+        confirmer ce qui a réellement eu lieu</b>, et range ces déclarations avec le reste
+        de votre reporting RSE. Chaque site saisit ses chiffres, la plateforme relance,
+        consolide et sort le rapport.</p>
       <div class="hero-cta">
         <a class="btn btn-lg" href="#prix"><span class="dot"></span>Calculer mon tarif</a>
         <a class="tlink" href="/app/?demo=1">Explorer la plateforme</a>
@@ -899,6 +913,12 @@ CHALLENGE_ENT = f"""<section id="challenge" class="chal verre-sect">
         <p class="chal-p">Des associations vérifiées publient ce dont elles ont besoin près de
           chacun de vos sites. Vos équipes s'y rendent ensemble.</p>
       </div>
+      <!-- Trois grands nombres sous un titre retrospectif, sur une
+           photographie : c'est la grammaire visuelle d'un cas client, et la
+           page jure quelques ecrans plus bas n'avoir aucun resultat a montrer.
+           Les legendes disaient deja qu'il s'agit de parametres ; le sur-titre
+           le dit avant qu'on lise les legendes. -->
+      <p class="chal-cle mono">Les trois paramètres de la saison</p>
       <div class="verre-chiffres chal-chiffres">
         <span class="verre-chiffre"><b>12</b><span>mois, sans reconduction tacite</span></span>
         <span class="verre-chiffre"><b>4</b><span>rapports, un par trimestre</span></span>
@@ -947,6 +967,7 @@ EQUIPES_ENT = f"""<section id="equipes">
       entre les cinq mêmes volontaires.
       <a class="tlink" href="/app/?demo=1">Explorer l'espace salarié</a></p>
 
+
     <div class="aff-scene">
       {photo("affiche-bureau",
              "L'affiche A3 que Riseva génère, entière, posée devant un plateau de bureaux : "
@@ -971,20 +992,44 @@ EQUIPES_ENT = f"""<section id="equipes">
         <p class="s-note"><a class="tlink" href="/app/?demo=1">Voir l'écran des supports</a></p>
       </div>
     </div>
+
+    <!-- La vraie question de l'acheteur n'est pas « comment mes salaries verront
+         le lien », c'est « est-ce que quelqu'un va participer ». On peut montrer
+         le lien, l'affiche et le code QR ; on ne peut pas montrer l'adoption,
+         parce qu'aucune saison n'a encore eu lieu. Le dire est moins vendeur que
+         se taire, et c'est la seule reponse compatible avec le reste de la
+         page. -->
+    <p class="s-note s-note--franchise">Riseva met les besoins à portée de vos salariés.
+      <b>Leur participation reste volontaire</b>, et nous ne vous promettons pas un taux
+      d'engagement que nous n'avons pas encore mesuré.</p>
   </div>
 </section>"""
 
 
+# En remontant la boucle a 14 % de la page, cette section s'est mise a
+# reexpliquer le meme mecanisme mille pixels plus bas : le lecteur qui avait
+# compris ne progressait plus. Le debut de page dit comment ca circule ; ici, on
+# dit ce que la confirmation VAUT. C'est la seule chose que Riseva peut opposer a
+# un chiffre qu'une entreprise aurait ecrit elle-meme.
 ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss verre-sect">
   <div class="layer">
-    {photo("riviere-aube",
-           "Une rivière au petit matin, ses berges plantées, avant l'arrivée d'un chantier "
-           "de ramassage", "", " photo--couverture")}
-{entete("L'annuaire", "L'association publie,<br><span class='it'>puis elle confirme.</span>",
-        "Le chiffre final de votre rapport vient de la structure qui était sur place : une "
-        "déclaration datée, tracée et attribuée. Ce n'est pas une attestation et cela ne vaut "
-        "ni contrôle ni certification, mais c'est déjà tout autre chose qu'un chiffre que vous "
-        "auriez écrit vous-même.")}
+    <!-- C'etait une riviere au petit matin. Les deux images les plus grandes de
+         la page etaient alors un sous-bois et un plan d'eau : survolee sans etre
+         lue, la vitrine disait « ecologie » alors que Riseva couvre bien plus
+         large, et son propre bareme parle de refuges, de collectes et de
+         maraudes autant que de plantations. Celle-ci montre une mission en
+         train d'avoir lieu, ce qui est justement ce que l'association confirme
+         dans la section qu'elle ouvre. -->
+    {photo("maraude",
+           "Un bol chaud passe de main en main au-dessus d'une table de distribution "
+           "alimentaire, devant une camionnette, en fin de journée", "",
+           " photo--couverture")}
+{entete("La confirmation", "Ce qui est confirmé<br>"
+        "<span class='it'>entre dans votre bilan.</span>",
+        "Et ce qui ne l'est pas y reste marqué comme tel. Le chiffre final vient de la "
+        "structure qui était sur place : une déclaration datée, tracée et attribuée. Ce n'est "
+        "pas une attestation et cela ne vaut ni contrôle ni certification, mais c'est déjà "
+        "tout autre chose qu'un chiffre que vous auriez écrit vous-même.")}
 
     <!-- Trois photographies en vignettes tenaient ici, refuge, plantation, maraude.
          Une rangee de trois images egales, sans legende, juste sous une photographie
@@ -1170,6 +1215,12 @@ def verre_zone(n, qui, question, reponse, visuel, ecrans, large=False):
 # Et il n'y a qu'UN panneau. Quatre panneaux de verre cote a cote, c'est quatre
 # fois la depense de `backdrop-filter` ; et surtout, trois cartes parlent DE la
 # plateforme quand un seul panneau EST la plateforme.
+# Le titre disait « et personne n'a la reponse ». Il caricaturait le lecteur : un
+# responsable RSE a tres bien les reponses, au prix de fichiers, de mails et de
+# relances. On vend mieux en reconnaissant le travail existant qu'en le niant, et
+# le probleme reel d'une entreprise multi-sites n'est pas l'ignorance, c'est la
+# dispersion.
+#
 # Zone 3 : la phrase qui decrivait le tour complet est descendue en bas de
 # section, ou elle est devenue la chaine elle-meme. Ce qui reste dans la zone
 # est ce que la chaine ne dit pas : ce qui peut passer par cet ecran.
@@ -1178,7 +1229,8 @@ PLATEFORME_ENT = f"""<section id="plateforme" class="band-moss verre-sect">
 {lianes_verre()}
   <div class="layer">
 {entete("Ce que ça répond",
-        "Trois questions,<br><span class='it'>et personne n'a la réponse.</span>",
+        "Trois questions, et la réponse<br><span class='it'>n'est jamais au même "
+        "endroit.</span>",
         "On n'ouvre pas un logiciel RSE par curiosité. On l'ouvre parce qu'on vient "
         "de vous poser une de ces trois questions.")}
 
