@@ -1,7 +1,7 @@
 # La nuit du 3 au 4 septembre 2026
 
 Refonte des deux vitrines. Tout ce qui est chiffre ici a ete mesure sur la page
-rendue, jamais estime. Vingt-trois commits, 761 tests verts.
+rendue, jamais estime. Vingt-quatre commits, 768 tests verts.
 
 ---
 
@@ -78,7 +78,7 @@ quatre faits :
 | Texte cache expose aux lecteurs d'ecran | 5 125 signes | **0** |
 | Appuis sur Tab pour traverser la FAQ | 9 | **1** |
 | Accueil sur telephone | 21 314 px | **20 920 px** |
-| Tests automatises | 654 | **761** |
+| Tests automatises | 654 | **768** |
 
 La page associations fait 7 161 px pour 1 587 mots.
 
@@ -460,7 +460,7 @@ texte : la reduire demande de decider quelles maquettes sautent.
 | fichier | quoi |
 |---|---|
 | `scripts/vitrines.py` | le generateur des deux vitrines : sections fusionnees, titres, FAQ, donnees structurees |
-| `scripts/tests.py` | +107 tests : ancres, contraste, barre mobile, referencement, derive du dessin, apparitions, recadrage, debordement, pieges au clavier, motif onglets |
+| `scripts/tests.py` | +114 tests : ancres, contraste, barre mobile, referencement, derive du dessin, apparitions, recadrage, debordement, pieges au clavier, motif onglets |
 | `public/styles/vitrine.css` | prix en clair, filets a la place des cartes, sous-grille des piliers, colonnes de FAQ, captures non recadrees |
 | `public/styles/vitrine.min.css` | **nouveau**, engendre : la feuille servie |
 | `scripts/css.py` | **nouveau** : l'automate qui l'engendre, et sa verification |
@@ -479,7 +479,7 @@ texte : la reduire demande de decider quelles maquettes sautent.
 
 ```
 python3 scripts/tests.py
-761 / 761 tests passes
+768 / 768 tests passes
 Tout est vert.
 ```
 
@@ -491,6 +491,6 @@ Zero erreur JavaScript sur les douze pages. Zero lien interne casse sur treize
 cibles distinctes. Trois requetes en echec, toutes connues : `config.js`, qui
 n'existe qu'en production par construction, et les deux polices du point 15.
 
-Vingt-trois commits, chacun avec son raisonnement complet dans son message. Le
+Vingt-quatre commits, chacun avec son raisonnement complet dans son message. Le
 depot local du dossier Green est a jour et propre ; il a vingt-trois commits
 d'avance sur GitHub.
