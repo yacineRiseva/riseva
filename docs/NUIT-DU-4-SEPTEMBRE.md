@@ -434,15 +434,15 @@ existaient, et chacun a produit sa propre recette.
     pixels, servait le fichier de 760 dans une boite de 1 273. La plus grande
     image de la page d'accueil etait donc floue.
 
-    Le rapport mesure — largeur du fichier REELLEMENT choisi contre largeur de
-    la boite ou il est peint — est passe de **0,60 a 0,88** (la source de 1 358
+    Le rapport mesure, largeur du fichier REELLEMENT choisi contre largeur de
+    la boite ou il est peint, est passe de **0,60 a 0,88** (la source de 1 358
     pixels est le plafond). Trois captures qui plafonnaient a 0,90 sont montees
     a 1,16 grace a une variante 1440, produite seulement quand la source la
     porte : on n'agrandit jamais une source pour remplir un nom de fichier.
 
     Le piege du test : `naturalWidth` ne pouvait pas servir de reference. Avec un
-    srcset en `w`, il rend la valeur de `sizes` elle-meme — une recette batie
-    dessus aurait valide sa propre erreur. On lit donc la largeur du fichier sur
+    srcset en `w`, il rend la valeur de `sizes` elle-meme, si bien qu'une
+    recette batie dessus aurait valide sa propre erreur. On lit donc la largeur du fichier sur
     le disque.
 
 15. **La derniere bande de la page laissait cinq cents pixels de vert vide.**
@@ -464,7 +464,7 @@ existaient, et chacun a produit sa propre recette.
     Aucun controle ne pouvait le voir. Le test de recadrage compare les
     proportions de la BOITE a celles du FICHIER, et elles concordaient
     parfaitement : c'est le fichier qui etait ampute. Le nouveau test lit
-    l'image — cinq pixels le long de chaque bord, aucune encre. Temoin :
+    l'image : cinq pixels le long de chaque bord, aucune encre. Temoin :
     l'ancienne decoupe donne 0,57 % de pixels sombres en bas, la nouvelle zero.
 
 17. **Chaque point de la ligne du temps designait l'etape d'a cote.** Les points
@@ -521,9 +521,9 @@ texte : la reduire demande de decider quelles maquettes sautent.
 (4 762 px), n'ont pas ete regardes cette nuit.
 
 **Regarder la page, systematiquement.** Les quatre defauts de la matinee ont un
-point commun : aucun n'etait dans le CSS. Trois etaient dans des FICHIERS — une
+point commun : aucun n'etait dans le CSS. Trois etaient dans des FICHIERS (une
 image trop petite pour sa boite, une decoupe qui coupait la carte qu'elle
-montrait — et le quatrieme dans un rapport entre deux systemes de coordonnees,
+montrait) et le quatrieme dans un rapport entre deux systemes de coordonnees,
 un SVG etire d'un cote, une grille en `clamp()` de l'autre. Une recette qui lit
 le DOM ne peut voir aucun des quatre : elle verifie que les proportions
 concordent, et elles concordaient.
@@ -538,7 +538,7 @@ chaque serie de changements visuels, pas une fois.
 de resultat pour sept cents pixels de panneau vide. Ce n'est pas un defaut de
 mise en page, c'est le jeu de demonstration qui ne remplit pas l'ecran : la
 capture montre le produit comme s'il etait vide. A reprendre du cote des donnees
-de demonstration, pas du cote de la decoupe — recadrer pour cacher le vide
+de demonstration, pas du cote de la decoupe : recadrer pour cacher le vide
 serait mentir sur l'ecran.
 
 **La reponse ouverte d'une FAQ occupe 111 pixels dans une boite de 291.** La
