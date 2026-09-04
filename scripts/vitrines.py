@@ -277,14 +277,24 @@ def etapes(items):
     # de rien. Une ligne du temps qui annonce quatre moments quand la page en
     # montre trois se lit comme une etape qu'on a oublie d'ecrire.
     n = len(items)
-    hauteurs = (46, 66, 38, 60)
-    points = "".join(
-        f'\n        <circle cx="{round((i + 0.5) * 1200 / n)}" '
-        f'cy="{hauteurs[i % len(hauteurs)]}" r="1"></circle>'
-        for i in range(n))
-    ligne = (f'<svg class="sais-line" viewBox="0 0 1200 100" preserveAspectRatio="none" '
-             f'aria-hidden="true">\n        <path pathLength="1" d="M-10,50 L1210,50">'
-             f'</path>{points}\n      </svg>')
+    # Les points etaient des <circle> dans le SVG, poses au MILIEU de chaque
+    # colonne (cx = (i+0,5) x 1200 / n) tandis que le texte de l'etape est cale
+    # a GAUCHE de la sienne. Mesure a 1440 px : etiquettes a 2, 428 et 854 px,
+    # points a 207, 620 et 1033. Deux cents pixels d'ecart, soit une demi
+    # colonne : chaque point designait l'espace entre deux etapes.
+    #
+    # Corriger le calcul ne suffisait pas. Le SVG est etire (preserveAspectRatio
+    # none) sur toute la largeur, alors que les colonnes sont separees par une
+    # gouttiere en clamp() : la position juste depend d'un rapport gouttiere /
+    # largeur qui change avec la fenetre, et toute formule ecrite ici aurait ete
+    # fausse a une largeur ou a une autre. Les points sont donc poses par la
+    # MEME grille que les etapes, en superposition : ils ne peuvent plus se
+    # decaler, quelle que soit la fenetre.
+    points = "".join('<li></li>' for _ in range(n))
+    ligne = ('<svg class="sais-line" viewBox="0 0 1200 100" preserveAspectRatio="none" '
+             'aria-hidden="true">\n        <path pathLength="1" d="M-10,50 L1210,50">'
+             '</path>\n      </svg>\n      '
+             f'<ol class="sais-pts" aria-hidden="true">{points}</ol>')
     return f"""    <div class="sais" style="--etapes:{n}">
       {ligne}
       <ol class="sais-steps">{out}

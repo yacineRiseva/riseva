@@ -3174,6 +3174,46 @@ def main():
                     f"{len(ecarts)} elements differents sur {len(servie)}")
             q.close(); c2.close()
 
+        # ── un point de la ligne du temps designe SON etape ────────────────
+        # Les points etaient des <circle> dans un SVG etire, poses au milieu de
+        # chaque colonne, alors que le texte de l'etape est cale a gauche de la
+        # sienne. Mesure a 1440 px sur la vitrine associations : etiquettes a 2,
+        # 428 et 854 pixels, points a 207, 620 et 1033. Chaque point designait
+        # l'espace entre deux etapes, et sur l'accueil, ou la ligne en compte
+        # cinq, le dernier tombait au-dela de la derniere.
+        #
+        # Ce test ne verifie pas une formule : il compare les positions REELLES.
+        # C'est necessaire, parce que la bonne position dependait d'un rapport
+        # gouttiere / largeur en clamp() qu'aucune valeur ecrite en dur ne
+        # pouvait suivre a toutes les fenetres. Les points sont donc poses par
+        # la meme grille que les etapes, et c'est cette egalite qui est testee.
+        for page in ("/", "/associations.html"):
+            for largeur in (1440, 1100):
+                c4 = nav.new_context(viewport={"width": largeur, "height": 900},
+                                     locale="fr-FR", reduced_motion="reduce")
+                q = c4.new_page()
+                q.goto(BASE + page, wait_until="networkidle")
+                q.keyboard.press("End"); q.wait_for_timeout(600)
+                ecarts = q.evaluate("""()=>{const out=[];
+                    document.querySelectorAll('.sais').forEach((s,k)=>{
+                      const pts=[...s.querySelectorAll('.sais-pts li')];
+                      const eta=[...s.querySelectorAll('.sais-steps li')];
+                      if(!pts.length) { out.push('ligne '+k+' sans points'); return; }
+                      if(pts.length!==eta.length){ out.push('ligne '+k+' : '+pts.length
+                        +' points pour '+eta.length+' etapes'); return; }
+                      if(getComputedStyle(pts[0]).display==='none') return;
+                      pts.forEach((pt,i)=>{
+                        const a=pt.getBoundingClientRect().left;
+                        const b=eta[i].getBoundingClientRect().left;
+                        if(Math.abs(a-b)>2) out.push('point '+(i+1)+' a '+Math.round(a-b)+' px');
+                      });
+                    });
+                    return out;}""")
+                verifie(f"chaque point de la ligne du temps est sur son etape"
+                        f" sur {page} a {largeur} px",
+                        not ecarts, str(ecarts[:3]))
+                c4.close()
+
         # ── un detail decoupe dans une image doit contenir ce qu'il montre ──
         # La vitrine montre un gros plan du bas de l'affiche : le code QR et le
         # lien qu'il ouvre. Ce gros plan est une decoupe de affiche.jpg, aux
