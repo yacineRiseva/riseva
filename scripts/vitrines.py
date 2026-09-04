@@ -270,8 +270,23 @@ def etapes(items):
           <h3>{titre}</h3>
           <p>{corps}</p>
         </li>"""
-    return f"""    <div class="sais">
-      {LIGNE_SAISON}
+    # La ligne et la grille suivent le NOMBRE d'etapes. Le fragment SVG portait
+    # quatre points en dur et la grille quatre colonnes ; la seule section qui
+    # emploie ce composant en a trois. Resultat : trois cent dix-neuf pixels de
+    # quatrieme colonne vide, et un quatrieme point pose sur la ligne au-dessus
+    # de rien. Une ligne du temps qui annonce quatre moments quand la page en
+    # montre trois se lit comme une etape qu'on a oublie d'ecrire.
+    n = len(items)
+    hauteurs = (46, 66, 38, 60)
+    points = "".join(
+        f'\n        <circle cx="{round((i + 0.5) * 1200 / n)}" '
+        f'cy="{hauteurs[i % len(hauteurs)]}" r="1"></circle>'
+        for i in range(n))
+    ligne = (f'<svg class="sais-line" viewBox="0 0 1200 100" preserveAspectRatio="none" '
+             f'aria-hidden="true">\n        <path pathLength="1" d="M-10,50 L1210,50">'
+             f'</path>{points}\n      </svg>')
+    return f"""    <div class="sais" style="--etapes:{n}">
+      {ligne}
       <ol class="sais-steps">{out}
       </ol>
     </div>"""
@@ -1707,7 +1722,7 @@ COMMENT_ASSO = f"""<section id="comment" class="band">
 CHALLENGE_ASSO = f"""<section id="challenge">
   <div class="layer">
 {entete("Pourquoi les entreprises viennent",
-        "Ce qu'une entreprise<br><span class='it'>vient chercher ici.</span>",
+        "Ce qu'une entreprise<br><span class='it'>vient chercher&nbsp;ici.</span>",
         "Elle paie un abonnement, ses salariés veulent une action concrète près de chez eux, "
         "et le mécénat de compétences comme le don en nature ouvrent droit à une réduction "
         "d'impôt prévue par l'article 238 bis du code général des impôts. Voilà pourquoi "
@@ -1715,8 +1730,14 @@ CHALLENGE_ASSO = f"""<section id="challenge">
         "cherchent.")}
 
     <div class="photos3">
-      {photo("refuge-sortie", "Deux bénévoles sortent quatre chiens de refuge sur un chemin "
-             "de campagne, en plein soleil", "")}
+      <!-- C'etait la meme photographie de sortie de chiens que celle du premier
+           ecran, mille deux cents pixels plus haut : la page se repetait en
+           images comme d'autres se repetent en mots. Celle-ci montre en plus ce
+           que la page ne montrait nulle part, des salaries en tenue de travail
+           qui partent, alors que tout le reste est du cote de la campagne et
+           des animaux. -->
+      {photo("depart-chantier", "Quatre salariés en tenue de travail chargent un fourgon au "
+             "petit matin, devant un site industriel", "")}
       {photo("collecte", "Des mains gantées trient des conserves et des légumes dans des "
              "cagettes, dans une salle claire", "")}
       {photo("refuge-chats", "Un chat roux se laisse gratter sous le menton dans une salle "

@@ -857,6 +857,7 @@ section{
    deux : la grille reste lisible sans se lire comme un tableau.
    ──────────────────────────────────────────────────────── */
 .sais{position:relative;margin-top:clamp(36px,4.6vw,60px);}
+.sais-steps{--etapes:inherit;}
 .sais-line{
   position:absolute;left:0;right:0;top:0;width:100%;
   height:clamp(74px,8vw,110px);pointer-events:none;
@@ -882,7 +883,8 @@ section{
   .sais-line circle{opacity:1;transition:none;}
 }
 .sais-steps{
-  list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  list-style:none;display:grid;
+  grid-template-columns:repeat(var(--etapes,4),minmax(0,1fr));
   gap:clamp(18px,2.6vw,40px);
   padding-top:clamp(46px,5.2vw,72px);
 }
@@ -1745,8 +1747,10 @@ section{
 /* Apres avoir scinde la question du perimetre, le panneau est passe de 778 a
    530 px et l'equilibre a change de sens : c'est le sommaire qui devenait
    trop haut. Mesure refaite, l'ecart tombe a 35 px a cette proportion. */
-.vd .qa-split{ grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr); }
-.va .qa-split{ grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr); }
+@media (min-width:1001px){
+  .vd .qa-split{ grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr); }
+  .va .qa-split{ grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr); }
+}
 .qa-invite{
   margin:clamp(18px,2vw,26px) 0 0; max-width:34ch;
   font-size:14.5px; line-height:1.6; color:var(--stone);

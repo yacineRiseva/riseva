@@ -650,16 +650,18 @@ def main():
             .map(e=>e.tagName+'.'+String(e.className).slice(0,24))"""
 
         p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
-        p.keyboard.press("End"); p.wait_for_timeout(1500)
+        p.keyboard.press("End"); p.wait_for_timeout(2600)
         verifie("touche Fin : rien de transparent a l'ecran",
                 not p.evaluate(A_L_ECRAN), str(p.evaluate(A_L_ECRAN)[:4]))
 
         p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
-        p.click('.nav a[href="#prix"]'); p.wait_for_timeout(1600)
+        # Le defilement du navigateur est anime : l'observateur ne se declenche
+        # qu'une fois arrive, et la transition dure encore un demi-seconde apres.
+        p.click('.nav a[href="#prix"]'); p.wait_for_timeout(2600)
         verifie("saut par le menu : rien de transparent a l'ecran",
                 not p.evaluate(A_L_ECRAN), str(p.evaluate(A_L_ECRAN)[:4]))
 
-        p.goto(BASE + "/#faq", wait_until="networkidle"); p.wait_for_timeout(1600)
+        p.goto(BASE + "/#faq", wait_until="networkidle"); p.wait_for_timeout(2600)
         verifie("adresse partagee avec une ancre : rien de transparent a l'ecran",
                 not p.evaluate(A_L_ECRAN), str(p.evaluate(A_L_ECRAN)[:4]))
 
@@ -3054,6 +3056,49 @@ def main():
                     not ecarts and len(servie) == len(source),
                     f"{len(ecarts)} elements differents sur {len(servie)}")
             q.close(); c2.close()
+
+        # ── ce qui se coupe et ce qui deborde ───────────────────────────────
+        # Deux defauts que rien ne signale et qu'on ne voit pas en relisant du
+        # CSS. Le premier : deux captures d'ecran etaient recadrees a hauteur
+        # fixe en object-fit:cover, ce qui coupe les mots. « personnes » devenait
+        # « nnes », « Villeurbanne » devenait « leurbanne ». Sur une
+        # photographie un recadrage ne se voit pas ; sur une capture d'ecran il
+        # montre un logiciel casse. La regle est donc : une PHOTOGRAPHIE peut
+        # etre recadree, une CAPTURE jamais.
+        # Le second : en reglant la proportion des deux colonnes de la FAQ, la
+        # regle a ete ecrite avec `.vd`, plus specifique que la regle mobile qui
+        # remet une seule colonne. Resultat, sur un telephone de 390 px, la FAQ
+        # restait sur deux colonnes de 150 px et le texte debordait de sa boite.
+        for page in ("/", "/associations.html"):
+            for largeur in (1440, 768, 390):
+                c3 = nav.new_context(viewport={"width": largeur, "height": 900},
+                                     locale="fr-FR", reduced_motion="reduce")
+                q = c3.new_page()
+                q.goto(BASE + page, wait_until="networkidle"); q.wait_for_timeout(350)
+                haut = q.evaluate("()=>document.documentElement.scrollHeight")
+                for y in range(0, haut, 600):
+                    q.evaluate("y=>window.scrollTo(0,y)", y); q.wait_for_timeout(30)
+
+                coupees = q.evaluate("""()=>[...document.querySelectorAll('.shot img')]
+                    .filter(im=>im.offsetParent!==null && im.naturalWidth)
+                    .filter(im=>{
+                      const r=im.getBoundingClientRect(); if(!r.width||!r.height) return false;
+                      if(getComputedStyle(im).objectFit!=='cover') return false;
+                      const nat=im.naturalWidth/im.naturalHeight, aff=r.width/r.height;
+                      return Math.abs(1-aff/nat) > 0.04;})
+                    .map(im=>im.currentSrc.split('/').pop())""")
+                verifie(f"aucune capture d'ecran n'est recadree sur {page} a {largeur} px",
+                        not coupees, str(coupees[:4]))
+
+                deborde = q.evaluate("""()=>[...document.querySelectorAll('p,li,h1,h2,h3,h4,dd,dt,b,a')]
+                    .filter(e=>e.offsetParent!==null && e.clientWidth>0
+                            && e.scrollWidth > e.clientWidth+2
+                            && getComputedStyle(e).overflow==='visible')
+                    .map(e=>e.tagName+'.'+String(e.className).slice(0,20)+' '
+                            +e.scrollWidth+'>'+e.clientWidth)""")
+                verifie(f"aucun texte ne deborde de sa boite sur {page} a {largeur} px",
+                        not deborde, str(deborde[:4]))
+                q.close(); c3.close()
         sans_alt = p.eval_on_selector_all("img", "l=>l.filter(i=>!i.hasAttribute('alt')).length")
         verifie("toutes les images ont un alt", sans_alt == 0, f"{sans_alt} sans alt")
 
