@@ -490,6 +490,16 @@ def dimensions(chemin):
     raise ValueError(f"dimensions introuvables : {chemin}")
 
 
+# Les largeurs d'affichage reelles, mesurees sur la page rendue a 1440 px, et
+# non devinees. `sizes` n'est pas une decoration : le navigateur choisit le
+# fichier a partir de cette valeur AVANT de connaitre la mise en page, et une
+# valeur trop basse lui fait servir une image qu'il devra agrandir. La valeur
+# par defaut de capture() decrivait 70vw ; les cinq captures a onglets occupent
+# 86vw, celle de la vitrine associations 82vw, et les trois petites entre 35 et
+# 49vw. Chacune porte donc la sienne, et une recette les compare desormais aux
+# boites reellement peintes.
+LARGE = "(max-width: 900px) 92vw, 86vw"
+
 def sources_webp(dossier, nom, tailles):
     """Le <source> WebP d'une image, ou rien si les variantes n'existent pas.
 
@@ -504,11 +514,18 @@ def sources_webp(dossier, nom, tailles):
 
     Si les fichiers manquent, on n'ecrit pas de <source> : une page qui pointe
     vers un fichier absent est pire qu'une page qui sert le JPEG."""
+    # Les largeurs ne sont plus ecrites ici. images.py n'agrandit jamais une
+    # source, donc une photographie de 1 358 pixels recoit une variante 1358 la
+    # ou une capture de 2 560 en recoit une de 1440 : une liste figee dans ce
+    # fichier-ci se serait desynchronisee de ce qui existe sur le disque, et le
+    # <source> aurait pointe vers un fichier absent ou omis le plus grand.
     d = PUBLIC / dossier
     dispo = []
-    for w in (760, 1120):
-        if (d / f"{nom}-{w}.webp").exists():
-            dispo.append(f"/{dossier}/{nom}-{w}.webp {w}w")
+    for f in sorted(d.glob(f"{nom}-*.webp")):
+        m = re.fullmatch(re.escape(nom) + r"-(\d+)", f.stem)
+        if m:
+            dispo.append((int(m.group(1)), f"/{dossier}/{f.name} {m.group(1)}w"))
+    dispo = [t for _, t in sorted(dispo)]
     if not dispo:
         return ""
     return (f'<source type="image/webp" srcset="{", ".join(dispo)}" sizes="{tailles}">\n        ')
@@ -854,7 +871,7 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
                "de la saison à gauche, les salariés mobilisés, les missions validées, les "
                "heures et les associations soutenues, puis le bandeau des résultats : arbres "
                "plantés, animaux pris en charge, kits distribués", "", " shot--apercu",
-               eager=True)}
+               eager=True, tailles="(max-width: 900px) 92vw, 47vw")}
       <figcaption>Le tableau de bord, tel qu'il s'ouvre. Chiffres d'un jeu de
         démonstration.</figcaption>
     </figure>
@@ -951,10 +968,10 @@ EQUIPES_ENT = f"""<section id="equipes">
     <div class="duo duo--pile">
       {capture("salarie-saison",
                "Le tableau de bord d'un salarié : ses points, et l'objectif collectif de son site",
-               "L'objectif de son site")}
+               "L'objectif de son site", tailles="(max-width: 900px) 92vw, 49vw")}
       {capture("salarie-actions",
                "La liste des besoins publiés par les associations proches du site du salarié",
-               "Les besoins près de chez lui")}
+               "Les besoins près de chez lui", tailles="(max-width: 900px) 92vw, 35vw")}
     </div>
 
     <!-- La phrase disait mot pour mot ce que la capture de gauche affiche deja,
@@ -1020,10 +1037,17 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss verre-sect">
          maraudes autant que de plantations. Celle-ci montre une mission en
          train d'avoir lieu, ce qui est justement ce que l'association confirme
          dans la section qu'elle ouvre. -->
+    <!-- `tailles` n'est pas decoratif : la valeur par defaut de photo() decrit
+         une demi-colonne (46vw), et cette image-ci occupe toute la largeur de
+         la bande. Le navigateur, croyant remplir 662 px, servait le fichier de
+         760 px dans une boite de 1 273 : la photographie de couverture de la
+         page etait agrandie de quatre-vingt-douze pour cent. C'est la seule
+         chose que ce parametre corrige, et c'est la raison pour laquelle une
+         recette le mesure desormais sur la page rendue. -->
     {photo("maraude",
            "Un bol chaud passe de main en main au-dessus d'une table de distribution "
            "alimentaire, devant une camionnette, en fin de journée", "",
-           " photo--couverture")}
+           " photo--couverture", tailles="(max-width: 900px) 92vw, 88vw")}
 {entete("La confirmation", "Ce qui est confirmé<br>"
         "<span class='it'>entre dans votre bilan.</span>",
         "Et ce qui ne l'est pas y reste marqué comme tel. Le chiffre final vient de la "
@@ -1043,7 +1067,7 @@ ASSOCIATIONS_ENT = f"""<section id="associations" class="band-moss verre-sect">
       <i class="verre-eclat" aria-hidden="true"></i>
       {capture("asso-valider",
                "L'écran par lequel une association confirme ce qui a été réalisé",
-               "La confirmation, en un clic")}
+               "La confirmation, en un clic", tailles=LARGE)}
     </div>
 
     <ul class="trois">
@@ -1362,21 +1386,21 @@ OUTIL_ENT = f"""<section id="outil-rse" class="band">
 {onglets([
   ("miss", "Les missions", capture("missions",
       "La liste des missions d'une entreprise, avec leur état de confirmation",
-      "Chaque mission, son association, son état")),
+      "Chaque mission, son association, son état", tailles=LARGE)),
   ("rapp", "Les rapports", capture("rapports",
       "Le rapport trimestriel d'une entreprise dans Riseva",
-      "Les rapports, en CSV et en PDF")),
+      "Les rapports, en CSV et en PDF", tailles=LARGE)),
   ("meca", "Le dossier de mécénat", capture("mecenat",
       "Le calcul du mécénat ligne par ligne : dons versés, mécénat de compétences au coût "
       "de revient, assiette, plafond, report",
-      "Le calcul, ligne par ligne")),
+      "Le calcul, ligne par ligne", tailles=LARGE)),
   ("indi", "Les indicateurs", capture("indicateurs-formule",
       "Les taux de sécurité consolidés, chacun avec sa formule sous son libellé, et la "
       "colonne approuvé séparée de la colonne provisoire",
-      "Chaque taux avec sa formule")),
+      "Chaque taux avec sa formule", tailles=LARGE)),
   ("grpe", "Le groupe entier", capture("groupe",
       "La vue consolidée d'un groupe : sociétés, sites et indicateurs réunis",
-      "Un groupe, ses sociétés, ses établissements")),
+      "Un groupe, ses sociétés, ses établissements", tailles=LARGE)),
 ])}
 
     <dl class="faits4 faits4--serre">
@@ -1764,7 +1788,7 @@ HERO_ASSO = f"""<header class="hero hero--doc" id="hero">
     {capture("asso-tableau",
              "Le tableau de bord d'une association dans Riseva",
              "Le tableau de bord d'une association, avec des chiffres de démonstration",
-             " shot--large")}
+             " shot--large", tailles=LARGE)}
   </div>
 </header>"""
 
@@ -1862,7 +1886,7 @@ ARGENT_ASSO = f"""<section id="argent" class="band-moss">
 
     {capture("asso-valider",
              "L'écran par lequel une association confirme ce qui a été réalisé",
-             "Confirmer une mission", " shot--seule")}
+             "Confirmer une mission", " shot--seule", tailles=LARGE)}
   </div>
 </section>"""
 

@@ -9,10 +9,18 @@ décide de la première impression sur un téléphone en 4G. Les JPEG restent, i
 sont la solution de repli ; le WebP est servi en premier quand le navigateur
 l'accepte, ce que font tous les navigateurs en service depuis 2020.
 
-Deux largeurs, pas cinq. Les photos s'affichent entre 390 et 680 pixels selon la
+Trois largeurs, pas cinq. Les photos s'affichent entre 390 et 680 pixels selon la
 mise en page : 760 couvre le rendu simple et les petits écrans en densité double,
-1120 couvre les grands écrans en densité double. Au-delà, on transporte des
-pixels que personne ne regarde.
+1120 couvre les grands écrans en densité double.
+
+1440 a été ajoutée après mesure, pas par principe. Cinq images de la page
+d'accueil occupent une boîte plus large que 1120 pixels : la photographie de
+couverture de la section « associations » (1 273 px) et quatre captures de
+l'application (1 125 à 1 238 px). Servies en 1 120, elles étaient agrandies de
+dix à quatorze pour cent, ce qui se voit sur le texte d'une capture posée à côté
+du texte natif de la page. La garde ci-dessous reste la règle : on n'agrandit
+jamais une source, donc une image de 1 358 pixels n'aura pas de variante 1440.
+C'est pour cela que dix-neuf sources seulement en reçoivent une.
 
 Les fichiers produits sont versionnés avec le site : aucune conversion ne se fait
 au moment de servir la page.
@@ -22,7 +30,7 @@ from PIL import Image
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent
 PUBLIC = RACINE / "public"
-LARGEURS = (760, 1120)
+LARGEURS = (760, 1120, 1440)
 QUALITE = 78
 
 def variantes(src: pathlib.Path):

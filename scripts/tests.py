@@ -3310,6 +3310,66 @@ def main():
         sans_alt = p.eval_on_selector_all("img", "l=>l.filter(i=>!i.hasAttribute('alt')).length")
         verifie("toutes les images ont un alt", sans_alt == 0, f"{sans_alt} sans alt")
 
+        # Aucune image ne doit etre agrandie pour remplir sa boite.
+        #
+        # Le defaut qui a produit ce test : la photographie de couverture de la
+        # section « associations » a change de place, d'une demi-colonne vers
+        # toute la largeur de la bande, et l'attribut `sizes` est reste a 46vw.
+        # Le navigateur, croyant remplir 662 pixels, a servi le fichier de 760
+        # dans une boite de 1 273. La plus grande photographie de la page etait
+        # agrandie de quatre-vingt-douze pour cent, et RIEN ne le signalait :
+        # aucun test ne regarde la nettete, et une capture d'ecran de recette
+        # est trop compressee pour qu'on la voie a l'oeil.
+        #
+        # Ce qui est mesure ici est le seul rapport qui compte : la largeur EN
+        # PIXELS du fichier que le navigateur a REELLEMENT choisi, contre la
+        # largeur en pixels CSS de la boite ou il le peint. `naturalWidth` ne
+        # repond pas a cette question : avec un srcset en `w`, il rend la valeur
+        # de `sizes`, c'est-a-dire la declaration elle-meme — un test bati
+        # dessus aurait valide sa propre erreur. On lit donc le fichier sur le
+        # disque.
+        #
+        # Le seuil est 0,85 et non 1,00 parce que deux photographies de la page
+        # ont une source de 1 358 pixels pour une boite de 1 273 et 1 440 : on
+        # n'agrandit pas une source pour fabriquer des pixels, et douze pour
+        # cent d'etirement sur une photographie floue ne se voit pas. Ce que le
+        # seuil attrape est la classe de defaut ci-dessus, ou le rapport tombe
+        # a 0,60.
+        from PIL import Image as _Img
+        largeurs = {}
+        for _d in ("photos", "captures", "images"):
+            _dd = RACINE / _d
+            if not _dd.is_dir():
+                continue
+            for _f in _dd.glob("*"):
+                if _f.suffix.lower() in (".webp", ".jpg", ".jpeg", ".png"):
+                    try:
+                        largeurs[_f.name] = _Img.open(_f).size[0]
+                    except Exception:
+                        pass
+        molles = []
+        for larg in (1440, 768, 390):
+            q = p.context.new_page()
+            q.set_viewport_size({"width": larg, "height": 900})
+            for page in ("/index.html", "/associations.html"):
+                q.goto(BASE + page)
+                # Les images differees ne sont demandees qu'une fois passees
+                # devant : une page mesuree sans defilement n'a que deux images.
+                for _ in range(40):
+                    q.mouse.wheel(0, 900); q.wait_for_timeout(40)
+                q.keyboard.press("End"); q.wait_for_timeout(1200)
+                for im in q.evaluate("""()=>[...document.images].map(i=>{
+                        const b=i.getBoundingClientRect();
+                        return {f:(i.currentSrc||i.src).split('/').pop(),
+                                box:Math.round(b.width)};}).filter(x=>x.box>0)"""):
+                    reel = largeurs.get(im["f"])
+                    if reel and reel / im["box"] < 0.85:
+                        molles.append(f'{im["f"]} {reel}px dans {im["box"]}px'
+                                      f' sur {page} a {larg}')
+            q.close()
+        verifie("aucune image n'est agrandie pour remplir sa boite",
+                not molles, " ; ".join(molles[:3]))
+
         # Un champ sans libellé relié ne s'annonce pas : la personne qui n'y voit rien
         # entend « zone de saisie » et doit deviner laquelle.
         SANS_ETIQUETTE = """()=>{const out=[];
