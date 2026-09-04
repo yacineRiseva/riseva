@@ -1708,6 +1708,24 @@ def main():
         acc = norm(p.inner_text("body"))
         verifie("aucun total de démonstration sur la page d'accueil",
                 "199 missions" not in acc and "3 042" not in acc and "31 400" not in acc)
+        # La meme regle avait ete appliquee a l'accueil et oubliee sur la page ou
+        # un SALARIE ouvre son compte, parce qu'elle est ecrite a la main et non
+        # engendree. Elle affichait « 12 associations verifiees, 220 missions
+        # confirmees, 1 096 heures de benevolat », c'est-a-dire les totaux du jeu
+        # de demonstration, sans un mot pour le dire, sur la page qui recoit les
+        # gens venus par le lien de leur entreprise. Ces trois nombres ne
+        # s'affichent plus que sur des donnees reelles : une base branchee, et au
+        # moins une mission confirmee.
+        for chemin in ("/rejoindre.html", "/rejoindre.html?code=VAUDREY-7QK2"):
+            p.goto(BASE + chemin, wait_until="networkidle"); p.wait_for_timeout(600)
+            rej = norm(p.inner_text("body"))
+            verifie(f"aucun total de démonstration sur {chemin}",
+                    "associations vérifiées" not in rej
+                    and "missions confirmées" not in rej
+                    and "heures de bénévolat" not in rej, rej[:120])
+        verifie("et la page dit plutôt quand la première saison démarre",
+                "La première saison démarre en janvier" in rej)
+        p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
         # L'aveu tient maintenant en un bandeau et non en une section entiere avec
         # trois grands chiffres : mettre en scene l'absence de resultats lui
         # donnait autant de place qu'a une preuve. Il reste au meme endroit, et il
@@ -3103,7 +3121,13 @@ def main():
         # regle a ete ecrite avec `.vd`, plus specifique que la regle mobile qui
         # remet une seule colonne. Resultat, sur un telephone de 390 px, la FAQ
         # restait sur deux colonnes de 150 px et le texte debordait de sa boite.
-        for page in ("/", "/associations.html"):
+        # La page d'inscription des salaries est entree dans cette liste apres
+        # coup : elle est ecrite a la main, pas engendree, et une regle de grille
+        # qui declarait trois colonnes tout en retirant la premiere du flux y
+        # cassait « Benevolat, demi-journee » en trois morceaux avec « +150 »
+        # ecrit par-dessus. Le controle de debordement l'aurait vu ; il ne
+        # regardait pas cette page.
+        for page in ("/", "/associations.html", "/rejoindre.html?code=VAUDREY-7QK2"):
             for largeur in (1440, 768, 390):
                 c3 = nav.new_context(viewport={"width": largeur, "height": 900},
                                      locale="fr-FR", reduced_motion="reduce")

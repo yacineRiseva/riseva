@@ -498,8 +498,15 @@
 @media (prefers-reduced-motion:reduce){ .login__lueur{animation:none;} }
 
 /* La page d'inscription des salaries n'a pas les icones sous la main : sa liste
-   se passe de la premiere colonne au lieu de reserver une gouttiere vide. */
-.login__formats li:has(.login__ic:empty){grid-template-columns:0 1fr auto;gap:0 var(--s3)}
+   se passe de la premiere colonne au lieu de reserver une gouttiere vide.
+   La regle en faisait DEUX choses a la fois, et les deux se contredisaient :
+   elle declarait trois colonnes « 0 1fr auto » ET retirait l'icone du flux avec
+   `display:none`. Une case retiree du flux ne consomme pas sa colonne : le
+   libelle tombait donc dans la colonne de zero pixel et les points dans celle de
+   1fr. Resultat, sur la page ou un salarie ouvre son compte, « Benevolat,
+   demi-journee » se cassait en trois morceaux avec « +150 » ecrit par-dessus.
+   Deux enfants, deux colonnes. */
+.login__formats li:has(.login__ic:empty){grid-template-columns:1fr auto;gap:0 var(--s3)}
 .login__formats li:has(.login__ic:empty) .login__ic{display:none}
 
 

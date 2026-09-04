@@ -53,6 +53,27 @@ const root = document.getElementById("root");
 
 const reseau = DB.impactReseau();
 
+/* Cette page affichait « 12 associations verifiees, 220 missions confirmees,
+   1 096 heures de benevolat ». Ce sont les nombres du JEU DE DEMONSTRATION :
+   sans /app/config.js, l'application tourne dessus, et ce fichier n'existe qu'en
+   production. Riseva n'a aucun client, la premiere saison demarre en janvier, et
+   l'accueil dit noir sur blanc « Non, cette page n'affiche aucun resultat ».
+   Trois chiffres inventes sur la page ou un salarie ouvre son compte, c'est
+   exactement la preuve sociale qu'on s'interdit.
+
+   Ils ne s'affichent donc que lorsqu'ils sont VRAIS : une base branchee, et au
+   moins une mission confirmee. En janvier ils reviendront tout seuls. */
+const surDonneesReelles = !!(window.RISEVA_CONFIG && window.RISEVA_CONFIG.url);
+const chiffresReseau = (surDonneesReelles && (reseau.missions || 0) > 0)
+  ? `<div class="login__chiffres">
+        <div><b>${nb(reseau.associations || 0)}</b><span>associations vérifiées</span></div>
+        <div><b>${nb(reseau.missions || 0)}</b><span>missions confirmées</span></div>
+        <div><b>${nb(reseau.heures || 0)}</b><span>heures de bénévolat</span></div>
+      </div>`
+  : `<p class="login__note login__note--saison">La première saison démarre en
+        janvier. Votre entreprise vous a envoyé ce lien&nbsp;: votre compte
+        s'ouvre avec votre nom et votre adresse professionnelle, et rien d'autre.</p>`;
+
 const cadre = (contenu) => h(`<div class="login">
   <aside class="login__aside grain">
     <div class="login__lueur" aria-hidden="true"></div>
@@ -77,11 +98,7 @@ const cadre = (contenu) => h(`<div class="login">
         personnel n'est jamais montré à votre employeur.</p>
     </div>
     <div class="login__pied">
-      <div class="login__chiffres">
-        <div><b>${nb(reseau.associations || 0)}</b><span>associations vérifiées</span></div>
-        <div><b>${nb(reseau.missions || 0)}</b><span>missions confirmées</span></div>
-        <div><b>${nb(reseau.heures || 0)}</b><span>heures de bénévolat</span></div>
-      </div>
+      ${chiffresReseau}
       <p style="font-size:var(--t-xs);color:rgba(223,230,208,.62);margin-top:var(--s5)">
         © 2026 Riseva</p>
     </div>
