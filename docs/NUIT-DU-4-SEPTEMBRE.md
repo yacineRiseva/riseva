@@ -1,16 +1,27 @@
 # La nuit du 3 au 4 septembre 2026
 
 Refonte des deux vitrines. Tout ce qui est chiffre ici a ete mesure sur la page
-rendue, jamais estime. Vingt-huit commits, 776 tests verts.
+rendue, jamais estime. Trente-deux commits, 791 tests verts.
 
-La matinee du 4 a servi a une seule chose, et elle a rapporte quatre defauts que
+La matinee du 4 a servi a une seule chose, et elle a rapporte SEPT defauts que
 772 tests ne voyaient pas : regarder la page. Une capture pleine page, decoupee
-en tranches de 2 400 pixels, lue tranche par tranche. Une image agrandie de
-92 %, cinq cents pixels de vide dans la bande ou l'on decide, un code QR tranche
-en deux, et une ligne du temps dont chaque point designait l'etape d'a cote.
-Aucun n'etait dans le CSS : trois etaient dans des FICHIERS, et le quatrieme
-dans un rapport entre deux systemes de coordonnees. C'est la lecon de la
-matinee, et elle est ecrite en toutes lettres au point 16.
+en tranches de 2 400 pixels, lue tranche par tranche, sur les deux vitrines puis
+sur les dix pages du dossier.
+
+Sur les vitrines : une image agrandie de 92 %, cinq cents pixels de vide dans la
+bande ou l'on decide, un code QR tranche en deux, et une ligne du temps dont
+chaque point designait l'etape d'a cote. Aucun n'etait dans le CSS : trois
+etaient dans des FICHIERS, et le quatrieme dans un rapport entre deux systemes
+de coordonnees.
+
+Sur les pages du dossier, deux erreurs de fond, et ce sont les plus graves de la
+session : la page qui porte le formulaire de preinscription annoncait un plafond
+tarifaire qui n'existe pas, et la fiche publique d'association vers laquelle les
+deux vitrines envoient leurs visiteurs montrait une association fictive, ses
+resultats declares et son IBAN, sans qu'un mot le dise. Plus un pied de page qui
+flottait au milieu de l'ecran de la 404.
+
+C'est la lecon de la matinee, et elle est ecrite en toutes lettres au point 16.
 
 ---
 
@@ -481,6 +492,52 @@ existaient, et chacun a produit sa propre recette.
     superposition. Le test ne verifie pas une formule, il compare les positions
     reelles, sur les deux vitrines et a deux largeurs.
 
+Les trois suivants sont venus de la meme methode appliquee aux DIX pages du
+dossier, celles qu'on lit avant de signer. Deux sont des erreurs de fond, pas
+de mise en page, et elles etaient les plus graves de la session.
+
+18. **La page ou l'on s'engage annoncait un plafond qui n'existe pas.**
+    /inscription.html : « L'abonnement annuel va de 2 400 a 18 500 EUR HT selon
+    l'effectif et le nombre de sites. » 18 500 n'est pas un plafond, c'est un
+    PLANCHER : le dernier palier de la grille, deux mille salaries et plus, est
+    marque sur devis a partir de 18 500. Le meme defaut avait ete corrige sur le
+    premier ecran de l'accueil la nuit precedente ; il avait survecu sur la page
+    qui porte le formulaire et le montant de l'acompte.
+
+    Le controle existant ne regardait que le chiffre du premier ecran. Le
+    nouveau regarde sept pages : partout ou le montant du dernier palier
+    apparait, les quarante signes qui le precedent doivent dire « a partir de »
+    ou « sur devis ».
+
+19. **Une association fictive, ses resultats et son IBAN, sans un mot.**
+    /asso.html est la page publique d'une association, et les DEUX vitrines y
+    envoient leurs visiteurs par « Voir une fiche d'association ». Sans
+    `config.js`, le moteur de donnees est celui de DEMONSTRATION, et la page
+    affichait :
+
+    - « Refuge des Quatre Vents, RNA W423001234 »
+    - « Riseva a verifie le 6 mai 2026 l'existence juridique de l'association »
+    - « 81 animaux pris en charge, sur 20 missions confirmees par l'association »
+    - un IBAN et un BIC complets
+
+    sans qu'un mot dise que rien de tout cela n'existe. Riseva n'a aucune mission
+    realisee. C'est le troisieme endroit ou la meme regle manquait, apres
+    l'accueil et /rejoindre.html, et c'etait le plus expose des trois : un
+    prospect qui clique sur « Voir une fiche d'association » y arrive en deux
+    clics depuis le premier ecran.
+
+    Un bandeau en tete de page, avant le nom de l'association, avec le meme
+    garde-fou que /rejoindre.html : il ne s'affiche que sur le moteur de
+    demonstration, jamais sur des donnees reelles. Deux tests par fiche : le
+    bandeau dit ce qu'il doit dire, et il se lit AVANT le nom.
+
+20. **Le pied de la page 404 flottait aux deux tiers de l'ecran.** Son contenu
+    fait 735 pixels : sur une fenetre de 900, cent soixante-cinq pixels d'ivoire
+    vide restaient dessous. Une page d'erreur est deja une deception, elle n'a
+    pas besoin d'avoir l'air inachevee. La regle testee sur les quatre pages
+    courtes du site : ou bien la page est plus haute que la fenetre, ou bien son
+    pied touche le bas, rien entre les deux.
+
 ---
 
 ## 15. Problemes encore presents
@@ -500,6 +557,20 @@ vingt-cinq opacites du meme ivoire. Le test empeche que ca empire.
 **Deux respirations mesurees et assumees** : 160 px sous la zone 2 du panneau de
 verre, et 143 px d'ecart entre les deux colonnes de la FAQ associations, contre
 8 px sur l'accueil.
+
+**Le lien « Voir une fiche d'association » pointe vers `?id=a1`**, un
+identifiant du jeu de demonstration. Sur le moteur de demonstration, la page
+s'affiche avec son bandeau et tout est clair. En PRODUCTION, avec `config.js` et
+une vraie base, `a1` n'existera pas et le visiteur lira « Cette association n'a
+pas de page ici ». Il faudra, le jour du branchement, soit pointer ce lien vers
+une association reelle qui a donne son accord, soit le retirer des deux
+vitrines. Ce n'est pas corrigeable ici : la reponse depend de donnees qui
+n'existent pas encore.
+
+**Deux photographies plafonnent en nettete** faute de source plus grande : la
+couverture de la section associations a 0,88 et `berge-ramassage` a 0,94. On
+n'agrandit pas une source pour remplir un nom de fichier ; il faudrait des
+originaux plus larges.
 
 ---
 
@@ -530,9 +601,19 @@ concordent, et elles concordaient.
 
 Ce qui les a trouves : `scripts/apercu.py`, une capture pleine page prise en
 defilant, decoupee en tranches de 2 400 pixels, lue tranche par tranche. Trois
-quarts d'heure pour l'accueil et la vitrine associations. C'est le meilleur
-rapport trouve / temps de toute la session, et cela devrait etre fait apres
-chaque serie de changements visuels, pas une fois.
+quarts d'heure pour l'accueil et la vitrine associations, autant pour les dix
+pages du dossier. C'est le meilleur rapport trouve / temps de toute la session,
+et cela devrait etre fait apres chaque serie de changements visuels, pas une
+fois.
+
+Et la lecon a une deuxieme moitie, qui vaut plus que la premiere : sur les dix
+pages du dossier, la meme methode a trouve non pas des defauts de mise en page
+mais **deux erreurs de fond**. Un plafond tarifaire qui n'existe pas sur la page
+du formulaire, une association fictive avec son IBAN sur la page vers laquelle
+les deux vitrines envoient. Les deux se lisaient en clair, en francais, dans le
+texte de la page. Aucune recette ne les cherchait parce qu'aucune recette ne
+sait ce que la phrase VEUT DIRE. Il n'y a pas d'autre moyen que de lire la page
+comme un client la lit.
 
 **Le tableau de bord d'une association** (`asso-tableau`) montre une seule ligne
 de resultat pour sept cents pixels de panneau vide. Ce n'est pas un defaut de
@@ -554,7 +635,7 @@ d'un risque sur les tests d'apparition.
 | fichier | quoi |
 |---|---|
 | `scripts/vitrines.py` | le generateur des deux vitrines : sections fusionnees, titres, FAQ, donnees structurees |
-| `scripts/tests.py` | +122 tests : ancres, contraste, barre mobile, referencement, derive du dessin, apparitions, recadrage, debordement, pieges au clavier, motif onglets, nettete des images, integrite d'un detail decoupe, alignement de la ligne du temps |
+| `scripts/tests.py` | +137 tests : ancres, contraste, barre mobile, referencement, derive du dessin, apparitions, recadrage, debordement, pieges au clavier, motif onglets, nettete des images, integrite d'un detail decoupe, alignement de la ligne du temps |
 | `public/styles/vitrine.css` | prix en clair, filets a la place des cartes, sous-grille des piliers, colonnes de FAQ, captures non recadrees |
 | `public/styles/vitrine.min.css` | **nouveau**, engendre : la feuille servie |
 | `scripts/css.py` | **nouveau** : l'automate qui l'engendre, et sa verification |
@@ -575,7 +656,7 @@ d'un risque sur les tests d'apparition.
 
 ```
 python3 scripts/tests.py
-776 / 776 tests passes
+791 / 791 tests passes
 Tout est vert.
 ```
 
@@ -587,8 +668,23 @@ Zero erreur JavaScript sur les douze pages. Zero lien interne casse sur treize
 cibles distinctes. Trois requetes en echec, toutes connues : `config.js`, qui
 n'existe qu'en production par construction, et les deux polices du point 15.
 
-Vingt-huit commits, chacun avec son raisonnement complet dans son message. Le
-depot local du dossier Green est a jour et propre ; il a vingt-sept commits
+Mesure finale des deux vitrines, apres la matinee :
+
+```
+/index.html           14 569 px, 9 sections, 2 241 mots, 14 images
+  plus grand vide       209 px, a 24 % de la page
+  contraste AA          aucun echec
+  images agrandies      aucune sous 0,85
+/associations.html     7 161 px, 7 sections, 1 111 mots, 6 images
+  plus grand vide       218 px, a 87 % de la page
+  contraste AA          aucun echec
+```
+
+Les recadrages signales par `mesures.py` sont tous des photographies, jamais des
+captures : c'est la regle, et c'est la recette qui la tient.
+
+Trente-deux commits, chacun avec son raisonnement complet dans son message. Le
+depot local du dossier Green est a jour et propre ; il a trente-et-un commits
 d'avance sur GitHub.
 
 Les huit derniers tests sont ceux de la matinee : la nettete des images sur deux
