@@ -1464,6 +1464,7 @@ max-width:34em;
 }
 @media (max-width:1000px){
 .qa-split{grid-template-columns:minmax(0,1fr);gap:26px;}
+.qa-card[hidden]{display:none;}
 .qa-panel{position:static;scroll-margin-top:84px;}
 .qa-link.is-on{padding-left:8px;}
 }

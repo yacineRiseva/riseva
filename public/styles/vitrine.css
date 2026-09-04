@@ -1837,6 +1837,15 @@ section{
 }
 @media (max-width:1000px){
   .qa-split{grid-template-columns:minmax(0,1fr);gap:26px;}
+  /* Sur grand ecran, les fiches sont empilees sur une seule case pour que le
+     panneau garde la hauteur de la plus longue et que rien ne saute d'une
+     question a l'autre. Sous mille pixels, la raison tombe : les deux colonnes
+     sont l'une sous l'autre et le script amene deja la reponse sous les yeux,
+     donc il n'y a rien a stabiliser. Ce qui restait, c'etait deux cents pixels
+     de cadre vide sous les reponses courtes, sur un ecran ou chaque pixel se
+     paie en defilement. La fiche repliee redevient donc absente, et le panneau
+     fait exactement la hauteur de la reponse ouverte. */
+  .qa-card[hidden]{display:none;}
   /* La barre de navigation est fixe : sans cette marge, le titre de la reponse
      qu'on vient d'ouvrir se glisse dessous. */
   .qa-panel{position:static;scroll-margin-top:84px;}
