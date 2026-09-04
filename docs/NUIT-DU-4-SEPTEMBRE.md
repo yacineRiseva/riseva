@@ -1,9 +1,9 @@
 # La nuit du 3 au 4 septembre 2026
 
 Refonte des deux vitrines. Tout ce qui est chiffre ici a ete mesure sur la page
-rendue, jamais estime. Trente-six commits, 800 tests verts.
+rendue, jamais estime. Trente-sept commits, 800 tests verts.
 
-La matinee du 4 a servi a une seule chose, et elle a rapporte DIX defauts que
+La matinee du 4 a servi a une seule chose, et elle a rapporte ONZE defauts que
 772 tests ne voyaient pas : regarder la page. Une capture pleine page, decoupee
 en tranches de 2 400 pixels, lue tranche par tranche, sur les deux vitrines puis
 sur les dix pages du dossier.
@@ -567,7 +567,15 @@ de mise en page, et elles etaient les plus graves de la session.
     controle designait le panneau de reponse de la FAQ, qui est une carte
     encadree et parfaitement en place.
 
-23. **Deux defauts de mes propres outils d'audit**, et ce sont peut-etre les
+23. **Huit cent seize pixels de photographies sur un telephone.** Le triptyque
+    de la vitrine associations, trois images empilees, occupait 42 % de la
+    hauteur de sa section, pour de l'illustration. Les trois textes qui suivent
+    ne les legendent pas : ils parlent de confirmation, d'annuaire et d'absence
+    de contrepartie, quand les images montrent un chantier, une collecte et un
+    refuge. C'est un triptyque, et un triptyque se lit de front. En trois
+    colonnes il tient en 139 pixels, la section passe de 1 938 a 1 206.
+
+24. **Deux defauts de mes propres outils d'audit**, et ce sont peut-etre les
     deux corrections les plus utiles de la matinee, parce qu'un outil qui ment
     fausse tout ce qui vient apres.
 
@@ -731,8 +739,8 @@ Mesure finale des deux vitrines, apres la matinee :
 Les recadrages signales par `mesures.py` sont tous des photographies, jamais des
 captures : c'est la regle, et c'est la recette qui la tient.
 
-Trente-six commits, chacun avec son raisonnement complet dans son message. Le
-depot local du dossier Green est a jour et propre ; il a trente-cinq commits
+Trente-sept commits, chacun avec son raisonnement complet dans son message. Le
+depot local du dossier Green est a jour et propre ; il a trente-six commits
 d'avance sur GitHub.
 
 Les huit derniers tests sont ceux de la matinee : la nettete des images sur deux

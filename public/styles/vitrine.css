@@ -2534,8 +2534,23 @@ section{
   display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
   gap:clamp(14px,1.8vw,24px);margin:clamp(24px,3vw,36px) 0;
 }
-@media (max-width:820px){ .photos3{grid-template-columns:1fr;} }
+/* Empilees, les trois photographies faisaient 816 pixels sur un telephone,
+   soit 42 % de la hauteur de la section, pour de l'illustration. Elles ne
+   legendent rien : les trois textes qui suivent parlent de confirmation,
+   d'annuaire et d'absence de contrepartie, les images montrent un chantier,
+   une collecte et un refuge. C'est un triptyque, et un triptyque se lit de
+   front. En trois colonnes, il tient en 140 pixels et garde ce qu'on lui
+   demande : montrer de quoi on parle. */
+@media (max-width:820px){
+  .photos3{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+}
 .photos3 .photo img{aspect-ratio:4/3;object-fit:cover;}
+/* Cette regle-ci vient APRES la precedente, et c'est voulu : a specificite
+   egale, la derniere l'emporte, et une proportion 4/3 dans une colonne de cent
+   onze pixels donnait une bande de quatre-vingt-trois pixels de haut. En 4/5 le
+   triptyque a la presence d'une image et non d'une vignette, et il tient
+   toujours en cent quarante pixels contre huit cent seize empile. */
+@media (max-width:820px){ .photos3 .photo img{aspect-ratio:4/5;} }
 
 /* ── les chiffres qui portent l'argument ────────────────────────────────── */
 /* Aucun n'est un resultat de Riseva : ce sont des faits exterieurs, dates et
