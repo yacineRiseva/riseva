@@ -607,8 +607,12 @@ def main():
         feuille = re.sub(r"/\*.*?\*/", "", feuille, flags=re.S)
         ombres = {o.strip() for o in re.findall(r"box-shadow:\s*([^;}]+)", feuille)
                   if "var(--sh" not in o and o.strip() not in ("none", "inherit")}
+        # Le plafond etait a 18. En remplacant les trois cartes de chiffres du
+        # panneau de verre par des filets, une ombre interieure a disparu et une
+        # autre avec elle : le plafond descend a 16. C'est ce que ce test est
+        # cense faire, se resserrer quand le code s'ameliore.
         verifie("le nombre d'ombres ecrites a la main n'augmente pas",
-                len(ombres) <= 18, f"{len(ombres)} ombres distinctes, plafond 18")
+                len(ombres) <= 16, f"{len(ombres)} ombres distinctes, plafond 16")
         for encre, plafond in (("242,240,233", 25), ("19,21,16", 21),
                                ("11,38,32", 16), ("252,251,248", 12)):
             motif = r"rgba\(" + encre.replace(",", r",\s*") + r",\s*([.\d]+)\)"
