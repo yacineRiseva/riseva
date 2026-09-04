@@ -798,6 +798,36 @@ def main():
             verifie(f"aucune ligne au-dela de quatre-vingts signes sur {page}",
                     not longues, str(longues[:3]))
 
+        # ── le haut de la grille est un PLANCHER, jamais un plafond ─────────
+        # Le dernier palier, deux mille salaries et plus, est marque sur devis :
+        # 18 500 EUR est le montant a partir duquel il commence, pas celui ou il
+        # s'arrete. Le premier ecran de l'accueil disait « 2 400 a 13 800 » et a
+        # ete corrige la nuit precedente ; la meme phrase avait survecu sur
+        # /inscription.html, c'est-a-dire sur la page ou l'on s'engage :
+        # « L'abonnement annuel va de 2 400 a 18 500 EUR HT ». Une fourchette
+        # fausse sur la page du formulaire se paie au premier rendez-vous.
+        #
+        # Le controle existant ne regardait que le chiffre du premier ecran de
+        # l'accueil. Celui-ci regarde TOUTES les pages : partout ou le montant du
+        # dernier palier apparait, les quarante signes qui le precedent doivent
+        # dire « a partir de » ou « sur devis ».
+        _haut = f"{grille['module'][-1]['prix']:,}".replace(",", " ")
+        for page in ("/", "/associations.html", "/inscription.html", "/rejoindre.html",
+                     "/cgv.html", "/reglement.html", "/engagements.html"):
+            p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(250)
+            _t = norm(p.inner_text("body")).lower()
+            _fautes, _i = [], 0
+            while True:
+                _i = _t.find(_haut, _i)
+                if _i < 0:
+                    break
+                _avant = _t[max(0, _i - 40):_i]
+                if "partir de" not in _avant and "devis" not in _avant:
+                    _fautes.append("..." + _avant[-38:] + "[" + _haut + "]")
+                _i += len(_haut)
+            verifie(f"le haut de la grille n'est jamais annonce comme un plafond sur {page}",
+                    not _fautes, str(_fautes[:2]))
+
         # ── plus de prénom nulle part ───────────────────────────────────────
         # Les pages parlent au nom d'une équipe. Une vitrine qui met en avant une
         # personne seule vend une dépendance, pas un service.
