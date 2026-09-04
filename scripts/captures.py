@@ -233,7 +233,15 @@ def main():
 
             # 1. Le detail du bas : le code QR et le lien qu'il ouvre.
             w, h = im.size
-            det = im.crop((int(w*0.055), int(h*0.655), int(w*0.945), int(h*0.815)))
+            # Le bas du cadre etait coupe : la carte du code QR descend jusqu'a
+            # 84 % de la hauteur de l'affiche, la decoupe s'arretait a 81,5 %.
+            # On voyait donc, sur la vitrine, une carte a bord arrondi dont le
+            # bord du bas manquait, et un carre de code QR tranche. Mesure faite
+            # sur affiche.jpg : la carte occupe 66,5 % a 84,0 % en hauteur et
+            # 8,9 % a 91,2 % en largeur. La decoupe garde une marge de part et
+            # d'autre, et une recette verifie desormais que les quatre bords du
+            # detail ne touchent aucune encre.
+            det = im.crop((int(w*0.070), int(h*0.648), int(w*0.930), int(h*0.858)))
             det = det.resize((1400, round(det.height * 1400 / det.width)), Image.LANCZOS)
             det.save(photos / "affiche-qr.jpg", quality=92, subsampling=0)
             ecrites.append(("affiche-qr", (photos / "affiche-qr.jpg").stat().st_size // 1024))

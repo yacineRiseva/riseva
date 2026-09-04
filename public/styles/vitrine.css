@@ -3255,11 +3255,22 @@ body{
    le vide entre les deux est intentionnel. Sept cents pixels ne se remplissent
    pas, ils se composent. */
 .vd .bandeau,.va .bandeau{padding-inline:var(--gut);}
+/* Deux colonnes, comme partout ailleurs : le titre a gauche, le paragraphe a
+   droite, l'appel sur toute la largeur en dessous. En une seule colonne, le
+   titre plafonne a 13ch et le paragraphe a 56ch laissaient cinq cents pixels
+   de vert vide a droite de la derniere bande de la page. */
 .vd .bandeau-in{
-  grid-template-columns:minmax(0,1fr);
-  gap:clamp(30px,4vw,60px);
+  grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);
+  gap:clamp(30px,4vw,60px) clamp(32px,4vw,72px);
   align-items:start;
 }
+.vd .bandeau-in > .bandeau-cta{grid-column:1 / -1;}
+/* Le paragraphe fait quatre lignes en face d'un titre qui en fait quatre fois
+   plus haut : cale en haut, il laissait le vide sous lui ; centre, il partage
+   le vide de part et d'autre et se lit comme une annotation du titre. */
+.vd .bandeau-in > p{align-self:center;}
+
+@media (max-width:900px){ .vd .bandeau-in{grid-template-columns:minmax(0,1fr);} }
 .vd .bandeau h2{
   font-size:clamp(40px,5.6vw,86px);letter-spacing:-.045em;line-height:.94;
   max-width:13ch;margin-bottom:clamp(18px,2vw,26px);
@@ -3271,7 +3282,16 @@ body{
   border-top:1px solid rgba(242,240,233,.20);
   margin-top:clamp(10px,1.4vw,20px);
 }
-.vd .bandeau-cta .mono{max-width:40ch;}
+/* La mention tenait sur quatre lignes de capitales de dix pixels, a cote d'un
+   bouton et devant huit cents pixels de vert vide. `ch` mesure la largeur du
+   zero SANS interlettrage : sur ces capitales espacees, 40ch ne tenaient que
+   trente caracteres. Elle prend donc la place qui reste sur la ligne, et passe
+   a deux lignes. */
+.vd .bandeau-cta .mono{max-width:none;flex:1 1 420px;}
+@media (max-width:640px){
+  .vd .bandeau-cta{flex-direction:column;align-items:flex-start;}
+  .vd .bandeau-cta .mono{max-width:38ch;flex:0 1 auto;}
+}
 
 /* ── l'entree du tableau de bord ────────────────────────────────────────────
    Onze degres, puis quatre et demi, maintenant deux. « Quatre et demi dit

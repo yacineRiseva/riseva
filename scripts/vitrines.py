@@ -1434,14 +1434,20 @@ OUTIL_ENT = f"""<section id="outil-rse" class="band">
 # marche pas », et c'est verifiable. Les vingt places restent, comme condition.
 BANDEAU_ENT = """<section id="rejoindre" class="bandeau">
   <div class="layer">
+    <!-- Le titre, le paragraphe et l'appel etaient les uns sous les autres, tous
+         cales a gauche : le titre est plafonne a treize caracteres et le
+         paragraphe a cinquante-six, si bien que la moitie droite de la derniere
+         bande de la page — celle ou l'on decide — restait vide sur cinq cents
+         pixels de large. Le reste de la page place deja le titre a gauche et le
+         paragraphe a droite, dans entete() ; ce bloc etait le seul a ne pas le
+         faire. Le paragraphe passe donc a droite, et l'appel garde toute la
+         largeur sous les deux. -->
     <div class="bandeau-in">
-      <div>
-        <h2>On ne vous facture pas une promesse.</h2>
-        <p>Une saison commence quand l'outil marche chez vous, pas à la signature. Cinq
-          points sont constatés ensemble, vous les vérifiez vous-même, et s'il en manque
-          un, <b>l'acompte est remboursé et le solde n'est pas dû</b>. C'est écrit dans nos
-          <a href="/engagements.html">engagements de service</a>.</p>
-      </div>
+      <h2>On ne vous facture pas une promesse.</h2>
+      <p>Une saison commence quand l'outil marche chez vous, pas à la signature. Cinq
+        points sont constatés ensemble, vous les vérifiez vous-même, et s'il en manque
+        un, <b>l'acompte est remboursé et le solde n'est pas dû</b>. C'est écrit dans nos
+        <a href="/engagements.html">engagements de service</a>.</p>
       <div class="bandeau-cta">
         <a class="btn btn-lg" href="/inscription.html"><span class="dot"></span>Réserver une place</a>
         <span class="mono">Préinscription gratuite, sans carte bancaire, sans engagement.

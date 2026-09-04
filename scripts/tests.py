@@ -3174,6 +3174,40 @@ def main():
                     f"{len(ecarts)} elements differents sur {len(servie)}")
             q.close(); c2.close()
 
+        # ── un detail decoupe dans une image doit contenir ce qu'il montre ──
+        # La vitrine montre un gros plan du bas de l'affiche : le code QR et le
+        # lien qu'il ouvre. Ce gros plan est une decoupe de affiche.jpg, aux
+        # proportions ecrites en dur dans captures.py — et elle s'arretait a
+        # 81,5 % de la hauteur alors que la carte descend jusqu'a 84,0 %. La
+        # vitrine affichait donc une carte a bord arrondi dont le bord du bas
+        # manquait, et un carre de code QR tranche net.
+        #
+        # Aucun controle existant ne pouvait le voir : le test de recadrage
+        # compare les proportions de la BOITE a celles du FICHIER, et ici les
+        # deux concordaient parfaitement — c'est le fichier lui-meme qui etait
+        # ampute. La difference se lit dans l'image, pas dans la mise en page.
+        #
+        # Ce qui est verifie : sur une bande de cinq pixels le long de chacun
+        # des quatre bords, aucune encre. Un bord qui coupe un trait, un cadre
+        # ou un code QR laisse forcement des pixels sombres contre le bord.
+        # Mesure temoin : l'ancienne decoupe donnait 0,57 % de pixels sombres
+        # en bas, la nouvelle en donne zero.
+        from PIL import Image as _I
+        _det = RACINE / "photos" / "affiche-qr.jpg"
+        if _det.exists():
+            _g = _I.open(_det).convert("L")
+            _w, _h, _b = _g.size[0], _g.size[1], 5
+            _bords = {"haut": (0, 0, _w, _b), "bas": (0, _h - _b, _w, _h),
+                      "gauche": (0, 0, _b, _h), "droite": (_w - _b, 0, _w, _h)}
+            _sales = []
+            for _nom, _box in _bords.items():
+                _d = list(_g.crop(_box).getdata())
+                _part = 100 * sum(1 for _v in _d if _v < 200) / len(_d)
+                if _part > 0.1:
+                    _sales.append(f"{_nom} {_part:.2f} %")
+            verifie("le detail du code QR ne coupe ni la carte ni le code",
+                    not _sales, " ; ".join(_sales))
+
         # ── ce qui se coupe et ce qui deborde ───────────────────────────────
         # Deux defauts que rien ne signale et qu'on ne voit pas en relisant du
         # CSS. Le premier : deux captures d'ecran etaient recadrees a hauteur
