@@ -385,6 +385,24 @@ effectif, et un test le verifie aussi.
 
 ---
 
+## 11 bis. Le telephone
+
+La barre de navigation etait cassee a deux endroits, corriges et testes a quatre
+largeurs. La FAQ etait sur deux colonnes de 150 px, corrigee. Le panneau de
+reponses gardait la hauteur de la plus longue reponse, ce qui laissait deux
+cents pixels de cadre vide sous les courtes, sur l'ecran ou chaque pixel se paie
+en defilement : sous mille pixels, le panneau fait maintenant exactement la
+hauteur de la reponse ouverte, et l'accueil mobile passe de 21 314 a 20 920 px.
+
+Les deux grandes captures de la page associations se font defiler
+horizontalement dans leur propre cadre a 720 px de large, plutot que d'etre
+reduites jusqu'a l'illisible : c'etait deja le cas, verifie cette nuit.
+
+Aucun debordement horizontal a 320, 360, 390, 430, 560, 768, 1440, 1920 et
+2560 px, sur les douze pages publiques.
+
+---
+
 ## 12. Ce qui reste, par priorite
 
 **P0, et je ne peux pas le faire a ta place**
@@ -433,7 +451,7 @@ effectif, et un test le verifie aussi.
 
 ## 13. Ce qui a ete ecrit cette nuit
 
-Quatre commits, chacun avec le raisonnement complet dans son message :
+Huit commits, chacun avec le raisonnement complet dans son message :
 
 - `cef599a` Deux mille quatre cents pixels de redite, et un menu qu'on ne
   pouvait plus fermer
@@ -443,6 +461,14 @@ Quatre commits, chacun avec le raisonnement complet dans son message :
   visiteur
 - `f3c24bf` Des captures d'ecran coupees au milieu des mots, et un cadre a
   moitie vide
+- `55873f1` Le site en ligne n'est pas ce depot, et pousser.bat aurait efface
+  onze commits
+- `67671e8` Trois cartes pour trois nombres, et quatre piliers qui ne
+  commencaient pas a la meme hauteur
+- `9bdff69` Quatre liens invisibles prenaient le focus, et neuf appuis sur Tab
+  pour un sommaire
+- `13f4a85` Deux cents pixels de cadre vide sous chaque reponse, sur l'ecran ou
+  ils coutent le plus
 
 Un nouveau script : `scripts/css.py`. Quatre-vingt-quatorze nouveaux tests, portant
 la recette a **748**, tous verts.
