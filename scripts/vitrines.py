@@ -683,8 +683,16 @@ def chiffres_hero():
         la plateforme</span></span></li>
       <li><b>1&nbsp;lien</b><span>à diffuser. Chaque salarié ouvre son compte
         lui-même.<br><span class="mono">Déploiement</span></span></li>
-      <li><b>{EUR(TARIFS['paliers'][0]['prix']).replace('&nbsp;€', '')} à
-        {EUR(TARIFS['paliers'][-2]['prix'])}</b><span>HT la saison, selon l'effectif. Rien
+      <!-- Le chiffre disait « 2 400 a 13 800 EUR », et la grille, mille pixels
+           plus bas, va jusqu'a « a partir de 18 500 EUR ». Lu seul, comme le lit
+           quelqu'un qui parcourt la page, il annoncait une fourchette que la
+           page depasse ensuite. Sur une entreprise sans client, c'est
+           precisement la donnee qui ne supporte pas l'a-peu-pres : la premiere
+           question devient « quel est le vrai prix ». Le chiffre dit donc ou
+           commence la grille, et sa legende dit ou elle s'arrete. -->
+      <li><b>À partir de
+        {EUR(TARIFS['paliers'][0]['prix']).replace('&nbsp;€', '')}&nbsp;€</b><span>HT la saison,
+        jusqu'à {EUR(TARIFS['paliers'][-2]['prix'])} selon l'effectif, puis sur devis. Rien
         par salarié.<br><span class="mono">Grille publique, plus bas</span></span></li>
     </ul>"""
 
@@ -887,7 +895,7 @@ CHALLENGE_ENT = f"""<section id="challenge" class="chal verre-sect">
       <i class="verre-eclat" aria-hidden="true"></i>
       <div class="chal-tete">
         <p class="eyebrow mono">Le challenge</p>
-        <h2>Douze mois plus tard,<br><span class="it">le bilan s'est écrit tout seul.</span></h2>
+        <h2>Douze mois plus tard,<br><span class="it">vous n'avez pas de bilan à écrire.</span></h2>
         <p class="chal-p">Des associations vérifiées publient ce dont elles ont besoin près de
           chacun de vos sites. Vos équipes s'y rendent ensemble.</p>
       </div>

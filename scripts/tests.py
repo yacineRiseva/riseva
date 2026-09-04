@@ -198,6 +198,20 @@ def main():
         }""")
         verifie("la grille affichée est exactement celle que la plateforme facture",
                 grille["page"] == grille["module"], str(grille["page"])[:200])
+        # Le chiffre du premier ecran disait « 2 400 a 13 800 EUR » quand la
+        # grille, mille pixels plus bas, va jusqu'a « a partir de 18 500 EUR ».
+        # Lu seul, comme le lit quelqu'un qui parcourt la page, il annoncait une
+        # fourchette que la page depasse ensuite. Sur une entreprise sans client,
+        # c'est la donnee qui ne supporte pas l'a-peu-pres : la premiere question
+        # devient « quel est le vrai prix ». Le chiffre doit donc nommer le
+        # dernier palier, ou dire que la grille s'arrete et que le reste est sur
+        # devis.
+        hero_prix = norm(p.evaluate("""()=>{const li=[...document.querySelectorAll('.chiffres--hero li')]
+            .find(e=>/€/.test(e.innerText)); return li? li.innerText : '';}"""))
+        haut = grille["module"][-1]["prix"]
+        verifie("le chiffre du premier ecran n'annonce pas un plafond que la grille depasse",
+                ("sur devis" in hero_prix.lower()) or (f"{haut:,}".replace(",", " ") in hero_prix),
+                hero_prix[:120])
         p.fill("#simEff", "150"); p.dispatch_event("#simEff", "input")
         p.fill("#simSites", "1"); p.dispatch_event("#simSites", "input")
         p.wait_for_timeout(200)
