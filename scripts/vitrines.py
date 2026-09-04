@@ -828,15 +828,15 @@ HERO_ENT = f"""<header class="hero hero--doc" id="hero">
     </div>
 
     {piliers([
-      ("Le terrain", "Des associations<br><span class='it'>près de chaque site.</span>",
+      ("Le terrain", "Des associations<br><span class='it'>près de chaque&nbsp;site.</span>",
        "Refuges animaliers, plantations, berges de rivière, à moins de trente kilomètres.",
        "associations"),
-      ("Le collectif", "Un challenge d'un an<br><span class='it'>qui fédère les équipes.</span>",
-       "Un classement entre entreprises comparables, sans nommer la moitié basse.",
+      ("Le collectif", "Un challenge<br><span class='it'>qui fédère les&nbsp;équipes.</span>",
+       "Douze mois, un classement entre entreprises comparables, sans nommer la moitié basse.",
        "challenge"),
-      ("L'outil RSE", "Huit rubriques,<br><span class='it'>vingt-sept valeurs.</span>",
+      ("L'outil RSE", "Huit rubriques,<br><span class='it'>vingt-sept&nbsp;valeurs.</span>",
        "Dix taux calculés, chacun avec sa formule à côté du chiffre.", "outil-rse"),
-      ("La preuve", "Chaque chiffre<br><span class='it'>garde sa source.</span>",
+      ("La preuve", "Chaque chiffre<br><span class='it'>garde sa&nbsp;source.</span>",
        "Sa date, la personne qui l'a saisie, celle qui l'a approuvée, ses pièces.",
        "outil-rse"),
     ])}
