@@ -1,9 +1,9 @@
 # La nuit du 3 au 4 septembre 2026
 
 Refonte des deux vitrines. Tout ce qui est chiffre ici a ete mesure sur la page
-rendue, jamais estime. Trente-deux commits, 791 tests verts.
+rendue, jamais estime. Trente-quatre commits, 792 tests verts.
 
-La matinee du 4 a servi a une seule chose, et elle a rapporte SEPT defauts que
+La matinee du 4 a servi a une seule chose, et elle a rapporte NEUF defauts que
 772 tests ne voyaient pas : regarder la page. Une capture pleine page, decoupee
 en tranches de 2 400 pixels, lue tranche par tranche, sur les deux vitrines puis
 sur les dix pages du dossier.
@@ -19,7 +19,9 @@ session : la page qui porte le formulaire de preinscription annoncait un plafond
 tarifaire qui n'existe pas, et la fiche publique d'association vers laquelle les
 deux vitrines envoient leurs visiteurs montrait une association fictive, ses
 resultats declares et son IBAN, sans qu'un mot le dise. Plus un pied de page qui
-flottait au milieu de l'ecran de la 404.
+flottait au milieu de l'ecran de la 404, une fourchette tarifaire ecrite deux
+fois dans le premier ecran, et deux defauts de mes propres outils d'audit,
+dont un qui inventait un defaut qui n'existait pas.
 
 C'est la lecon de la matinee, et elle est ecrite en toutes lettres au point 16.
 
@@ -538,6 +540,34 @@ de mise en page, et elles etaient les plus graves de la session.
     courtes du site : ou bien la page est plus haute que la fenetre, ou bien son
     pied touche le bas, rien entre les deux.
 
+21. **La fourchette tarifaire etait ecrite deux fois dans le premier ecran.**
+    Une fois sous les boutons, « De 2 400 EUR a 13 800 EUR HT l'an selon
+    l'effectif, au-dela sur devis a partir de 18 500 EUR », et une fois sept
+    cents pixels plus bas dans le troisieme chiffre de tete. Sur telephone les
+    deux tiennent dans le meme defilement. Et elles ne disaient pas la meme
+    chose : la premiere « l'an », la seconde « la saison », pour la meme
+    periode, sur un produit qui se vend a la saison. Le chiffre garde la
+    fourchette, la ligne garde ce qu'il ne dit pas.
+
+22. **Deux defauts de mes propres outils d'audit**, et ce sont peut-etre les
+    deux corrections les plus utiles de la matinee, parce qu'un outil qui ment
+    fausse tout ce qui vient apres.
+
+    `apercu.py` confondait la largeur de SORTIE et celle de la FENETRE :
+    « apercu.py /index.html m.jpg 390 » rendait la page de BUREAU reduite a 390
+    pixels de large, soit 19 % de la vraie page mobile. Une relecture telephone
+    faite sur cette image aurait porte sur la mise en page du bureau, en plus
+    petit.
+
+    Et il REPETAIT une bande. La hauteur etait mesuree une fois, avant la serie
+    de captures, puis chaque morceau colle a un multiple de neuf cents pixels ;
+    or elle bouge encore pendant la serie (21 205, 21 206, 21 181 sur trois
+    mesures consecutives de la meme page). Sur la relecture mobile, le pied de
+    page apparaissait deux fois et j'ai failli ouvrir un defaut qui n'existait
+    pas. Un outil d'audit qui invente un defaut peut aussi en cacher un : rien
+    ne garantit que le decalage tombe sur une repetition plutot que sur un saut.
+
+
 ---
 
 ## 15. Problemes encore presents
@@ -656,7 +686,7 @@ d'un risque sur les tests d'apparition.
 
 ```
 python3 scripts/tests.py
-791 / 791 tests passes
+792 / 792 tests passes
 Tout est vert.
 ```
 
@@ -683,8 +713,8 @@ Mesure finale des deux vitrines, apres la matinee :
 Les recadrages signales par `mesures.py` sont tous des photographies, jamais des
 captures : c'est la regle, et c'est la recette qui la tient.
 
-Trente-deux commits, chacun avec son raisonnement complet dans son message. Le
-depot local du dossier Green est a jour et propre ; il a trente-et-un commits
+Trente-quatre commits, chacun avec son raisonnement complet dans son message. Le
+depot local du dossier Green est a jour et propre ; il a trente-trois commits
 d'avance sur GitHub.
 
 Les huit derniers tests sont ceux de la matinee : la nettete des images sur deux
