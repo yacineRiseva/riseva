@@ -3,7 +3,19 @@
 <title>Riseva, page introuvable</title><link rel="icon" href="/brand/riseva-mark.png">
 <link rel="stylesheet" href="/styles/polices.css">
 <link rel="stylesheet" href="/styles/tokens.css"><link rel="stylesheet" href="/styles/base.css">
-<link rel="stylesheet" href="/styles/components.css"><link rel="stylesheet" href="/styles/marketing.css"></head>
+<link rel="stylesheet" href="/styles/components.css"><link rel="stylesheet" href="/styles/marketing.css">
+<style>
+  /* Le corps de cette page fait 735 px : sur un ecran de 900, le pied de page
+     flottait au milieu avec cent soixante-cinq pixels d'ivoire dessous. Une
+     page d'erreur est deja une deception ; elle n'a pas besoin d'avoir l'air
+     inachevee. Colonne en hauteur de fenetre, le contenu prend la place, le
+     pied reste en bas. */
+  body{min-height:100vh;display:flex;flex-direction:column}
+  body > main{flex:1}
+  /* « La riviere s'arrete la » se coupait apres « arrete », laissant « la »
+     seul sur la deuxieme ligne. */
+  main h1{text-wrap:balance}
+</style></head>
 <body>
 <header class="nav"><div class="wrap nav__in">
   <a href="/" class="logo"><img src="/brand/riseva-full.png" alt="Riseva"></a>

@@ -798,6 +798,31 @@ def main():
             verifie(f"aucune ligne au-dela de quatre-vingts signes sur {page}",
                     not longues, str(longues[:3]))
 
+        # ── aucun pied de page ne flotte au milieu de l'ecran ───────────────
+        # La page 404 fait 735 pixels de contenu : sur un ecran de 900, son pied
+        # de page s'arretait aux deux tiers et laissait cent soixante-cinq
+        # pixels d'ivoire vide dessous. Une page d'erreur est deja une
+        # deception, elle n'a pas besoin d'avoir l'air inachevee.
+        #
+        # La regle : ou bien la page est plus haute que la fenetre, ou bien son
+        # pied touche le bas. Rien entre les deux. Verifiee sur une fenetre
+        # haute, la seule ou le defaut se voit.
+        for page in ("/404.html", "/rejoindre.html", "/inscription.html",
+                     "/rejoindre.html?code=VAUDREY-7QK2"):
+            c5 = nav.new_context(viewport={"width": 1440, "height": 1200},
+                                 locale="fr-FR", reduced_motion="reduce")
+            q = c5.new_page()
+            q.goto(BASE + page, wait_until="networkidle"); q.wait_for_timeout(400)
+            flot = q.evaluate("""()=>{const f=document.querySelector('footer');
+                if(!f) return null;
+                const bas=f.getBoundingClientRect().bottom;
+                const corps=document.body.getBoundingClientRect().height;
+                if(corps > innerHeight + 2) return null;
+                return bas < innerHeight - 2 ? Math.round(innerHeight - bas) : null;}""")
+            verifie(f"le pied de page ne flotte pas au milieu de l'ecran sur {page}",
+                    flot is None, f"{flot} px de vide dessous" if flot else "")
+            c5.close()
+
         # ── le haut de la grille est un PLANCHER, jamais un plafond ─────────
         # Le dernier palier, deux mille salaries et plus, est marque sur devis :
         # 18 500 EUR est le montant a partir duquel il commence, pas celui ou il
