@@ -39,7 +39,6 @@ def main():
     srv = socketserver.TCPServer(("127.0.0.1", PORT), h)
     srv.RequestHandlerClass.log_message = lambda *a: None
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    morceaux = []
     with sync_playwright() as pw:
         b = pw.chromium.launch()
         p = b.new_context(viewport={"width": LARGE, "height": VUE},
@@ -54,16 +53,33 @@ def main():
         while y < p.evaluate("()=>document.documentElement.scrollHeight"):
             p.evaluate(f"window.scrollTo(0,{y})"); p.wait_for_timeout(400)
             y += VUE - 80
-        total = p.evaluate("()=>document.documentElement.scrollHeight")
         p.evaluate("window.scrollTo(0,0)"); p.wait_for_timeout(700)
         # La barre du haut est fixe : sans ca, elle se repete tous les neuf cents
         # pixels sur l'image recollee.
         p.add_style_tag(content=".nav{opacity:0!important}")
-        y = 0
-        while y < total:
+        # On colle chaque morceau a la position REELLEMENT atteinte, pas a celle
+        # demandee, et on relit la hauteur a chaque tour.
+        #
+        # Le defaut que cela corrige : la hauteur etait mesuree une fois, avant
+        # la serie de captures, puis les morceaux etaient colles a des multiples
+        # de neuf cents pixels. Or elle bouge encore pendant la serie — les
+        # images differees finissent d'arriver, les apparitions se posent — de
+        # vingt a trente pixels sur la page d'accueil. Le decalage s'accumule, et
+        # l'image recollee finit par REPETER une bande. Sur la relecture mobile
+        # du 4 septembre, le pied de page apparaissait deux fois : j'ai failli
+        # ouvrir un defaut qui n'existait pas. Un outil d'audit qui invente un
+        # defaut peut aussi en cacher un : il n'y a aucune raison que le
+        # decalage tombe toujours sur une repetition plutot que sur un saut.
+        y, morceaux, total = 0, [], 0
+        while True:
             p.evaluate(f"window.scrollTo(0,{y})"); p.wait_for_timeout(240)
+            reel = p.evaluate("()=>Math.round(window.scrollY)")
+            total = p.evaluate("()=>document.documentElement.scrollHeight")
             f = f"/tmp/_apercu{len(morceaux)}.png"
-            p.screenshot(path=f); morceaux.append((f, y)); y += VUE
+            p.screenshot(path=f); morceaux.append((f, reel))
+            if reel + VUE >= total or (morceaux[:-1] and reel == morceaux[-2][1]):
+                break
+            y = reel + VUE
         b.close()
     srv.shutdown()
     im = Image.new("RGB", (LARGE, total), "#F2F0E9")
