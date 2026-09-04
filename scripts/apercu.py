@@ -2,6 +2,8 @@
 """Une image de la page entiere, prise en la parcourant.
 
     python3 scripts/apercu.py /index.html /tmp/apercu.jpg 1100
+    python3 scripts/apercu.py /index.html /tmp/mobile.jpg 390        # fenetre 390
+    python3 scripts/apercu.py /index.html /tmp/tel.jpg 760 390       # vue 390, sortie 760
 
 Une capture « pleine page » ne declenche pas l'observateur d'intersection : tout
 ce qui apparait au defilement reste a zero d'opacite, et l'image montre une page
@@ -18,12 +20,20 @@ from playwright.sync_api import sync_playwright
 from PIL import Image
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent / "public"
-PORT, VUE, LARGE = 8131, 900, 1440
+PORT, VUE = 8131, 900
 
 def main():
     page = sys.argv[1] if len(sys.argv) > 1 else "/index.html"
     sortie = sys.argv[2] if len(sys.argv) > 2 else "/tmp/apercu.jpg"
     largeur = int(sys.argv[3]) if len(sys.argv) > 3 else 1100
+    # Le troisieme argument est la largeur de SORTIE, le quatrieme celle de la
+    # FENETRE. Ils etaient confondus : la fenetre restait a 1440 quoi qu'on
+    # demande, et « apercu.py /index.html m.jpg 390 » rendait la page de bureau
+    # reduite a 390 pixels de large. Une relecture mobile faite sur cette image
+    # aurait porte sur la mise en page du bureau, en plus petit — et sur 19 %
+    # de la page, puisque la hauteur est reduite dans le meme rapport. Par
+    # defaut la fenetre vaut la sortie quand celle-ci est etroite, 1440 sinon.
+    LARGE = int(sys.argv[4]) if len(sys.argv) > 4 else (largeur if largeur <= 900 else 1440)
     h = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(RACINE))
     socketserver.TCPServer.allow_reuse_address = True
     srv = socketserver.TCPServer(("127.0.0.1", PORT), h)
@@ -62,7 +72,7 @@ def main():
         pathlib.Path(f).unlink()
     im = im.resize((largeur, round(total * largeur / LARGE)), Image.LANCZOS)
     im.save(sortie, quality=86, optimize=True)
-    print(sortie, im.size)
+    print(sortie, im.size, f"(fenetre {LARGE} px)")
 
 if __name__ == "__main__":
     main()

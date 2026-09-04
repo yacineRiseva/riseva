@@ -185,7 +185,15 @@ def main():
         verifie("le premier écran porte trois chiffres",
                 p.locator(".hero .chiffres--hero li").count() == 3)
         t = norm(p.inner_text(".hero"))
-        verifie("le prix est visible dès l'accueil", "2 400" in t and "18 500 €" in t)
+        # « 18 500 » a quitte le premier ecran avec la ligne qui repetait la
+        # fourchette. Le chiffre de tete dit maintenant ou la grille commence,
+        # ou elle s'arrete, et ce qui se passe au-dela : « A partir de 2 400 EUR,
+        # HT la saison, jusqu'a 13 800 selon l'effectif, puis sur devis. » C'est
+        # plus juste que « 18 500 » lu seul, qui se lisait comme un plafond alors
+        # que c'est un plancher. Ce que ce test protege est inchange : on ne
+        # quitte pas le premier ecran sans savoir combien ca coute.
+        verifie("le prix est visible dès l'accueil",
+                "2 400" in t and "13 800" in t and "sur devis" in t.lower())
         verifie("la remise de lancement est plafonnée en nombre",
                 "10 % pour les 20 premières" in t)
         # Le prix affiché sur la vitrine et le prix facturé par la plateforme ne
@@ -1761,6 +1769,24 @@ def main():
         manque = [f for f in formats if f not in reg]
         verifie("le règlement liste les sept formats du barème, pas trois",
                 not manque, ", ".join(manque))
+        # Les LIBELLES etaient verifies, les POINTS ne l'etaient pas. Or c'est le
+        # nombre qui fait foi : le reglement de la saison est le document que
+        # l'entreprise et l'association opposent l'une a l'autre quand un
+        # classement est conteste. Une valeur qui derive entre le tableau du
+        # reglement et le moteur qui credite les points serait un litige, pas un
+        # defaut d'affichage. La comparaison porte sur les trois colonnes :
+        # libelle, unite, points.
+        p.goto(BASE + "/reglement.html", wait_until="networkidle"); p.wait_for_timeout(300)
+        bareme = p.evaluate("""async()=>{const m=await import('/app/data.js');
+          return Object.values(m.BAREME).map(b=>[b.label, b.unite, b.points]);}""")
+        tableau = p.evaluate("""()=>{const t=document.querySelector('table');
+          return t ? [...t.querySelectorAll('tbody tr')].map(tr =>
+            [...tr.children].map(td=>td.textContent.trim())) : [];}""")
+        attendu = [[l, f"par {u}", f"{n} point" + ("s" if n > 1 else "")]
+                   for l, u, n in bareme]
+        verifie("le règlement crédite exactement ce que le moteur crédite",
+                tableau == attendu,
+                str([(a, b) for a, b in zip(tableau, attendu) if a != b][:2]))
 
         eng = (RACINE / "engagements.html").read_text(encoding="utf-8")
         verifie("les cinq critères de démarrage sont écrits dans les engagements",
