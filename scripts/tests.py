@@ -26,6 +26,29 @@ def norm(t):
     """Les montants en français contiennent des espaces insécables : on normalise."""
     return t.replace("\u202f", " ").replace("\u00a0", " ")
 
+
+def texte_atteignable(page):
+    """Le texte qu'un visiteur peut ATTEINDRE, pas seulement celui qui est a
+    l'ecran.
+
+    Les huit reponses de FAQ qui ne sont pas ouvertes sont passees en
+    `visibility:hidden` pour sortir du parcours de tabulation et de l'arbre
+    d'accessibilite : c'etait une correction necessaire, quatre liens invisibles
+    prenaient le focus. Effet de bord, `innerText` ne les rend plus, et six
+    verifications de contenu qui disaient « le site l'ecrit noir sur blanc » se
+    sont mises a echouer alors que le site l'ecrit toujours, a un clic de la.
+
+    Une reponse repliee derriere un bouton est du contenu de la page. On lit donc
+    aussi le contenu textuel des blocs replies. La distinction reste nette
+    ailleurs : les controles qui exigent QUE CE SOIT A L'ECRAN, comme les titres
+    en double ou les contrastes, continuent d'employer `innerText` et
+    `offsetParent`."""
+    return page.evaluate("""()=>{
+      const replies = [...document.querySelectorAll('.qa-card, .ong-p')]
+        .map(e => e.textContent).join('\\n');
+      return document.body.innerText + '\\n' + replies;}""")
+
+
 def verifie(nom, condition, detail=""):
     resultats.append((nom, bool(condition), detail))
     print(("  ok   " if condition else "  RATÉ ") + nom + (f"  [{detail}]" if detail and not condition else ""))
@@ -190,7 +213,12 @@ def main():
         # perimetre, ou elles repondent a quelqu'un qui les cherche. Ce qui doit
         # rester vrai, et que ce test protege : elles sont ECRITES, et le bloc du
         # prix dit ou les trouver.
-        pageT = norm(p.inner_text("body"))
+        # Depuis, la liste a quitte la question du perimetre pour devenir sa
+        # propre question, « Qu'est-ce qui reste a ma charge ? » : la reponse du
+        # perimetre faisait 778 px quand les huit autres tenaient sous 425, et le
+        # panneau, qui garde la hauteur de la plus longue, laissait quatre cents
+        # pixels de cadre vide sous chacune des autres.
+        pageT = norm(texte_atteignable(p))
         verifie("la page dit ce qui n'est pas compris, pas seulement ce qui l'est",
                 "bilan carbone réglementaire" in pageT and "document unique" in pageT)
         verifie("le bloc du prix renvoie a ces limites au lieu de les afficher",
@@ -238,7 +266,7 @@ def main():
                 and "250 pts" in bar and "400 pts" in bar)
         verifie("l'accueil renvoie au règlement pour le calcul complet",
                 "règlement" in bar and "écrêtage" in bar)
-        corps = norm(p.inner_text("body"))
+        corps = norm(texte_atteignable(p))
         # La vitrine ne vend que ce qui fonctionne, et ne montre aucun résultat.
         verifie("l'accueil annonce tout ce qu'une association peut proposer",
                 "Ce qu'une association peut proposer" in corps
@@ -399,7 +427,7 @@ def main():
                      "/charte-associations.html", "/inscription.html",
                      "/rejoindre.html", "/cgv.html", "/reglement.html"):
             p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(250)
-            txt = p.evaluate("()=>document.body.innerText")
+            txt = texte_atteignable(p)
             for f in FAUTES:
                 if f in txt:
                     revenues.append(page + " : " + f)
@@ -576,9 +604,11 @@ def main():
         verifie("l'accueil porte les donnees structurees de l'organisation et de la FAQ",
                 "Organization" in types and "FAQPage" in types, str(types))
         faqld = next(b for b in struct if b.get("@type") == "FAQPage")
-        balisees = [q["name"].strip() for q in faqld["mainEntity"]]
+        balisees = [q["name"].replace("\u00a0", " ").strip() for q in faqld["mainEntity"]]
+        # `textContent` et non `innerText` : huit fiches sur neuf sont repliees,
+        # et une question repliee reste une question de la page.
         affichees = p.evaluate("""()=>[...document.querySelectorAll('#faq h3')]
-            .map(e=>e.innerText.replace(/\s+/g,' ').trim())""")
+            .map(e=>e.textContent.replace(/\s+/g,' ').replace(/\u00a0/g,' ').trim())""")
         verifie("chaque question balisee est bien affichee sur la page, dans le meme ordre",
                 balisees == affichees, str(balisees[:2]) + " / " + str(affichees[:2]))
         verifie("aucune reponse balisee n'est vide",
@@ -733,7 +763,7 @@ def main():
             n = p.inner_text("body").count("\u2014")
             verifie(f"aucun tiret cadratin sur {page}", n == 0, str(n))
         p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
-        corps = norm(p.inner_text("body"))
+        corps = norm(texte_atteignable(p))
         # Les quatre chiffres du premier écran sont des faits extérieurs, datés
         # et sourcés, ou des propriétés du produit qui ne dépendent que de nous.
         # Un chiffre de performance client à cet endroit serait le premier
@@ -1342,7 +1372,7 @@ def main():
         for nom, url in [("acquisition", "/associations.html"), ("charte", "/charte-associations.html"),
                          ("règlement", "/reglement.html"), ("accueil", "/")]:
             p.goto(BASE + url, wait_until="networkidle"); p.wait_for_timeout(200)
-            pages[nom] = p.inner_text("body")
+            pages[nom] = texte_atteignable(p)
         for nom, corps in pages.items():
             verifie(f"la clôture automatique est nommée telle quelle ({nom})",
                     "clôturée automatiquement sans confirmation" in corps.lower()
@@ -3103,6 +3133,91 @@ def main():
                 verifie(f"aucun texte ne deborde de sa boite sur {page} a {largeur} px",
                         not deborde, str(deborde[:4]))
                 q.close(); c3.close()
+
+        # ── ce qui est invisible doit l'etre pour tout le monde ─────────────
+        # Les neuf fiches de reponse de la FAQ sont empilees sur la meme case de
+        # grille, et les huit qui ne sont pas affichees etaient masquees a
+        # l'opacite seule. `display:block` annule l'attribut `hidden`, et une
+        # opacite nulle ne cache rien a personne d'autre qu'a l'oeil : mesure
+        # faite, cinq mille cent vingt-cinq signes de reponses restaient exposes
+        # aux lecteurs d'ecran, et QUATRE liens prenaient le focus au clavier.
+        # En tabulant dans la FAQ, on atterrissait sur des liens invisibles,
+        # dans des reponses qu'on n'avait pas ouvertes.
+        #
+        # La regle est generale et ne concerne pas que la FAQ : rien de
+        # focusable ne doit vivre sous un ancetre invisible.
+        for page in ("/", "/associations.html", "/rejoindre.html", "/inscription.html"):
+            p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(350)
+            haut = p.evaluate("()=>document.documentElement.scrollHeight")
+            for y in range(0, haut, 600):
+                p.evaluate("y=>window.scrollTo(0,y)", y); p.wait_for_timeout(30)
+            fantomes = p.evaluate("""()=>{
+                const out=[];
+                for(const e of document.querySelectorAll(
+                        'a[href],button,input,select,textarea,[tabindex]:not([tabindex="-1"])')){
+                  if(e.disabled || e.getAttribute('tabindex')==='-1') continue;
+                  // Un controle rendu invisible par `visibility` ou `display`
+                  // sort du parcours de tabulation : c'est la bonne facon de
+                  // cacher, pas le defaut qu'on cherche.
+                  // Le motif « case a cocher invisible derriere son etiquette »
+                  // est au contraire correct : le controle DOIT rester
+                  // focusable, et c'est l'etiquette qui montre le focus. On le
+                  // reconnait a sa taille, un ou deux pixels.
+                  const r=e.getBoundingClientRect();
+                  if(r.width<=2 && r.height<=2) continue;
+                  let n=e, coupable=null;
+                  while(n && n!==document.documentElement){
+                    const s=getComputedStyle(n);
+                    if(s.display==='none' || s.visibility!=='visible'){ coupable=null; break; }
+                    // Les blocs d'apparition sont transparents le temps
+                    // d'apparaitre, et ils apparaissent des qu'on les atteint.
+                    if(n.classList.contains('rv')||n.classList.contains('rl')){ break; }
+                    if(parseFloat(s.opacity)===0){ coupable=n; break; }
+                    n=n.parentElement;
+                  }
+                  if(coupable) out.push(e.tagName+'.'+String(e.className).slice(0,18)
+                    +' sous '+coupable.tagName+'.'+String(coupable.className).slice(0,20));
+                }
+                return out;}""")
+            verifie(f"rien de focusable ne se cache dans un bloc transparent sur {page}",
+                    not fantomes, str(fantomes[:4]))
+
+        # ── le sommaire de la FAQ est un vrai jeu d'onglets ─────────────────
+        # Le motif ARIA etait a moitie ecrit : les boutons portaient role="tab"
+        # et aria-selected, mais rien ne les reliait a leur reponse. Un lecteur
+        # d'ecran annoncait « onglet, selectionne » sans pouvoir dire de quoi.
+        # Et les neuf boutons etaient dans le parcours de tabulation : il fallait
+        # appuyer neuf fois sur Tab pour traverser un sommaire, alors que le
+        # motif prevoit un seul onglet atteignable et des fleches pour le reste.
+        for page in ("/", "/associations.html"):
+            p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(350)
+            haut = p.evaluate("()=>document.documentElement.scrollHeight")
+            for y in range(0, haut, 600):
+                p.evaluate("y=>window.scrollTo(0,y)", y); p.wait_for_timeout(30)
+            aria = p.evaluate("""()=>{
+                const t=[...document.querySelectorAll('.qa-link')];
+                const c=[...document.querySelectorAll('.qa-card')];
+                const casses=[];
+                t.forEach((b,i)=>{
+                  const cible=b.getAttribute('aria-controls');
+                  if(!cible || !document.getElementById(cible)) casses.push('onglet '+i+' sans panneau');
+                  const pan=c[i];
+                  if(pan.getAttribute('role')!=='tabpanel') casses.push('panneau '+i+' sans role');
+                  if(pan.getAttribute('aria-labelledby')!==b.id) casses.push('panneau '+i+' sans etiquette');
+                });
+                return {casses, dansLeTab:t.filter(x=>x.tabIndex===0).length, total:t.length};}""")
+            verifie(f"chaque question designe sa reponse et chaque reponse son onglet sur {page}",
+                    not aria["casses"], str(aria["casses"][:3]))
+            verifie(f"un seul onglet est atteignable au clavier sur {page}",
+                    aria["dansLeTab"] == 1, f'{aria["dansLeTab"]} sur {aria["total"]}')
+            # Les fleches doivent toujours parcourir la liste et deplacer le focus.
+            p.evaluate("()=>document.querySelector('#qaIndex .qa-link').focus()")
+            p.keyboard.press("ArrowDown"); p.wait_for_timeout(500)
+            suivi = p.evaluate("""()=>{const a=document.activeElement;
+                return a.classList.contains('qa-link') && a.getAttribute('aria-selected')==='true'
+                       && document.querySelectorAll('.qa-card.is-on').length===1;}""")
+            verifie(f"la fleche bas change de question et emmene le focus avec elle sur {page}",
+                    suivi)
         sans_alt = p.eval_on_selector_all("img", "l=>l.filter(i=>!i.hasAttribute('alt')).length")
         verifie("toutes les images ont un alt", sans_alt == 0, f"{sans_alt} sans alt")
 

@@ -1794,13 +1794,26 @@ section{
   background:var(--paper);
   padding:clamp(24px,2.8vw,38px);
 }
+/* Les huit fiches non affichees restaient dans la page : `display:block`
+   annule l'attribut `hidden`, et une opacite nulle ne cache rien a personne
+   d'autre qu'a l'oeil. Mesure faite : cinq mille cent vingt-cinq signes de
+   reponses exposes aux lecteurs d'ecran, et QUATRE liens qui prenaient le
+   focus au clavier. En tabulant dans la FAQ, on atterrissait sur des liens
+   invisibles, dans des reponses qu'on n'avait pas ouvertes.
+   `visibility:hidden` retire du parcours de tabulation et de l'arbre
+   d'accessibilite tout en gardant la boite, donc l'empilement sur une seule
+   case de grille tient toujours. Le basculement est retarde jusqu'a la fin du
+   fondu quand la fiche s'en va, et immediat quand elle arrive. */
 .qa-card{
   grid-area:1/1;
-  opacity:0;transform:translateY(10px);
-  transition:opacity .42s var(--e),transform .42s var(--e);
+  opacity:0;transform:translateY(10px);visibility:hidden;
+  transition:opacity .42s var(--e),transform .42s var(--e),visibility 0s .42s;
   pointer-events:none;
 }
-.qa-card.is-on{opacity:1;transform:none;pointer-events:auto;}
+.qa-card.is-on{
+  opacity:1;transform:none;visibility:visible;pointer-events:auto;
+  transition:opacity .42s var(--e),transform .42s var(--e),visibility 0s;
+}
 .qa-card[hidden]{display:block;}
 .qa-meta{
   display:flex;align-items:center;justify-content:space-between;gap:14px;
@@ -1819,7 +1832,7 @@ section{
   max-width:34em;
 }
 @media (prefers-reduced-motion:reduce){
-  .qa-card{transition:none;}
+  .qa-card,.qa-card.is-on{transition:none;}
   .qa-t::after{transition:none;}
 }
 @media (max-width:1000px){

@@ -363,13 +363,24 @@ def faits(items):
 # composant mais pas le public. « Les questions qui decident d'une signature »
 # s'adressait aussi a des associations, qui ne signent rien et ne paient rien.
 def faq(items, titre, note, invite, eyebrow="La FAQ"):
+    # Le motif ARIA des onglets etait a moitie ecrit : les boutons portaient bien
+    # role="tab" et aria-selected, mais rien ne les reliait a leur reponse, et
+    # les neuf etaient dans le parcours de tabulation. Un lecteur d'ecran
+    # annoncait « onglet, selectionne » sans pouvoir dire de quoi, et un clavier
+    # devait appuyer neuf fois sur Tab pour traverser le sommaire.
+    # Le motif est maintenant complet : chaque bouton designe sa reponse, chaque
+    # reponse nomme son bouton, et un seul bouton est atteignable au Tab, les
+    # fleches parcourant la liste comme dans n'importe quel jeu d'onglets.
     idx = "\n      ".join(
         f'<li><button class="qa-link mono{" is-on" if not i else ""}" type="button" '
-        f'role="tab" aria-selected="{"true" if not i else "false"}">'
+        f'role="tab" id="qa-t{i}" aria-controls="qa-p{i}" '
+        f'tabindex="{0 if not i else -1}" '
+        f'aria-selected="{"true" if not i else "false"}">'
         f'<span class="qa-n">{i + 1:02d}</span>{q}</button></li>'
         for i, (q, _) in enumerate(items))
     cards = "\n      ".join(
-        f'<article class="qa-card{" is-on" if not i else ""}"{"" if not i else " hidden"}>'
+        f'<article class="qa-card{" is-on" if not i else ""}"{"" if not i else " hidden"} '
+        f'id="qa-p{i}" role="tabpanel" aria-labelledby="qa-t{i}">'
         f'<h3 class="qa-t">{q}</h3>{r}</article>'
         for i, (q, r) in enumerate(items))
     return f"""<section id="faq" class="band">

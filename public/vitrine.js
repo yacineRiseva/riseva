@@ -176,6 +176,10 @@ if(h1){ requestAnimationFrame(function(){ setTimeout(function(){h1.classList.add
       var on=k===i;
       l.classList.toggle('is-on',on);
       l.setAttribute('aria-selected',on?'true':'false');
+      /* Un seul onglet dans le parcours de tabulation : c'est la regle du motif,
+         et c'est aussi ce qui evite neuf appuis sur Tab pour traverser un
+         sommaire. Les fleches font le reste, elles sont deja branchees. */
+      l.setAttribute('tabindex',on?'0':'-1');
     });
     cards.forEach(function(c,k){
       var on=k===i;
