@@ -1,7 +1,16 @@
 # La nuit du 3 au 4 septembre 2026
 
 Refonte des deux vitrines. Tout ce qui est chiffre ici a ete mesure sur la page
-rendue, jamais estime. Vingt-quatre commits, 768 tests verts.
+rendue, jamais estime. Vingt-huit commits, 776 tests verts.
+
+La matinee du 4 a servi a une seule chose, et elle a rapporte quatre defauts que
+772 tests ne voyaient pas : regarder la page. Une capture pleine page, decoupee
+en tranches de 2 400 pixels, lue tranche par tranche. Une image agrandie de
+92 %, cinq cents pixels de vide dans la bande ou l'on decide, un code QR tranche
+en deux, et une ligne du temps dont chaque point designait l'etape d'a cote.
+Aucun n'etait dans le CSS : trois etaient dans des FICHIERS, et le quatrieme
+dans un rapport entre deux systemes de coordonnees. C'est la lecon de la
+matinee, et elle est ecrite en toutes lettres au point 16.
 
 ---
 
@@ -414,6 +423,64 @@ defaut.
     maintenant « A partir de 2 400 EUR », et sa legende « jusqu'a 13 800 selon
     l'effectif, puis sur devis ». Teste contre le module de tarification.
 
+Les quatre suivants ont ete trouves le lendemain matin, en REGARDANT la page
+plutot qu'en lisant du code : une capture pleine page decoupee en tranches, puis
+lue tranche par tranche. Les quatre etaient invisibles pour les 772 tests qui
+existaient, et chacun a produit sa propre recette.
+
+14. **La photographie de couverture etait agrandie de 92 %.** Elle avait change
+    de place la veille, d'une demi-colonne vers toute la largeur de la bande, et
+    son attribut `sizes` etait reste a 46vw. Le navigateur, croyant remplir 662
+    pixels, servait le fichier de 760 dans une boite de 1 273. La plus grande
+    image de la page d'accueil etait donc floue.
+
+    Le rapport mesure — largeur du fichier REELLEMENT choisi contre largeur de
+    la boite ou il est peint — est passe de **0,60 a 0,88** (la source de 1 358
+    pixels est le plafond). Trois captures qui plafonnaient a 0,90 sont montees
+    a 1,16 grace a une variante 1440, produite seulement quand la source la
+    porte : on n'agrandit jamais une source pour remplir un nom de fichier.
+
+    Le piege du test : `naturalWidth` ne pouvait pas servir de reference. Avec un
+    srcset en `w`, il rend la valeur de `sizes` elle-meme — une recette batie
+    dessus aurait valide sa propre erreur. On lit donc la largeur du fichier sur
+    le disque.
+
+15. **La derniere bande de la page laissait cinq cents pixels de vert vide.**
+    #rejoindre empilait le titre, le paragraphe et l'appel a gauche ; le titre
+    plafonne a 13 caracteres et le paragraphe a 52. Le reste de la page place
+    deja le titre a gauche et le paragraphe a droite ; ce bloc etait le seul a ne
+    pas le faire. Au passage, `.vd .bandeau-cta` etait declare deux fois a dix
+    lignes d'intervalle, la seconde annulant la premiere.
+
+    Et la mention sous le bouton tenait sur quatre lignes de capitales de dix
+    pixels : `ch` mesure la largeur du zero SANS interlettrage, si bien que 40ch
+    ne tenaient que trente caracteres. Deux lignes desormais.
+
+16. **Le gros plan du code QR de l'affiche etait ampute.** La decoupe s'arretait
+    a 81,5 % de la hauteur de l'affiche, la carte descend jusqu'a 84,0 % : la
+    vitrine montrait une carte a bord arrondi sans bord du bas, et un carre de
+    code QR tranche net.
+
+    Aucun controle ne pouvait le voir. Le test de recadrage compare les
+    proportions de la BOITE a celles du FICHIER, et elles concordaient
+    parfaitement : c'est le fichier qui etait ampute. Le nouveau test lit
+    l'image — cinq pixels le long de chaque bord, aucune encre. Temoin :
+    l'ancienne decoupe donne 0,57 % de pixels sombres en bas, la nouvelle zero.
+
+17. **Chaque point de la ligne du temps designait l'etape d'a cote.** Les points
+    etaient des `<circle>` dans un SVG etire, poses au MILIEU de chaque colonne,
+    alors que le texte de l'etape est cale a GAUCHE de la sienne. Mesure a 1 440
+    px sur la vitrine associations : etiquettes a 2, 428 et 854 pixels, points a
+    207, 620 et 1 033. Sur l'accueil, ou la ligne compte cinq etapes, le dernier
+    point tombait au-dela de la derniere.
+
+    Corriger le calcul n'aurait pas suffi : le SVG est etire alors que les
+    colonnes sont separees par une gouttiere en `clamp()`, donc la position juste
+    depend d'un rapport gouttiere / largeur qui change avec la fenetre. Les
+    points sont desormais poses par la MEME grille que les etapes, en
+    superposition. Le test ne verifie pas une formule, il compare les positions
+    reelles, sur les deux vitrines et a deux largeurs.
+
 ---
 
 ## 15. Problemes encore presents
@@ -453,6 +520,33 @@ texte : la reduire demande de decider quelles maquettes sautent.
 **Les deux grands ecrans de l'application**, indicateurs (5 496 px) et annonces
 (4 762 px), n'ont pas ete regardes cette nuit.
 
+**Regarder la page, systematiquement.** Les quatre defauts de la matinee ont un
+point commun : aucun n'etait dans le CSS. Trois etaient dans des FICHIERS — une
+image trop petite pour sa boite, une decoupe qui coupait la carte qu'elle
+montrait — et le quatrieme dans un rapport entre deux systemes de coordonnees,
+un SVG etire d'un cote, une grille en `clamp()` de l'autre. Une recette qui lit
+le DOM ne peut voir aucun des quatre : elle verifie que les proportions
+concordent, et elles concordaient.
+
+Ce qui les a trouves : `scripts/apercu.py`, une capture pleine page prise en
+defilant, decoupee en tranches de 2 400 pixels, lue tranche par tranche. Trois
+quarts d'heure pour l'accueil et la vitrine associations. C'est le meilleur
+rapport trouve / temps de toute la session, et cela devrait etre fait apres
+chaque serie de changements visuels, pas une fois.
+
+**Le tableau de bord d'une association** (`asso-tableau`) montre une seule ligne
+de resultat pour sept cents pixels de panneau vide. Ce n'est pas un defaut de
+mise en page, c'est le jeu de demonstration qui ne remplit pas l'ecran : la
+capture montre le produit comme s'il etait vide. A reprendre du cote des donnees
+de demonstration, pas du cote de la decoupe — recadrer pour cacher le vide
+serait mentir sur l'ecran.
+
+**La reponse ouverte d'une FAQ occupe 111 pixels dans une boite de 291.** La
+boite est calee sur la reponse la plus longue pour que la page ne saute pas
+quand on change de question ; c'est le bon compromis, mais il se paie en vide
+sur les reponses courtes. Une transition de hauteur reglerait les deux, au prix
+d'un risque sur les tests d'apparition.
+
 ---
 
 ## 17. Fichiers principaux modifies
@@ -460,7 +554,7 @@ texte : la reduire demande de decider quelles maquettes sautent.
 | fichier | quoi |
 |---|---|
 | `scripts/vitrines.py` | le generateur des deux vitrines : sections fusionnees, titres, FAQ, donnees structurees |
-| `scripts/tests.py` | +114 tests : ancres, contraste, barre mobile, referencement, derive du dessin, apparitions, recadrage, debordement, pieges au clavier, motif onglets |
+| `scripts/tests.py` | +122 tests : ancres, contraste, barre mobile, referencement, derive du dessin, apparitions, recadrage, debordement, pieges au clavier, motif onglets, nettete des images, integrite d'un detail decoupe, alignement de la ligne du temps |
 | `public/styles/vitrine.css` | prix en clair, filets a la place des cartes, sous-grille des piliers, colonnes de FAQ, captures non recadrees |
 | `public/styles/vitrine.min.css` | **nouveau**, engendre : la feuille servie |
 | `scripts/css.py` | **nouveau** : l'automate qui l'engendre, et sa verification |
@@ -470,6 +564,8 @@ texte : la reduire demande de decider quelles maquettes sautent.
 | `public/rejoindre.html` | chiffres de demonstration retires, bareme repare |
 | `public/styles/app.css` | la grille du bareme |
 | `public/vitrine.js` | roving tabindex du sommaire de FAQ |
+| `scripts/images.py` | variante 1440 quand la source la porte, jamais au-dela |
+| `scripts/captures.py` | la decoupe du code QR contient enfin la carte entiere |
 | `pousser.bat` | ne reecrit plus le depot local |
 | les dix pages du dossier | canonique, Open Graph, theme-color |
 
@@ -479,7 +575,7 @@ texte : la reduire demande de decider quelles maquettes sautent.
 
 ```
 python3 scripts/tests.py
-768 / 768 tests passes
+776 / 776 tests passes
 Tout est vert.
 ```
 
@@ -491,6 +587,11 @@ Zero erreur JavaScript sur les douze pages. Zero lien interne casse sur treize
 cibles distinctes. Trois requetes en echec, toutes connues : `config.js`, qui
 n'existe qu'en production par construction, et les deux polices du point 15.
 
-Vingt-quatre commits, chacun avec son raisonnement complet dans son message. Le
-depot local du dossier Green est a jour et propre ; il a vingt-trois commits
+Vingt-huit commits, chacun avec son raisonnement complet dans son message. Le
+depot local du dossier Green est a jour et propre ; il a vingt-sept commits
 d'avance sur GitHub.
+
+Les huit derniers tests sont ceux de la matinee : la nettete des images sur deux
+pages et trois largeurs, l'integrite du gros plan du code QR, et l'alignement des
+points de la ligne du temps sur deux vitrines et deux largeurs. Chacun a ete
+verifie en reintroduisant le defaut : sans sa correction, il tombe.
