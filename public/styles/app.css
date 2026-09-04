@@ -617,3 +617,24 @@ tr.est-moi > td{ background:var(--lime-100); }
 .cell-pieces details summary::-webkit-details-marker{ display:none; }
 .cell-pieces details summary{ list-style:none; color:var(--ink-600); }
 .cell-pieces details[open] summary{ color:var(--ink); }
+
+/* Le bandeau de demonstration de la page publique d'une association.
+   Sans `config.js`, cette page montre une association fictive, ses resultats
+   declares et son RIB, et les deux vitrines y envoient leurs visiteurs. Le
+   bandeau doit donc se lire AVANT le nom de l'association, pas apres : il est
+   en tete de page, pleine largeur, et il ne se referme pas. */
+.demo-bandeau{
+  background:var(--warn-bg); color:var(--warn-texte);
+  border-bottom:1px solid rgba(0,0,0,.10);
+  font-size:var(--t-sm); line-height:1.55;
+  padding-block:var(--s4);
+}
+/* Le bandeau garde la gouttiere de la page : centre sur 78ch, son texte
+   commencait 240 px a droite du titre juste dessous, et l'oeil le lisait comme
+   un element etranger a la page plutot que comme son premier mot. */
+/* 78ch donnaient quatre-vingt-dix signes par ligne : `ch` mesure la largeur
+   du zero, plus large que la moyenne des lettres. Mesure : 66ch tiennent la
+   ligne sous quatre-vingts signes. */
+.demo-bandeau .wrap > *{max-width:66ch;}
+.demo-bandeau b{font-weight:650;}
+.demo-bandeau a{color:inherit;text-decoration:underline;text-underline-offset:2px;}

@@ -90,6 +90,24 @@ const hero = h(`<section class="assoHero"><div class="wrap">
     <a href="/charte-associations.html" style="color:var(--forest-800)">Ce que Riseva vérifie</a>,
     et ce qu'elle ne vérifie pas : l'éligibilité fiscale et l'impact des missions.</p>` : ""}
 </div></section>`);
+/* Sans `config.js`, `DB` est le moteur de DEMONSTRATION : cette page montre
+   alors une association fictive, ses besoins, ses resultats declares et son
+   RIB, sans qu'un mot le dise. Or les deux vitrines y envoient leurs visiteurs
+   par « Voir une fiche d'association », et la page affiche « verifie le 6 mai
+   2026 », « 81 animaux pris en charge sur 20 missions confirmees » et un IBAN
+   complet. Le meme defaut avait ete corrige la veille sur /rejoindre.html,
+   avec le meme garde-fou : les chiffres du jeu de demonstration ne se donnent
+   jamais pour des chiffres reels. Riseva n'a aucun client et aucune mission
+   realisee ; une page qui laisse croire le contraire se paie au premier
+   rendez-vous. */
+const surDonneesReelles = !!(window.RISEVA_CONFIG && window.RISEVA_CONFIG.url);
+if (!surDonneesReelles){
+  root.appendChild(h(`<div class="demo-bandeau"><div class="wrap"><p>
+    <b>Page de démonstration.</b> Cette association, ses besoins, ses résultats et ses
+    coordonnées bancaires viennent d'un jeu de démonstration. Aucune association réelle
+    n'est décrite ici, et aucun de ces chiffres n'a été obtenu.
+    <a href="/associations.html">Vous êtes une association&nbsp;?</a></p></div></div>`));
+}
 root.appendChild(hero);
 hero.querySelector("#partager").onclick = async (ev) => {
   const lien = location.href;

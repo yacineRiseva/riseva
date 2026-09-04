@@ -1820,6 +1820,26 @@ def main():
                     and "heures de bénévolat" not in rej, rej[:120])
         verifie("et la page dit plutôt quand la première saison démarre",
                 "La première saison démarre en janvier" in rej)
+        # Troisieme page a laquelle la meme regle n'avait pas ete appliquee, et
+        # la plus exposee des trois : la page publique d'une association, ou les
+        # DEUX vitrines envoient leurs visiteurs par « Voir une fiche
+        # d'association ». Sans config.js, DB est le moteur de demonstration :
+        # la page affichait « Refuge des Quatre Vents », « verifie le 6 mai
+        # 2026 », « 81 animaux pris en charge sur 20 missions confirmees » et un
+        # IBAN complet, sans qu'un mot dise que rien de tout cela n'existe.
+        # Riseva n'a aucune mission realisee ; une page qui laisse croire le
+        # contraire se paie au premier rendez-vous.
+        for chemin in ("/asso.html?id=a1", "/asso.html?id=a2"):
+            p.goto(BASE + chemin, wait_until="networkidle"); p.wait_for_timeout(700)
+            band = norm(p.inner_text(".demo-bandeau")) if p.locator(".demo-bandeau").count() else ""
+            verifie(f"la fiche d'association dit qu'elle est une démonstration sur {chemin}",
+                    "démonstration" in band and "Aucune association réelle" in band, band[:110])
+            # Et le bandeau doit se lire AVANT les chiffres, pas apres.
+            ordre = p.evaluate("""()=>{const b=document.querySelector('.demo-bandeau');
+                const n=document.querySelector('.realis__n, .assoHero');
+                if(!b||!n) return -1;
+                return b.getBoundingClientRect().top < n.getBoundingClientRect().top ? 1 : 0;}""")
+            verifie(f"et elle le dit avant le nom de l'association sur {chemin}", ordre == 1)
         p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
         # L'aveu tient maintenant en un bandeau et non en une section entiere avec
         # trois grands chiffres : mettre en scene l'absence de resultats lui
