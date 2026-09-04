@@ -806,6 +806,50 @@ def main():
             verifie(f"aucune ligne au-dela de quatre-vingts signes sur {page}",
                     not longues, str(longues[:3]))
 
+        # ── un filet de separation suit le sens de la grille ────────────────
+        # La rangee des trois parametres de la saison passe a UNE colonne sous
+        # 760 px, mais ses filets de separation restaient VERTICAUX : douze
+        # pixels de retrait et un trait a gauche sur le deuxieme et le troisieme
+        # chiffre, rien sur le premier. Les trois nombres ne s'alignaient plus,
+        # et deux traits d'un pixel flottaient sans separer quoi que ce soit.
+        #
+        # Le motif est general et se reconnait sans nommer de classe : dans une
+        # grille a UNE colonne, le premier enfant n'a pas de bord gauche et les
+        # suivants en ont un. C'est exactement la signature d'un separateur de
+        # colonnes qu'on a oublie de tourner en passant a l'empilement. Le test
+        # cherche donc ce motif partout, aux deux largeurs ou les grilles se
+        # replient.
+        #
+        # Un SEPARATEUR n'a qu'un bord gauche ; une CARTE a les quatre. Sans
+        # cette distinction le controle designait le panneau de reponse de la
+        # FAQ, qui est une carte encadree et parfaitement en place.
+        MOTIF = """()=>{const out=[];
+          const separateur = k => {const c=getComputedStyle(k);
+            const n = s => parseFloat(s) || 0;
+            return n(c.borderLeftWidth) > 0 && n(c.borderTopWidth) === 0
+                && n(c.borderRightWidth) === 0 && n(c.borderBottomWidth) === 0;};
+          document.querySelectorAll('*').forEach(g=>{
+            const cs=getComputedStyle(g);
+            if(cs.display!=='grid' && cs.display!=='inline-grid') return;
+            if(cs.gridTemplateColumns.trim().split(/\\s+/).length !== 1) return;
+            const kids=[...g.children].filter(k=>k.offsetParent!==null);
+            if(kids.length < 2) return;
+            if(!separateur(kids[0]) && kids.slice(1).every(separateur))
+              out.push((g.className||g.tagName)+' x'+kids.length);
+          });
+          return out;}"""
+        for page in ("/", "/associations.html", "/rejoindre.html", "/inscription.html"):
+            for largeur in (390, 768):
+                c6 = nav.new_context(viewport={"width": largeur, "height": 900},
+                                     locale="fr-FR", reduced_motion="reduce")
+                q = c6.new_page()
+                q.goto(BASE + page, wait_until="networkidle")
+                q.keyboard.press("End"); q.wait_for_timeout(700)
+                restes = q.evaluate(MOTIF)
+                verifie(f"aucun filet vertical ne survit a l'empilement sur {page}"
+                        f" a {largeur} px", not restes, str(restes[:3]))
+                c6.close()
+
         # ── aucun pied de page ne flotte au milieu de l'ecran ───────────────
         # La page 404 fait 735 pixels de contenu : sur un ecran de 900, son pied
         # de page s'arretait aux deux tiers et laissait cent soixante-cinq

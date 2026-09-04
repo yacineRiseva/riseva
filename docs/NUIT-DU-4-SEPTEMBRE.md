@@ -1,9 +1,9 @@
 # La nuit du 3 au 4 septembre 2026
 
 Refonte des deux vitrines. Tout ce qui est chiffre ici a ete mesure sur la page
-rendue, jamais estime. Trente-quatre commits, 792 tests verts.
+rendue, jamais estime. Trente-six commits, 800 tests verts.
 
-La matinee du 4 a servi a une seule chose, et elle a rapporte NEUF defauts que
+La matinee du 4 a servi a une seule chose, et elle a rapporte DIX defauts que
 772 tests ne voyaient pas : regarder la page. Une capture pleine page, decoupee
 en tranches de 2 400 pixels, lue tranche par tranche, sur les deux vitrines puis
 sur les dix pages du dossier.
@@ -21,7 +21,9 @@ deux vitrines envoient leurs visiteurs montrait une association fictive, ses
 resultats declares et son IBAN, sans qu'un mot le dise. Plus un pied de page qui
 flottait au milieu de l'ecran de la 404, une fourchette tarifaire ecrite deux
 fois dans le premier ecran, et deux defauts de mes propres outils d'audit,
-dont un qui inventait un defaut qui n'existait pas.
+dont un qui inventait un defaut qui n'existait pas. Le dixieme n'apparait que
+sur telephone : un filet de separation reste vertical dans une grille passee a
+une colonne.
 
 C'est la lecon de la matinee, et elle est ecrite en toutes lettres au point 16.
 
@@ -549,7 +551,23 @@ de mise en page, et elles etaient les plus graves de la session.
     periode, sur un produit qui se vend a la saison. Le chiffre garde la
     fourchette, la ligne garde ce qu'il ne dit pas.
 
-22. **Deux defauts de mes propres outils d'audit**, et ce sont peut-etre les
+22. **Un filet de separation qui ne suivait pas le sens de sa grille.** La
+    rangee des trois parametres de la saison passe a UNE colonne sous 760 px,
+    mais ses filets restaient VERTICAUX : douze pixels de retrait et un trait a
+    gauche sur le deuxieme et le troisieme chiffre, rien sur le premier. Les
+    trois nombres ne s'alignaient plus, et deux traits d'un pixel flottaient
+    sans separer quoi que ce soit. Vu sur la relecture telephone, invisible sur
+    la relecture bureau.
+
+    Le motif est general et se reconnait sans nommer de classe : dans une
+    grille a UNE colonne, le premier enfant n'a pas de bord gauche et les
+    suivants en ont un. Le test le cherche partout, sur quatre pages et aux deux
+    largeurs ou les grilles se replient. Il a fallu une precision : un
+    SEPARATEUR n'a qu'un bord gauche, une CARTE a les quatre. Sans elle, le
+    controle designait le panneau de reponse de la FAQ, qui est une carte
+    encadree et parfaitement en place.
+
+23. **Deux defauts de mes propres outils d'audit**, et ce sont peut-etre les
     deux corrections les plus utiles de la matinee, parce qu'un outil qui ment
     fausse tout ce qui vient apres.
 
@@ -665,7 +683,7 @@ d'un risque sur les tests d'apparition.
 | fichier | quoi |
 |---|---|
 | `scripts/vitrines.py` | le generateur des deux vitrines : sections fusionnees, titres, FAQ, donnees structurees |
-| `scripts/tests.py` | +137 tests : ancres, contraste, barre mobile, referencement, derive du dessin, apparitions, recadrage, debordement, pieges au clavier, motif onglets, nettete des images, integrite d'un detail decoupe, alignement de la ligne du temps |
+| `scripts/tests.py` | +146 tests : ancres, contraste, barre mobile, referencement, derive du dessin, apparitions, recadrage, debordement, pieges au clavier, motif onglets, nettete des images, integrite d'un detail decoupe, alignement de la ligne du temps |
 | `public/styles/vitrine.css` | prix en clair, filets a la place des cartes, sous-grille des piliers, colonnes de FAQ, captures non recadrees |
 | `public/styles/vitrine.min.css` | **nouveau**, engendre : la feuille servie |
 | `scripts/css.py` | **nouveau** : l'automate qui l'engendre, et sa verification |
@@ -686,7 +704,7 @@ d'un risque sur les tests d'apparition.
 
 ```
 python3 scripts/tests.py
-792 / 792 tests passes
+800 / 800 tests passes
 Tout est vert.
 ```
 
@@ -713,8 +731,8 @@ Mesure finale des deux vitrines, apres la matinee :
 Les recadrages signales par `mesures.py` sont tous des photographies, jamais des
 captures : c'est la regle, et c'est la recette qui la tient.
 
-Trente-quatre commits, chacun avec son raisonnement complet dans son message. Le
-depot local du dossier Green est a jour et propre ; il a trente-trois commits
+Trente-six commits, chacun avec son raisonnement complet dans son message. Le
+depot local du dossier Green est a jour et propre ; il a trente-cinq commits
 d'avance sur GitHub.
 
 Les huit derniers tests sont ceux de la matinee : la nettete des images sur deux

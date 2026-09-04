@@ -3115,6 +3115,11 @@ font-size:clamp(16px,1.25vw,18px); line-height:1.45;
 }
 @media (max-width:760px){
 .chal-chiffres{ grid-template-columns:1fr; }
+.chal-chiffres .verre-chiffre{
+border-left:0; padding-left:0;
+border-top:1px solid rgba(242,240,233,.16);
+}
+.chal-chiffres .verre-chiffre:first-child{ border-top:0; }
 .chal-temps b{ flex:1 1 100%; }
 }
 .asso-verre{

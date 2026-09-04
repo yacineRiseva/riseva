@@ -4512,6 +4512,16 @@ body{
 }
 @media (max-width:760px){
   .chal-chiffres{ grid-template-columns:1fr; }
+  /* La rangee passe a une colonne, mais le filet de separation restait
+     VERTICAL : douze pixels de retrait et un trait a gauche sur le deuxieme et
+     le troisieme chiffre, rien sur le premier. Les trois nombres ne
+     s'alignaient plus, et deux traits d'un pixel flottaient sans separer quoi
+     que ce soit. Empiles, ils se separent par le haut. */
+  .chal-chiffres .verre-chiffre{
+    border-left:0; padding-left:0;
+    border-top:1px solid rgba(242,240,233,.16);
+  }
+  .chal-chiffres .verre-chiffre:first-child{ border-top:0; }
   .chal-temps b{ flex:1 1 100%; }
 }
 
