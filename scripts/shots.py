@@ -1,7 +1,8 @@
 from playwright.sync_api import sync_playwright
 import pathlib, sys
 base="http://127.0.0.1:8080"
-OVERRIDE = """*{font-family:'Carlito','DejaVu Sans',sans-serif !important}"""
+# Les polices de marque sont servies par le site depuis septembre 2026 : plus de substitution.
+OVERRIDE = ""
 pages=[("accueil","/",None,True),
        ("inscription","/inscription.html",None,True),
        ("associations","/associations.html",None,True),

@@ -4,95 +4,145 @@
     python3 scripts/captures.py
 
 Pourquoi ce fichier existe. La vitrine vendait le produit avec seize photos de
-banque d'images — des cadres souriants en open space — pour un produit dont le
+banque d'images, des cadres souriants en open space, pour un produit dont le
 métier est le ramassage de déchets en rivière, la plantation d'arbres et les
 refuges animaliers. Une photo d'illustration n'est pas une preuve, et une
 légende « photo d'illustration, aucune mise en scène » ne la rachète pas : elle
 confirme au lecteur que l'image ne prouve rien.
 
-Faute de photographies réelles de chantier — Riseva n'en a aucune à ce stade —
-la seule preuve disponible est le produit. Ces captures sont donc prises sur la
+Faute de photographies réelles de chantier, Riseva n'en a aucune à ce stade, la
+seule preuve disponible est le produit. Ces captures sont donc prises sur la
 vraie application, avec le vrai jeu de démonstration, à chaque exécution. Elles
 vieillissent avec le produit au lieu de vieillir contre lui : un écran qui
 change casse la capture au prochain passage, et c'est exactement ce qu'on veut.
 
-Chaque capture est recadrée sur la zone qui porte l'information. Une page
-entière réduite à la largeur d'une colonne ne se lit pas, et une capture
-illisible est une image décorative de plus.
-"""
-import http.server, socketserver, threading, functools, pathlib, contextlib, sys
-from playwright.sync_api import sync_playwright
-from PIL import Image, ImageFilter, ImageEnhance
+Chaque capture est recadrée sur l'objet qui prouve la phrase écrite à côté sur
+la vitrine : une carte d'annonce, une ligne de mission, une page de
+confirmation. Une page entière réduite à la largeur d'une colonne ne se lit pas,
+et une capture illisible est une image décorative de plus.
 
-RACINE = pathlib.Path(__file__).resolve().parent.parent / "public"
-SORTIE = RACINE / "captures"
+Depuis la refonte de septembre 2026, les captures sont prises avec les vraies
+polices du site (Instrument Sans et Inter, servies depuis /brand/polices/). La
+substitution par Carlito qui compensait leur absence a disparu avec elle.
+
+L'application est ouverte avec `?demo=1` : c'est ce qui fait apparaître le
+bandeau « Démonstration » dans sa barre du haut. Sur les captures qui montrent
+cette barre, la mention est donc dans l'image ; pour les autres, la vitrine dit
+une fois, en clair, que les écrans viennent du jeu de démonstration.
+"""
+import http.server, socketserver, threading, functools, pathlib, contextlib, re, sys
+from playwright.sync_api import sync_playwright
+from PIL import Image
+
+RACINE = pathlib.Path(__file__).resolve().parent.parent
+PUBLIC = RACINE / "public"
+SORTIE = PUBLIC / "captures"
 PORT = 8099
 BASE = f"http://127.0.0.1:{PORT}"
 
-# Les polices de marque ne sont pas dans le conteneur ; sans cette substitution
-# les captures partiraient dans une fonte de repli différente de celle du site.
-FONTE = "*{font-family:'Carlito','DejaVu Sans',sans-serif !important}"
+# Les vignettes des annonces sont les photographies de couverture du jeu de
+# démonstration : des images d'illustration, exactement ce que la vitrine ne
+# montre plus. Sur une capture de carte, elles sont remplacées par l'aplat de
+# la charte ; la carte garde son bandeau, le nom de l'association et les points.
+SANS_VIGNETTE = (".annonce__haut .vignette{visibility:hidden}"
+                 ".annonce__haut{background:var(--forest-800)}")
 
-# nom, route, utilisateur, cadrage.
-#
-# Le cadrage est un nombre — la hauteur retenue depuis le haut de la fenêtre —
-# ou un sélecteur CSS quand la capture doit tenir dans une demi-colonne. Une
-# fenêtre de 1440 pixels réduite à 590 rend les chiffres illisibles : à cette
-# taille il faut cadrer sur l'objet, pas sur l'écran.
-# Le cadrage est décidé ici, pas à l'affichage : une page entière réduite à la
-# largeur d'une colonne ne se lit pas, et une capture illisible est une image
-# décorative de plus. On garde donc le haut de l'écran — celui qui porte les
-# indicateurs et le bloc de résultats — et on coupe le reste.
+# Chaque capture : le fichier produit, l'utilisateur du jeu de démonstration,
+# la route, et la façon de cadrer.
+#   selecteur : l'élément photographié (sinon le haut de la fenêtre) ;
+#   largeur   : largeur de la fenêtre, quand la mise en page doit être plus
+#               étroite pour que l'objet soit lisible une fois réduit ;
+#   hauteur   : hauteur retenue depuis le haut de l'objet, pour couper une
+#               liste qu'on ne lirait pas en entier ;
+#   css       : styles injectés avant la photo ;
+#   avant     : une action à faire avant (un clic qui ouvre un formulaire).
+# u2 : Claire Fontaine, administratrice de Vaudrey Ciments ; u7 : Élise
+# Tournier, Refuge des Quatre Vents ; u9 : Paul Girard, salarié du Groupe
+# Vidal à Lille, dont la première annonce visible est à zéro kilomètre.
 ECRANS = [
-    # Le seul plan large de la serie : celui-la doit montrer QUE c'est une
-    # application, avec sa navigation. Tous les autres cadrent sur la carte qui
-    # porte la preuve annoncee par la legende — le bandeau lateral repete douze
-    # fois ne prouve rien de plus la douzieme fois, et il mange un sixieme de la
-    # largeur au moment ou on a besoin de lire des chiffres.
-    ("admin-tableau",  "#/tableau",     "u2", 900),
-    # L'apercu du premier ecran de la vitrine entreprise. Ce qu'il doit prouver
-    # en une image, a six cents pixels de large : que la plateforme rend des
-    # RESULTATS, en gros chiffres, et que ces resultats sont du vivant — des
-    # arbres, des animaux, des colis. Le tableau de bord entier, reduit a cette
-    # taille, ne prouve qu'une chose : qu'il existe un tableau de bord.
-    ("apercu-resultats", "#/tableau",    "u2", (".realis", 320, 1100)),
-    # Le plan large du premier ecran de la vitrine entreprise. Ce qu'il doit
-    # dire en une image : c'est une application de pilotage, elle a une
-    # navigation, elle tient plusieurs sites, et son tableau de bord porte des
-    # chiffres. Fenetre etroite exprès : a 1 180 les cartes sont plus grandes
-    # qu'a 1 440, donc lisibles une fois la capture reduite a 700 pixels.
-    ("apercu-tableau",   "#/tableau",    "u2", (None, 790, 1180)),
-    ("salarie-saison", "#/tableau",     "u5", ".card--dark"),
-    # Fenetre etroite exprès. La grille d'annonces tient trois colonnes a 1 440,
-    # et ces trois colonnes reduites a la largeur d'une demi-page de vitrine
-    # donnent des cartes de cent cinquante pixels : on voit qu'il y a du texte,
-    # on ne le lit pas. A 1 000, la grille retombe a une colonne, la carte fait
-    # six cents pixels, et la capture prouve enfin ce qu'elle montre.
-    ("salarie-actions","#/annonces",    "u5", ("#liste", 390, 1000, 30)),
-    ("asso-tableau",   "#/tableau",     "u7", ".card--dark"),
-    # La legende dit « confirmer une mission » : on cadre sur la table des
-    # missions a confirmer, pas sur l'ecran qui la contient.
-    ("asso-valider",   "#/avalider",    "u7", ("#aConfirmer", 380, 1200)),
-    # La liste des missions. Le cadrage sautait jusqu'ici l'encart « les dons
-    # personnels ne sont pas nominatifs » : un paragraphe de doctrine en haut
-    # d'une capture legendee « chaque mission, son association, son etat », et le
-    # lecteur cherche pendant trois secondes ce qu'il est cense regarder.
-    ("missions",       "#/missions",    "u2", ("#tableMissions", 560, 1300)),
-    ("rapports",       "#/rapports",    "u2", ("#tableRapports", 600, 1300)),
-    # Le mecenat s'ouvrait sur « Calcul incomplet, 2 controles sur 8 ». C'est
-    # exact, c'est meme le comportement dont on est le plus fier, mais en vitrine
-    # ca se lit comme un produit en panne. La legende annonce le calcul : on
-    # montre le calcul, ligne par ligne.
-    ("mecenat",        "#/mecenat",     "u2", ("#calcul", 620, 1200)),
-    ("indicateurs",    "#/indicateurs", "u2", (".main", 640, 1440, 70)),
-    # La legende « formule comprise » promettait une formule que la capture ne
-    # montrait pas : c'etait deux fois le meme ecran de collecte sous deux
-    # legendes differentes. Celle-ci montre le tableau consolide, ou chaque taux
-    # porte sa formule sous son libelle.
-    ("indicateurs-formule", "#/indicateurs", "u2", ("#consolide", 620, 1200)),
-    ("groupe",         "#/groupe",      "u2", ("#societes", 520, 1300)),
-    ("classement",     "#/classement",  "u2", 860),
-    ("materiel",       "#/materiel",    "u2", 860),
+    # Le seul plan large : celui-là doit montrer QUE c'est une application, avec
+    # sa navigation et la barre qui dit « Démonstration ».
+    # Coupé sous la carte des résultats, à une frontière de carte : le premier
+    # écran de la vitrine montre la barre, les quatre chiffres et la carte
+    # sombre, pas la liste des sites qui suit.
+    dict(nom="admin-tableau", uid="u2", route="#/tableau", hauteur=568),
+    # Le même écran, dans la mise en page que l'application prend sur un
+    # téléphone : c'est lui que la vitrine sert sous 640 px, entier, plutôt
+    # qu'un tableau de bord d'ordinateur réduit à 350 px ou découpé au milieu
+    # d'une carte. Coupé sous la troisième carte, à une frontière de carte.
+    dict(nom="admin-tableau-mobile", uid="u2", route="#/tableau", largeur=430, hauteur=830),
+    # Le mécanisme, en quatre objets. Chacun a sa variante « -mobile », prise
+    # dans la mise en page téléphone de l'application (fenêtre de 430 px) : la
+    # vitrine la sert sous 640 px à la place de l'écran d'ordinateur réduit.
+    dict(nom="annonce-carte", uid="u9", route="#/annonces",
+         selecteur="article.annonce", largeur=1300, css=SANS_VIGNETTE),
+    dict(nom="annonce-carte-mobile", uid="u9", route="#/annonces",
+         selecteur="article.annonce", largeur=430, css=SANS_VIGNETTE),
+    # La carte « qui vient » est petite par nature : prise en triple densité,
+    # elle supporte d'être affichée un peu plus grande que nature sur son tapis.
+    dict(nom="qui-vient", uid="u7", route="#/tableau", selecteur="section.card:has(#qui)", densite=3),
+    # Trois lignes, trois états : en attente de l'association, engagée,
+    # clôturée sans confirmation. C'est la phrase de la vitrine, en image. Les
+    # colonnes association et points sont masquées : ce fragment tient dans une
+    # colonne de la vitrine, et une ligne coupée au milieu ne prouve rien. Sur
+    # téléphone, seules la mission et son état restent : c'est ce que la phrase
+    # d'à côté démontre.
+    dict(nom="mission-lignes", uid="u2", route="#/missions", selecteur="#tableMissions",
+         largeur=1000,
+         css="#tableMissions tbody tr:nth-child(-n+3),#tableMissions tbody tr:nth-child(n+7),"
+             "#tableMissions th:nth-child(2),#tableMissions td:nth-child(2),"
+             "#tableMissions th:nth-child(5),#tableMissions td:nth-child(5){display:none}"),
+    dict(nom="mission-lignes-mobile", uid="u2", route="#/missions", selecteur="#tableMissions",
+         largeur=430,
+         css="#tableMissions tbody tr:nth-child(-n+3),#tableMissions tbody tr:nth-child(n+7),"
+             + ",".join(f"#tableMissions th:nth-child({n}),#tableMissions td:nth-child({n})"
+                        for n in (2, 3, 4, 5, 7)) + "{display:none}"),
+    # Ce que l'entreprise ne refait plus à la main. Fenêtres étroites exprès :
+    # ces tableaux s'affichent sur la vitrine entre 560 et 700 pixels de large,
+    # et une capture prise à 1 440 y perd la moitié de sa taille de caractère.
+    # « Combien de vos sites ont répondu ? » : la carte de la collecte répond
+    # mot pour mot (sites qui ont répondu, approuvés, en attente, échéance).
+    dict(nom="collecte", uid="u2", route="#/indicateurs",
+         selecteur='section.card:has(h3:has-text("Collecte des indicateurs"))', largeur=1100),
+    dict(nom="collecte-mobile", uid="u2", route="#/indicateurs",
+         selecteur='section.card:has(h3:has-text("Collecte des indicateurs"))', largeur=430),
+    # Deux indicateurs, avec leur formule : la carte s'arrete a une frontiere
+    # de ligne, pas au milieu d'un texte.
+    dict(nom="indicateurs-formule", uid="u2", route="#/indicateurs",
+         selecteur="#consolide", css="#consolide tbody tr:nth-child(n+3),#consolide .hint{display:none}"),
+    # Sur téléphone, le tableau consolidé garde son premier indicateur :
+    # la formule, la valeur approuvée et la valeur provisoire, sans la page
+    # entière qui ferait trois mille pixels.
+    dict(nom="indicateurs-formule-mobile", uid="u2", route="#/indicateurs",
+         selecteur="#consolide", largeur=430,
+         css="#consolide tbody tr:nth-child(n+2),#consolide .hint{display:none}"),
+    dict(nom="missions", uid="u2", route="#/missions", selecteur="#tableMissions",
+         largeur=1200, css="#tableMissions tbody tr:nth-child(n+6){display:none}"),
+    dict(nom="missions-mobile", uid="u2", route="#/missions", selecteur="#tableMissions",
+         largeur=430,
+         css="#tableMissions tbody tr:nth-child(n+6),"
+             + ",".join(f"#tableMissions th:nth-child({n}),#tableMissions td:nth-child({n})"
+                        for n in (2, 3, 4, 5, 7)) + "{display:none}"),
+    dict(nom="rapports", uid="u2", route="#/rapports", selecteur="#tableRapports",
+         largeur=1200, css="#tableRapports .hint{display:none}"),
+    dict(nom="rapports-mobile", uid="u2", route="#/rapports", selecteur="#tableRapports",
+         largeur=430,
+         css=",".join(f"#tableRapports th:nth-child({n}),#tableRapports td:nth-child({n})"
+                      for n in (2, 3, 5, 6)) + "{display:none}"),
+    # Ce que l'association fait et garde en main.
+    dict(nom="annonce-formulaire", uid="u7", route="#/mesannonces",
+         avant="#np", selecteur=".modal", hauteur=520,
+         # Le voile sombre derrière la fenêtre apparaissait dans ses coins
+         # arrondis : pour la photo, il prend la couleur du papier.
+         css=".overlay{background:var(--paper)!important;backdrop-filter:none!important}"),
+    dict(nom="annonce-formulaire-mobile", uid="u7", route="#/mesannonces",
+         avant="#np", selecteur=".modal", largeur=430, hauteur=610,
+         css=".overlay{background:var(--paper)!important;backdrop-filter:none!important}"),
+    # Fenêtre étroite exprès : à 1 440 le texte de cette carte n'occupe que la
+    # moitié de sa largeur, et réduit sur la vitrine il ne se lit plus.
+    dict(nom="autour", uid="u7", route="#/tableau", selecteur="#autour", largeur=1000),
+    dict(nom="autour-mobile", uid="u7", route="#/tableau", selecteur="#autour", largeur=430),
+    dict(nom="export-ca", uid="u7", route="#/tableau", selecteur="section.card:has(#expA)", densite=3),
 ]
 
 class Silencieux(http.server.SimpleHTTPRequestHandler):
@@ -100,12 +150,11 @@ class Silencieux(http.server.SimpleHTTPRequestHandler):
 
 @contextlib.contextmanager
 def serveur():
-    h = functools.partial(Silencieux, directory=str(RACINE))
+    h = functools.partial(Silencieux, directory=str(PUBLIC))
     socketserver.TCPServer.allow_reuse_address = True
-    # Serveur a fils d'execution. Le serveur simple traite une requete a la
-    # fois : le navigateur en ouvre six en parallele pour les polices et les
-    # modules, la sixieme attend la premiere, et au bout de trente secondes la
-    # capture tombe en timeout sans qu'aucune page soit en cause.
+    # Serveur à fils d'exécution : le navigateur ouvre six requêtes en parallèle
+    # pour les polices et les modules, et un serveur qui les sert une à une
+    # fait tomber la première capture en attente.
     class Fil(socketserver.ThreadingMixIn, socketserver.TCPServer):
         daemon_threads = True
     with Fil(("127.0.0.1", PORT), h) as srv:
@@ -113,176 +162,183 @@ def serveur():
         try: yield
         finally: srv.shutdown()
 
+
+def enregistrer(brut, nom, hauteur=None, large_max=2560, qualite=88, densite=2):
+    """Le PNG en double densité devient un JPEG à la largeur utile.
+
+    Une capture s'affiche sur la vitrine jusqu'à 1 250 pixels de large ; sur un
+    écran à densité double il en faut le double pour qu'elle soit nette, d'où
+    2 560. Les captures cadrées sur un petit élément gardent leur résolution."""
+    im = Image.open(brut).convert("RGB")
+    if hauteur:
+        im = im.crop((0, 0, im.width, min(im.height, hauteur * densite)))
+    large = min(im.width, large_max)
+    im = im.resize((large, round(im.height * large / im.width)), Image.LANCZOS)
+    im.save(SORTIE / f"{nom}.jpg", quality=qualite, optimize=True, progressive=True,
+            subsampling=0)
+    brut.unlink()
+    return (SORTIE / f"{nom}.jpg").stat().st_size // 1024
+
+
+def page_confirmation():
+    """La page qu'ouvre le courriel de confirmation, telle que la sert la fonction.
+
+    Le gabarit est lu dans `supabase/functions/valider-mission/index.ts`, pas
+    recopié : si la page change, la capture change avec elle. On en extrait la
+    feuille de style et le formulaire de la réponse GET, et on remplace les
+    expressions du gabarit par des valeurs neutres."""
+    src = (RACINE / "supabase" / "functions" / "valider-mission" / "index.ts").read_text(encoding="utf-8")
+    style = re.search(r"<style>(.*?)</style>", src, re.S).group(1)
+    pied = re.search(r'<p class="pied">(.*?)</p>', src, re.S).group(1)
+    corps = re.search(r'return cadre\("Cette mission a-t-elle eu lieu \?", `(.*?)`\);', src, re.S).group(1)
+    corps = re.sub(r"<!--.*?-->", "", corps, flags=re.S)
+    corps = corps.replace("${echappe(url.origin + url.pathname)}", "#").replace("${echappe(jeton)}", "")
+    # Le pied de page (la note des quatorze jours) n'est pas photographié : la
+    # vitrine l'écrit à côté de l'image, et la capture doit tenir dans une
+    # colonne sans être coupée, ce qu'une capture d'écran ne supporte pas.
+    # La fonction sert la page avec la pile système du visiteur (sa politique
+    # de sécurité n'autorise aucune police extérieure). Pour la capture, Inter,
+    # la police d'interface du site, tient ce rôle : c'est la même page, avec
+    # la police qu'un poste de bureau lui donnerait.
+    return f"""<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
+<link rel="stylesheet" href="/styles/polices.css">
+<style>{style}
+body{{font-family:'Inter',system-ui,sans-serif;padding:36px 24px 28px}}
+.pied{{display:none}}</style></head>
+<body><h1>Cette mission a-t-elle eu lieu ?</h1>{corps}
+<p class="pied">{pied}</p></body></html>"""
+
+
 def main():
     SORTIE.mkdir(parents=True, exist_ok=True)
     erreurs, ecrites = [], []
-    with serveur(), sync_playwright() as pw:
-        b = pw.chromium.launch()
-        ctx = b.new_context(viewport={"width": 1440, "height": 900},
-                            device_scale_factor=2, locale="fr-FR")
-        p = ctx.new_page()
-        p.on("pageerror", lambda e: erreurs.append(str(e)))
-        for nom, route, uid, cadrage in ECRANS:
-            large_vue = cadrage[2] if isinstance(cadrage, tuple) and len(cadrage) > 2 else 1440
-            cadrage_y0 = cadrage[3] if isinstance(cadrage, tuple) and len(cadrage) > 3 else 0
-            haute_vue = (cadrage[1] if isinstance(cadrage, tuple) and cadrage[0] is None
-                         else 900)
-            p.set_viewport_size({"width": large_vue, "height": max(900, haute_vue)})
-            p.goto(f"{BASE}/app/", wait_until="domcontentloaded")
-            p.evaluate("()=>localStorage.removeItem('riseva.etat')")
-            p.evaluate("u=>localStorage.setItem('riseva.session',JSON.stringify({uid:u}))", uid)
-            p.goto(f"{BASE}/app/?c=1{route}", wait_until="networkidle")
-            p.wait_for_timeout(700)
-            p.evaluate("css=>{const s=document.createElement('style');s.textContent=css;"
-                       "document.head.appendChild(s)}", FONTE)
-            p.wait_for_timeout(300)
-            brut = SORTIE / f"{nom}.png"
-            haut = None
-            if isinstance(cadrage, tuple):
-                cadrage, haut = cadrage[0], cadrage[1]
-            if cadrage is None:
-                p.screenshot(path=str(brut), clip={"x": 0, "y": 0,
-                                                   "width": large_vue, "height": haut})
-                haut = None
-            elif isinstance(cadrage, str):
-                # La barre du haut est collante : elle se repeint par-dessus le
-                # haut de l'element vise, et la capture commence par un bout de
-                # titre coupe en deux. On la retire pour la photo.
-                p.evaluate("()=>{const s=document.createElement('style');"
-                           "s.textContent='.topbar{display:none!important}';"
-                           "document.head.appendChild(s)}")
-                p.wait_for_timeout(150)
-                el = p.query_selector(cadrage)
-                if el is None:
-                    erreurs.append(f"{nom} : aucun élément « {cadrage} »")
-                    continue
-                el.scroll_into_view_if_needed()
-                p.wait_for_timeout(250)
-                el.screenshot(path=str(brut))
-            else:
-                p.screenshot(path=str(brut), clip={"x": 0, "y": 0, "width": large_vue,
-                                                   "height": cadrage})
-            # Le PNG en double densité pèse plusieurs mégaoctets : on redescend à
-            # la largeur d'affichage réelle et on encode en JPEG. Une vitrine qui
-            # met huit secondes à s'afficher chez un client en zone industrielle
-            # n'a pas fini de prouver quoi que ce soit.
-            im = Image.open(brut).convert("RGB")
-            # Une liste de vingt-trois annonces prouve moins que trois : le
-            # lecteur ne lit pas une capture de deux mètres de haut, il la
-            # survole. On coupe donc au nombre d'éléments qui se lisent.
-            if haut:
-                # `y0` coupe le haut : la ligne « 25 annonces ouvertes » est deja
-                # dite par la legende de la vitrine, et son « 2 » se faisait
-                # rogner par le coin arrondi du cadre.
-                y0 = cadrage_y0 * 2
-                im = im.crop((0, y0, im.width, min(im.height, y0 + haut * 2)))
-            # Une capture s'affiche sur la vitrine jusqu'à 1 250 pixels de large.
-            # Sur un écran à double densité, il en faut le double pour qu'elle
-            # soit nette : à 1 440, la capture du tableau de bord était affichée
-            # à 1 118 et paraissait molle. On ne descend donc plus en dessous de
-            # 1 920, et les captures cadrées sur un élément gardent leur pleine
-            # résolution.
-            # 1 920 ne suffisait pas. Une capture affichee a 1 238 pixels de
-            # large sur un ecran a densite double en reclame 2 476 : a 1 920 il
-            # manque un tiers de la matiere, et le manque se voit sur les petits
-            # caracteres d'interface et sur les aplats clairs, ou la compression
-            # laisse un halo. On monte donc a 2 560 et la qualite a 88. Le poids
-            # double, et c'est le prix d'une capture qui prouve quelque chose :
-            # une capture illisible ne prouve rien du tout.
-            large = im.width if im.width <= 2560 else 2560
-            im = im.resize((large, round(im.height * large / im.width)), Image.LANCZOS)
-            im.save(SORTIE / f"{nom}.jpg", quality=88, optimize=True, progressive=True,
-                    subsampling=0)
-            brut.unlink()
-            ecrites.append((nom, (SORTIE / f'{nom}.jpg').stat().st_size // 1024))
+    # La page de confirmation est servie depuis le dossier public le temps de
+    # la capture, puis retirée : ce n'est pas une page du site.
+    conf = PUBLIC / "_confirmation-capture.html"
+    conf.write_text(page_confirmation(), encoding="utf-8")
+    try:
+        with serveur(), sync_playwright() as pw:
+            b = pw.chromium.launch()
+            contextes = {}
+            def contexte(densite):
+                if densite not in contextes:
+                    c = b.new_context(viewport={"width": 1440, "height": 900},
+                                      device_scale_factor=densite, locale="fr-FR")
+                    q = c.new_page()
+                    q.on("pageerror", lambda err: erreurs.append(str(err)))
+                    contextes[densite] = q
+                return contextes[densite]
+            for e in ECRANS:
+                nom = e["nom"]
+                p = contexte(e.get("densite", 2))
+                p.set_viewport_size({"width": e.get("largeur", 1440), "height": 900})
+                p.goto(f"{BASE}/app/", wait_until="domcontentloaded")
+                p.evaluate("()=>localStorage.removeItem('riseva.etat')")
+                p.evaluate("u=>localStorage.setItem('riseva.session',JSON.stringify({uid:u}))", e["uid"])
+                p.goto(f"{BASE}/app/?demo=1{e['route']}", wait_until="networkidle")
+                # Certains champs se remplissent après le premier rendu (les
+                # quotas des sites, par exemple) : on leur laisse le temps.
+                p.wait_for_timeout(1000)
+                p.evaluate("()=>document.fonts.ready")
+                if e.get("css"):
+                    p.add_style_tag(content=e["css"])
+                if e.get("avant"):
+                    p.evaluate("s=>document.querySelector(s).click()", e["avant"])
+                    p.wait_for_timeout(400)
+                brut = SORTIE / f"{nom}.png"
+                if e.get("selecteur"):
+                    # La barre du haut est collante : elle se repeint par-dessus
+                    # l'élément visé. On la retire pour la photo.
+                    p.add_style_tag(content=".topbar{display:none!important}")
+                    p.wait_for_timeout(150)
+                    el = p.query_selector(e["selecteur"])
+                    if el is None:
+                        erreurs.append(f"{nom} : aucun élément « {e['selecteur']} »"); continue
+                    el.scroll_into_view_if_needed(); p.wait_for_timeout(250)
+                    el.screenshot(path=str(brut))
+                else:
+                    p.screenshot(path=str(brut), clip={"x": 0, "y": 0, "width": e.get("largeur", 1440),
+                                                       "height": e.get("hauteur", 900)})
+                ecrites.append((nom, enregistrer(brut, nom, e.get("hauteur") if e.get("selecteur") else None,
+                                                 densite=e.get("densite", 2))))
 
-        # ── l'affiche ──────────────────────────────────────────────────────
-        # Le seul support imprimé du produit, et il se fabrique dans
-        # l'application avec le lien d'inscription de l'entreprise dedans.
-        # Le montrer en photo posée sur un mur serait une mise en scène ; le
-        # montrer tel qu'il sort de la machine est la même image en plus vrai.
-        try:
-            p.goto(f"{BASE}/app/", wait_until="domcontentloaded")
-            p.evaluate("()=>localStorage.removeItem('riseva.etat')")
-            p.evaluate("()=>localStorage.setItem('riseva.session',"
-                       "JSON.stringify({uid:'u2'}))")
-            p.goto(f"{BASE}/app/?c=1#/supports", wait_until="networkidle")
-            p.wait_for_timeout(600)
-            with p.expect_popup() as pop:
-                p.click("#affiche")
-            a = pop.value
-            a.wait_for_load_state("domcontentloaded")
-            a.add_style_tag(content=FONTE + ".noprint{display:none}")
-            a.wait_for_timeout(400)
-            brut = SORTIE / "affiche.png"
-            a.locator(".a4").screenshot(path=str(brut))
-            im = Image.open(brut).convert("RGB")
-            large = min(2000, im.width)
-            im = im.resize((large, round(im.height * large / im.width)), Image.LANCZOS)
-            im.save(SORTIE / "affiche.jpg", quality=90, optimize=True, progressive=True,
-                    subsampling=0)
-            brut.unlink()
-            ecrites.append(("affiche", (SORTIE / "affiche.jpg").stat().st_size // 1024))
+            # ── la page de confirmation ─────────────────────────────────────
+            # Deux largeurs : celle d'une colonne de la vitrine, et celle d'un
+            # téléphone, puisque c'est là qu'un courriel s'ouvre le plus souvent.
+            p = contexte(2)
+            for largeur, nom in ((640, "confirmation"), (390, "confirmation-mobile")):
+                p.set_viewport_size({"width": largeur, "height": 900})
+                p.goto(f"{BASE}/_confirmation-capture.html", wait_until="networkidle")
+                p.evaluate("()=>document.fonts.ready"); p.wait_for_timeout(300)
+                brut = SORTIE / f"{nom}.png"
+                p.locator("body").screenshot(path=str(brut))
+                ecrites.append((nom, enregistrer(brut, nom)))
 
-            # Deux images derivees, ecrites ici pour qu'elles ne puissent pas
-            # dater d'une version anterieure de l'affiche. La vitrine montrait
-            # une affiche de synthese, coupee en bas, a cote de la vraie : deux
-            # affiches differentes sur la meme ligne, et aucune des deux n'etait
-            # celle que le client recevra.
-            photos = RACINE / "photos"
+            # ── l'affiche ──────────────────────────────────────────────────
+            # Le seul support imprimé du produit, fabriqué dans l'application
+            # avec le lien d'inscription de l'entreprise dedans. La montrer telle
+            # qu'elle sort de la machine est plus vrai qu'une mise en scène.
+            try:
+                p.set_viewport_size({"width": 1440, "height": 900})
+                p.goto(f"{BASE}/app/", wait_until="domcontentloaded")
+                p.evaluate("()=>localStorage.removeItem('riseva.etat')")
+                p.evaluate("()=>localStorage.setItem('riseva.session',JSON.stringify({uid:'u2'}))")
+                p.goto(f"{BASE}/app/?demo=1#/supports", wait_until="networkidle")
+                p.wait_for_timeout(600)
+                with p.expect_popup() as pop:
+                    p.click("#affiche")
+                a = pop.value
+                a.wait_for_load_state("domcontentloaded")
+                # Le pied de l'affiche additionne les associations et les missions du
+                # jeu de démonstration : un total inventé n'a rien à faire sur la
+                # vitrine, même en petits caractères. Il est effacé, l'adresse reste.
+                a.add_style_tag(content=".noprint{display:none}.pied span:first-child{visibility:hidden}")
+                a.evaluate("()=>document.fonts.ready"); a.wait_for_timeout(400)
+                brut = SORTIE / "affiche.png"
+                a.locator(".a4").screenshot(path=str(brut))
+                im = Image.open(brut).convert("RGB")
+                large = min(2000, im.width)
+                im = im.resize((large, round(im.height * large / im.width)), Image.LANCZOS)
+                im.save(SORTIE / "affiche.jpg", quality=90, optimize=True, progressive=True,
+                        subsampling=0)
+                brut.unlink()
+                ecrites.append(("affiche", (SORTIE / "affiche.jpg").stat().st_size // 1024))
 
-            # 1. Le detail du bas : le code QR et le lien qu'il ouvre.
-            w, h = im.size
-            # Le bas du cadre etait coupe : la carte du code QR descend jusqu'a
-            # 84 % de la hauteur de l'affiche, la decoupe s'arretait a 81,5 %.
-            # On voyait donc, sur la vitrine, une carte a bord arrondi dont le
-            # bord du bas manquait, et un carre de code QR tranche. Mesure faite
-            # sur affiche.jpg : la carte occupe 66,5 % a 84,0 % en hauteur et
-            # 8,9 % a 91,2 % en largeur. La decoupe garde une marge de part et
-            # d'autre, et une recette verifie desormais que les quatre bords du
-            # detail ne touchent aucune encre.
-            det = im.crop((int(w*0.070), int(h*0.648), int(w*0.930), int(h*0.858)))
-            det = det.resize((1400, round(det.height * 1400 / det.width)), Image.LANCZOS)
-            det.save(photos / "affiche-qr.jpg", quality=92, subsampling=0)
-            ecrites.append(("affiche-qr", (photos / "affiche-qr.jpg").stat().st_size // 1024))
+                a.close()
+            except Exception as ex:  # noqa: BLE001
+                erreurs.append(f"affiche : {ex}")
+            b.close()
+    finally:
+        conf.unlink(missing_ok=True)
 
-            # 2. L'affiche entiere, posee devant un plateau de bureaux. Le fond
-            #    est l'ancienne mise en scene, floutee : il n'en reste que la
-            #    lumiere et la paroi vitree, ce qu'on lui demandait.
-            fond_src = photos / "bureau-flou.jpg"
-            if fond_src.exists():
-                fond = Image.open(fond_src).convert("RGB")
-                fond = fond.resize((1640, 1140), Image.LANCZOS)
-                aff = im.copy()
-                HA = 1010
-                WA = round(aff.width * HA / aff.height)
-                aff = aff.resize((WA, HA), Image.LANCZOS).convert("RGBA")
-                dh = round(HA * 0.022)
-                cible = (WA, HA + 2*dh)
-                pose = Image.new("RGBA", cible, (0, 0, 0, 0))
-                pose.paste(aff.transform(cible, Image.QUAD,
-                    (0, 0, 0, HA, WA, HA + dh, WA, -dh), Image.BICUBIC), (0, 0))
-                ombre = Image.new("RGBA", pose.size, (0, 0, 0, 0))
-                ombre.paste((18, 24, 20, 110), (0, 0), pose.split()[3])
-                ombre = ombre.filter(ImageFilter.GaussianBlur(20))
-                scene = fond.convert("RGBA")
-                x = (scene.width - WA)//2
-                y = (scene.height - pose.height)//2
-                scene.alpha_composite(ombre, (x+10, y+16))
-                scene.alpha_composite(pose, (x, y))
-                scene.convert("RGB").save(photos / "affiche-bureau.jpg",
-                                          quality=90, subsampling=0)
-                ecrites.append(("affiche-bureau",
-                                (photos / "affiche-bureau.jpg").stat().st_size // 1024))
-            a.close()
-        except Exception as exc:
-            erreurs.append(f"affiche : {exc}")
-
-        b.close()
     for nom, ko in ecrites:
-        print(f"  {nom:<18} {ko} Ko")
-    print("ERREURS:", "\n".join(sorted(set(erreurs))) if erreurs else "aucune")
-    return 1 if erreurs else 0
+        print(f"  {nom}.jpg  {ko} Ko")
+
+    # Les variantes WebP se refont ici, dans le même passage : une capture
+    # refaite dont les variantes datent de la précédente est servie dans son
+    # ancienne version par tous les navigateurs modernes, et personne ne le
+    # voit en ouvrant le JPEG.
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("images", RACINE / "scripts" / "images.py")
+    images = importlib.util.module_from_spec(spec); spec.loader.exec_module(images)
+    # Une capture qui n'est plus dans la liste part, avec ses variantes : un
+    # fichier orphelin dans public/ est une image que plus personne ne relit.
+    produites = {nom for nom, _ in ecrites}
+    if not erreurs:
+        for jpg in SORTIE.glob("*.jpg"):
+            if jpg.stem not in produites:
+                jpg.unlink(); print(f"  {jpg.name} retirée (plus dans la liste)")
+    for dossier in (SORTIE, PUBLIC / "photos"):
+        for webp in dossier.glob("*-*.webp"):
+            racine = re.sub(r"-\d+$", "", webp.stem)
+            if not (dossier / f"{racine}.jpg").exists():
+                webp.unlink()
+    n = sum(images.variantes(src)[0] for d in (SORTIE, PUBLIC / "photos") for src in d.glob("*.jpg"))
+    print(f"  {n} variantes WebP refaites")
+    if erreurs:
+        print("\nErreurs :"); [print("  ", e) for e in erreurs]
+        sys.exit(1)
+
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

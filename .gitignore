@@ -3,3 +3,5 @@ shots/
 .DS_Store
 .env
 dist/
+__pycache__/
+_to_delete/

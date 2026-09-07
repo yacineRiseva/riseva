@@ -44,7 +44,7 @@ def texte_atteignable(page):
     en double ou les contrastes, continuent d'employer `innerText` et
     `offsetParent`."""
     return page.evaluate("""()=>{
-      const replies = [...document.querySelectorAll('.qa-card, .ong-p')]
+      const replies = [...document.querySelectorAll('.qa-card, .ong-p, details')]
         .map(e => e.textContent).join('\\n');
       return document.body.innerText + '\\n' + replies;}""")
 
@@ -128,74 +128,60 @@ def main():
         p.on("pageerror", lambda e: erreurs_js.append(str(e)))
 
         print("\nSite public")
+        # ── refonte de septembre 2026 ───────────────────────────────────────
+        # Les deux vitrines ont ete reecrites (docs/refonte-2026-09/). Ce que ce
+        # bloc protege n'a pas change de nature : le premier ecran dit a qui la
+        # page s'adresse et ce qu'elle remplace ; le prix est public et lu dans
+        # le module ; rien n'est invente ; ce qui est promis existe dans le
+        # produit. Ce qui a change, c'est la forme, et chaque assertion qui
+        # mesurait l'ancienne forme mesure maintenant la nouvelle, avec la
+        # meme intention. Les intentions abandonnees le sont par decision
+        # ecrite (04-ARCHITECTURE.md, section D), jamais par oubli.
         p.goto(BASE + "/", wait_until="networkidle")
-        # Trois accroches successives, et la raison de chaque changement.
-        # « Vos équipes n'ont pas besoin d'un outil de plus » et « il vous faut
-        # des bras » etaient negatives : la premiere rappelle a l'acheteur qu'il
-        # pourrait ne rien acheter, la seconde reduit la relation associative a
-        # une fourniture de main-d'oeuvre. « Un refuge cherche des bras, vos
-        # equipes y vont, votre rapport RSE s'ecrit » disait le vivant, et taisait
-        # le produit : un acheteur RSE arrivait sur ce qui ressemblait a une
-        # plateforme de benevolat. Celle-ci dit d'abord a qui elle s'adresse et
-        # ce qu'elle remplace ; le vivant est trois lignes plus bas, en image et
-        # dans l'accroche.
-        # Quatrieme accroche, et le changement est de fond, pas de style : Riseva
-        # ne se vend pas qu'aux PME. Un groupe de douze sites a exactement le
-        # meme probleme, en plus grand, et un titre qui dit « PME » lui apprend
-        # en trois mots que la page ne parle pas de lui.
-        # Cinquieme accroche, et c'est le client qui l'a tranchee : « Votre RSE
-        # sans service RSE dedie » nommait ce que l'acheteur N'A PAS. Il faut
-        # nommer ce qu'il obtient, et il faut que les deux moities du produit
-        # tiennent dans le titre, parce que c'est la seule ligne que tout le
-        # monde lit.
+        # Cinq accroches successives avant celle-ci ; la derniere a ete tranchee
+        # par le client : nommer ce que l'acheteur obtient, et tenir les deux
+        # moities du produit dans la seule ligne que tout le monde lit. Les deux
+        # controles croises de la refonte l'ont confirmee (A, contre B et C).
         verifie("l'accueil affiche le titre",
                 "Tous vos sites" in p.inner_text("h1")
                 and "un seul rapport" in p.inner_text("h1")
                 and "sur le terrain" in p.inner_text("h1"))
-        # Les trois intertitres de chapitre ont ete retires : chacun occupait un
-        # ecran entier pour un titre et un paragraphe, et le client lit en
-        # diagonale. Ce que ce test protege maintenant, c'est ce qui comptait
-        # vraiment dans l'ancien : que la page reste courte et que chaque entree
-        # de la navigation trouve sa section. Le jour ou quelqu'un rajoute une
-        # section sans l'ancrer, ou en rajoute quinze, c'est ici qu'on le voit.
         ancres = p.eval_on_selector_all(
             ".nav-links a", "l => l.map(a => a.getAttribute('href'))")
         verifie("chaque entrée de la navigation trouve sa section",
                 all(p.locator(a).count() == 1 for a in ancres if a.startswith("#")),
                 str(ancres))
-        verifie("la page tient en une douzaine de sections",
-                p.locator("body > section, body > header").count() <= 12,
-                str(p.locator("body > section, body > header").count()))
-        # Et le vivant ne doit pas avoir disparu du premier ecran pour autant :
-        # c'est ce qui distingue Riseva d'un outil de reporting, et c'est ce que
-        # le fondateur a demande de mettre en avant.
+        # Huit sections, et chacune repond a une question que le lecteur se pose
+        # a ce moment-la. La page en avait douze, et 14 500 px de haut : le jour
+        # ou quelqu'un en rajoute une, c'est ici qu'on le voit.
+        verifie("la page tient en huit sections",
+                p.locator("main > section").count() == 8,
+                str(p.locator("main > section").count()))
+        # Le vivant ne doit pas avoir disparu du premier ecran : c'est ce qui
+        # distingue Riseva d'un outil de reporting.
         verifie("le premier écran nomme les associations du vivant",
                 "refuges" in norm(p.inner_text(".hero")).lower())
-        # Le premier ecran doit porter, AVANT tout defilement, une image du
-        # produit et quatre chiffres. C'est la demande a l'origine de sa
-        # refonte, et rien n'empeche une refonte suivante de la reperdre.
         verifie("le premier écran montre le produit",
-                p.locator(".hero .apercu img").count() == 1)
-        # Trois, et plus quatre : le quatrieme (« 8 rubriques, 27 valeurs, 10
-        # taux ») repetait mot pour mot le panneau de verre deux ecrans plus
-        # bas. Ce que ce test protege n'a pas change — le premier ecran doit
-        # porter des reperes chiffres avant tout defilement — mais il ne doit
-        # plus exiger un doublon. Le compte reste fige : sans lui, la liste
-        # regrossit a la premiere idee de chiffre.
-        verifie("le premier écran porte trois chiffres",
-                p.locator(".hero .chiffres--hero li").count() == 3)
+                p.locator(".hero .shot-hero img").count() == 1)
+        # La rangee de trois chiffres du premier ecran a disparu, par decision :
+        # elle etait le composant « trois stats » d'un gabarit, et ses chiffres se
+        # lisaient comme des resultats. Ce que ce test protegeait, on ne quitte
+        # pas le premier ecran sans savoir combien ca coute, est tenu par la
+        # ligne sous les boutons, qui dit un plancher et jamais un plafond.
+        verifie("le premier écran ne porte plus de rangée de chiffres",
+                p.locator(".hero .chiffres, .hero .chiffres--hero").count() == 0)
         t = norm(p.inner_text(".hero"))
-        # « 18 500 » a quitte le premier ecran avec la ligne qui repetait la
-        # fourchette. Le chiffre de tete dit maintenant ou la grille commence,
-        # ou elle s'arrete, et ce qui se passe au-dela : « A partir de 2 400 EUR,
-        # HT la saison, jusqu'a 13 800 selon l'effectif, puis sur devis. » C'est
-        # plus juste que « 18 500 » lu seul, qui se lisait comme un plafond alors
-        # que c'est un plancher. Ce que ce test protege est inchange : on ne
-        # quitte pas le premier ecran sans savoir combien ca coute.
-        verifie("le prix est visible dès l'accueil",
-                "2 400" in t and "13 800" in t and "sur devis" in t.lower())
-        verifie("la remise de lancement est plafonnée en nombre",
-                "10 % pour les 20 premières" in t)
+        verifie("le prix est visible dès l'accueil, comme un plancher",
+                "À partir de 2 400" in t and "HT" in t, t[-200:])
+        verifie("le premier écran date la première saison", "janvier 2027" in t)
+        verifie("le premier écran ne facture rien par salarié", "Rien par salarié" in t)
+        verifie("aucun chiffre du premier écran n'est présenté comme un résultat client",
+                "clients" not in t.lower() and "satisfaction" not in t.lower())
+        # Le paragraphe d'accroche nomme le lien entre les deux moities du
+        # produit au lieu de les juxtaposer : c'est la confirmation de
+        # l'association qui entre dans le rapport.
+        verifie("l'accueil positionne la plateforme RSE sans lâcher l'axe associatif",
+                "rapport RSE" in t and "associations" in t and "confirme" in t)
         # Le prix affiché sur la vitrine et le prix facturé par la plateforme ne
         # doivent pas pouvoir diverger : la page est comparée à la grille du module.
         grille = p.evaluate("""async () => {
@@ -212,20 +198,6 @@ def main():
         }""")
         verifie("la grille affichée est exactement celle que la plateforme facture",
                 grille["page"] == grille["module"], str(grille["page"])[:200])
-        # Le chiffre du premier ecran disait « 2 400 a 13 800 EUR » quand la
-        # grille, mille pixels plus bas, va jusqu'a « a partir de 18 500 EUR ».
-        # Lu seul, comme le lit quelqu'un qui parcourt la page, il annoncait une
-        # fourchette que la page depasse ensuite. Sur une entreprise sans client,
-        # c'est la donnee qui ne supporte pas l'a-peu-pres : la premiere question
-        # devient « quel est le vrai prix ». Le chiffre doit donc nommer le
-        # dernier palier, ou dire que la grille s'arrete et que le reste est sur
-        # devis.
-        hero_prix = norm(p.evaluate("""()=>{const li=[...document.querySelectorAll('.chiffres--hero li')]
-            .find(e=>/€/.test(e.innerText)); return li? li.innerText : '';}"""))
-        haut = grille["module"][-1]["prix"]
-        verifie("le chiffre du premier ecran n'annonce pas un plafond que la grille depasse",
-                ("sur devis" in hero_prix.lower()) or (f"{haut:,}".replace(",", " ") in hero_prix),
-                hero_prix[:120])
         p.fill("#simEff", "150"); p.dispatch_event("#simEff", "input")
         p.fill("#simSites", "1"); p.dispatch_event("#simSites", "input")
         p.wait_for_timeout(200)
@@ -234,101 +206,150 @@ def main():
                 f"{grille['devis']['ht']:,}".replace(",", " ") + " € HT" in sim, sim)
         verifie("il donne aussi l'acompte, qui est ce qu'on demande à la commande",
                 f"{grille['devis']['acompte']:,}".replace(",", " ") + " €" in sim, sim)
+        # Le heros dit « rien par salarie » : le simulateur ne ramene pas le
+        # montant a la tete, ce serait fabriquer l'ambiguite (controle croise n. 3).
+        verifie("le simulateur ne divise pas le prix par salarié", "par salarié" not in sim, sim)
+        # Le simulateur ne repond jamais un montant ferme sur la tranche a devis.
+        p.fill("#simEff", "2500"); p.dispatch_event("#simEff", "input"); p.wait_for_timeout(200)
+        verifie("au-delà de deux mille salariés, le simulateur renvoie au devis",
+                "devis" in norm(p.inner_text("#simOut")).lower())
         prixT = norm(p.inner_text("#prix"))
-        # Les exclusions ne sont plus a cote du prix : quatre objections negatives
+        verifie("la remise de lancement est plafonnée en nombre et datée",
+                "20 premières entreprises" in prixT and "31 décembre 2026" in prixT)
+        verifie("aucun tarif n'est promis au-delà de la première saison",
+                "gel" not in prixT.lower() and "première saison, et sur elle seule" in prixT,
+                "SPEC §9 interdit tout prix garanti à l'avance, sous quelque nom que ce soit")
+        verifie("l'acompte est justifié par ce qu'il paie",
+                "premier envoi d'affiches" in prixT)
+        verifie("le bouton du prix dit ce qu'il fait : une préinscription gratuite",
+                "Se préinscrire" in prixT and "sans carte" in prixT
+                and "Réserver une place" not in prixT)
+        # Les exclusions ne sont pas a cote du prix : quatre objections negatives
         # a la seconde ou le lecteur evalue le montant faisaient redescendre
-        # l'intention. Elles sont dans la question de la FAQ qui traite deja du
-        # perimetre, ou elles repondent a quelqu'un qui les cherche. Ce qui doit
-        # rester vrai, et que ce test protege : elles sont ECRITES, et le bloc du
-        # prix dit ou les trouver.
-        # Depuis, la liste a quitte la question du perimetre pour devenir sa
-        # propre question, « Qu'est-ce qui reste a ma charge ? » : la reponse du
-        # perimetre faisait 778 px quand les huit autres tenaient sous 425, et le
-        # panneau, qui garde la hauteur de la plus longue, laissait quatre cents
-        # pixels de cadre vide sous chacune des autres.
+        # l'intention. Elles sont ECRITES, dans la FAQ, et le prix dit ou.
         pageT = norm(texte_atteignable(p))
         verifie("la page dit ce qui n'est pas compris, pas seulement ce qui l'est",
                 "bilan carbone réglementaire" in pageT and "document unique" in pageT)
         verifie("le bloc du prix renvoie a ces limites au lieu de les afficher",
                 "le périmètre exact de la plateforme" in prixT
                 and "bilan carbone réglementaire" not in prixT)
-        verifie("la remise fondateur est datée et plafonnée",
-                "31 décembre 2026" in prixT and "20 premières" in prixT)
-        verifie("aucun tarif n'est promis au-delà de la première saison",
-                "gel" not in prixT.lower() and "première saison, et sur elle seule" in prixT,
-                "SPEC §9 interdit tout prix garanti à l'avance, sous quelque nom que ce soit")
-        verifie("l'acompte est justifié par ce qu'il paie",
-                "premier envoi d'affiches" in prixT)
 
-        # Le paragraphe d'accroche a ete reecrit pour NOMMER le lien entre les
-        # deux moities du produit, au lieu de les juxtaposer : « relie vos sites
-        # a des associations proches [...] et range ces declarations avec le
-        # reste de votre reporting RSE ». Le mot « verifiees » y a disparu au
-        # profit du fait lui-meme (« fait confirmer ce qui a reellement eu
-        # lieu »), qui est plus verifiable et moins auto-decerne. Le test suit
-        # l'intention, pas l'ancienne formule : les deux axes, plus le mot qui
-        # les relie.
-        verifie("l'accueil positionne la plateforme RSE sans lâcher l'axe associatif",
-                "outil RSE" in t and "associations proches" in t
-                and "reporting RSE" in t)
-        # Les quatre dimensions du produit doivent se lire sans défiler : le
-        # terrain, le collectif, l'outil, la preuve. Dissoutes dans un
-        # paragraphe, un visiteur en retenait une sur quatre.
-        # Les clés sont capitalisées par la feuille de style : on compare donc
-        # sans la casse, sinon le test mesure `text-transform` et pas le texte.
-        verifie("les quatre dimensions se lisent dès le haut de page",
-                all(x in t.lower() for x in ["le terrain", "le collectif",
-                                             "l'outil rse", "la preuve"]))
-        verifie("le challenge est annoncé comme ce qui fédère les équipes",
-                "qui fédère les équipes" in t)
-        verifie("la dimension environnementale est nommée, pas suggérée",
-                "Refuges animaliers, plantations, berges de rivière" in t)
-        verifie("l'étendue de l'outil est chiffrée, pas promise",
-                "Huit rubriques" in t and "vingt-sept valeurs" in t)
+        # ── le mecanisme, colonne vertebrale de la page ─────────────────────
+        # Les deux relecteurs de la refonte l'ont demande : la chaine
+        # « l'association publie, le salarie repond, l'association confirme, le
+        # fait entre dans le rapport » raconte le produit mieux que n'importe
+        # quel pilier, et chaque moment a son ecran reel.
+        mec = norm(p.inner_text("#mecanisme"))
+        verifie("le mécanisme est raconté en quatre moments, un écran chacun",
+                p.locator("#mecanisme .moment").count() == 4
+                and p.locator("#mecanisme .moment .shot img").count() == 4)
+        verifie("la page dit une fois que les écrans viennent du jeu de démonstration",
+                "jeu de démonstration" in mec)
+        verifie("la clôture automatique est écrite au moment de la confirmation",
+                "clôturée automatiquement sans confirmation" in mec.lower())
+        verifie("le mécanisme renvoie les associations vers leur page",
+                p.locator('#mecanisme a[href="/associations.html"]').count() == 1)
+        # Les quatre ecrans sont poses sur des tapis du meme format (controle
+        # croise n. 3 : « quatre objets de tailles accidentelles »). L'ecran
+        # garde ses proportions dans la plaque, sans deborder.
+        tapis = p.evaluate("""()=>[...document.querySelectorAll('#mecanisme .moment .shot-tapis')].map(f=>{
+            const r=f.getBoundingClientRect(), i=f.querySelector('img').getBoundingClientRect();
+            return {w:Math.round(r.width), h:Math.round(r.height),
+                    dedans: i.top>=r.top-1 && i.bottom<=r.bottom+1 && i.left>=r.left-1 && i.right<=r.right+1};})""")
+        verifie("les quatre écrans du mécanisme sont posés sur des tapis du même format",
+                len(tapis) == 4 and len({(t["w"], t["h"]) for t in tapis}) == 1, str(tapis))
+        verifie("aucun écran ne déborde de son tapis", all(t["dedans"] for t in tapis), str(tapis))
+        # Sous 640 px, chaque ecran complexe est remplace par la capture du meme
+        # ecran dans la mise en page telephone de l'application : un tableau
+        # d'ordinateur reduit a 350 px, ou qu'il faut faire glisser, n'est pas
+        # une preuve (controle croise n. 3, indispensable n. 1).
+        verifie("plus aucune capture ne se fait glisser dans un cadre",
+                p.locator(".shot-defile").count() == 0)
+        c_tel = nav.new_context(viewport={"width": 390, "height": 800}, locale="fr-FR")
+        q_tel = c_tel.new_page()
+        for page, attendus in (("/", ("annonce-carte-mobile", "confirmation-mobile", "mission-lignes-mobile",
+                                      "collecte-mobile", "indicateurs-formule-mobile", "missions-mobile",
+                                      "rapports-mobile", "admin-tableau-mobile")),
+                               ("/associations.html", ("annonce-carte-mobile", "annonce-formulaire-mobile",
+                                                       "confirmation-mobile", "autour-mobile"))):
+            q_tel.goto(BASE + page, wait_until="networkidle")
+            q_tel.evaluate("()=>document.querySelectorAll('details').forEach(d=>d.open=true)")
+            q_tel.evaluate("()=>{document.querySelectorAll('img[loading=lazy]').forEach(i=>i.loading='eager')}")
+            for _ in range(30):
+                q_tel.mouse.wheel(0, 800); q_tel.wait_for_timeout(30)
+            q_tel.wait_for_timeout(600)
+            servies = q_tel.evaluate("()=>[...document.querySelectorAll('.shot img')].map(i=>i.currentSrc.split('/').pop())")
+            manquent = [a for a in attendus if not any(a in x for x in servies)]
+            verifie(f"sur téléphone, {page} sert les captures prises dans la mise en page téléphone",
+                    not manquent, str(manquent) + " / " + str(servies)[:160])
+        q_tel.close(); c_tel.close()
+
+        # ── l'outil : les trois questions, et l'ecran qui y repond ──────────
+        outil = norm(p.inner_text("#outil"))
+        verifie("les trois questions du responsable RSE ouvrent la section outil",
+                all(q in outil for q in ("Combien de vos sites ont répondu",
+                                          "D'où sort ce chiffre",
+                                          "Qu'est-ce que vos équipes ont fait cette année")))
+        verifie("la méthode de calcul est dite : rapport de sommes, jamais moyenne de taux",
+                "rapport de sommes" in outil and "moyenne de taux" in outil)
+        verifie("chaque question a son écran", p.locator("#outil .shot img").count() == 3)
+        # « Combien de vos sites ont repondu ? » est illustree par l'ecran qui y
+        # repond mot pour mot, la carte de la collecte, pas par « Sites et quotas ».
+        verifie("la première question montre la collecte, sites qui ont répondu compris",
+                p.locator('#outil .outil-a img[src="/captures/collecte.jpg"]').count() == 1)
+        verifie("les autres modules sont nommés, pas promis",
+                "dictionnaire des données" in outil and "fiche VSME" in outil
+                and "vue groupe" in outil)
+
+        # ── les equipes : l'affiche, et ce que ca demande chez le client ────
+        eq = norm(p.inner_text("#equipes"))
+        verifie("les quatre envois sont nommés, avec leur mois",
+                "lancement en janvier" in eq and "clôture en novembre" in eq)
+        verifie("la participation n'est pas promise",
+                "participation reste volontaire" in eq and "Aucun taux" in eq)
+        # « Ce que ca demande chez vous » pese plus que l'affiche (controle
+        # croise n. 3) : le texte est en premiere colonne, l'affiche en seconde.
+        verifie("ce que ça demande chez vous précède l'affiche",
+                p.evaluate("()=>{const e=document.querySelector('#equipes .equipes');"
+                           "return e.children[0].classList.contains('equipes-txt')}"))
+        verifie("ce que la saison demande chez le client est écrit, et ce qu'il n'y a pas à faire",
+                "Rien à installer" in eq and "référent par site" in eq
+                and "administrateur" in eq and "aucun accès à votre réseau" in eq)
+        # L'affiche est montree telle qu'elle sort de la plateforme, jamais une
+        # photo d'affiche posee sur un mur ni une scene composee.
+        verifie("la vitrine montre l'affiche telle qu'elle sort de la plateforme",
+                p.locator('#equipes img[src="/captures/affiche.jpg"]').count() == 1
+                and "code QR" in eq and "lien d'inscription" in eq)
+        gen = (RACINE.parent / "scripts" / "captures.py").read_text(encoding="utf-8")
+        verifie("l'affiche se refabrique depuis l'application, elle ne se dessine pas",
+                'SORTIE / "affiche.jpg"' in gen and "pied span:first-child" in gen)
+
+        # ── la saison : la seule carte sombre ───────────────────────────────
+        sai = norm(p.inner_text("#saison"))
+        verifie("une seule surface sombre dans la page, plus le pied",
+                p.locator("main .carte-sombre").count() == 1)
+        verifie("la carte de la saison mène au rapport tel qu'il sort",
+                p.locator('#saison a[href="/app/?demo=1#/rapports"]').count() == 1)
         verifie("il annonce que la moitié basse du classement n'est pas nommée",
-                "sans nommer la moitié basse" in t)
-        verifie("les services RSE sont annoncés comme compris",
-                "sans module en supplément" in t)
-        verifie("le dossier est annoncé avant la signature",
-                "règlement de la saison" in t and "conditions de vente" in t)
-        # Le barème n'a plus son encadré sur l'accueil : sa place est le règlement,
-        # qui le détaille avec un exemple chiffré. L'accueil en donne les trois
-        # valeurs en une phrase — assez pour comprendre l'ordre de grandeur, pas
-        # assez pour croire qu'on a lu la règle.
-        # `inner_text` rend le texte tel qu'il s'affiche, capitales de la feuille
-        # de style comprises : les points sont écrits « 150 PTS » à l'écran.
-        bar = norm(p.inner_text(".fmt-bloc")).lower()
-        verifie("le barème annoncé est celui du code",
-                "150 pts" in bar and "100 pts" in bar and "1 pt" in bar
-                and "250 pts" in bar and "400 pts" in bar)
-        verifie("l'accueil renvoie au règlement pour le calcul complet",
-                "règlement" in bar and "écrêtage" in bar)
-        corps = norm(texte_atteignable(p))
-        # La vitrine ne vend que ce qui fonctionne, et ne montre aucun résultat.
-        verifie("l'accueil annonce tout ce qu'une association peut proposer",
-                "Ce qu'une association peut proposer" in corps
-                and "Parrainage d'un animal" not in corps  # le libellé du produit
-                and "parrainage d'un animal" in corps.lower()
-                and "adoption d'un animal" in corps.lower()
-                and "attend son prestataire" not in corps)
-        verifie("le don en argent est annoncé sans intermédiaire",
-                "sans transiter par Riseva" in corps and "aucune commission" in corps
-                and "Riseva n'encaisse rien" in corps)
-        # Le don par carte se confirme par le paiement, pas par un silence : la
-        # page doit dire quand les points tombent, et ce n'est plus « quand
-        # l'association confirme la reception ».
-        verifie("les points d'un don ne sont crédités qu'après le paiement",
-                "quand le paiement est confirmé" in corps)
+                "moitié basse n'est jamais nommée" in sai)
+        verifie("l'accueil renvoie au règlement pour le barème",
+                p.locator('#saison a[href="/reglement.html"]').count() == 1
+                and "barème" in sai.lower())
+        verifie("ce qui est confirmé entre dans le bilan, le reste est marqué estimé",
+                "Ce qui est confirmé entre dans votre bilan" in sai and "estimé" in sai)
+        verifie("la carte sombre ne porte plus de rangée de chiffres ni de citation légale",
+                p.locator("#saison .chiffres").count() == 0 and "L. 2152-7" not in sai)
+
+        # ── ce qui reste vrai partout dans la page ──────────────────────────
+        corps = pageT
         verifie("la vitrine dit qui encaisse, et que ce n'est pas Riseva",
-                "HelloAsso" in corps and "sans transiter par Riseva" in corps)
-        # L'aveu tenait une section entière, avec un titre « Ce qu'on ne promet
-        # pas » et une colonne de tout ce que Riseva ne fait pas. Énumérer ses
-        # propres manques en grand sur une page qui vend est un mauvais calcul :
-        # le lecteur retient la liste, pas la nuance. Ce qui doit être dit l'est
-        # toujours, mais à l'endroit où on va le chercher, c'est-à-dire la FAQ.
+                "HelloAsso" in corps and "sans transiter par Riseva" in corps
+                and "n'encaisse rien" in corps)
+        # L'aveu tenait une section entiere. Ce qui doit etre dit l'est
+        # toujours, a l'endroit ou on va le chercher : la FAQ.
         verifie("la page ne se défend plus par une section entière",
                 "Ce qu'on ne promet pas" not in corps
-                and "Rien encore, et nous n'allons pas l'inventer" not in corps
+                and "On ne vous facture pas une promesse" not in corps
                 and "Ce que Riseva ne prétend pas faire" not in corps)
         verifie("mais la FAQ dit toujours qu'il n'y a pas encore de résultat",
                 "Riseva a-t-elle déjà des résultats" in corps
@@ -337,106 +358,90 @@ def main():
                 "ne certifie pas un impact" in corps
                 and "ne produit pas de bilan carbone" in corps
                 and "aucune déclaration à votre place" in corps)
-        # La vitrine ne porte plus une seule photo de banque d'images. Seize cadres
-        # souriants en open space illustraient un produit dont le métier est le
-        # ramassage de déchets en rivière et les refuges animaliers ; et une légende
-        # « photo d'illustration » ne rachète pas une image qui ne prouve rien, elle
-        # confirme au lecteur qu'elle n'en est pas une. Riseva n'ayant aucune
-        # photographie réelle de chantier, la seule preuve disponible est le produit.
+        verifie("la FAQ dit ce que Riseva demande à l'équipe, et qu'il n'y a rien à installer",
+                "Qu'est-ce que Riseva demande à mon équipe" in corps
+                and "Faut-il une intégration informatique" in corps
+                and "aucun annuaire à synchroniser" in corps.lower())
+        verifie("la FAQ dit qui émet le reçu fiscal, et au quel modèle",
+                "seule habilitée" in corps and "16216" in corps and "mandat écrit" in corps)
+        verifie("le seuil du classement est dit sur la vitrine", "dix entreprises" in corps)
+        # ── les images ──────────────────────────────────────────────────────
+        # La vitrine ne porte plus une seule illustration : ni photo de banque
+        # d'images, ni image generee. Les deux relecteurs de la refonte l'ont
+        # dit avec les memes mots : une image generee sur une page qui vend du
+        # verifiable annonce qu'on n'a rien de reel a montrer. Les seules
+        # images sont des captures du produit, et l'affiche telle qu'elle sort.
         vues = p.evaluate("""()=>[...document.images].map(i=>i.getAttribute('src'))""")
-        verifie("ce qu'elle montre d'abord, ce sont des captures de l'application",
-                len([x for x in vues if "/captures/" in (x or "")]) >= 5, str(vues))
-        # Elle porte aussi des illustrations, et c'est voulu : une page qui vend
-        # du ramassage de berge sans jamais montrer de berge demande au lecteur
-        # un effort d'imagination qu'il ne fera pas. Ce qui est interdit, c'est
-        # de les faire passer pour des preuves.
-        verifie("elle montre aussi de quoi on parle",
-                len([x for x in vues if "/photos/" in (x or "")]) >= 3, str(vues))
-        # Les mentions posées sous chaque image ont été retirées. Elles étaient
-        # honnêtes et elles étaient contre-productives : « image générée, ce
-        # n'est pas une mission Riseva » sous chaque photographie transforme la
-        # page en avertissement continu, et le lecteur finit par lire la mention
-        # au lieu de regarder ce qu'on lui montre. La règle qui compte reste,
-        # et elle est vérifiée plus bas : aucune image ne prétend être la trace
-        # d'un résultat, aucune ne nomme personne.
-        legendesP = p.evaluate(
-            """()=>[...document.querySelectorAll('.photo')].map(f=>f.textContent.trim())""")
-        verifie("les illustrations ne portent plus de mention sous elles",
-                all(x == "" for x in legendesP), str(legendesP)[:200])
-        # La boucle vidéo : muette, sans contrôle de son, avec son affiche servie
-        # tout de suite. Une page qui parle sans qu'on le lui demande se fait
-        # fermer, et un rectangle vide pendant le chargement est un premier écran
-        # perdu.
-        # La boucle vidéo a été retirée : au format où elle tenait, une rivière
-        # dans la brume se lit comme une photographie qui bouge un peu, donc
-        # comme un défaut d'affichage plutôt que comme du mouvement voulu.
+        verifie("ce qu'elle montre, ce sont des captures de l'application",
+                len([x for x in vues if "/captures/" in (x or "")]) >= 8, str(vues))
+        verifie("elle ne porte plus aucune illustration",
+                len([x for x in vues if "/photos/" in (x or "")]) == 0, str(vues))
+        # Aucune legende sous les images : la phrase qui explique l'ecran est a
+        # cote, et une mention repetee sous chaque image transforme la page en
+        # avertissement continu.
+        verifie("aucune légende sous les images", p.locator("figure figcaption").count() == 0)
         verifie("aucune vidéo ne se lance toute seule sur la vitrine",
                 p.eval_on_selector_all("video", "v=>v.length") == 0)
-        # Aucun visage identifiable, aucune association nommée sur une image :
-        # une illustration qui nomme quelqu'un devient une affirmation le
-        # concernant.
-        alts = p.evaluate(
-            """()=>[...document.querySelectorAll('.photo img')].map(i=>i.alt)""")
-        verifie("les illustrations décrivent une scène, pas des personnes nommées",
-                all(a and len(a) > 20 for a in alts), str(alts)[:200])
-        # Et chacune dit d'où elle vient : une capture sans cette mention se lit
-        # comme un résultat obtenu, et Riseva n'en a aucun.
-        legendes = p.evaluate(
-            """()=>[...document.querySelectorAll('.shot figcaption')]
-                     .map(f=>f.textContent.trim())""")
-        # Une capture peut ne rien porter du tout : celle de l'affiche a son
-        # libellé posé à côté d'elle, dans la composition, et le répéter sous
-        # l'image en ferait une légende de musée. Ce qui reste interdit, c'est
-        # la phrase : un titre de capture qui dépasse la ligne redevient du
-        # texte qu'on saute.
-        verifie("aucun titre de capture ne devient une phrase",
-                legendes and all(len(x) <= 62 for x in legendes),
-                str(legendes)[:300])
-        verifie("la plupart des captures portent quand même un titre",
-                len([x for x in legendes if x]) >= len(legendes) - 1,
-                str(legendes)[:300])
-        # Le contenu ne doit dépendre d'aucun défilement : une animation peut
-        # accompagner une apparition, jamais la conditionner.
-        # Les apparitions au défilement sont revenues, et la règle qui les
-        # encadre n'a pas bougé : une animation accompagne un contenu, elle ne
-        # le conditionne jamais. Elles sont donc écrites « .js .rv ». Sans
-        # script, la classe n'existe pas, la règle ne s'applique pas, et la page
-        # s'affiche entière. On le vérifie en retirant la classe.
+        alts = p.evaluate("""()=>[...document.querySelectorAll('.shot img')].map(i=>i.alt)""")
+        verifie("chaque capture décrit ce qu'elle montre",
+                all(a and len(a) > 30 for a in alts), str(alts)[:200])
+        # Le contenu ne depend d'aucun defilement : les apparitions au
+        # defilement ont disparu de la page. Il reste un mouvement au chargement
+        # sur la capture du heros, et il finit a pleine opacite ; sans script il
+        # n'a jamais lieu.
+        verifie("plus aucun bloc n'attend le défilement pour s'afficher",
+                p.locator(".rv, .rl").count() == 0)
         caches = p.evaluate("""()=>{
             const h=document.documentElement, avait=h.classList.contains('js');
             h.classList.remove('js');
-            const n=[...document.querySelectorAll('.rv,.rl')]
+            const n=[...document.querySelectorAll('.shot')]
               .filter(e=>getComputedStyle(e).opacity !== '1').length;
             if (avait) h.classList.add('js');
             return n; }""")
-        verifie("sans script, rien n'attend un défilement pour s'afficher",
-                caches == 0, str(caches))
-        verifie("le seuil du classement est dit sur la vitrine",
-                "dix entreprises" in corps)
-        # ── les affiches ────────────────────────────────────────────────────
-        # C'est le seul objet Riseva qu'un salarié voit sans ouvrir un écran, et
-        # la section qui le montre avait disparu. Elle montre l'affiche telle
-        # qu'elle sort de la plateforme, pas une photo d'affiche posée sur un mur.
-        aff = norm(p.inner_text(".aff-scene"))
-        verifie("la vitrine montre l'affiche et ce qu'elle porte",
-                "code QR" in aff and "lien d'inscription" in aff
-                and "quatre moments de la saison" in aff)
-        # Les deux images de cette section sont fabriquees par
-        # `scripts/captures.py` a partir de l'affiche que la plateforme genere :
-        # la scene entiere et le detail du code QR. La section montrait aupavant
-        # une affiche de synthese, coupee en bas, a cote de la vraie.
-        srcs = p.eval_on_selector_all(".aff-scene img", "l=>l.map(e=>e.getAttribute('src'))")
-        verifie("l'affiche montrée est une vraie sortie de la plateforme",
-                len(srcs) == 2 and all("/photos/affiche-" in x for x in srcs), str(srcs))
-        gen = (RACINE.parent / "scripts" / "captures.py").read_text(encoding="utf-8")
-        verifie("ces deux images se refabriquent avec l'affiche, elles ne se dessinent pas",
-                'photos / "affiche-qr.jpg"' in gen and 'photos / "affiche-bureau.jpg"' in gen)
+        verifie("sans script, toutes les captures sont visibles d'emblée", caches == 0, str(caches))
+        # ── la FAQ ──────────────────────────────────────────────────────────
+        # Des accordeons natifs : toutes les questions visibles, la premiere
+        # ouverte parce que c'est celle qui decide de la confiance (« Riseva
+        # a-t-elle deja des resultats a montrer ? Non. »).
+        nq = p.locator("#questions details.qa").count()
+        verifie("la FAQ est en accordéons natifs, toutes les questions visibles",
+                nq >= 10 and p.locator("#questions details.qa summary").count() == nq, str(nq))
+        verifie("la première question est ouverte, et c'est celle des résultats",
+                p.locator("#questions details.qa").first.get_attribute("open") is not None
+                and "résultats à montrer" in p.locator("#questions details.qa").first.inner_text())
+        # ── le final : quand on s'engage, et sur quoi ───────────────────────
+        fin = norm(p.inner_text("#demarrer"))
+        verifie("le final écrit les cinq critères de démarrage",
+                "cinq critères" in fin and "lien d'inscription fonctionne" in fin
+                and "rapport est exportable" in fin)
+        verifie("et il les montre comme cinq critères, pas comme un paragraphe",
+                p.locator("#demarrer .criteres li").count() == 5)
+        # Les criteres sont ceux des engagements de service : les memes objets, dans
+        # les memes mots (controle croise n. 5 : « correspondre mot pour mot »).
+        eng_t = re.sub(r"\s+", " ", norm(re.sub(r"<[^>]+>", " ", (RACINE / "engagements.html").read_text(encoding="utf-8"))))
+        fin_1 = re.sub(r"\s+", " ", fin)
+        verifie("les critères du final sont ceux des engagements de service",
+                all(x in fin_1 and x in eng_t for x in
+                    ("depuis un poste de votre réseau", "quota de chaque site est réparti",
+                     "associations vérifiées et actives", "méthode de calcul à côté de chaque chiffre",
+                     "quinze jours pour les constater", "levé dans les quinze jours suivants")))
+        verifie("le final renvoie aux engagements de service",
+                p.locator('#demarrer a[href="/engagements.html"]').count() >= 1)
+        verifie("la vitrine ne promet plus une durée jamais mesurée",
+                "Cinq minutes" not in pageT and "cinq minutes" not in pageT.lower())
+        # Les sur-titres en capitales ne restent que la ou ils situent une partie
+        # du produit : repetes avant chaque titre, ils faisaient gabarit.
+        verifie("la page garde au plus quatre sur-titres en capitales",
+                p.locator("main .eyebrow").count() <= 4, str(p.locator("main .eyebrow").count()))
+        verifie("la ligne sous les boutons du héros se lit comme un fait, pas comme une mention",
+                p.evaluate("()=>parseFloat(getComputedStyle(document.querySelector('.hero-note')).fontSize)") >= 16)
+        verifie("le final dit quand on s'engage : préinscription gratuite, puis acompte si on signe",
+                "gratuite, sans carte, sans engagement" in fin and "si vous signez" in fin
+                and "remboursé" in fin)
         # Le champ a remplir se dimensionne sur son propre texte. Quand la
         # mesure est trop courte, le placeholder perd ses dernieres lettres et
-        # « des bras un samedi matin » devient « des bras un samedi matir ». Le
-        # defaut ne se voit pas en survolant la page : il faut le mesurer, et un
-        # placeholder ne deborde jamais, il est coupe en silence. On le pose
-        # donc comme valeur le temps de la mesure.
+        # « des bras un samedi matin » devient « des bras un samedi matir ». On
+        # le pose donc comme valeur le temps de la mesure.
         p.goto(f"{BASE}/associations.html", wait_until="networkidle"); p.wait_for_timeout(500)
         coupes = p.evaluate("""()=>[...document.querySelectorAll('.blank input')].map(i=>{
             i.value = i.placeholder;
@@ -444,20 +449,70 @@ def main():
             i.value = ''; return c; }).filter(x => x.coupe).map(x => x.ph)""")
         verifie("aucun placeholder n'est coupé dans la phrase à remplir",
                 not coupes, str(coupes))
+        # ── la phrase a trous ne se casse pas sur sa ponctuation ────────────
+        # Un champ est un objet insecable pour le navigateur, qui s'autorise un
+        # retour a la ligne juste apres lui : une ligne qui commence par « , a »
+        # ou par « . » n'est plus une phrase. La ponctuation est donc dans le
+        # bloc du champ, et chaque fragment de phrase qui suit commence par un
+        # mot.
+        debuts = p.evaluate("""()=>[...document.querySelectorAll('.j-sentence > .j-frag')]
+            .map(s=>s.textContent.trim()).filter(t=>t && /^[,.;:]/.test(t))""")
+        verifie("aucun fragment de la phrase à trous ne commence par une ponctuation",
+                not debuts, str(debuts))
+        # ── la page associations ─────────────────────────────────────────────
+        asso = norm(texte_atteignable(p))
+        verifie("la page associations tient en sept sections",
+                p.locator("main > section").count() == 7)
+        verifie("le premier écran des associations montre une annonce, pas une illustration",
+                p.locator(".hero .shot-carte img").count() == 1
+                and p.locator(".hero img[src*='/photos/']").count() == 0)
+        # L'eyebrow est compose en capitales par la feuille : on compare sans la casse.
+        verifie("le premier écran dit que c'est gratuit et qui paie",
+                "gratuit. ce sont les entreprises qui paient." in asso.lower())
+        verifie("« Et si personne ne vient ? » est la première question, et elle est ouverte",
+                "personne ne vient" in p.locator("#questions details.qa").first.inner_text()
+                and p.locator("#questions details.qa").first.get_attribute("open") is not None)
+        verifie("la page dit qui est assuré, sans en dire plus que la charte",
+                "Qui est assuré" in asso and "dépend de votre contrat" in asso
+                and "pas forcément ce qu'il subit" in asso)
+        # L'assurance est dans le texte courant de « Vous gardez la main », pas
+        # dans un encart : les deux relecteurs l'ont demande (controle croise n. 3 et 4).
+        verifie("l'assurance est dans le corps de la section, pas dans un encart",
+                p.locator("#controle .assure h3").count() == 1 and p.locator(".encart").count() == 0)
+        verifie("les étapes disent que les salariés se proposent, pas qu'ils viennent",
+                "Publier, choisir, confirmer" in asso and "Des salariés se proposent" in asso
+                and p.locator("#comment h3", has_text="Ils viennent").count() == 0)
+        verifie("la FAQ ne dit plus « vous ne perdez rien » : une annonce sans réponse coûte du temps",
+                "Vous ne perdez rien" not in asso and "y compris zéro" in asso)
+        verifie("la fiche qui répétait les quatre champs a disparu",
+                p.locator("#bulletin, .bulletin").count() == 0)
+        verifie("l'export est posé sous la phrase qu'il prouve",
+                p.locator('#pourquoi .shot-tapis img[src="/captures/export-ca.jpg"]').count() == 1)
+        verifie("la note du héros explique les points que la carte affiche",
+                "points compris" in asso and "jamais pour vous" in asso)
+        verifie("la page associations ne promet plus « cinq minutes »",
+                "cinq minutes" not in asso.lower() and "six modèles" in asso.lower())
+        verifie("la publication après vérification est dite sans automatisme",
+                "vous publiez votre première annonce" in asso and "paraît dès que" not in asso)
+        verifie("la page associations ne promet aucun délai de vérification",
+                "deux jours ouvrés" not in asso)
+        verifie("la page dit que l'argent ne passe jamais par Riseva",
+                "L'argent ne passe jamais par Riseva" in asso and "Riseva n'encaisse rien" in asso)
+        verifie("le bouton final ouvre un espace, il ne promet pas une publication",
+                p.locator("#formAsso button[type=submit]").inner_text().strip() == "Ouvrir notre espace")
+        verifie("la phrase de lancement écrit zéro si c'est zéro",
+                "il écrira zéro si c'est zéro" in asso and "janvier 2027" in asso)
+        verifie("la page associations ne parle ni de VSME ni de rapport RSE",
+                "VSME" not in asso and "rapport RSE" not in asso)
+        verifie("elle ne porte aucune illustration non plus",
+                p.locator("img[src*='/photos/']").count() == 0)
 
         # ── les phrases cassees par une reecriture ──────────────────────────
         # « neuf associations declarees SUR DIX n'ont pas de SIREN » est devenu
         # « beaucoup d'associations declarees DIX n'ont pas de SIREN » : le
         # remplacement a mange la moitie de la tournure et laisse un chiffre
-        # orphelin au milieu de la phrase. Ni le controle des caracteres, ni
-        # celui des contrastes, ni celui des liens ne voient ce genre de defaut,
-        # et il tombe dans la FAQ, la ou une presidente lit vraiment avant de
-        # s'inscrire. Cette liste est celle des fautes deja commises : on ne la
-        # devine pas, on l'allonge quand on en corrige une nouvelle.
-        # On ne met ici QUE des fautes reellement commises. Les motifs generiques
-        # (double espace, espace avant une virgule, deux points de suite) ont ete
-        # essayes et retires : « RSV-AS-.... » dans l'apercu de fiche les declenche,
-        # et un test qui crie pour rien est un test qu'on finit par ignorer.
+        # orphelin au milieu de la phrase. Cette liste est celle des fautes deja
+        # commises : on ne la devine pas, on l'allonge quand on en corrige une.
         FAUTES = ["déclarées dix", "associations déclarées dix"]
         revenues = []
         for page in ("/", "/associations.html", "/asso.html?id=a1",
@@ -472,17 +527,15 @@ def main():
                 not revenues, str(revenues[:6]))
 
         # ── deux fois le meme titre ─────────────────────────────────────────
-        # Le bandeau de fin repetait mot pour mot le titre du formulaire, deux
-        # ecrans plus haut : « Quatre lignes, un lien, et votre espace est
-        # ouvert. » Celui qui lit en diagonale ne lit que les titres ; en voyant
-        # deux fois le meme, il croit etre remonte par erreur et il s'arrete.
+        # Celui qui lit en diagonale ne lit que les titres ; en voyant deux fois
+        # le meme, il croit etre remonte par erreur et il s'arrete.
         doublons = []
         for page in ("/", "/associations.html", "/rejoindre.html",
                      "/charte-associations.html", "/inscription.html"):
             p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(250)
             titres = p.evaluate("""()=>[...document.querySelectorAll('h1,h2')]
                 .filter(e=>e.offsetParent!==null)
-                .map(e=>e.innerText.replace(/\s+/g,' ').trim().toLowerCase())
+                .map(e=>e.innerText.replace(/\\s+/g,' ').trim().toLowerCase())
                 .filter(t=>t.length>12)""")
             for t_ in set(titres):
                 if titres.count(t_) > 1:
@@ -491,13 +544,9 @@ def main():
                 not doublons, str(doublons[:5]))
 
         # ── les ancres internes ─────────────────────────────────────────────
-        # En fusionnant deux sections, la section #pilotage a disparu de la page
-        # et trois liens ont continue a pointer dessus : un pilier du premier
-        # ecran et deux entrees du pied de page. Un lien d'ancre mort ne casse
-        # rien de visible — le navigateur ne bouge pas, et c'est tout — donc
-        # personne ne le voit, ni en relisant le code, ni en regardant la page.
-        # Il se mesure, en revanche, et en une ligne : chaque href="#quelque
-        # chose" doit trouver son element dans la meme page.
+        # Un lien d'ancre mort ne casse rien de visible, donc personne ne le
+        # voit. Il se mesure : chaque href="#quelque chose" doit trouver son
+        # element dans la meme page.
         mortes = []
         for page in ("/", "/associations.html", "/rejoindre.html", "/inscription.html",
                      "/charte-associations.html", "/cgv.html", "/reglement.html",
@@ -511,15 +560,18 @@ def main():
                 mortes.append(page + " -> " + h)
         verifie("aucun lien d'ancre ne pointe vers une section qui n'existe plus",
                 not mortes, str(mortes[:8]))
+        # Les ancres d'une page vers l'autre : le pied de page envoie vers
+        # « /#prix », et la barre des associations vers « /associations.html#... ».
+        p.goto(BASE + "/associations.html", wait_until="networkidle")
+        croisees = p.evaluate("""()=>[...document.querySelectorAll('a[href^="/#"]')].map(a=>a.getAttribute('href'))""")
+        p.goto(BASE + "/", wait_until="networkidle")
+        manquent = [h for h in croisees if p.locator(h[1:]).count() != 1]
+        verifie("les ancres qui traversent d'une page a l'autre existent",
+                not manquent, str(manquent))
 
         # ── un commentaire de source dans la page ───────────────────────────
-        # Les gabarits sont des f-strings de plusieurs centaines de lignes. Un
-        # commentaire Python place a l'interieur du texte, et non avant la
-        # constante, n'est plus un commentaire : c'est du contenu. Cinq lignes
-        # expliquant pourquoi une section avait change de mission se sont
-        # affichees en toutes lettres au milieu de la page, en gros, sur fond
-        # sombre. Rien ne plante, la recette etait verte, et il a fallu regarder
-        # la page pour le voir.
+        # Un commentaire Python place a l'interieur d'une f-string n'est plus un
+        # commentaire : c'est du contenu, et il s'affiche.
         MOTIF_FUITE = ("()=>document.body.innerText.split(String.fromCharCode(10))"
                        ".map(l=>l.trim())"
                        ".filter(l=>l.startsWith('#') || l.startsWith('/*')"
@@ -536,22 +588,15 @@ def main():
                 not fuites, str(fuites[:3]))
 
         # ── le contraste du texte ───────────────────────────────────────────
-        # En passant la section du prix du vert fonce a l'ivoire, deux teintes
-        # ecrites pour le fond sombre sont restees : la grille tarifaire entiere
-        # s'est retrouvee en blanc casse sur ivoire, et « a partir de » est passe
-        # a 1,00 de contraste, c'est-a-dire exactement la couleur du fond. Rien
-        # ne plante, rien n'est signale, et on ne le voit pas en relisant du CSS :
-        # il faut mesurer la couleur reellement calculee contre le fond
-        # reellement peint. Le seuil est celui du WCAG AA : 4,5 pour le texte
-        # courant, 3,0 des 24 px ou des 18,66 px en gras.
-        # Les elements aria-hidden sont exclus : les chiffres en filigrane du
-        # panneau de verre sont a 7 % d'opacite parce qu'ils sont un decor, et un
-        # test qui les signale est un test qu'on apprend a ignorer.
+        # Le seuil est celui du WCAG AA : 4,5 pour le texte courant, 3,0 des
+        # 24 px ou des 18,66 px en gras. Mesure sur la couleur reellement
+        # calculee contre le fond reellement peint. Les accordeons sont ouverts
+        # avant la mesure : une reponse repliee est du texte de la page.
         MESURE_CONTRASTE = """()=>{
           const lum=c=>{const [r,g,b]=c.map(v=>{v/=255;
             return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)});
             return .2126*r+.7152*g+.0722*b;};
-          const parse=s=>{const m=s.match(/[\d.]+/g); if(!m) return null;
+          const parse=s=>{const m=s.match(/[\\d.]+/g); if(!m) return null;
             return {c:[+m[0],+m[1],+m[2]], a:m.length>3?+m[3]:1};};
           const fond=e=>{let n=e;
             while(n && n!==document.documentElement){
@@ -577,6 +622,7 @@ def main():
         for page in ("/", "/associations.html", "/rejoindre.html", "/inscription.html",
                      "/reglement.html", "/engagements.html"):
             p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(300)
+            p.evaluate("()=>document.querySelectorAll('details').forEach(d=>d.open=true)")
             haut = p.evaluate("()=>document.documentElement.scrollHeight")
             for y in range(0, haut, 600):
                 p.evaluate(f"window.scrollTo(0,{y})"); p.wait_for_timeout(40)
@@ -585,17 +631,13 @@ def main():
                     not faibles, str(faibles[:4]))
 
         # ── la barre de navigation sur telephone ────────────────────────────
-        # Deux defauts sont passes ici l'un apres l'autre, et le second a ete
-        # cree en corrigeant le premier. D'abord le bouton « Ouvrir la
-        # demonstration » se laissait comprimer et perdait son dernier « n » ;
-        # on lui a mis `flex:none`, il a garde sa largeur entiere, et c'est le
-        # bouton de menu — dernier de la rangee — qui est sorti de l'ecran :
-        # sur un telephone de 390 px, il allait de 371 a 415. Ensuite, le
-        # panneau du menu passait par-dessus la barre, donc par-dessus la croix
-        # qui le ferme : un menu qu'on ouvre et qu'on ne peut plus refermer.
-        # Aucun des deux ne casse quoi que ce soit, aucun des deux ne se voit
-        # sur un ecran d'ordinateur, et les deux rendent le site inutilisable
-        # sur telephone. Ils se mesurent, eux.
+        # Deux defauts sont passes ici l'un apres l'autre sur l'ancienne barre :
+        # un bouton qui sortait de l'ecran a 390 px, puis un panneau qui
+        # recouvrait la croix qui le ferme. Le menu est maintenant un <dialog>
+        # modal : le navigateur gere le focus et Echap, et la croix est dans le
+        # panneau. Ce qui se mesure : rien ne sort de la barre, le menu s'ouvre,
+        # ses liens menent a des sections de la page, Echap et la croix le
+        # ferment, et le focus revient sur le bouton.
         for largeur in (320, 360, 390, 430):
             mctx = nav.new_context(viewport={"width": largeur, "height": 800},
                                    locale="fr-FR", reduced_motion="reduce")
@@ -611,27 +653,26 @@ def main():
                 return out;}""", largeur)
             verifie(f"rien ne sort de la barre de navigation a {largeur} px",
                     not dehors, str(dehors[:4]))
-            m.click(".nav-burger"); m.wait_for_timeout(450)
-            verifie(f"le menu s'ouvre a {largeur} px", m.is_visible("#navSheet"))
-            dessus = m.evaluate("""()=>{const b=document.querySelector('.nav-burger');
-                const r=b.getBoundingClientRect();
-                const e=document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);
-                return b===e || b.contains(e);}""")
-            verifie(f"et la croix qui le referme reste au-dessus du panneau a {largeur} px",
-                    dessus, "le panneau recouvre le bouton du menu")
-            m.click(".nav-burger"); m.wait_for_timeout(450)
-            verifie(f"un second appui referme le menu a {largeur} px",
-                    not m.is_visible("#navSheet"))
+            m.click("#navMenu"); m.wait_for_timeout(300)
+            verifie(f"le menu s'ouvre a {largeur} px",
+                    m.evaluate("()=>document.getElementById('menu').open") is True
+                    and m.is_visible("#menu .menu-links"))
+            liens = m.eval_on_selector_all("#menu .menu-links a[href^='#']",
+                                           "l=>l.map(a=>a.getAttribute('href'))")
+            verifie(f"chaque entree du menu mene a une section a {largeur} px",
+                    liens and all(m.locator(h).count() == 1 for h in liens), str(liens))
+            m.keyboard.press("Escape"); m.wait_for_timeout(200)
+            verifie(f"Echap referme le menu a {largeur} px",
+                    m.evaluate("()=>document.getElementById('menu').open") is False)
+            m.click("#navMenu"); m.wait_for_timeout(300)
+            m.click("#menuClose"); m.wait_for_timeout(200)
+            verifie(f"la croix referme le menu a {largeur} px",
+                    m.evaluate("()=>document.getElementById('menu').open") is False)
+            verifie(f"et le focus revient sur le bouton du menu a {largeur} px",
+                    m.evaluate("()=>document.activeElement && document.activeElement.id") == "navMenu")
             m.close(); mctx.close()
 
         # ── ce qu'un moteur et un partage voient ────────────────────────────
-        # Dix des douze pages publiques n'avaient ni canonique ni Open Graph :
-        # une adresse partagee dans un message tombait sans titre ni resume, et
-        # deux chemins menant a la meme page n'avaient rien pour dire lequel
-        # compte. Les deux pages de conversion — celle ou l'on reserve une place
-        # et celle ou un salarie ouvre son compte — n'avaient meme pas de
-        # description. Celle de l'accueil, elle, faisait 269 signes la ou les
-        # moteurs en affichent environ 155 : la moitie ne servait a personne.
         for page in ("/", "/associations.html", "/rejoindre.html", "/inscription.html",
                      "/reglement.html", "/engagements.html", "/securite.html",
                      "/confidentialite.html", "/cgv.html", "/mentions.html",
@@ -654,57 +695,41 @@ def main():
                     meta["h1"] == 1 and meta["lang"] == "fr", str(meta))
 
         # Les donnees structurees sont generees a partir de la meme liste que la
-        # page affiche. Le test le verifie plutot que de le supposer : un
-        # balisage qui annonce a un moteur une question absente de la page est
-        # une penalite, pas un gain.
-        p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(250)
-        struct = p.evaluate("""()=>[...document.querySelectorAll('script[type="application/ld+json"]')]
-            .map(e=>JSON.parse(e.textContent))""")
-        types = [b.get("@type") for b in struct]
-        verifie("l'accueil porte les donnees structurees de l'organisation et de la FAQ",
-                "Organization" in types and "FAQPage" in types, str(types))
-        faqld = next(b for b in struct if b.get("@type") == "FAQPage")
-        balisees = [q["name"].replace("\u00a0", " ").strip() for q in faqld["mainEntity"]]
-        # `textContent` et non `innerText` : huit fiches sur neuf sont repliees,
-        # et une question repliee reste une question de la page.
-        affichees = p.evaluate("""()=>[...document.querySelectorAll('#faq h3')]
-            .map(e=>e.textContent.replace(/\s+/g,' ').replace(/\u00a0/g,' ').trim())""")
-        verifie("chaque question balisee est bien affichee sur la page, dans le meme ordre",
-                balisees == affichees, str(balisees[:2]) + " / " + str(affichees[:2]))
-        verifie("aucune reponse balisee n'est vide",
-                all(len(q["acceptedAnswer"]["text"]) > 40 for q in faqld["mainEntity"]))
-        # Rien d'invente : ni note moyenne, ni avis, ni effectif.
-        brut = p.evaluate("""()=>[...document.querySelectorAll('script[type="application/ld+json"]')]
-            .map(e=>e.textContent).join(' ')""")
-        verifie("les donnees structurees n'annoncent ni note, ni avis, ni effectif",
-                not any(x in brut for x in ("aggregateRating", "reviewCount", "ratingValue",
-                                            "numberOfEmployees", "Review")), brut[:120])
+        # page affiche : un balisage qui annonce a un moteur une question
+        # absente de la page est une penalite, pas un gain.
+        for page in ("/", "/associations.html"):
+            p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(250)
+            struct = p.evaluate("""()=>[...document.querySelectorAll('script[type="application/ld+json"]')]
+                .map(e=>JSON.parse(e.textContent))""")
+            types = [b.get("@type") for b in struct]
+            verifie(f"{page} porte les donnees structurees de l'organisation et de la FAQ",
+                    "Organization" in types and "FAQPage" in types, str(types))
+            faqld = next(b for b in struct if b.get("@type") == "FAQPage")
+            balisees = [q["name"].replace(" ", " ").strip() for q in faqld["mainEntity"]]
+            affichees = p.evaluate("""()=>[...document.querySelectorAll('#questions .qa summary span')]
+                .map(e=>e.textContent.replace(/\\s+/g,' ').replace(/\\u00a0/g,' ').trim())""")
+            verifie(f"{page} : chaque question balisee est affichee, dans le meme ordre",
+                    balisees == affichees, str(balisees[:2]) + " / " + str(affichees[:2]))
+            verifie(f"{page} : aucune reponse balisee n'est vide",
+                    all(len(q["acceptedAnswer"]["text"]) > 40 for q in faqld["mainEntity"]))
+            brut = p.evaluate("""()=>[...document.querySelectorAll('script[type="application/ld+json"]')]
+                .map(e=>e.textContent).join(' ')""")
+            verifie(f"{page} : les donnees structurees n'annoncent ni note, ni avis, ni effectif",
+                    not any(x in brut for x in ("aggregateRating", "reviewCount", "ratingValue",
+                                                "numberOfEmployees", "Review")), brut[:120])
 
         # ── la derive du systeme de dessin ──────────────────────────────────
-        # Compte fait sur la feuille de la vitrine : trois jetons d'ombre
-        # existent (--sh-1, --sh-2, --sh-3) et deux seulement sont employes,
-        # pendant que dix-huit ombres sont ecrites a la main, chacune avec ses
-        # propres decalages et ses propres opacites. Meme chose pour les
-        # transparences : vingt-cinq opacites differentes du meme ivoire.
-        #
-        # Ce n'est pas un defaut qu'on corrige a la volee : ramener vingt-cinq
-        # opacites a six, ou dix-huit ombres a trois, change ce qu'on voit, et
-        # cela se decide en regardant le resultat, pas en remplacant du texte.
-        # Ce test ne corrige donc rien : il empeche seulement que ca empire. Les
-        # plafonds sont les valeurs du jour ou il a ete ecrit. Quand la
-        # consolidation sera faite, on les baissera.
+        # La feuille est ecrite a partir des jetons. Ce test empeche qu'elle se
+        # remplisse a nouveau d'ombres et d'opacites ecrites a la main : les
+        # plafonds sont les valeurs du jour de la refonte, et ils ne montent pas.
         feuille = (RACINE / "styles" / "vitrine.css").read_text(encoding="utf-8")
         feuille = re.sub(r"/\*.*?\*/", "", feuille, flags=re.S)
         ombres = {o.strip() for o in re.findall(r"box-shadow:\s*([^;}]+)", feuille)
                   if "var(--sh" not in o and o.strip() not in ("none", "inherit")}
-        # Le plafond etait a 18. En remplacant les trois cartes de chiffres du
-        # panneau de verre par des filets, une ombre interieure a disparu et une
-        # autre avec elle : le plafond descend a 16. C'est ce que ce test est
-        # cense faire, se resserrer quand le code s'ameliore.
         verifie("le nombre d'ombres ecrites a la main n'augmente pas",
-                len(ombres) <= 16, f"{len(ombres)} ombres distinctes, plafond 16")
-        for encre, plafond in (("242,240,233", 25), ("19,21,16", 21),
-                               ("11,38,32", 16), ("252,251,248", 12)):
+                len(ombres) <= 2, f"{len(ombres)} ombres distinctes, plafond 2")
+        for encre, plafond in (("242,240,233", 2), ("19,21,16", 8),
+                               ("11,38,32", 4), ("252,251,248", 2)):
             motif = r"rgba\(" + encre.replace(",", r",\s*") + r",\s*([.\d]+)\)"
             alphas = set(re.findall(motif, feuille))
             verifie(f"les opacites de rgba({encre}) n'augmentent pas",
@@ -713,77 +738,54 @@ def main():
         verifie("aucun rayon de bordure n'est ecrit en dur a la place du jeton",
                 "border-radius:999px" not in feuille
                 and "border-radius: 999px" not in feuille)
+        verifie("la feuille ne contient ni degrade, ni verre, ni filtre",
+                "gradient(" not in feuille and "backdrop-filter" not in feuille
+                and "blur(" not in feuille)
+        verifie("la feuille servie tient sous 24 Ko",
+                (RACINE / "styles" / "vitrine.min.css").stat().st_size < 24 * 1024)
 
-        # ── ce qui apparait au defilement ───────────────────────────────────
-        # Les apparitions sont pilotees par un IntersectionObserver, et un
-        # observateur ne promet rien quand la page bouge plus vite que lui : en
-        # faisant defiler par bonds de cinq cents pixels toutes les cent
-        # millisecondes, vingt blocs restaient a zero d'opacite. La mesure
-        # affolait pour rien — refaite au rythme d'une main humaine, avec la
-        # touche Fin, avec un lien d'ancre et avec une adresse qui porte deja
-        # son ancre, aucun bloc PRESENT A L'ECRAN n'est transparent.
-        #
-        # C'est cette phrase-la, et pas le compte total, qui est l'invariant :
-        # un bloc qu'on n'a pas encore atteint a le droit d'attendre son tour,
-        # un bloc qu'on regarde n'a pas le droit d'etre invisible.
-        # « A l'ecran » veut dire ce que le lecteur regarde, pas ce qui depasse.
-        # Premiere version : un seul pixel visible suffisait a compter. Elle
-        # signalait les quatre pilliers du premier ecran, dont treize pixels sur
-        # deux cent quarante-huit passent au-dessus de la ligne de flottaison a
-        # l'ouverture : ils n'apparaissent pas parce qu'on ne les a pas encore
-        # atteints, et c'est exactement ce qu'on leur demande. L'observateur des
-        # apparitions se declenche a six pour cent de la surface ; le test exige
-        # donc plus que lui, la moitie de la hauteur, pour ne signaler que ce
-        # qu'on est vraiment en train de lire.
-        A_L_ECRAN = """()=>[...document.querySelectorAll('.rv,.rl')].filter(e=>{
+        # ── ce qui apparait a l'ecran ───────────────────────────────────────
+        # Les apparitions au defilement ont disparu. Il reste un mouvement au
+        # chargement, sur la capture du heros, et il finit a pleine opacite.
+        # L'invariant, lui, ne change pas : un bloc qu'on regarde n'a pas le
+        # droit d'etre invisible, ou que l'on arrive dans la page.
+        A_L_ECRAN = """()=>[...document.querySelectorAll('.shot, h1, h2, h3, p')].filter(e=>{
             const r=e.getBoundingClientRect();
             if(!r.height) return false;
             const vu=Math.min(r.bottom,innerHeight)-Math.max(r.top,0);
             if(vu < r.height*0.5) return false;
             return parseFloat(getComputedStyle(e).opacity) < 0.9;})
             .map(e=>e.tagName+'.'+String(e.className).slice(0,24))"""
-
         p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
-        p.keyboard.press("End"); p.wait_for_timeout(2600)
+        p.keyboard.press("End"); p.wait_for_timeout(1200)
         verifie("touche Fin : rien de transparent a l'ecran",
                 not p.evaluate(A_L_ECRAN), str(p.evaluate(A_L_ECRAN)[:4]))
-
         p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
-        # Le defilement du navigateur est anime : l'observateur ne se declenche
-        # qu'une fois arrive, et la transition dure encore un demi-seconde apres.
-        p.click('.nav a[href="#prix"]'); p.wait_for_timeout(2600)
+        p.click('.nav-links a[href="#prix"]'); p.wait_for_timeout(1200)
         verifie("saut par le menu : rien de transparent a l'ecran",
                 not p.evaluate(A_L_ECRAN), str(p.evaluate(A_L_ECRAN)[:4]))
-
-        p.goto(BASE + "/#faq", wait_until="networkidle"); p.wait_for_timeout(2600)
+        p.goto(BASE + "/#questions", wait_until="networkidle"); p.wait_for_timeout(1200)
         verifie("adresse partagee avec une ancre : rien de transparent a l'ecran",
                 not p.evaluate(A_L_ECRAN), str(p.evaluate(A_L_ECRAN)[:4]))
-
-        # Premiere version de ce controle : verifier a chaque bond de 90 px. Elle
-        # signalait les quatre pilliers du premier ecran, qui n'ont rien : ils
-        # etaient simplement EN TRAIN d'apparaitre, la transition durant six
-        # dixiemes de seconde. Un bloc qui s'affiche n'est pas un bloc invisible.
-        # On s'arrete donc a douze endroits de la page, on laisse le temps a ce
-        # qui arrive d'arriver, et c'est la qu'on regarde.
-        p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
-        haut = p.evaluate("()=>document.documentElement.scrollHeight")
-        restes = []
-        for n in range(12):
-            p.evaluate(f"window.scrollTo(0,{int(n * (haut - 900) / 11)})")
-            p.wait_for_timeout(1300)
-            restes += p.evaluate(A_L_ECRAN)
-        verifie("a l'arret, nulle part sur la page, rien de transparent a l'ecran",
-                not restes, str(restes[:5]))
-        p.goto(BASE + "/", wait_until="networkidle")
+        p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(900)
+        verifie("au chargement, la capture du heros finit a pleine opacite",
+                p.evaluate("()=>getComputedStyle(document.querySelector('.shot-hero')).opacity") == "1")
+        # La riviere se trace quand la bande des moments entre a l'ecran ; avec
+        # moins de mouvement demande, elle est deja tracee.
+        rctx = nav.new_context(viewport={"width": 1440, "height": 900}, locale="fr-FR",
+                               reduced_motion="reduce")
+        r = rctx.new_page()
+        r.goto(BASE + "/", wait_until="networkidle"); r.wait_for_timeout(300)
+        verifie("avec moins de mouvement, la riviere est tracee sans attendre",
+                r.evaluate("()=>getComputedStyle(document.querySelector('.riviere-t')).strokeDashoffset") in ("0", "0px"))
+        verifie("avec moins de mouvement, la capture du heros ne bouge pas",
+                r.evaluate("()=>getComputedStyle(document.querySelector('.shot-hero')).animationName") == "none")
+        r.close(); rctx.close()
 
         # ── la longueur de ligne ────────────────────────────────────────────
         # Au-dela de quatre-vingts signes par ligne, l'oeil rate le retour a la
-        # ligne suivante et relit la meme. Un texte qu'on relit deux fois passe
-        # pour un texte obscur, et c'est la page qui en paie le prix.
-        # La mesure se fait avec la police REELLEMENT dessinee : le raccourci
-        # `font` de `getComputedStyle` revient parfois vide, et le canevas
-        # retombe alors sur 10 px sans que rien ne le dise. On reconstruit donc
-        # la declaration a partir de ses morceaux.
+        # ligne suivante et relit la meme. Mesure avec la police reellement
+        # dessinee ; les accordeons sont ouverts d'abord.
         MESURE_LIGNE = """()=>{
           const c = document.createElement('canvas').getContext('2d'), out = [];
           document.querySelectorAll('p,li,dd').forEach(el => {
@@ -802,27 +804,15 @@ def main():
         for page in ("/", "/associations.html", "/reglement.html", "/cgv.html",
                      "/inscription.html", "/asso.html?id=a2"):
             p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(350)
+            p.evaluate("()=>document.querySelectorAll('details').forEach(d=>d.open=true)")
             longues = p.evaluate(MESURE_LIGNE)
             verifie(f"aucune ligne au-dela de quatre-vingts signes sur {page}",
                     not longues, str(longues[:3]))
 
         # ── un filet de separation suit le sens de la grille ────────────────
-        # La rangee des trois parametres de la saison passe a UNE colonne sous
-        # 760 px, mais ses filets de separation restaient VERTICAUX : douze
-        # pixels de retrait et un trait a gauche sur le deuxieme et le troisieme
-        # chiffre, rien sur le premier. Les trois nombres ne s'alignaient plus,
-        # et deux traits d'un pixel flottaient sans separer quoi que ce soit.
-        #
-        # Le motif est general et se reconnait sans nommer de classe : dans une
-        # grille a UNE colonne, le premier enfant n'a pas de bord gauche et les
-        # suivants en ont un. C'est exactement la signature d'un separateur de
-        # colonnes qu'on a oublie de tourner en passant a l'empilement. Le test
-        # cherche donc ce motif partout, aux deux largeurs ou les grilles se
-        # replient.
-        #
-        # Un SEPARATEUR n'a qu'un bord gauche ; une CARTE a les quatre. Sans
-        # cette distinction le controle designait le panneau de reponse de la
-        # FAQ, qui est une carte encadree et parfaitement en place.
+        # Dans une grille a UNE colonne, un premier enfant sans bord gauche
+        # suivi d'enfants qui en ont un est la signature d'un separateur de
+        # colonnes qu'on a oublie de tourner en passant a l'empilement.
         MOTIF = """()=>{const out=[];
           const separateur = k => {const c=getComputedStyle(k);
             const n = s => parseFloat(s) || 0;
@@ -850,15 +840,22 @@ def main():
                         f" a {largeur} px", not restes, str(restes[:3]))
                 c6.close()
 
+        # ── rien ne deborde sur telephone ───────────────────────────────────
+        # Une page qui defile horizontalement sur un telephone est une page
+        # qu'on referme. Mesure a quatre largeurs, la plus etroite comprise.
+        for page in ("/", "/associations.html"):
+            for largeur in (320, 360, 390, 430):
+                c7 = nav.new_context(viewport={"width": largeur, "height": 800},
+                                     locale="fr-FR", reduced_motion="reduce")
+                q = c7.new_page()
+                q.goto(BASE + page, wait_until="networkidle"); q.wait_for_timeout(300)
+                q.evaluate("()=>document.querySelectorAll('details').forEach(d=>d.open=true)")
+                large = q.evaluate("()=>document.documentElement.scrollWidth")
+                verifie(f"aucun defilement horizontal sur {page} a {largeur} px",
+                        large <= largeur, f"{large} px de large")
+                c7.close()
+
         # ── aucun pied de page ne flotte au milieu de l'ecran ───────────────
-        # La page 404 fait 735 pixels de contenu : sur un ecran de 900, son pied
-        # de page s'arretait aux deux tiers et laissait cent soixante-cinq
-        # pixels d'ivoire vide dessous. Une page d'erreur est deja une
-        # deception, elle n'a pas besoin d'avoir l'air inachevee.
-        #
-        # La regle : ou bien la page est plus haute que la fenetre, ou bien son
-        # pied touche le bas. Rien entre les deux. Verifiee sur une fenetre
-        # haute, la seule ou le defaut se voit.
         for page in ("/404.html", "/rejoindre.html", "/inscription.html",
                      "/rejoindre.html?code=VAUDREY-7QK2"):
             c5 = nav.new_context(viewport={"width": 1440, "height": 1200},
@@ -876,18 +873,10 @@ def main():
             c5.close()
 
         # ── le haut de la grille est un PLANCHER, jamais un plafond ─────────
-        # Le dernier palier, deux mille salaries et plus, est marque sur devis :
-        # 18 500 EUR est le montant a partir duquel il commence, pas celui ou il
-        # s'arrete. Le premier ecran de l'accueil disait « 2 400 a 13 800 » et a
-        # ete corrige la nuit precedente ; la meme phrase avait survecu sur
-        # /inscription.html, c'est-a-dire sur la page ou l'on s'engage :
-        # « L'abonnement annuel va de 2 400 a 18 500 EUR HT ». Une fourchette
-        # fausse sur la page du formulaire se paie au premier rendez-vous.
-        #
-        # Le controle existant ne regardait que le chiffre du premier ecran de
-        # l'accueil. Celui-ci regarde TOUTES les pages : partout ou le montant du
-        # dernier palier apparait, les quarante signes qui le precedent doivent
-        # dire « a partir de » ou « sur devis ».
+        # Le dernier palier est marque sur devis : 18 500 EUR est le montant a
+        # partir duquel il commence, pas celui ou il s'arrete. Partout ou il
+        # apparait, les quarante signes qui le precedent disent « a partir de »
+        # ou « sur devis ».
         _haut = f"{grille['module'][-1]['prix']:,}".replace(",", " ")
         for page in ("/", "/associations.html", "/inscription.html", "/rejoindre.html",
                      "/cgv.html", "/reglement.html", "/engagements.html"):
@@ -906,102 +895,47 @@ def main():
                     not _fautes, str(_fautes[:2]))
 
         # ── plus de prénom nulle part ───────────────────────────────────────
-        # Les pages parlent au nom d'une équipe. Une vitrine qui met en avant une
-        # personne seule vend une dépendance, pas un service.
         for page in ("/", "/associations.html", "/inscription.html"):
             p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(250)
             verifie(f"aucun prénom de fondateur sur {page}",
                     "Yacine" not in p.inner_text("body"))
-        p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
         # ── plus un seul tiret cadratin ─────────────────────────────────────
-        # Ils ne sont pas fautifs, ils sont reconnaissables : sur une page
-        # française, une incise entre tirets cadratins à chaque paragraphe est
-        # le premier signe qui fait dire « c'est écrit par une machine ».
         for page in ("/", "/associations.html"):
             p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(250)
-            n = p.inner_text("body").count("\u2014")
+            n = p.inner_text("body").count("—")
             verifie(f"aucun tiret cadratin sur {page}", n == 0, str(n))
         p.goto(BASE + "/", wait_until="networkidle"); p.wait_for_timeout(400)
         corps = norm(texte_atteignable(p))
-        # Les quatre chiffres du premier écran sont des faits extérieurs, datés
-        # et sourcés, ou des propriétés du produit qui ne dépendent que de nous.
-        # Un chiffre de performance client à cet endroit serait le premier
-        # mensonge de la page, puisqu'il n'existe aucun client.
-        # On lit le HTML SERVI, pas le DOM animé : le compteur remplace
-        # temporairement la valeur pendant sa montée, et c'est justement le
-        # point — le nombre final doit être dans la source, là où le lisent un
-        # moteur d'indexation, un lecteur d'écran et un navigateur sans script.
+        # Les faits exterieurs sont dates et sources, et ils sont dans le HTML
+        # servi : c'est la que les lisent un moteur, un lecteur d'ecran et un
+        # navigateur sans script.
         src = norm(p.evaluate("()=>fetch('/').then(r=>r.text())"))
-        # On compare sans les entites : la source ecrit « 1&nbsp;lien », et une
-        # insecable est justement ce qu'on veut y trouver.
-        verifie("les chiffres de tête sont dans le HTML, pas seulement animés",
-                "21 août 2026" in src and "Déploiement" in src
-                and "Grille publique" in src)
-        # La bande du corps de page a ete retiree : quatre chiffres suivis de
-        # quatre paragraphes de source, c'etait un ecran de gris de plus. Le
-        # seul qui portait un argument, l'echeance de la commande publique, est
-        # remonte en une ligne sous le premier ecran. Ce que ce test protege est
-        # inchange : un chiffre de cette page est un fait exterieur date et
-        # source, ou une propriete verifiable du produit. Jamais un resultat
-        # client, puisqu'il n'y a aucun client.
-        # La comparaison ignore la casse : ces sources sont composees en
-        # capitales par la feuille de style, et c'est une decision de mise en
-        # page, pas une decision de contenu.
-        ch = norm(p.inner_text(".hero")).lower()
-        # « catalogue de la plateforme » etait la source du quatrieme chiffre,
-        # parti avec lui. Plutot que de retirer une chaine et d'affaiblir la
-        # recette, on remplace l'enumeration par l'invariant qu'elle essayait
-        # d'approcher : CHAQUE chiffre de tete porte sa ligne de source, quel
-        # que soit leur nombre. Un chiffre ajoute demain sans source fera
-        # echouer ce test, ce que la liste figee ne faisait pas.
-        verifie("l. 2152-7 et 238 bis restent les sources exterieures du premier écran",
-                "l. 2152-7" in ch and "238 bis" in ch)
-        verifie("les chiffres de tête sont sourcés ou ne dépendent que de nous",
-                p.locator(".hero .chiffres--hero li .mono").count()
-                == p.locator(".hero .chiffres--hero li").count()
-                == 3)
-        # Les sources sont composees en capitales par la feuille de style : on
-        # compare donc sur le texte replie en minuscules, sinon la recette
-        # depend d'un `text-transform`.
-        hero = norm(p.inner_text(".chiffres--hero")).lower()
-        # Meme cause : la troisieme source lue ici n'est plus le catalogue mais
-        # le deploiement (« 1 lien a diffuser »). Les trois sources attendues
-        # sont donc l'article du CGI, le deploiement, et le renvoi vers la
-        # grille publique plus bas dans la page.
-        verifie("les chiffres du premier écran portent leur source",
-                "238 bis" in hero and "déploiement" in hero
-                and "grille publique" in hero)
-        verifie("aucun n'est présenté comme un résultat obtenu par un client",
-                "clients" not in ch and "nos clients" not in ch
-                and "satisfaction" not in ch)
-        # Le mécénat est à deux taux depuis la loi de finances 2020 : 60 % jusqu'à
-        # deux millions d'euros de dons sur l'exercice, 40 % au-delà. Le second ne
-        # concernera probablement aucune PME de la cible — mais une phrase juste
-        # aux trois quarts est une phrase qu'on nous opposera le jour où elle
-        # comptera, et une page de vente n'a pas le droit d'être approximative sur
-        # un chiffre fiscal.
+        verifie("les faits exterieurs sont dans le HTML servi",
+                "21 août 2026" in src and "L. 2152-7" in src and "238 bis" in src)
+        # Le mécénat est à deux taux depuis la loi de finances 2020 : une phrase
+        # juste aux trois quarts est une phrase qu'on nous opposera.
         verifie("les deux taux du mécénat sont donnés, pas seulement le flatteur",
                 "60 %" in corps and "40 %" in corps
                 and "2 millions d'euros de dons" in corps)
-        # Le critère environnemental de la commande publique vaut pour les nouvelles
-        # consultations, sans seuil : le dire ainsi est ce qui rend l'argument
-        # opposable plutôt que séduisant.
+        verifie("le mécénat est écrit au conditionnel de la loi, pas en promesse",
+                "peut ouvrir droit" in corps and "éligibilité de l'organisme" in corps)
+        # Le critère environnemental de la commande publique vaut pour les
+        # nouvelles consultations, sans seuil : le dire ainsi rend l'argument
+        # opposable plutôt que séduisant. Il a quitte le premier ecran pour la
+        # question ou un acheteur le cherche.
         verifie("l'obligation de la commande publique est datée et bornée",
                 "nouvelle consultation" in corps and "L. 2152-7" in corps
                 and "2022-767" in corps)
-        verifie("l'offre groupe est présentée avec ses trois niveaux",
-                "trois niveaux" in corps.lower() and "siren" in corps.lower()
-                and "établissements" in corps.lower())
-        verifie("le cloisonnement du groupe est annoncé, pas suggéré",
-                "ne donne pas accès aux" in corps.lower()
-                or "Payer la facture" in corps)
+        verifie("et elle est dans la FAQ, pas dans le premier écran",
+                "L. 2152-7" not in norm(p.inner_text(".hero")))
         verifie("les services RSE disent ce qu'ils ne font pas",
                 "bilan carbone" in corps and "juge et partie" in corps
                 and "sous-déclarer" in corps)
-        verifie("le prix de l'offre groupe n'est pas inventé",
-                "sur devis" in corps)
+        verifie("le prix de l'offre groupe n'est pas inventé", "sur devis" in corps)
         verifie("aucune promesse de tarif figé",
                 "tarif restera" not in p.inner_text("body").lower())
+        verifie("jamais « certifier » en promesse : Riseva calcule, elle ne certifie pas",
+                "ne certifie pas" in corps and "rapports RSE certifiés" not in corps)
         for page in ["inscription.html", "associations.html", "asso.html?id=a1",
                      "mentions.html", "cgv.html", "reglement.html",
                      "charte-associations.html", "securite.html", "confidentialite.html",
@@ -1616,28 +1550,12 @@ def main():
         p.fill("#fa-asso", "Les Amis du Bocage"); p.fill("#fa-ville", "Rennes")
         p.fill("#fa-mot", "des bras un samedi matin")
         p.fill("#fa-mail", "contact@bocage.org")
-        # Le bulletin se remplit pendant la frappe : c'est ce qui donne envie d'aller
-        # au bout d'un formulaire.
-        verifie("le bulletin se remplit à mesure",
-                "4 / 4" in norm(p.inner_text("#bulletin")))
-        # Et la barre de progression suit reellement ce qui est saisi. Elle etait
-        # une courbe ondulee etiree en largeur : a deux champs sur quatre le trait
-        # ne tombait pas au milieu, et l'erreur changeait avec la fenetre.
-        # La largeur est animee : on laisse la transition finir avant de mesurer,
-        # sinon on mesure le depart et pas l'arrivee.
-        p.wait_for_timeout(700)
-        barre = p.evaluate("""()=>{const f=document.querySelector('#blBar');
-            return Math.round(f.getBoundingClientRect().width
-                   / f.parentElement.getBoundingClientRect().width * 100);}""")
-        verifie("la barre de progression est pleine quand les quatre champs le sont",
-                barre >= 99, str(barre) + " %")
-        p.fill("#fa-mail", ""); p.wait_for_timeout(650)
-        moitie = p.evaluate("""()=>{const f=document.querySelector('#blBar');
-            return Math.round(f.getBoundingClientRect().width
-                   / f.parentElement.getBoundingClientRect().width * 100);}""")
-        verifie("et elle redescend exactement d'un quart quand un champ se vide",
-                73 <= moitie <= 77, str(moitie) + " %")
-        p.fill("#fa-mail", "contact@bocage.org"); p.wait_for_timeout(400)
+        # La fiche qui se cochait a droite pendant la frappe a disparu avec le
+        # controle croise n. 3 : elle repetait les quatre champs qu'on venait de
+        # remplir. Ce qui reste a verifier, c'est que la phrase valide et envoie.
+        p.wait_for_timeout(300)
+        verifie("les quatre champs remplis sont tenus pour valides",
+                p.evaluate("()=>[...document.querySelectorAll('#formAsso .bk')].every(i=>i.value.trim().length>1)"))
 
         # On clique VRAIMENT sur le bouton, sans arranger la page avant : c'est
         # ce clic-la qui a revele que la ligne d'aide changeait de hauteur au
@@ -1940,7 +1858,8 @@ def main():
         # trois grands chiffres : mettre en scene l'absence de resultats lui
         # donnait autant de place qu'a une preuve. Il reste au meme endroit, et il
         # dit toujours la meme chose.
-        pr = norm(p.inner_text("#faq"))
+        p.evaluate("()=>document.querySelectorAll('#questions details').forEach(d=>d.open=true)")
+        pr = norm(p.inner_text("#questions"))
         verifie("la FAQ dit qu'il n'y a encore rien à montrer",
                 "jeu de démonstration" in pr
                 and "La première saison démarre en janvier" in pr)
@@ -3319,79 +3238,10 @@ def main():
                     f"{len(ecarts)} elements differents sur {len(servie)}")
             q.close(); c2.close()
 
-        # ── un point de la ligne du temps designe SON etape ────────────────
-        # Les points etaient des <circle> dans un SVG etire, poses au milieu de
-        # chaque colonne, alors que le texte de l'etape est cale a gauche de la
-        # sienne. Mesure a 1440 px sur la vitrine associations : etiquettes a 2,
-        # 428 et 854 pixels, points a 207, 620 et 1033. Chaque point designait
-        # l'espace entre deux etapes, et sur l'accueil, ou la ligne en compte
-        # cinq, le dernier tombait au-dela de la derniere.
-        #
-        # Ce test ne verifie pas une formule : il compare les positions REELLES.
-        # C'est necessaire, parce que la bonne position dependait d'un rapport
-        # gouttiere / largeur en clamp() qu'aucune valeur ecrite en dur ne
-        # pouvait suivre a toutes les fenetres. Les points sont donc poses par
-        # la meme grille que les etapes, et c'est cette egalite qui est testee.
-        for page in ("/", "/associations.html"):
-            for largeur in (1440, 1100):
-                c4 = nav.new_context(viewport={"width": largeur, "height": 900},
-                                     locale="fr-FR", reduced_motion="reduce")
-                q = c4.new_page()
-                q.goto(BASE + page, wait_until="networkidle")
-                q.keyboard.press("End"); q.wait_for_timeout(600)
-                ecarts = q.evaluate("""()=>{const out=[];
-                    document.querySelectorAll('.sais').forEach((s,k)=>{
-                      const pts=[...s.querySelectorAll('.sais-pts li')];
-                      const eta=[...s.querySelectorAll('.sais-steps li')];
-                      if(!pts.length) { out.push('ligne '+k+' sans points'); return; }
-                      if(pts.length!==eta.length){ out.push('ligne '+k+' : '+pts.length
-                        +' points pour '+eta.length+' etapes'); return; }
-                      if(getComputedStyle(pts[0]).display==='none') return;
-                      pts.forEach((pt,i)=>{
-                        const a=pt.getBoundingClientRect().left;
-                        const b=eta[i].getBoundingClientRect().left;
-                        if(Math.abs(a-b)>2) out.push('point '+(i+1)+' a '+Math.round(a-b)+' px');
-                      });
-                    });
-                    return out;}""")
-                verifie(f"chaque point de la ligne du temps est sur son etape"
-                        f" sur {page} a {largeur} px",
-                        not ecarts, str(ecarts[:3]))
-                c4.close()
-
-        # ── un detail decoupe dans une image doit contenir ce qu'il montre ──
-        # La vitrine montre un gros plan du bas de l'affiche : le code QR et le
-        # lien qu'il ouvre. Ce gros plan est une decoupe de affiche.jpg, aux
-        # proportions ecrites en dur dans captures.py — et elle s'arretait a
-        # 81,5 % de la hauteur alors que la carte descend jusqu'a 84,0 %. La
-        # vitrine affichait donc une carte a bord arrondi dont le bord du bas
-        # manquait, et un carre de code QR tranche net.
-        #
-        # Aucun controle existant ne pouvait le voir : le test de recadrage
-        # compare les proportions de la BOITE a celles du FICHIER, et ici les
-        # deux concordaient parfaitement — c'est le fichier lui-meme qui etait
-        # ampute. La difference se lit dans l'image, pas dans la mise en page.
-        #
-        # Ce qui est verifie : sur une bande de cinq pixels le long de chacun
-        # des quatre bords, aucune encre. Un bord qui coupe un trait, un cadre
-        # ou un code QR laisse forcement des pixels sombres contre le bord.
-        # Mesure temoin : l'ancienne decoupe donnait 0,57 % de pixels sombres
-        # en bas, la nouvelle en donne zero.
-        from PIL import Image as _I
-        _det = RACINE / "photos" / "affiche-qr.jpg"
-        if _det.exists():
-            _g = _I.open(_det).convert("L")
-            _w, _h, _b = _g.size[0], _g.size[1], 5
-            _bords = {"haut": (0, 0, _w, _b), "bas": (0, _h - _b, _w, _h),
-                      "gauche": (0, 0, _b, _h), "droite": (_w - _b, 0, _w, _h)}
-            _sales = []
-            for _nom, _box in _bords.items():
-                _d = list(_g.crop(_box).getdata())
-                _part = 100 * sum(1 for _v in _d if _v < 200) / len(_d)
-                if _part > 0.1:
-                    _sales.append(f"{_nom} {_part:.2f} %")
-            verifie("le detail du code QR ne coupe ni la carte ni le code",
-                    not _sales, " ; ".join(_sales))
+        # La ligne du temps a points et le gros plan du code QR ont quitte la
+        # vitrine avec la refonte de septembre 2026 (04-ARCHITECTURE.md, D) ;
+        # leurs deux controles sont partis avec eux plutot que de rester verts
+        # sur des selecteurs qui ne designent plus rien.
 
         # ── ce qui se coupe et ce qui deborde ───────────────────────────────
         # Deux defauts que rien ne signale et qu'on ne voit pas en relisant du
@@ -3490,42 +3340,37 @@ def main():
             verifie(f"rien de focusable ne se cache dans un bloc transparent sur {page}",
                     not fantomes, str(fantomes[:4]))
 
-        # ── le sommaire de la FAQ est un vrai jeu d'onglets ─────────────────
-        # Le motif ARIA etait a moitie ecrit : les boutons portaient role="tab"
-        # et aria-selected, mais rien ne les reliait a leur reponse. Un lecteur
-        # d'ecran annoncait « onglet, selectionne » sans pouvoir dire de quoi.
-        # Et les neuf boutons etaient dans le parcours de tabulation : il fallait
-        # appuyer neuf fois sur Tab pour traverser un sommaire, alors que le
-        # motif prevoit un seul onglet atteignable et des fleches pour le reste.
+        # ── la FAQ est faite d'accordeons natifs ────────────────────────────
+        # L'ancien sommaire etait un jeu d'onglets ARIA a moitie ecrit, et huit
+        # reponses restaient exposees aux lecteurs d'ecran. Les <details> font
+        # ce travail sans script : la question est un bouton natif, la reponse
+        # repliee sort de l'arbre et du parcours de tabulation, Entree et Espace
+        # ouvrent et ferment. Ce qui se mesure : chaque question est atteignable
+        # au clavier, une reponse repliee ne contient aucun lien focusable, la
+        # touche Entree ouvre bien la question qui a le focus.
         for page in ("/", "/associations.html"):
             p.goto(BASE + page, wait_until="networkidle"); p.wait_for_timeout(350)
-            haut = p.evaluate("()=>document.documentElement.scrollHeight")
-            for y in range(0, haut, 600):
-                p.evaluate("y=>window.scrollTo(0,y)", y); p.wait_for_timeout(30)
-            aria = p.evaluate("""()=>{
-                const t=[...document.querySelectorAll('.qa-link')];
-                const c=[...document.querySelectorAll('.qa-card')];
-                const casses=[];
-                t.forEach((b,i)=>{
-                  const cible=b.getAttribute('aria-controls');
-                  if(!cible || !document.getElementById(cible)) casses.push('onglet '+i+' sans panneau');
-                  const pan=c[i];
-                  if(pan.getAttribute('role')!=='tabpanel') casses.push('panneau '+i+' sans role');
-                  if(pan.getAttribute('aria-labelledby')!==b.id) casses.push('panneau '+i+' sans etiquette');
-                });
-                return {casses, dansLeTab:t.filter(x=>x.tabIndex===0).length, total:t.length};}""")
-            verifie(f"chaque question designe sa reponse et chaque reponse son onglet sur {page}",
-                    not aria["casses"], str(aria["casses"][:3]))
-            verifie(f"un seul onglet est atteignable au clavier sur {page}",
-                    aria["dansLeTab"] == 1, f'{aria["dansLeTab"]} sur {aria["total"]}')
-            # Les fleches doivent toujours parcourir la liste et deplacer le focus.
-            p.evaluate("()=>document.querySelector('#qaIndex .qa-link').focus()")
-            p.keyboard.press("ArrowDown"); p.wait_for_timeout(500)
-            suivi = p.evaluate("""()=>{const a=document.activeElement;
-                return a.classList.contains('qa-link') && a.getAttribute('aria-selected')==='true'
-                       && document.querySelectorAll('.qa-card.is-on').length===1;}""")
-            verifie(f"la fleche bas change de question et emmene le focus avec elle sur {page}",
-                    suivi)
+            etat = p.evaluate("""()=>{
+                const d=[...document.querySelectorAll('#questions details.qa')];
+                const summaries=d.map(x=>x.querySelector('summary'));
+                const focusables=summaries.filter(su=>su.tabIndex>=0).length;
+                const replies=d.filter(x=>!x.open);
+                // Un lien dans une reponse repliee ne doit pas pouvoir prendre le
+                // focus : on essaie, et on regarde qui l'a recu.
+                const liensCaches=replies.reduce((n,x)=>n+[...x.querySelectorAll('a')]
+                    .filter(a=>{a.focus(); const pris=document.activeElement===a; a.blur(); return pris;}).length,0);
+                return {total:d.length, focusables, replies:replies.length, liensCaches};}""")
+            verifie(f"chaque question de la FAQ est un bouton natif atteignable au clavier sur {page}",
+                    etat["total"] >= 7 and etat["focusables"] == etat["total"], str(etat))
+            verifie(f"aucune reponse repliee n'expose un lien sur {page}",
+                    etat["liensCaches"] == 0, str(etat))
+            p.evaluate("()=>document.querySelectorAll('#questions details.qa')[1].querySelector('summary').focus()")
+            p.keyboard.press("Enter"); p.wait_for_timeout(200)
+            verifie(f"Entree ouvre la question qui a le focus sur {page}",
+                    p.evaluate("()=>document.querySelectorAll('#questions details.qa')[1].open") is True)
+            p.keyboard.press("Enter"); p.wait_for_timeout(200)
+            verifie(f"et Entree la referme sur {page}",
+                    p.evaluate("()=>document.querySelectorAll('#questions details.qa')[1].open") is False)
         sans_alt = p.eval_on_selector_all("img", "l=>l.filter(i=>!i.hasAttribute('alt')).length")
         verifie("toutes les images ont un alt", sans_alt == 0, f"{sans_alt} sans alt")
 

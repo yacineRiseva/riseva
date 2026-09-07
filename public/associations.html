@@ -4,397 +4,322 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Riseva, pour les associations</title>
-<meta name="description" content="Publiez un besoin concret, des salariés d'entreprises abonnées peuvent y répondre. Gratuit, sans exclusivité, sans commission sur vos dons.">
-<meta name="theme-color" content="#FCFBF8">
+<meta name="description" content="Écrivez ce qui vous manque : des salariés d'entreprises abonnées à moins de trente kilomètres peuvent y répondre. Gratuit, sans exclusivité, sans commission.">
+<meta name="theme-color" content="#F2F0E9">
 <link rel="canonical" href="https://riseva.fr/associations.html">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="fr_FR">
 <meta property="og:site_name" content="Riseva">
 <meta property="og:title" content="Riseva, pour les associations">
-<meta property="og:description" content="Publiez un besoin concret, des salariés d'entreprises abonnées peuvent y répondre. Gratuit, sans exclusivité, sans commission sur vos dons.">
+<meta property="og:description" content="Écrivez ce qui vous manque : des salariés d'entreprises abonnées à moins de trente kilomètres peuvent y répondre. Gratuit, sans exclusivité, sans commission.">
 <meta property="og:url" content="https://riseva.fr/associations.html">
+<meta property="og:image" content="https://riseva.fr/captures/admin-tableau.jpg">
 <link rel="icon" href="/brand/riseva-mark.png">
+<!-- Les deux polices sont servies par Riseva et prechargees : elles decident du
+     premier rendu, et le repli est cale sur leurs metriques (polices.css). -->
+<link rel="preload" href="/brand/polices/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/brand/polices/inter.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/styles/polices.css">
 <!-- La feuille servie est engendree depuis vitrine.css par scripts/css.py :
-     meme regles, sans les commentaires. 206 Ko deviennent 117, et 52 Ko
-     compresses deviennent 23, sur la ressource qui bloque le premier rendu.
-     Les corrections vont dans vitrine.css, jamais ici. -->
+     memes regles, sans les commentaires. Les corrections vont dans vitrine.css. -->
 <link rel="stylesheet" href="/styles/vitrine.min.css">
-<!-- Une classe posée avant le premier rendu, et rien d'autre. Les apparitions au
-     défilement sont écrites « .js .rv », donc sans script le contenu est visible
-     dès le départ : c'est le seul moyen qu'une animation ne puisse jamais
-     conditionner l'affichage de ce qu'elle accompagne. -->
+<!-- Une classe posee avant le premier rendu, et rien d'autre. Les trois
+     mouvements de la page sont ecrits « .js ... » : sans script, tout est en
+     place des le depart. -->
 <script>document.documentElement.className+=" js";</script>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Riseva","url":"https://riseva.fr/","logo":"https://riseva.fr/brand/riseva-full.png","description":"Plateforme RSE francaise pour entreprises multi-sites : collecte des indicateurs, rapports trimestriels, et missions aupres d'associations verifiees pres de chaque site.","areaServed":"FR","contactPoint":[{"@type":"ContactPoint","contactType":"sales","email":"contact@riseva.fr","availableLanguage":["fr"]}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Riseva","url":"https://riseva.fr/","logo":"https://riseva.fr/brand/riseva-full.png","description":"Plateforme RSE française pour entreprises multi-sites : missions auprès d'associations vérifiées près de chaque site, confirmées par l'association, indicateurs sociaux et sécurité, rapports trimestriels et annuel.","areaServed":"FR","contactPoint":[{"@type":"ContactPoint","contactType":"sales","email":"contact@riseva.fr","availableLanguage":["fr"]}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Et si personne ne vient ?","acceptedAnswer":{"@type":"Answer","text":"Ça peut arriver, surtout la première saison : Riseva démarre et les entreprises abonnées ne couvrent pas encore tout le territoire. Votre annonce reste publiée, et votre tableau de bord indique combien d'entreprises abonnées ont un site à moins de trente kilomètres de chez vous, y compris zéro."}},{"@type":"Question","name":"C'est vraiment gratuit ?","acceptedAnswer":{"@type":"Answer","text":"Oui. Les associations ne paient rien, ni abonnement, ni commission sur les dons, ni frais de dossier. Ce sont les entreprises qui paient l'abonnement, et c'est le seul revenu de Riseva."}},{"@type":"Question","name":"Combien de temps ça me prend ?","acceptedAnswer":{"@type":"Answer","text":"Le temps d'écrire une annonce à partir d'un des six modèles, puis un courriel pour confirmer après la mission. La première mise en ligne attend que nous ayons vérifié votre enregistrement administratif ; ensuite, vous publiez quand vous voulez. Il n'y a pas de tableau de bord à surveiller, pas de fichier à tenir, pas de rapport à produire pour l'entreprise. Si écrire l'annonce vous rebute, le formulaire propose les formats les plus demandés et vous n'avez qu'à changer la date et le nombre de places. Rien n'est publié tant que vous n'avez pas relu."}},{"@type":"Question","name":"Est-ce que je peux refuser quelqu'un ?","acceptedAnswer":{"@type":"Answer","text":"Oui, sans avoir à vous justifier. Vous fixez le nombre de places, les dates, ce que vous acceptez et ce que vous n'acceptez pas. Une proposition peut être déclinée d'un clic."}},{"@type":"Question","name":"Et si je ne réponds pas à temps ?","acceptedAnswer":{"@type":"Answer","text":"Rien de grave. Sans réponse de votre part sous quatorze jours, la mission est clôturée automatiquement sans confirmation : l'entreprise marque ses points, mais le résultat reste écrit comme estimé partout où il apparaît. Ce n'est pas une faute, ça n'entraîne aucune suspension, et vous pouvez répondre plus tard."}},{"@type":"Question","name":"Qui est assuré ?","acceptedAnswer":{"@type":"Answer","text":"Sur son temps de travail, le salarié reste couvert par le régime d'accident du travail de son employeur. Hors temps de travail, il est bénévole et la couverture dépend de votre contrat : la responsabilité civile de l'association couvre en général ce qu'il cause, pas forcément ce qu'il subit. La charte détaille qui couvre quoi, et l'annonce doit dire ce qui est couvert."}},{"@type":"Question","name":"Qui peut s'inscrire ?","acceptedAnswer":{"@type":"Answer","text":"Toute association déclarée, y compris de droit local d'Alsace-Moselle. Un numéro, RNA ou SIREN, accélère la vérification sans être obligatoire : beaucoup d'associations déclarées n'ont pas de SIREN. Nous vérifions l'enregistrement administratif avant de publier votre page, et nous vous disons ce qui manque le cas échéant. Pour les dons ouvrant droit à un reçu fiscal, c'est vous qui appréciez votre éligibilité au titre de l'article 200 ou 238 bis du CGI, comme aujourd'hui. La charte détaille ce point."}},{"@type":"Question","name":"Qu'est-ce que vous faites de nos données ?","acceptedAnswer":{"@type":"Answer","text":"Votre page publique contient ce que vous y mettez, rien d'autre. Nous ne revendons aucune donnée, nous n'envoyons pas les coordonnées de vos bénévoles aux entreprises, et vous pouvez fermer votre compte quand vous voulez. Le détail est ici ."}}]}</script>
 </head>
-<body class="va">
+<body class="page-asso">
+<a class="sr-only" href="#contenu">Aller au contenu</a>
 
-
-<a class="sr-only" href="#hero">Aller au contenu</a>
-
-<nav class="nav" id="nav">
-  <a class="nav-brand" href="#hero" aria-label="Riseva, accueil">
-    <img src="/brand/riseva-full.png" alt="Riseva" width="392" height="88">
-  </a>
-  <div class="nav-links">
-    <a href="#comment">Comment ça marche</a>
-    <a href="#challenge">Pourquoi les entreprises viennent</a>
-    <a href="#argent">Les dons</a>
-    <a href="#faq">Vos questions</a>
-  </div>
-  <a class="btn" href="#commencer"><span class="dot"></span>Ouvrir mon espace</a>
-  <button class="nav-burger" id="navBurger" type="button"
-          aria-expanded="false" aria-controls="navSheet" aria-label="Ouvrir le menu">
-    <span></span><span></span>
-  </button>
-</nav>
-
-<div class="nav-sheet" id="navSheet" hidden>
-  <nav aria-label="Menu principal">
-    <a href="#comment"><span class="mono">01</span>Comment ça marche</a>
-    <a href="#challenge"><span class="mono">02</span>Pourquoi les entreprises viennent</a>
-    <a href="#argent"><span class="mono">03</span>Les dons</a>
-    <a href="#faq"><span class="mono">04</span>Vos questions</a>
-  </nav>
-  <a class="btn btn-lg" href="#commencer"><span class="dot"></span>Ouvrir mon espace</a>
-  <p class="mono">Gratuit, et sans exclusivité</p>
-</div>
-
-<header class="hero hero--doc" id="hero">
-  <div class="layer">
-    <p class="eyebrow mono">Gratuit. Ce sont les entreprises qui paient</p>
-    <h1 class="h1 h1--doc h1--court">Écrivez ce qui vous manque.<br>
-      <span class="it">Des entreprises d'à côté peuvent y répondre.</span></h1>
-
-    <div class="doc-tete doc-tete--apercu">
-      <div class="doc-intro">
-        <p class="doc-accroche">Des bras pour une demi-journée, du matériel dont une
-          entreprise n'a plus l'usage, ou un don. Vous décidez de ce que vous acceptez, et
-          <b>c'est vous qui confirmez</b> ce qui a eu lieu.</p>
-        <div class="hero-cta">
-          <a class="btn btn-lg" href="#commencer"><span class="dot"></span>Ouvrir mon espace</a>
-          <a class="tlink" href="#comment">Voir comment ça marche</a>
-        </div>
-        <p class="doc-garanties">Sans exclusivité. Sans commission sur vos dons.
-          Rien à installer.</p>
-        <p class="doc-micro">Quatre lignes pour ouvrir votre espace, cinq minutes pour votre
-          première annonce.</p>
-      </div>
-
-      <figure class="apercu">
-        <figure class="photo photo--apercu">
-        <picture><source type="image/webp" srcset="/photos/refuge-sortie-760.webp 760w, /photos/refuge-sortie-1120.webp 1120w" sizes="(max-width: 900px) 92vw, 46vw">
-        <img src="/photos/refuge-sortie.jpg" alt="Deux personnes promènent cinq chiens en laisse sur un chemin de campagne bordé d'arbres, un matin d'été" loading="eager" fetchpriority="high" decoding="async"
-             width="1358" height="772"></picture>
-      </figure>
-        <figcaption>Une demi-journée de sortie de chiens, telle qu'une association peut la
-          demander sur Riseva. Illustration générée, aucune mission réelle.</figcaption>
-      </figure>
+<header class="nav" id="nav">
+  <div class="wrap nav-in">
+    <a class="nav-brand" href="/" aria-label="Riseva, accueil">
+      <img src="/brand/riseva-full.png" alt="Riseva" width="392" height="88">
+    </a>
+    <nav class="nav-links" aria-label="Sections de la page">
+      <a href="#comment">Comment ça marche</a>
+      <a href="#controle">Ce que vous gardez</a>
+      <a href="#argent">Les dons</a>
+      <a href="#questions">Questions</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="nav-alt" href="/">Entreprises</a>
+      <a class="btn btn-nav" href="#commencer">S'inscrire</a>
+      <button class="nav-menu" id="navMenu" type="button" aria-haspopup="dialog"
+              aria-controls="menu" aria-label="Ouvrir le menu"><span></span><span></span></button>
     </div>
-
-    
-    <ul class="chiffres chiffres--hero rv">
-      <li><b>0&nbsp;€</b><span>à payer, aujourd'hui et après, et aucune commission sur vos
-        dons.<br><span class="mono">Ce que ça vous coûte</span></span></li>
-      <li><b>5&nbsp;minutes</b><span>pour écrire une première annonce. Six modèles sont déjà
-        écrits : vous changez la date. Elle paraît une fois votre enregistrement
-        vérifié.<br><span class="mono">Des bras, du matériel, de
-        l'argent</span></span></li>
-      <li><b>1&nbsp;courriel</b><span>pour confirmer une mission : le lien ouvre la page de
-        décision, vous répondez, c'est fini. Rien à installer, aucun logiciel à
-        apprendre.<br><span class="mono">La confirmation</span></span></li>
-      <li><b>30&nbsp;km</b><span>le rayon dans lequel les salariés des entreprises abonnées voient
-        vos besoins autour de leur site.<br><span class="mono">Annuaire et
-        annonces</span></span></li>
-    </ul>
-
-    <div class="doc-tete doc-tete--fiche">
-      <div class="doc-intro">
-        <p>Vous ne changez rien à ce que vous faites déjà. Riseva ne vous demande ni
-          exclusivité, ni contrepartie, ni logo : elle vous rend visible auprès des entreprises
-          abonnées autour de vous, et elle s'efface une fois que le contact est pris.</p>
-      </div>
-
-    </div>
-
-    <figure class="shot shot--large">
-        <picture><source type="image/webp" srcset="/captures/asso-tableau-760.webp 760w, /captures/asso-tableau-1120.webp 1120w, /captures/asso-tableau-1440.webp 1440w" sizes="(max-width: 900px) 92vw, 86vw">
-        <img src="/captures/asso-tableau.jpg" alt="Le tableau de bord d'une association dans Riseva" loading="lazy" decoding="async"
-             width="2264" height="462"></picture>
-        <figcaption class="mono">Le tableau de bord d'une association, avec des chiffres de démonstration</figcaption>
-      </figure>
   </div>
 </header>
 
-<section id="comment" class="band">
-  <div class="layer">
-    <div class="s-head">
-      <div class="rv">
-        <div class="eyebrow mono">Comment ça marche</div>
-        <h2>Trois gestes,<br><span class='it'>et c'est tout.</span></h2>
-      </div>
-      <p class="s-note rv d2">Riseva se charge du reste : les invitations, les rappels, et le suivi des missions.</p>
+<dialog class="menu" id="menu" aria-label="Menu">
+  <div class="menu-in">
+    <div class="menu-top">
+      <img src="/brand/riseva-full.png" alt="Riseva" width="392" height="88">
+      <button class="menu-close" id="menuClose" type="button" aria-label="Fermer le menu">
+        <span></span><span></span></button>
     </div>
+    <nav class="menu-links" aria-label="Sections de la page">
+      <a href="#comment">Comment ça marche</a>
+      <a href="#controle">Ce que vous gardez</a>
+      <a href="#argent">Les dons</a>
+      <a href="#questions">Questions</a>
+      <a class="menu-alt" href="/">Entreprises</a>
+    </nav>
+    <a class="btn btn-lg" href="#commencer">S'inscrire</a>
+    <p class="menu-note">Gratuit, sans exclusivité, sans commission sur vos dons.</p>
+  </div>
+</dialog>
 
-    <div class="sais" style="--etapes:3">
-      <svg class="sais-line" viewBox="0 0 1200 100" preserveAspectRatio="none" aria-hidden="true">
-        <path pathLength="1" d="M-10,50 L1210,50"></path>
-      </svg>
-      <ol class="sais-pts" aria-hidden="true"><li></li><li></li><li></li></ol>
-      <ol class="sais-steps">
-        <li class="rv">
-          <b class="mono">01 - Vous publiez</b>
-          <h3>Une <span class='it'>annonce.</span></h3>
-          <p>Ce dont vous avez besoin, pour quelle date, combien de personnes. Cinq minutes, et le formulaire vous propose les formats les plus demandés.</p>
-        </li>
-        <li class="rv d1">
-          <b class="mono">02 - Des salariés répondent</b>
-          <h3>Ils <span class='it'>viennent.</span></h3>
-          <p>Les salariés des entreprises abonnées proches de chez vous voient l'annonce et se proposent. Vous voyez qui vient et pour quelle date.</p>
-        </li>
-        <li class="rv d2">
-          <b class="mono">03 - Vous confirmez</b>
-          <h3>En <span class='it'>un clic.</span></h3>
-          <p>Après la date, vous recevez un courriel avec un lien. Il ouvre une page qui pose une seule question, avec trois réponses possibles, dont « réalisée partiellement » avec le chiffre réel. Rien à ressaisir dans votre espace, aucun rapport à écrire.</p>
-        </li>
-      </ol>
+<main id="contenu">
+<section class="hero hero-asso" id="hero">
+  <div class="wrap">
+    <div class="hero-txt">
+      <p class="eyebrow">Gratuit. Ce sont les entreprises qui paient.</p>
+      <h1>Écrivez ce qui vous manque.<br>Des entreprises d'à côté peuvent y répondre.</h1>
+      <p class="lede">Des bras pour une demi-journée, du matériel dont une entreprise n'a plus
+        l'usage, ou un don. Vous décidez de ce que vous acceptez, et c'est vous qui confirmez ce
+        qui a eu lieu.</p>
+      <div class="cta">
+        <a class="btn btn-lg" href="#commencer">Écrire ce qui nous manque</a>
+        <a class="btn btn-lg btn-2" href="#comment">Voir comment ça marche</a>
+      </div>
+      <p class="hero-note">Six modèles pour écrire votre première annonce, un courriel pour
+        confirmer. Les salariés des entreprises abonnées à moins de trente kilomètres la voient
+        comme ici, points compris&nbsp;: ils comptent pour leur entreprise, jamais pour vous.</p>
     </div>
+    <figure class="shot shot-carte" style="max-width:461px"><picture><source media="(max-width: 640px)" width="680" height="1070" type="image/webp" srcset="/captures/annonce-carte-mobile-760.webp 760w" sizes="92vw"><source media="(max-width: 640px)" srcset="/captures/annonce-carte-mobile.jpg" width="680" height="1070"><source type="image/webp" srcset="/captures/annonce-carte-760.webp 760w" sizes="(max-width: 900px) 92vw, (max-width: 1240px) 40vw, 484px"><img src="/captures/annonce-carte.jpg" alt="Une annonce telle qu'un salarié la voit : le nom de l'association, le format, l'objectif, la date, les places restantes, et le bouton Participer" loading="eager" fetchpriority="high" decoding="async" width="922" height="884"></picture></figure>
   </div>
 </section>
 
-<section id="challenge">
-  <div class="layer">
-    <div class="s-head">
-      <div class="rv">
-        <div class="eyebrow mono">Pourquoi les entreprises viennent</div>
-        <h2>Ce qu'une entreprise<br><span class='it'>vient chercher&nbsp;ici.</span></h2>
+<section class="s" id="comment">
+  <div class="wrap">
+  <div class="s-head">
+    <h2>Publier, choisir, confirmer.</h2>
+    <p class="s-intro">Les écrans viennent du jeu de démonstration&nbsp;: l'interface est réelle, les noms et les chiffres sont fictifs.</p>
+  </div>
+  <ol class="etapes-asso">
+    <li class="etape">
+      <div class="etape-txt">
+        <p class="moment-n" aria-hidden="true">1</p>
+        <h3>Vous publiez</h3>
+        <p>Six modèles déjà écrits&nbsp;: des bras un samedi, une journée entière, une compétence, du matériel, un parrainage, un coup de main financier. Vous changez la date et le nombre de places. Rien ne part tant que vous n'avez pas relu.</p>
       </div>
-      <p class="s-note rv d2">Elle paie un abonnement, ses salariés veulent une action concrète près de chez eux, et le mécénat de compétences comme le don en nature ouvrent droit à une réduction d'impôt prévue par l'article 238 bis du code général des impôts. Voilà pourquoi c'est gratuit pour vous : vous n'êtes pas le produit, vous êtes ce qu'elles cherchent.</p>
-    </div>
-
-    <div class="photos3">
-      <!-- C'etait la meme photographie de sortie de chiens que celle du premier
-           ecran, mille deux cents pixels plus haut : la page se repetait en
-           images comme d'autres se repetent en mots. Celle-ci montre en plus ce
-           que la page ne montrait nulle part, des salaries en tenue de travail
-           qui partent, alors que tout le reste est du cote de la campagne et
-           des animaux. -->
-      <figure class="photo">
-        <picture><source type="image/webp" srcset="/photos/depart-chantier-760.webp 760w, /photos/depart-chantier-1120.webp 1120w" sizes="(max-width: 900px) 92vw, 46vw">
-        <img src="/photos/depart-chantier.jpg" alt="Quatre salariés en tenue de travail chargent un fourgon au petit matin, devant un site industriel" loading="lazy" decoding="async"
-             width="1284" height="772"></picture>
-      </figure>
-      <figure class="photo">
-        <picture><source type="image/webp" srcset="/photos/collecte-760.webp 760w" sizes="(max-width: 900px) 92vw, 46vw">
-        <img src="/photos/collecte.jpg" alt="Des mains gantées trient des conserves et des légumes dans des cagettes, dans une salle claire" loading="lazy" decoding="async"
-             width="1062" height="772"></picture>
-      </figure>
-      <figure class="photo">
-        <picture><source type="image/webp" srcset="/photos/refuge-chats-760.webp 760w, /photos/refuge-chats-1120.webp 1120w" sizes="(max-width: 900px) 92vw, 46vw">
-        <img src="/photos/refuge-chats.jpg" alt="Un chat roux se laisse gratter sous le menton dans une salle de refuge claire" loading="lazy" decoding="async"
-             width="1358" height="772"></picture>
-      </figure>
-    </div>
-
-    <div class="trois3">
-      <div><h3>C'est vous qui confirmez</h3>
-        <p>Vous dites si la mission a eu lieu, en un clic, depuis un courriel. Sans réponse
-          sous quatorze jours, elle est comptée mais reste écrite comme non confirmée, et le
-          résultat comme estimé. Ce n'est pas une faute, et vous pouvez répondre plus tard.</p></div>
-      <div><h3>Elles cherchent près de chez vous</h3>
-        <p>Votre fiche entre dans l'annuaire de chaque entreprise abonnée dès que votre
-          enregistrement est vérifié, que vous ayez publié une annonce ou non : leurs salariés
-          peuvent vous trouver, lire ce que vous faites et vous contacter. Une annonce ouverte
-          vous fait remonter en plus dans les besoins à trente kilomètres de leurs sites.</p></div>
-      <div><h3>Vous ne leur devez rien</h3>
-        <p>Pas de contrepartie, pas de logo obligatoire, pas de compte à rendre. Vous acceptez
-          ou vous refusez une proposition sans avoir à vous justifier.</p></div>
-    </div>
+      <figure class="shot shot-tapis"><picture><source media="(max-width: 640px)" width="764" height="1220" type="image/webp" srcset="/captures/annonce-formulaire-mobile-760.webp 760w" sizes="92vw"><source media="(max-width: 640px)" srcset="/captures/annonce-formulaire-mobile.jpg" width="764" height="1220"><source type="image/webp" srcset="/captures/annonce-formulaire-760.webp 760w" sizes="(max-width: 900px) 92vw, (max-width: 1240px) 56vw, 691px"><img src="/captures/annonce-formulaire.jpg" alt="Le formulaire de publication d'une annonce, avec ses six modèles et le choix du format" loading="lazy" decoding="async" width="1040" height="1040" style="max-width:min(100%,582px)"></picture></figure>
+    </li>
+    <li class="etape">
+      <div class="etape-txt">
+        <p class="moment-n" aria-hidden="true">2</p>
+        <h3>Des salariés se proposent</h3>
+        <p>Les salariés des entreprises abonnées autour de vous voient l'annonce et se proposent sur une date. Vous voyez qui vient. Vous acceptez ou vous refusez, sans vous justifier.</p>
+      </div>
+      <figure class="shot shot-tapis"><picture><source type="image/webp" srcset="/captures/qui-vient-760.webp 760w, /captures/qui-vient-1120.webp 1120w" sizes="(max-width: 900px) 92vw, (max-width: 1240px) 56vw, 691px"><img src="/captures/qui-vient.jpg" alt="La liste de qui vient : le salarié, son entreprise, la mission et la date" loading="lazy" decoding="async" width="1284" height="441" style="max-width:min(100%,479px)"></picture></figure>
+    </li>
+    <li class="etape">
+      <div class="etape-txt">
+        <p class="moment-n" aria-hidden="true">3</p>
+        <h3>Vous confirmez</h3>
+        <p>Après la mission, vous recevez un courriel. Une question, trois réponses, dont « réalisée partiellement » avec le chiffre réel. Rien à ressaisir dans votre espace, aucun rapport à écrire.</p>
+        <p class="moment-note">Sans réponse de votre part sous quatorze jours, la mission est <b>clôturée automatiquement sans confirmation</b>&nbsp;: l'entreprise marque ses points, mais le résultat reste écrit comme estimé partout où il apparaît. Ce n'est pas une faute, et vous pouvez répondre plus tard.</p>
+      </div>
+      <figure class="shot shot-tapis"><picture><source media="(max-width: 640px)" width="780" height="1418" type="image/webp" srcset="/captures/confirmation-mobile-760.webp 760w" sizes="92vw"><source media="(max-width: 640px)" srcset="/captures/confirmation-mobile.jpg" width="780" height="1418"><source type="image/webp" srcset="/captures/confirmation-760.webp 760w, /captures/confirmation-1120.webp 1120w" sizes="(max-width: 900px) 92vw, (max-width: 1240px) 56vw, 691px"><img src="/captures/confirmation.jpg" alt="La page qu'ouvre le courriel de confirmation : une question, trois réponses" loading="lazy" decoding="async" width="1280" height="1160" style="max-width:min(100%,717px)"></picture></figure>
+    </li>
+  </ol>
+  <div class="cta cta-centre">
+    <a class="btn btn-lg" href="#commencer">Écrire ce qui nous manque</a>
+  </div>
   </div>
 </section>
 
-<section id="argent" class="band-moss">
-  <div class="layer">
-    <div class="s-head">
-      <div class="rv">
-        <div class="eyebrow mono">Les dons</div>
-        <h2>L'argent arrive<br><span class='it'>directement chez vous.</span></h2>
-      </div>
-      <p class="s-note rv d2">Riseva n'encaisse rien et ne prélève rien.</p>
+<section class="s s-sunk" id="controle">
+  <div class="wrap">
+  <div class="s-head">
+    <h2>Vous gardez la main, du début à la fin.</h2>
+  </div>
+  <div class="controle">
+    <ul class="liste liste-grande">
+      <li>Vous choisissez le besoin, la date et le nombre de places.</li>
+      <li>Vous acceptez ou refusez une proposition d'un clic, sans avoir à vous justifier.</li>
+      <li>Vous modifiez ou retirez une annonce quand vous voulez.</li>
+      <li>Vous ne confirmez que ce qui a eu lieu, et un silence n'est jamais une faute.</li>
+      <li>Vous partez quand vous voulez, avec vos données, exportées dans un format lisible.</li>
+      <li>Aucune exclusivité, aucune contrepartie, aucun logo à afficher.</li>
+    </ul>
+    <div class="assure">
+      <h3>Qui est assuré&nbsp;?</h3>
+      <p>Sur son temps de travail, le salarié reste salarié de son entreprise&nbsp;: un accident
+        chez vous relève du régime d'accident du travail de son employeur. Hors temps de travail,
+        c'est un bénévole, et la couverture dépend de votre contrat&nbsp;: votre responsabilité
+        civile couvre en général ce qu'il cause à autrui, pas forcément ce qu'il subit.</p>
+      <p><a href="/charte-associations.html">La charte</a> détaille qui couvre quoi. L'annonce
+        doit dire ce qui est couvert&nbsp;: un bénévole a le droit de le savoir avant de venir.</p>
     </div>
-
-    <div class="duo duo--texte">
-      <div class="col">
-        <h3>Par carte, sur votre compte HelloAsso</h3>
-        <p>Vous connectez votre compte HelloAsso une fois, depuis leur page d'autorisation.
-          Ensuite, un donateur paie par carte sur la page de HelloAsso et l'argent arrive chez
-          vous. L'argent ne transite jamais par Riseva : ni commission de notre part, ni délai
-          de reversement, ni plafond.</p>
-        <p>Le don apparaît chez vous tout de suite après le paiement, sans référence à
-          recopier ni rapprochement à faire.</p>
-        <p class="mono">Pas encore de compte HelloAsso ? En ouvrir un est gratuit et prend
-          quelques minutes. En attendant, le virement reste possible.</p>
-      </div>
-      <div class="col">
-        <h3>Les reçus fiscaux restent les vôtres</h3>
-        <p>Rien ne change : c'est vous qui les émettez, comme aujourd'hui. Si vous nous le
-          demandez par écrit, nous préparons le document à partir de vos informations pour
-          vous éviter la saisie, et vous le relisez avant de le signer. Sans cette demande
-          écrite, nous ne préparons rien du tout.</p>
-        <p><a class="tlink" href="/charte-associations.html">La charte des associations</a></p>
-      </div>
-    </div>
-
-    <figure class="shot shot--seule">
-        <picture><source type="image/webp" srcset="/captures/asso-valider-760.webp 760w, /captures/asso-valider-1120.webp 1120w, /captures/asso-valider-1440.webp 1440w" sizes="(max-width: 900px) 92vw, 86vw">
-        <img src="/captures/asso-valider.jpg" alt="L'écran par lequel une association confirme ce qui a été réalisé" loading="lazy" decoding="async"
-             width="1784" height="760"></picture>
-        <figcaption class="mono">Confirmer une mission</figcaption>
-      </figure>
+  </div>
   </div>
 </section>
 
-<section id="faq" class="band">
-  <div class="layer">
-    <div class="s-head">
-      <div class="rv">
-        <div class="eyebrow mono">La FAQ</div>
-        <h2>Ce que vous voudrez vérifier<br><span class='it'>avant de vous inscrire.</span></h2>
-      </div>
-      <p class="s-note rv d2">Les questions qu'une association se pose avant de publier une première annonce, et nos réponses.</p>
-    </div>
-    <div class="qa-split">
-      <div class="qa-colonne rv">
-        <ol class="qa-index" id="qaIndex" role="tablist" aria-label="Sommaire des questions">
-        <li><button class="qa-link mono is-on" type="button" role="tab" id="qa-t0" aria-controls="qa-p0" tabindex="0" aria-selected="true"><span class="qa-n">01</span>C'est vraiment gratuit&nbsp;?</button></li>
-      <li><button class="qa-link mono" type="button" role="tab" id="qa-t1" aria-controls="qa-p1" tabindex="-1" aria-selected="false"><span class="qa-n">02</span>Combien de temps ça me prend&nbsp;?</button></li>
-      <li><button class="qa-link mono" type="button" role="tab" id="qa-t2" aria-controls="qa-p2" tabindex="-1" aria-selected="false"><span class="qa-n">03</span>Est-ce que je peux refuser quelqu'un&nbsp;?</button></li>
-      <li><button class="qa-link mono" type="button" role="tab" id="qa-t3" aria-controls="qa-p3" tabindex="-1" aria-selected="false"><span class="qa-n">04</span>Et si je ne réponds pas à temps&nbsp;?</button></li>
-      <li><button class="qa-link mono" type="button" role="tab" id="qa-t4" aria-controls="qa-p4" tabindex="-1" aria-selected="false"><span class="qa-n">05</span>Et si personne ne vient&nbsp;?</button></li>
-      <li><button class="qa-link mono" type="button" role="tab" id="qa-t5" aria-controls="qa-p5" tabindex="-1" aria-selected="false"><span class="qa-n">06</span>Qui peut s'inscrire&nbsp;?</button></li>
-      <li><button class="qa-link mono" type="button" role="tab" id="qa-t6" aria-controls="qa-p6" tabindex="-1" aria-selected="false"><span class="qa-n">07</span>Qu'est-ce que vous faites de nos données&nbsp;?</button></li>
-        </ol>
-        <p class="qa-invite">Il en manque une&nbsp;? Écrivez-la-nous à <a class='tlink' href='mailto:contact@riseva.fr'>contact@riseva.fr</a>&nbsp;: elle finira ici, avec sa réponse.</p>
-      </div>
-      <div class="qa-panel rv d2" id="qaPanel">
-      <article class="qa-card is-on" id="qa-p0" role="tabpanel" aria-labelledby="qa-t0"><h3 class="qa-t">C'est vraiment gratuit&nbsp;?</h3><p>Oui. Les associations ne paient rien, ni abonnement, ni commission sur les dons, ni frais de dossier. Ce sont les entreprises qui paient l'abonnement, et c'est le seul revenu de Riseva.</p></article>
-      <article class="qa-card" hidden id="qa-p1" role="tabpanel" aria-labelledby="qa-t1"><h3 class="qa-t">Combien de temps ça me prend&nbsp;?</h3><p>Cinq minutes pour écrire une annonce, un courriel pour confirmer après la mission. La première mise en ligne attend que nous ayons vérifié votre enregistrement administratif ; ensuite, vous publiez quand vous voulez. Il n'y a pas de tableau de bord à surveiller, pas de fichier à tenir, pas de rapport à produire pour l'entreprise.</p><p>Si écrire l'annonce vous rebute, le formulaire propose les formats les plus demandés et vous n'avez qu'à changer la date et le nombre de places. Rien n'est publié tant que vous n'avez pas relu.</p></article>
-      <article class="qa-card" hidden id="qa-p2" role="tabpanel" aria-labelledby="qa-t2"><h3 class="qa-t">Est-ce que je peux refuser quelqu'un&nbsp;?</h3><p>Oui, sans avoir à vous justifier. Vous fixez le nombre de places, les dates, ce que vous acceptez et ce que vous n'acceptez pas. Une proposition peut être déclinée d'un clic.</p></article>
-      <article class="qa-card" hidden id="qa-p3" role="tabpanel" aria-labelledby="qa-t3"><h3 class="qa-t">Et si je ne réponds pas à temps&nbsp;?</h3><p>Rien de grave. Sans réponse de votre part sous quatorze jours, la mission est <b>clôturée automatiquement sans confirmation</b> : l'entreprise marque ses points, mais le résultat reste écrit comme estimé partout où il apparaît. Ce n'est pas une faute, ça n'entraîne aucune suspension, et vous pouvez répondre plus tard.</p></article>
-      <article class="qa-card" hidden id="qa-p4" role="tabpanel" aria-labelledby="qa-t4"><h3 class="qa-t">Et si personne ne vient&nbsp;?</h3><p>Ça peut arriver, surtout la première saison : Riseva démarre et les entreprises abonnées ne couvrent pas encore tout le territoire. Vous ne perdez rien, votre annonce reste publiée, et votre tableau de bord affiche noir sur blanc combien d'entreprises abonnées ont un site à moins de trente kilomètres de chez vous. Si la réponse est zéro, il l'écrit.</p></article>
-      <article class="qa-card" hidden id="qa-p5" role="tabpanel" aria-labelledby="qa-t5"><h3 class="qa-t">Qui peut s'inscrire&nbsp;?</h3><p>Toute association déclarée, y compris de droit local d'Alsace-Moselle. Un numéro, RNA ou SIREN, accélère la vérification sans être obligatoire : beaucoup d'associations déclarées n'ont pas de SIREN. Nous vérifions l'enregistrement administratif avant de publier votre page, et nous vous disons ce qui manque le cas échéant.</p><p>Pour les dons ouvrant droit à un reçu fiscal, c'est vous qui appréciez votre éligibilité au titre de l'article 200 ou 238 bis du CGI, comme aujourd'hui. <a href='/charte-associations.html'>La charte</a> détaille ce point.</p></article>
-      <article class="qa-card" hidden id="qa-p6" role="tabpanel" aria-labelledby="qa-t6"><h3 class="qa-t">Qu'est-ce que vous faites de nos données&nbsp;?</h3><p>Votre page publique contient ce que vous y mettez, rien d'autre. Nous ne revendons aucune donnée, nous n'envoyons pas les coordonnées de vos bénévoles aux entreprises, et vous pouvez fermer votre compte quand vous voulez. <a href='/confidentialite.html'>Le détail est ici</a>.</p></article>
-      </div>
-    </div>
+<section class="s" id="pourquoi">
+  <div class="wrap">
+  <div class="s-head">
+    <p class="eyebrow">Pourquoi elles viennent</p>
+    <h2>Ce qu'une entreprise vient chercher ici.</h2>
+  </div>
+  <div class="pourquoi">
+    <p>Une entreprise paie un abonnement à Riseva pour que ses salariés trouvent une action
+      concrète près de leur lieu de travail, pour tenir ses indicateurs sociaux, et pour
+      retrouver ce que ses équipes ont fait dans le bilan qu'elle publie en fin d'année. Le
+      mécénat de compétences et le don en nature peuvent lui ouvrir une réduction d'impôt, selon
+      la nature du don et de l'organisme (article 238 bis du code général des impôts).</p>
+    <p>Chaque mission confirmée lui rapporte des points, dans un classement entre entreprises
+      comparables. Les associations n'y sont jamais classées.</p>
+    <p class="pourquoi-cle">Elle paie pour vous trouver, pas l'inverse.</p>
+    <h3>Ce que ça vous laisse</h3>
+    <p>Chaque mission confirmée reste dans votre espace, datée. La liste de ce que vous avez
+      confirmé, mission par mission, s'exporte en tableur&nbsp;: pour votre conseil
+      d'administration, pour un financeur, pour une demande de subvention.</p>
+    <figure class="shot shot-tapis"><picture><source type="image/webp" srcset="/captures/export-ca-760.webp 760w, /captures/export-ca-1120.webp 1120w" sizes="(max-width: 900px) 92vw, 720px"><img src="/captures/export-ca.jpg" alt="La carte Pour votre conseil d'administration : les résultats confirmés, mission par mission, exportables en tableur" loading="lazy" decoding="async" width="1284" height="516" style="max-width:min(100%,479px)"></picture></figure>
+  </div>
   </div>
 </section>
 
-<section id="commencer">
-  <div class="layer">
-    <div class="s-head">
-      <div class="rv">
-        <div class="eyebrow mono">S'inscrire</div>
-        <h2>Quatre lignes, un lien,<br><span class='it'>et votre espace est ouvert.</span></h2>
-      </div>
-      <p class="s-note rv d2">Pas de dossier à monter, pas de pièce à joindre. Vous entrez quatre informations, vous ouvrez le lien qu'on vous envoie, et votre espace est là : vous préparez votre première annonce tout de suite. Elle part en ligne dès que nous avons vérifié votre enregistrement administratif, ce que nous faisons sous deux jours ouvrés. Rien à ressaisir.</p>
+<section class="s" id="argent">
+  <div class="wrap">
+  <div class="carte-sombre grain carte-sombre-txt">
+    <div>
+      <p class="eyebrow">Les dons</p>
+      <h2>L'argent ne passe jamais par Riseva.</h2>
     </div>
-    <form id="formAsso" class="join-grid" novalidate>
-      <div class="rv">
-        <div class="j-step mono">Quatre informations suffisent</div>
-        <p class="j-sentence">Nous sommes <span class="blank"><label class="sr-only" for="fa-asso">Nom de l'association</label><input id="fa-asso" class="bk" type="text" name="asso" data-key="asso" data-label="le nom de votre association" placeholder="votre association" spellcheck="false" required><span class="ghost" aria-hidden="true"></span></span>, à <span class="blank"><label class="sr-only" for="fa-ville">Ville</label><input id="fa-ville" class="bk" type="text" name="ville" data-key="ville" data-label="votre ville" placeholder="votre ville" required><span class="ghost" aria-hidden="true"></span></span>. Ce qui nous manque le plus en ce moment, c'est <span class="blank"><label class="sr-only" for="fa-mot">Ce qui vous manque</label><input id="fa-mot" class="bk" type="text" name="mot" data-key="mot" data-label="ce qui vous manque" placeholder="des bras un samedi matin" required><span class="ghost" aria-hidden="true"></span></span>. Notre adresse est <span class="blank"><label class="sr-only" for="fa-mail">Adresse e-mail</label><input id="fa-mail" class="bk" type="email" name="mail" data-key="mail" data-label="votre adresse e-mail" placeholder="nom@association.fr" spellcheck="false" required><span class="ghost" aria-hidden="true"></span></span>.</p>
-        <p class="j-hint" id="jHint">Nous vous envoyons un lien de connexion : en l'ouvrant,
-          votre espace se crée avec ce que vous venez d'écrire. Aucun mot de passe. Votre page
-          devient visible une fois votre enregistrement vérifié, et votre espace vous dit ce
-          qu'il reste à faire.</p>
-        <div class="j-cta">
-          <button type="submit" class="btn btn-lg"><span class="dot"></span>Ouvrir mon espace</button>
-          <span class="mono">Gratuit, sans exclusivité, sans commission</span>
-        </div>
-        <p class="j-msg" id="jMsg" role="status" aria-live="polite"></p>
-      </div>
-
-      <div class="rv d2">
-        <div class="bulletin" id="bulletin" aria-hidden="true">
-          <div class="bl-body">
-            <div class="bl-top">
-              <span class="mono">Votre fiche</span>
-              <span class="bl-ref mono" id="blRef">RSV-AS-....</span>
-            </div>
-            <ul class="bl-rows">
-              <li data-key="asso"><i class="bl-tick"></i><span class="bl-k">Association</span><span class="bl-v">à compléter</span></li>
-              <li data-key="ville"><i class="bl-tick"></i><span class="bl-k">Ville</span><span class="bl-v">à compléter</span></li>
-              <li data-key="mot"><i class="bl-tick"></i><span class="bl-k">Besoin</span><span class="bl-v">à compléter</span></li>
-              <li data-key="mail"><i class="bl-tick"></i><span class="bl-k">Adresse</span><span class="bl-v">à compléter</span></li>
-            </ul>
-            <div class="bl-prog" role="progressbar" aria-valuemin="0" aria-valuemax="4"
-                 aria-valuenow="0" aria-label="Champs renseignés">
-              <span class="bl-track"><span class="bl-fill" id="blBar"></span></span>
-              <span class="bl-count mono" id="blCount">0 / 4</span>
-            </div>
-            <div class="bl-stamp mono" id="blStamp">Gratuit, sans engagement</div>
-          </div>
-        </div>
-      </div>
-    </form>
-  </div>
-</section>
-
-<section id="rejoindre" class="bandeau">
-  <div class="layer">
-    <div class="bandeau-in">
+    <div class="argent-cols">
       <div>
-        <h2>Votre première annonce peut être en ligne cette semaine.</h2>
-        <p>Vous décrivez ce que vous faites et vous préparez votre première annonce. Nous
-          vérifions votre enregistrement pendant ce temps : votre page devient visible des
-          entreprises une fois cette vérification faite. Rien à installer, rien à payer.</p>
+        <h3>Deux chemins, aucun ne passe par nous</h3>
+        <p>Soit un virement du donateur sur votre compte, avec une référence à retrouver sur
+          votre relevé. Soit votre propre page HelloAsso, dont vous collez l'adresse&nbsp;: le
+          donateur paie par carte chez HelloAsso, et l'argent arrive chez vous. Aucune commission,
+          aucun délai de reversement, aucun plafond de notre part. Riseva n'encaisse rien.</p>
       </div>
-      <div class="bandeau-cta">
-        <a class="btn btn-lg" href="#commencer"><span class="dot"></span>Ouvrir mon espace</a>
-        <span class="mono">Gratuit, sans exclusivité, et sans commission sur vos dons.</span>
+      <div>
+        <h3>Les reçus fiscaux restent les vôtres</h3>
+        <p>Vous les émettez, comme aujourd'hui, et vous appréciez votre éligibilité. Si vous nous
+          en donnez mandat par écrit, nous préparons le document à partir de vos informations et
+          vous le relisez avant de le signer. Sans mandat, nous ne préparons rien. Le mandat se
+          révoque quand vous voulez.</p>
+        <p><a href="/charte-associations.html">La charte des associations</a></p>
       </div>
     </div>
+  </div>
   </div>
 </section>
 
-<footer class="foot">
-  <div class="foot-grid">
-    <div>
-      <div class="foot-brand">
-        <img src="/brand/riseva-full-white.png" alt="Riseva" width="392" height="88">
-      </div>
-      <p>Riseva met des entreprises françaises au service des associations qui protègent le vivant. Gratuit pour vous, sans exclusivité, et sans commission sur vos dons.</p>
-    </div>
-    <div>
-      <h3 class="foot-h">Comprendre</h3>
-      <ul>
-        <li><a href="#comment">Comment ça marche</a></li>
-        <li><a href="#challenge">Pourquoi les entreprises viennent</a></li>
-        <li><a href="#argent">Les dons</a></li>
-        <li><a href="#faq">Vos questions</a></li>
-      </ul>
-    </div>
-    <div>
-      <h3 class="foot-h">Les textes</h3>
-      <ul>
-        <li><a href="/charte-associations.html">La charte des associations</a></li>
-        <li><a href="/reglement.html">Le règlement du barème</a></li>
-        <li><a href="/moderation.html">Signalement et modération</a></li>
-        <li><a href="/confidentialite.html">Confidentialité</a></li>
-      </ul>
-    </div>
-    <div>
-      <h3 class="foot-h">Aller plus loin</h3>
-      <ul>
-        <li><a href="/">Vous êtes une entreprise</a></li>
-        <li><a href="/asso.html?id=a1">Voir une page d'association</a></li>
-        <li><a href="mailto:contact@riseva.fr">contact@riseva.fr</a></li>
-        <li><a href="/mentions.html">Mentions légales</a></li>
-      </ul>
-    </div>
+<section class="s" id="questions">
+  <div class="wrap wrap-lecture">
+  <div class="s-head">
+    <h2>Ce que vous voudrez vérifier avant de vous inscrire.</h2>
+    <p class="s-intro">Les questions qu'une association se pose avant de publier une première annonce, et nos réponses. Il en manque une&nbsp;? Écrivez-la à <a href='mailto:contact@riseva.fr'>contact@riseva.fr</a>&nbsp;: elle finira ici, avec sa réponse.</p>
   </div>
-  <div class="foot-bar">
-    <span>&copy; 2026 Riseva</span>
-    <span>Gratuit pour les associations, toujours</span>
+  <div class="faq">
+    <details class="qa" open>
+      <summary><span>Et si personne ne vient&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Ça peut arriver, surtout la première saison&nbsp;: Riseva démarre et les entreprises abonnées ne couvrent pas encore tout le territoire. Votre annonce reste publiée, et votre tableau de bord indique combien d'entreprises abonnées ont un site à moins de trente kilomètres de chez vous, y compris zéro.</p><figure class="shot shot-qa"><picture><source media="(max-width: 640px)" width="780" height="420" type="image/webp" srcset="/captures/autour-mobile-760.webp 760w" sizes="92vw"><source media="(max-width: 640px)" srcset="/captures/autour-mobile.jpg" width="780" height="420"><source type="image/webp" srcset="/captures/autour-760.webp 760w, /captures/autour-1120.webp 1120w" sizes="(max-width: 900px) 92vw, 640px"><img src="/captures/autour.jpg" alt="La carte Qui peut venir chez vous, telle que le tableau de bord d'une association l'affiche quand aucune entreprise abonnée n'a de site à moins de trente kilomètres" loading="lazy" decoding="async" width="1384" height="334"></picture></figure></div>
+    </details>
+    <details class="qa">
+      <summary><span>C'est vraiment gratuit&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Oui. Les associations ne paient rien, ni abonnement, ni commission sur les dons, ni frais de dossier. Ce sont les entreprises qui paient l'abonnement, et c'est le seul revenu de Riseva.</p></div>
+    </details>
+    <details class="qa">
+      <summary><span>Combien de temps ça me prend&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Le temps d'écrire une annonce à partir d'un des six modèles, puis un courriel pour confirmer après la mission. La première mise en ligne attend que nous ayons vérifié votre enregistrement administratif&nbsp;; ensuite, vous publiez quand vous voulez. Il n'y a pas de tableau de bord à surveiller, pas de fichier à tenir, pas de rapport à produire pour l'entreprise.</p><p>Si écrire l'annonce vous rebute, le formulaire propose les formats les plus demandés et vous n'avez qu'à changer la date et le nombre de places. Rien n'est publié tant que vous n'avez pas relu.</p></div>
+    </details>
+    <details class="qa">
+      <summary><span>Est-ce que je peux refuser quelqu'un&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Oui, sans avoir à vous justifier. Vous fixez le nombre de places, les dates, ce que vous acceptez et ce que vous n'acceptez pas. Une proposition peut être déclinée d'un clic.</p></div>
+    </details>
+    <details class="qa">
+      <summary><span>Et si je ne réponds pas à temps&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Rien de grave. Sans réponse de votre part sous quatorze jours, la mission est <b>clôturée automatiquement sans confirmation</b>&nbsp;: l'entreprise marque ses points, mais le résultat reste écrit comme estimé partout où il apparaît. Ce n'est pas une faute, ça n'entraîne aucune suspension, et vous pouvez répondre plus tard.</p></div>
+    </details>
+    <details class="qa">
+      <summary><span>Qui est assuré&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Sur son temps de travail, le salarié reste couvert par le régime d'accident du travail de son employeur. Hors temps de travail, il est bénévole et la couverture dépend de votre contrat&nbsp;: la responsabilité civile de l'association couvre en général ce qu'il cause, pas forcément ce qu'il subit. <a href='/charte-associations.html'>La charte</a> détaille qui couvre quoi, et l'annonce doit dire ce qui est couvert.</p></div>
+    </details>
+    <details class="qa">
+      <summary><span>Qui peut s'inscrire&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Toute association déclarée, y compris de droit local d'Alsace-Moselle. Un numéro, RNA ou SIREN, accélère la vérification sans être obligatoire&nbsp;: beaucoup d'associations déclarées n'ont pas de SIREN. Nous vérifions l'enregistrement administratif avant de publier votre page, et nous vous disons ce qui manque le cas échéant.</p><p>Pour les dons ouvrant droit à un reçu fiscal, c'est vous qui appréciez votre éligibilité au titre de l'article 200 ou 238 bis du CGI, comme aujourd'hui. <a href='/charte-associations.html'>La charte</a> détaille ce point.</p></div>
+    </details>
+    <details class="qa">
+      <summary><span>Qu'est-ce que vous faites de nos données&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Votre page publique contient ce que vous y mettez, rien d'autre. Nous ne revendons aucune donnée, nous n'envoyons pas les coordonnées de vos bénévoles aux entreprises, et vous pouvez fermer votre compte quand vous voulez. <a href='/confidentialite.html'>Le détail est ici</a>.</p></div>
+    </details>
+  </div>
+  </div>
+</section>
+
+<section class="s s-sunk" id="commencer">
+  <div class="wrap">
+  <div class="s-head">
+    <h2>Quatre lignes, un lien, et votre espace est ouvert.</h2>
+    <p class="s-intro">Pas de dossier à monter, pas de pièce à joindre. Vous entrez quatre informations, vous ouvrez le lien qu'on vous envoie, et votre espace est là. Après vérification de votre enregistrement, vous publiez votre première annonce.</p>
+  </div>
+  <form id="formAsso" class="join" novalidate>
+    <div class="join-txt">
+      <p class="j-sentence"><span class="j-frag">Nous sommes </span><span class="blank"><label class="sr-only" for="fa-asso">Le nom de votre association</label><input id="fa-asso" class="bk" type="text" name="asso" data-key="asso" data-label="le nom de votre association" placeholder="votre association" spellcheck="false" autocomplete="organization" required><span class="ghost" aria-hidden="true"></span><span class="j-frag">,</span></span><span class="j-frag"> à </span><span class="blank"><label class="sr-only" for="fa-ville">Votre ville</label><input id="fa-ville" class="bk" type="text" name="ville" data-key="ville" data-label="votre ville" placeholder="votre ville" spellcheck="false" autocomplete="address-level2" required><span class="ghost" aria-hidden="true"></span><span class="j-frag">.</span></span><span class="j-frag"> Ce qui nous manque le plus en ce moment, c'est </span><span class="blank"><label class="sr-only" for="fa-mot">Ce qui vous manque</label><input id="fa-mot" class="bk" type="text" name="mot" data-key="mot" data-label="ce qui vous manque" placeholder="des bras un samedi matin" spellcheck="false" required><span class="ghost" aria-hidden="true"></span><span class="j-frag">.</span></span><span class="j-frag"> Notre adresse est </span><span class="blank"><label class="sr-only" for="fa-mail">Votre adresse e-mail</label><input id="fa-mail" class="bk" type="email" name="mail" data-key="mail" data-label="votre adresse e-mail" placeholder="nom@association.fr" spellcheck="false" autocomplete="email" required><span class="ghost" aria-hidden="true"></span><span class="j-frag">.</span></span></p>
+      <p class="j-hint" id="jHint">Nous vous envoyons un lien de connexion&nbsp;: en l'ouvrant, votre
+        espace se crée avec ce que vous venez d'écrire. Aucun mot de passe.</p>
+      <div class="j-cta">
+        <button type="submit" class="btn btn-lg">Ouvrir notre espace</button>
+        <span class="mini">Gratuit, sans exclusivité, sans commission.</span>
+      </div>
+      <p class="j-msg" id="jMsg" role="status" aria-live="polite"></p>
+    </div>
+  </form>
+  <p class="s-lancement">Première saison en janvier 2027. Vous rejoignez un réseau qui se
+    constitue&nbsp;: votre tableau de bord vous dira combien d'entreprises abonnées ont un site à
+    moins de trente kilomètres de chez vous, et il écrira zéro si c'est zéro.</p>
+  </div>
+</section>
+</main>
+
+<footer class="foot" id="pied">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-id">
+        <img src="/brand/riseva-full-white.png" alt="Riseva" width="392" height="88">
+        <p>Gratuit pour les associations, sans exclusivité et sans commission&nbsp;: vous publiez ce qui vous manque, et c'est vous qui confirmez ce qui a eu lieu.</p>
+        <p><a class="foot-croise" href="/">Vous êtes une entreprise&nbsp;? La plateforme, le tarif et la démonstration.</a></p>
+      </div>
+      <div>
+        <h2 class="foot-h">Le produit</h2>
+        <ul>
+        <li><a href="/app/?demo=1">Démonstration</a></li>
+        <li><a href="/#prix">Tarif</a></li>
+        <li><a href="/inscription.html">Préinscription 2027</a></li>
+        <li><a href="/associations.html">Pour les associations</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2 class="foot-h">Le contrat</h2>
+        <ul>
+        <li><a href="/reglement.html">Règlement de la saison</a></li>
+        <li><a href="/charte-associations.html">Charte des associations</a></li>
+        <li><a href="/engagements.html">Engagements de service</a></li>
+        <li><a href="/cgv.html">Conditions de vente</a></li>
+        <li><a href="/moderation.html">Modération des annonces</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2 class="foot-h">Riseva</h2>
+        <ul>
+        <li><a href="/securite.html">Sécurité</a></li>
+        <li><a href="/confidentialite.html">Données personnelles</a></li>
+        <li><a href="/mentions.html">Mentions légales</a></li>
+        <li><a href="mailto:contact@riseva.fr">contact@riseva.fr</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bar">
+      <span>&copy; 2026 Riseva. Première saison&nbsp;: janvier 2027.</span>
+      <span>Aucune requête vers un domaine tiers, polices comprises.</span>
+    </div>
   </div>
 </footer>
 

@@ -4,737 +4,465 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Riseva, la plateforme RSE qui commence par les associations</title>
-<meta name="description" content="Vos sites RSE dans un seul rapport, et vos équipes chez des associations vérifiées à côté de chacun d'eux. Tarif public, sans commission sur les dons.">
-<meta name="theme-color" content="#FCFBF8">
+<meta name="description" content="Vos sites dans un seul rapport RSE, vos équipes chez des associations à moins de trente kilomètres. Seul ce que l'association confirme entre dans le rapport.">
+<meta name="theme-color" content="#F2F0E9">
 <link rel="canonical" href="https://riseva.fr/">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="fr_FR">
 <meta property="og:site_name" content="Riseva">
 <meta property="og:title" content="Riseva, la plateforme RSE qui commence par les associations">
-<meta property="og:description" content="Vos sites RSE dans un seul rapport, et vos équipes chez des associations vérifiées à côté de chacun d'eux. Tarif public, sans commission sur les dons.">
+<meta property="og:description" content="Vos sites dans un seul rapport RSE, vos équipes chez des associations à moins de trente kilomètres. Seul ce que l'association confirme entre dans le rapport.">
 <meta property="og:url" content="https://riseva.fr/">
+<meta property="og:image" content="https://riseva.fr/captures/admin-tableau.jpg">
 <link rel="icon" href="/brand/riseva-mark.png">
+<!-- Les deux polices sont servies par Riseva et prechargees : elles decident du
+     premier rendu, et le repli est cale sur leurs metriques (polices.css). -->
+<link rel="preload" href="/brand/polices/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/brand/polices/inter.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/styles/polices.css">
 <!-- La feuille servie est engendree depuis vitrine.css par scripts/css.py :
-     meme regles, sans les commentaires. 206 Ko deviennent 117, et 52 Ko
-     compresses deviennent 23, sur la ressource qui bloque le premier rendu.
-     Les corrections vont dans vitrine.css, jamais ici. -->
+     memes regles, sans les commentaires. Les corrections vont dans vitrine.css. -->
 <link rel="stylesheet" href="/styles/vitrine.min.css">
-<!-- Une classe posée avant le premier rendu, et rien d'autre. Les apparitions au
-     défilement sont écrites « .js .rv », donc sans script le contenu est visible
-     dès le départ : c'est le seul moyen qu'une animation ne puisse jamais
-     conditionner l'affichage de ce qu'elle accompagne. -->
+<!-- Une classe posee avant le premier rendu, et rien d'autre. Les trois
+     mouvements de la page sont ecrits « .js ... » : sans script, tout est en
+     place des le depart. -->
 <script>document.documentElement.className+=" js";</script>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Riseva","url":"https://riseva.fr/","logo":"https://riseva.fr/brand/riseva-full.png","description":"Plateforme RSE francaise pour entreprises multi-sites : collecte des indicateurs, rapports trimestriels, et missions aupres d'associations verifiees pres de chaque site.","areaServed":"FR","contactPoint":[{"@type":"ContactPoint","contactType":"sales","email":"contact@riseva.fr","availableLanguage":["fr"]}]}</script>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Riseva a-t-elle déjà des résultats à montrer ?","acceptedAnswer":{"@type":"Answer","text":"Non, et cette page n'en affiche aucun. La première saison démarre en janvier : les écrans montrés ici viennent d'un jeu de démonstration et servent à montrer la forme des restitutions. Les chiffres publics de la page sont des faits extérieurs, datés et sourcés. Ce qui est contractuel dès le premier jour est écrit dans les engagements de service : les cinq critères de démarrage, l'acompte remboursé s'ils ne sont pas constatés, et le délai de quatorze jours au terme duquel un résultat non confirmé reste marqué comme estimé."}},{"@type":"Question","name":"Combien coûte une saison ?","acceptedAnswer":{"@type":"Answer","text":"La grille complète est juste au-dessus , avec le simulateur qui donne le montant exact pour votre effectif. Ce qu'elle ne dit pas et qui compte autant : pas de facturation par salarié, pas de module en supplément, pas de commission sur les dons . Les associations, elles, ne paient jamais rien. Nous ne comparons pas notre prix à celui d'un concurrent que nous ne nommerions pas : une fourchette annoncée sans source ne vous aide pas à décider."}},{"@type":"Question","name":"Qu'est-ce qui est compris dans l'abonnement ?","acceptedAnswer":{"@type":"Answer","text":"Une saison d'un an, avec les comptes correspondant à votre effectif, les formats du barème, l'accompagnement au lancement, les affiches et les supports, et les rapports trimestriels et annuel. Sur le don en argent, une précision qui compte : Riseva n'encaisse rien . Le donateur paie par carte sur une page HelloAsso , et l'argent arrive sur le compte de l'association. Nous ne sommes donc pas un établissement de paiement, il n'y a aucune commission de notre part, et rien à attendre d'un reversement de Riseva puisque l'argent ne passe pas par elle. Les délais et les frais éventuels relèvent des conditions de HelloAsso, entre l'association et lui."}},{"@type":"Question","name":"Qu'est-ce que « démarrer » veut dire, précisément ?","acceptedAnswer":{"@type":"Answer","text":"Cinq critères, constatés à la date convenue : votre espace est ouvert et le lien d'inscription fonctionne depuis un de vos postes ; les comptes commandés sont disponibles ; les formats contractuels sont actifs ; l'inventaire associatif convenu est disponible ; un rapport est exportable. Vous avez quinze jours pour les constater. Si l'un manque et n'est pas levé sous quinze jours de plus, l'acompte est remboursé intégralement et aucun solde n'est dû. Le solde est facturé à l'ouverture de la saison et payable à trente jours ; si le démarrage n'est pas constaté, il n'est pas dû."}},{"@type":"Question","name":"Est-ce que la dépense est déductible ?","acceptedAnswer":{"@type":"Answer","text":"Deux lignes, deux régimes. L'abonnement Riseva est une prestation de services : il entre dans vos charges, TVA récupérable. Le mécénat suit l'article 238 bis du CGI et donne droit à 60 % de réduction d'impôt jusqu'à 2 millions d'euros de dons sur l'exercice , puis 40 % au-delà, dans la limite de 20 000 € ou 5 pour mille du chiffre d'affaires, le plus élevé des deux. Riseva calcule une estimation à partir de ce qu'elle connaît, et attend votre chiffre d'affaires, vos dons faits ailleurs et vos reports antérieurs avant d'afficher un plafond : sans eux, le chiffre serait faux. Votre expert-comptable arrête le montant."}},{"@type":"Question","name":"Quelles données sortent de chez nous ?","acceptedAnswer":{"@type":"Answer","text":"Le strict nécessaire, hébergé dans l'Union européenne. L'employeur ne voit jamais le détail nominatif des dons personnels de ses salariés, et un salarié peut se retirer sans avoir à se justifier. La base légale est l'intérêt légitime, pas le consentement : nous n'affichons donc pas de case à cocher qui n'en serait pas une. Consulter une page publique de riseva.fr ne déclenche aucune requête vers un domaine extérieur, polices comprises. Un test de la recette échoue si ce n'est plus vrai."}},{"@type":"Question","name":"Le classement, il sert à quoi ?","acceptedAnswer":{"@type":"Answer","text":"À donner un rendez-vous que personne n'a besoin d'imposer. Il se joue entre entreprises, jamais entre salariés : personne n'est noté individuellement et une équipe qui passe son tour ne pénalise personne. La moitié basse n'est jamais nommée. Vous voyez votre score et votre rang dès trois entreprises inscrites dans votre catégorie. Le décile, lui, n'apparaît qu'à partir de dix entreprises dans la catégorie : un « top 10 % » sur onze entreprises désigne la première et lui prête une avance qu'elle n'a pas."}},{"@type":"Question","name":"Quel est le périmètre exact de la plateforme ?","acceptedAnswer":{"@type":"Answer","text":"Riseva documente l'enregistrement administratif des associations avec la date du contrôle, les validations et qui les a faites, les méthodes de calcul publiées et refaisables à la main, les accès, les exports et les envois, ainsi que les engagements de service et ce qui se passe s'ils ne sont pas tenus. Elle ne se substitue pas aux métiers voisins : elle ne certifie pas un impact, ne produit pas de bilan carbone, n'attribue pas de note RSE parce qu'elle serait juge et partie , ne remplace pas votre expert-comptable sur la valorisation d'un don, et ne dépose aucune déclaration à votre place. Elle ne classe pas non plus vos sites sur leurs accidents du travail : un classement de ce genre pousse à sous-déclarer , et c'est l'inverse de ce qu'on cherche. Chacun de ces points est traité en détail dans le règlement et dans les engagements de service . Ce qui reste à votre charge est écrit noir sur blanc, dans la question « Qu'est-ce qui reste à ma charge ? »."}},{"@type":"Question","name":"Qu'est-ce qui reste à ma charge ?","acceptedAnswer":{"@type":"Answer","text":"Ce qui n'est pas compris dans l'abonnement, écrit noir sur blanc : Le bilan carbone réglementaire et le calcul des émissions : Riseva ne collecte pas cette donnée. L'index d'égalité professionnelle et la déclaration OETH : autres périmètres, autres règles. Le document unique d'évaluation des risques : Riseva n'évalue pas les risques à la place de l'employeur. L'audit des valeurs déclarées : Riseva calcule, elle ne certifie pas. Le reste, c'est-à-dire les comptes, les rapports, les supports et l'accompagnement, est dans la grille ."}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Riseva","url":"https://riseva.fr/","logo":"https://riseva.fr/brand/riseva-full.png","description":"Plateforme RSE française pour entreprises multi-sites : missions auprès d'associations vérifiées près de chaque site, confirmées par l'association, indicateurs sociaux et sécurité, rapports trimestriels et annuel.","areaServed":"FR","contactPoint":[{"@type":"ContactPoint","contactType":"sales","email":"contact@riseva.fr","availableLanguage":["fr"]}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Riseva a-t-elle déjà des résultats à montrer ?","acceptedAnswer":{"@type":"Answer","text":"Non, et cette page n'en affiche aucun. La première saison démarre en janvier 2027 : les écrans montrés ici viennent d'un jeu de démonstration et servent à montrer la forme des restitutions, pas un résultat obtenu. Ce qui est contractuel dès le premier jour est écrit dans les engagements de service : les cinq critères de démarrage, l'acompte remboursé s'ils ne sont pas constatés, et le délai de quatorze jours au terme duquel un résultat non confirmé reste marqué comme estimé."}},{"@type":"Question","name":"Qu'est-ce que Riseva demande à mon équipe pendant l'année ?","acceptedAnswer":{"@type":"Answer","text":"Un administrateur déclare les sites, nomme un référent par site et approuve les valeurs avant qu'elles entrent dans un rapport. Chaque référent envoie le lien d'inscription à ses collègues et saisit les indicateurs de son site à chaque campagne de collecte, avec ses pièces s'il en a. Les rapports partent tout seuls. Pour les missions, le salarié se propose et l'association confirme le résultat : vous n'avez rien à ressaisir, ni fichier à tenir, ni bilan à écrire."}},{"@type":"Question","name":"Faut-il une intégration informatique ?","acceptedAnswer":{"@type":"Answer","text":"Non. Rien à installer sur les postes, aucun annuaire à synchroniser, pas d'authentification unique à brancher, aucun accès à votre réseau. Chacun se connecte par un lien reçu par courriel, sans mot de passe. Le seul prérequis est une adresse de courriel par personne."}},{"@type":"Question","name":"Combien coûte une saison ?","acceptedAnswer":{"@type":"Answer","text":"La grille est juste au-dessus , avec le simulateur qui donne le montant pour votre effectif et vos sites. Ce qu'elle ne dit pas et qui compte autant : pas de facturation par salarié, pas de module en supplément, pas de commission sur les dons. Les associations, elles, ne paient jamais rien. Nous ne comparons pas notre prix à celui d'un concurrent que nous ne nommerions pas : une fourchette annoncée sans source ne vous aide pas à décider."}},{"@type":"Question","name":"Qu'est-ce qui est compris dans l'abonnement ?","acceptedAnswer":{"@type":"Answer","text":"Une saison d'un an, avec les comptes correspondant à votre effectif, tous les formats du barème, l'accompagnement au lancement, les quatre envois d'affiches et de supports, la gestion RSE interne, la fiche VSME, l'accès du CSE en lecture, et les rapports trimestriels et annuel. Sur le don en argent, une précision qui compte : Riseva n'encaisse rien . Le donateur paie par virement sur le compte de l'association, ou par carte sur la page HelloAsso de l'association si elle en a une ; dans les deux cas l'argent arrive chez elle sans transiter par Riseva. Nous ne sommes donc pas un établissement de paiement, il n'y a aucune commission de notre part, et rien à attendre d'un reversement de Riseva."}},{"@type":"Question","name":"Qu'est-ce que « démarrer » veut dire, précisément ?","acceptedAnswer":{"@type":"Answer","text":"Cinq critères, constatés ensemble à la date convenue : votre espace est ouvert et le lien d'inscription fonctionne depuis un poste de votre réseau ; les comptes commandés sont disponibles et le quota de chaque site est réparti ; les formats de votre contrat sont actifs ; des associations vérifiées et actives sont présentes autour de vos sites, et leur nombre vous est donné site par site, même quand il est faible ; un rapport est exportable, avec la méthode de calcul à côté de chaque chiffre. Vous avez quinze jours pour les constater. Si l'un manque et n'est pas levé dans les quinze jours suivants, l'acompte est remboursé intégralement et aucun solde n'est dû. Le solde est facturé à l'ouverture de la saison et payable à trente jours ; si le démarrage n'est pas constaté, il n'est pas dû. C'est écrit dans les engagements de service , mot pour mot."}},{"@type":"Question","name":"Est-ce que la dépense est déductible, et qui émet le reçu ?","acceptedAnswer":{"@type":"Answer","text":"Deux lignes, deux régimes. L'abonnement Riseva est une prestation de services : il entre dans vos charges, TVA récupérable. Le mécénat suit l'article 238 bis du CGI et peut ouvrir droit à 60 % de réduction d'impôt jusqu'à 2 millions d'euros de dons sur l'exercice, puis 40 % au-delà, dans la limite de 20 000 € ou 5 pour mille du chiffre d'affaires, le plus élevé des deux, selon la nature du don et l'éligibilité de l'organisme. Le reçu fiscal est émis par l'association bénéficiaire, seule habilitée, au modèle Cerfa 16216 (2041-MEC-SD), sous sa numérotation et la signature d'une personne habilitée. Si elle en a donné mandat écrit à Riseva, nous préparons le document ; elle le vérifie et le signe. Riseva ne certifie ni l'éligibilité ni les montants : elle calcule une estimation et attend votre chiffre d'affaires, vos dons faits ailleurs et vos reports avant d'afficher un plafond. Votre expert-comptable arrête le montant."}},{"@type":"Question","name":"Est-ce que ça compte dans un appel d'offres ?","acceptedAnswer":{"@type":"Answer","text":"Depuis le 21 août 2026, toute nouvelle consultation engagée sous le code de la commande publique doit retenir au moins un critère prenant en compte les caractéristiques environnementales de l'offre, sous réserve des exclusions prévues par le code (loi Climat et résilience, art. 35 ; code de la commande publique, art. L. 2152-7 ; décret n° 2022-767 du 2 mai 2022). Riseva ne certifie rien et ne remplace pas un bilan carbone. Ce qu'elle vous donne pour répondre, c'est une liste datée de faits confirmés par des tiers, des indicateurs sociaux et sécurité avec leur formule et leurs sources, et une fiche rangée dans les rubriques de la norme volontaire VSME, avec la liste de ce qu'elle ne couvre pas."}},{"@type":"Question","name":"Quelles données sortent de chez nous ?","acceptedAnswer":{"@type":"Answer","text":"Le strict nécessaire, hébergé dans l'Union européenne. L'employeur ne voit jamais le détail nominatif des dons personnels de ses salariés, et un salarié peut se retirer sans avoir à se justifier. La base légale est l'intérêt légitime, pas le consentement : nous n'affichons donc pas de case à cocher qui n'en serait pas une. Consulter une page publique de riseva.fr ne déclenche aucune requête vers un domaine extérieur, polices comprises. Un test de la recette échoue si ce n'est plus vrai."}},{"@type":"Question","name":"Le classement, il sert à quoi ?","acceptedAnswer":{"@type":"Answer","text":"À donner un rendez-vous que personne n'a besoin d'imposer. Il se joue entre entreprises, jamais entre salariés : personne n'est noté individuellement et une équipe qui passe son tour ne pénalise personne. La moitié basse n'est jamais nommée. Vous voyez votre score et votre rang dès trois entreprises inscrites dans votre catégorie. Le décile, lui, n'apparaît qu'à partir de dix entreprises dans la catégorie : un « top 10 % » sur onze entreprises désigne la première et lui prête une avance qu'elle n'a pas."}},{"@type":"Question","name":"Quel est le périmètre exact de la plateforme ?","acceptedAnswer":{"@type":"Answer","text":"Riseva documente l'enregistrement administratif des associations avec la date du contrôle, les validations et qui les a faites, les méthodes de calcul publiées et refaisables à la main, les accès, les exports et les envois, ainsi que les engagements de service et ce qui se passe s'ils ne sont pas tenus. Elle ne se substitue pas aux métiers voisins : elle ne certifie pas un impact, ne produit pas de bilan carbone, n'attribue pas de note RSE parce qu'elle serait juge et partie , ne remplace pas votre expert-comptable sur la valorisation d'un don, et ne dépose aucune déclaration à votre place. Elle ne classe pas non plus vos sites sur leurs accidents du travail : un classement de ce genre pousse à sous-déclarer , et c'est l'inverse de ce qu'on cherche. Chacun de ces points est traité dans le règlement et dans les engagements de service ."}},{"@type":"Question","name":"Qu'est-ce qui reste à ma charge ?","acceptedAnswer":{"@type":"Answer","text":"Ce qui n'est pas compris dans l'abonnement, écrit noir sur blanc : Le bilan carbone réglementaire et le calcul des émissions : Riseva ne collecte pas cette donnée. L'index d'égalité professionnelle et la déclaration OETH : autres périmètres, autres règles. Le document unique d'évaluation des risques : Riseva n'évalue pas les risques à la place de l'employeur. L'audit des valeurs déclarées : Riseva calcule, elle ne certifie pas. Le reste, c'est-à-dire les comptes, les rapports, les supports et l'accompagnement, est dans la grille ."}}]}</script>
 </head>
-<body class="vd">
+<body class="page-ent">
+<a class="sr-only" href="#contenu">Aller au contenu</a>
 
-
-<a class="sr-only" href="#hero">Aller au contenu</a>
-
-<nav class="nav" id="nav">
-  <a class="nav-brand" href="#hero" aria-label="Riseva, accueil">
-    <img src="/brand/riseva-full.png" alt="Riseva" width="392" height="88">
-  </a>
-  <div class="nav-links">
-    <a href="#outil-rse">L'outil RSE</a>
-    <a href="#challenge">Le challenge</a>
-    <a href="#associations">Les associations</a>
-    <a href="#prix">Le prix</a>
-    <a href="#faq">Questions</a>
-  </div>
-  <a class="btn" href="/app/?demo=1"><span class="dot"></span>Ouvrir la démonstration</a>
-  <button class="nav-burger" id="navBurger" type="button"
-          aria-expanded="false" aria-controls="navSheet" aria-label="Ouvrir le menu">
-    <span></span><span></span>
-  </button>
-</nav>
-
-<div class="nav-sheet" id="navSheet" hidden>
-  <nav aria-label="Menu principal">
-    <a href="#outil-rse"><span class="mono">01</span>L'outil RSE</a>
-    <a href="#challenge"><span class="mono">02</span>Le challenge</a>
-    <a href="#associations"><span class="mono">03</span>Les associations</a>
-    <a href="#prix"><span class="mono">04</span>Le prix</a>
-    <a href="#faq"><span class="mono">05</span>Questions</a>
-  </nav>
-  <a class="btn btn-lg" href="/app/?demo=1"><span class="dot"></span>Ouvrir la démonstration</a>
-  <p class="mono">Démonstration libre, sans rendez-vous</p>
-</div>
-
-<header class="hero hero--doc" id="hero">
-  <div class="layer">
-    <p class="eyebrow mono">Plateforme RSE multi-sites, et un an de terrain avec vos équipes</p>
-    <h1 class="h1 h1--doc h1--court">Tous vos sites<br>dans un seul rapport.<br>
-      <span class="it">Et vos équipes sur le terrain.</span></h1>
-
-    <div class="doc-tete doc-tete--apercu">
-    <div class="doc-intro">
-      <!-- Le titre est une juxtaposition : le rapport d'un cote, le terrain de
-           l'autre. Le paragraphe l'etait aussi, deux moities cousues par un
-           « Et », si bien que le lecteur devait reconstruire le lien lui-meme :
-           « donc il y a un logiciel de reporting, plus une plateforme
-           associative, et les deux communiquent ». Il depensait ses premieres
-           secondes a classer le produit au lieu de decider s'il l'interesse.
-           La premiere phrase nomme donc le lien, et le reste peut vendre. -->
-      <p class="doc-accroche">Riseva relie vos sites à des associations proches, <b>fait
-        confirmer ce qui a réellement eu lieu</b>, et range ces déclarations avec le reste
-        de votre reporting RSE. Chaque site saisit ses chiffres, la plateforme relance,
-        consolide et sort le rapport.</p>
-      <div class="hero-cta">
-        <a class="btn btn-lg" href="#prix"><span class="dot"></span>Calculer mon tarif</a>
-        <a class="tlink" href="/app/?demo=1">Explorer la plateforme</a>
-      </div>
-      <!-- La fourchette etait ecrite DEUX FOIS dans le premier ecran : ici, et
-           sept cents pixels plus bas dans le troisieme chiffre de tete (« A
-           partir de 2 400 EUR, HT la saison, jusqu'a 13 800 selon l'effectif,
-           puis sur devis »). Sur telephone les deux tiennent dans le meme
-           defilement, a quelques centimetres l'une de l'autre. Pire : celle-ci
-           disait « l'an » et l'autre « la saison » pour la meme periode, sur un
-           produit qui se vend a la saison. Le chiffre porte la fourchette, cette
-           ligne porte ce qu'il ne dit pas : que tout est dans un seul
-           abonnement. -->
-      <p class="doc-prix"><b>Challenge et outil RSE dans le même abonnement</b>,
-        sans module en supplément, et aucune facturation par salarié.</p>
-      <p class="doc-micro mono">-10&nbsp;% pour les 20 premières entreprises.
-        <a class="tlink" href="/reglement.html">Le règlement de la saison</a>,
-        <a class="tlink" href="/cgv.html">les conditions de vente</a> et
-        <a class="tlink" href="/engagements.html">les engagements</a> sont lisibles avant de
-        signer.</p>
+<header class="nav" id="nav">
+  <div class="wrap nav-in">
+    <a class="nav-brand" href="/" aria-label="Riseva, accueil">
+      <img src="/brand/riseva-full.png" alt="Riseva" width="392" height="88">
+    </a>
+    <nav class="nav-links" aria-label="Sections de la page">
+      <a href="#mecanisme">Comment ça marche</a>
+      <a href="#outil">L'outil</a>
+      <a href="#saison">La saison</a>
+      <a href="#prix">Tarif</a>
+      <a href="#questions">Questions</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="nav-alt" href="/associations.html">Associations</a>
+      <a class="btn btn-nav" href="/inscription.html">Se préinscrire</a>
+      <button class="nav-menu" id="navMenu" type="button" aria-haspopup="dialog"
+              aria-controls="menu" aria-label="Ouvrir le menu"><span></span><span></span></button>
     </div>
-
-    <figure class="apercu">
-      <figure class="shot shot--apercu">
-        <picture><source type="image/webp" srcset="/captures/apercu-tableau-760.webp 760w, /captures/apercu-tableau-1120.webp 1120w, /captures/apercu-tableau-1440.webp 1440w" sizes="(max-width: 900px) 92vw, 47vw">
-        <img src="/captures/apercu-tableau.jpg" alt="Le tableau de bord d'une entreprise dans Riseva : la navigation du groupe et de la saison à gauche, les salariés mobilisés, les missions validées, les heures et les associations soutenues, puis le bandeau des résultats : arbres plantés, animaux pris en charge, kits distribués" loading="eager" fetchpriority="high" decoding="async"
-             width="2360" height="1580"></picture>
-      </figure>
-      <figcaption>Le tableau de bord, tel qu'il s'ouvre. Chiffres d'un jeu de
-        démonstration.</figcaption>
-    </figure>
-    </div>
-
-        <div class="piliers">
-        <a class="pil rv" href="#associations">
-          <span class="pil-k mono">Le terrain</span>
-          <span class="pil-h">Des associations<br><span class='it'>près de chaque&nbsp;site.</span></span>
-          <span class="pil-p">Refuges animaliers, plantations, berges de rivière, à moins de trente kilomètres.</span>
-        </a>
-        <a class="pil rv d1" href="#challenge">
-          <span class="pil-k mono">Le collectif</span>
-          <span class="pil-h">Un challenge<br><span class='it'>qui fédère les&nbsp;équipes.</span></span>
-          <span class="pil-p">Douze mois, un classement entre entreprises comparables, sans nommer la moitié basse.</span>
-        </a>
-        <a class="pil rv d2" href="#outil-rse">
-          <span class="pil-k mono">L'outil RSE</span>
-          <span class="pil-h">Huit rubriques,<br><span class='it'>vingt-sept&nbsp;valeurs.</span></span>
-          <span class="pil-p">Dix taux calculés, chacun avec sa formule à côté du chiffre.</span>
-        </a>
-        <a class="pil rv d3" href="#outil-rse">
-          <span class="pil-k mono">La preuve</span>
-          <span class="pil-h">Chaque chiffre<br><span class='it'>garde sa&nbsp;source.</span></span>
-          <span class="pil-p">Sa date, la personne qui l'a saisie, celle qui l'a approuvée, ses pièces.</span>
-        </a>
-    </div>
-
-    
-    <ul class="chiffres chiffres--hero rv">
-      <li><b>60&nbsp;%</b><span>de réduction d'impôt sur vos dons, jusqu'à deux millions
-        d'euros.<br><span class="mono">Article 238 bis du CGI</span></span></li>
-      <!-- « 8 rubriques, 27 valeurs, 10 taux » a saute : le panneau de verre,
-           deux ecrans plus bas, affiche exactement ces trois nombres en grand.
-           Le premier ecran demandait huit reperes avant que la page commence,
-           quatre piliers et quatre chiffres ; un dirigeant a trois minutes en
-           retient deux et ignore les six autres. Celui-la etait le seul
-           doublon litteral, donc le seul a pouvoir partir sans rien couter. -->
-      <li><b>1&nbsp;lien</b><span>à diffuser. Chaque salarié ouvre son compte
-        lui-même.<br><span class="mono">Déploiement</span></span></li>
-      <!-- Le chiffre disait « 2 400 a 13 800 EUR », et la grille, mille pixels
-           plus bas, va jusqu'a « a partir de 18 500 EUR ». Lu seul, comme le lit
-           quelqu'un qui parcourt la page, il annoncait une fourchette que la
-           page depasse ensuite. Sur une entreprise sans client, c'est
-           precisement la donnee qui ne supporte pas l'a-peu-pres : la premiere
-           question devient « quel est le vrai prix ». Le chiffre dit donc ou
-           commence la grille, et sa legende dit ou elle s'arrete. -->
-      <li><b>À partir de
-        2&nbsp;400&nbsp;€</b><span>HT la saison,
-        jusqu'à 13&nbsp;800&nbsp;€ selon l'effectif, puis sur devis. Rien
-        par salarié.<br><span class="mono">Grille publique, plus bas</span></span></li>
-    </ul>
-
-    <p class="s-note s-note--loi rv">Depuis le <b>21 août 2026</b>, toute nouvelle
-      consultation engagée sous le code de la commande publique doit retenir au moins un
-      critère prenant en compte les caractéristiques environnementales de l'offre, sous
-      réserve des exclusions prévues par le code.
-      <span class="mono">Loi Climat et résilience, art. 35 ; code de la commande publique,
-      art. L. 2152-7 ; décret n° 2022-767 du 2 mai 2022</span></p>
   </div>
 </header>
 
-<section id="plateforme" class="band-moss verre-sect">
-  <div class="verre-champ" aria-hidden="true"><i></i><i></i><i></i></div>
-<div class="verre-lianes" aria-hidden="true"><div class="rib" style="top:14%;height:22%;--amp:45.0px" data-y0="268"><svg viewBox="0 0 1440 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="vg4" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6DBE45"></stop><stop offset="52%" stop-color="#2E7A62"></stop><stop offset="100%" stop-color="#6DBE45"></stop></linearGradient></defs><path pathLength="1" class="ribbon" stroke="url(#vg4)" d="M-180.0,0.0C-173.9,3.5 -152.3,15.8 -140.1,22.7C-127.8,29.7 -112.4,38.5 -100.3,45.5C-88.2,52.4 -72.9,61.2 -61.0,68.2C-49.0,75.2 -34.0,83.9 -22.2,90.9C-10.5,97.9 4.2,106.7 15.7,113.6C27.2,120.6 41.5,129.4 52.6,136.4C63.8,143.3 77.6,152.1 88.4,159.1C99.1,166.1 112.5,174.8 122.8,181.8C133.1,188.8 145.8,197.6 155.6,204.5C165.4,211.5 177.5,220.3 186.7,227.3C196.0,234.2 207.3,243.0 216.0,250.0C224.6,257.0 235.2,265.8 243.2,272.7C251.2,279.7 261.0,288.5 268.3,295.5C275.6,302.4 284.5,311.2 291.1,318.2C297.7,325.2 305.6,333.9 311.5,340.9C317.4,347.9 324.3,356.7 329.4,363.6C334.5,370.6 340.4,379.4 344.7,386.4C349.0,393.3 353.9,402.1 357.3,409.1C360.8,416.1 364.6,424.8 367.2,431.8C369.8,438.8 372.6,447.6 374.3,454.5C376.0,461.5 377.7,470.3 378.6,477.3C379.4,484.2 380.0,493.0 380.0,500.0C380.0,507.0 379.4,515.8 378.6,522.7C377.7,529.7 376.0,538.5 374.3,545.5C372.6,552.4 369.8,561.2 367.2,568.2C364.6,575.2 360.8,583.9 357.3,590.9C353.9,597.9 349.0,606.7 344.7,613.6C340.4,620.6 334.5,629.4 329.4,636.4C324.3,643.3 317.4,652.1 311.5,659.1C305.6,666.1 297.7,674.8 291.1,681.8C284.5,688.8 275.6,697.6 268.3,704.5C261.0,711.5 251.2,720.3 243.2,727.3C235.2,734.2 224.6,743.0 216.0,750.0C207.3,757.0 196.0,765.8 186.7,772.7C177.5,779.7 165.4,788.5 155.6,795.5C145.8,802.4 133.1,811.2 122.8,818.2C112.5,825.2 99.1,833.9 88.4,840.9C77.6,847.9 63.8,856.7 52.6,863.6C41.5,870.6 27.2,879.4 15.7,886.4C4.2,893.3 -10.5,902.1 -22.2,909.1C-34.0,916.1 -49.0,924.8 -61.0,931.8C-72.9,938.8 -88.2,947.6 -100.3,954.5C-112.4,961.5 -127.8,970.3 -140.1,977.3C-152.3,984.2 -173.9,996.5 -180.0,1000.0"></path></svg></div><div class="rib" style="top:41%;height:25%;--amp:43.7px" data-y0="372"><svg viewBox="0 0 1440 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="vg5" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6DBE45"></stop><stop offset="52%" stop-color="#2E7A62"></stop><stop offset="100%" stop-color="#6DBE45"></stop></linearGradient></defs><path pathLength="1" class="ribbon" stroke="url(#vg5)" d="M1620.0,0.0C1614.3,3.5 1594.3,15.8 1582.9,22.7C1571.6,29.7 1557.3,38.5 1546.0,45.5C1534.7,52.4 1520.6,61.2 1509.5,68.2C1498.3,75.2 1484.4,83.9 1473.5,90.9C1462.6,97.9 1448.9,106.7 1438.3,113.6C1427.6,120.6 1414.3,129.4 1404.0,136.4C1393.6,143.3 1380.8,152.1 1370.8,159.1C1360.8,166.1 1348.4,174.8 1338.9,181.8C1329.3,188.8 1317.5,197.6 1308.4,204.5C1299.3,211.5 1288.1,220.3 1279.5,227.3C1270.9,234.2 1260.3,243.0 1252.3,250.0C1244.3,257.0 1234.5,265.8 1227.0,272.7C1219.6,279.7 1210.5,288.5 1203.7,295.5C1196.9,302.4 1188.7,311.2 1182.5,318.2C1176.4,325.2 1169.1,333.9 1163.6,340.9C1158.2,347.9 1151.7,356.7 1147.0,363.6C1142.3,370.6 1136.8,379.4 1132.8,386.4C1128.8,393.3 1124.3,402.1 1121.1,409.1C1117.9,416.1 1114.3,424.8 1111.9,431.8C1109.5,438.8 1106.9,447.6 1105.3,454.5C1103.7,461.5 1102.1,470.3 1101.3,477.3C1100.5,484.2 1100.0,493.0 1100.0,500.0C1100.0,507.0 1100.5,515.8 1101.3,522.7C1102.1,529.7 1103.7,538.5 1105.3,545.5C1106.9,552.4 1109.5,561.2 1111.9,568.2C1114.3,575.2 1117.9,583.9 1121.1,590.9C1124.3,597.9 1128.8,606.7 1132.8,613.6C1136.8,620.6 1142.3,629.4 1147.0,636.4C1151.7,643.3 1158.2,652.1 1163.6,659.1C1169.1,666.1 1176.4,674.8 1182.5,681.8C1188.7,688.8 1196.9,697.6 1203.7,704.5C1210.5,711.5 1219.6,720.3 1227.0,727.3C1234.5,734.2 1244.3,743.0 1252.3,750.0C1260.3,757.0 1270.9,765.8 1279.5,772.7C1288.1,779.7 1299.3,788.5 1308.4,795.5C1317.5,802.4 1329.3,811.2 1338.9,818.2C1348.4,825.2 1360.8,833.9 1370.8,840.9C1380.8,847.9 1393.6,856.7 1404.0,863.6C1414.3,870.6 1427.6,879.4 1438.3,886.4C1448.9,893.3 1462.6,902.1 1473.5,909.1C1484.4,916.1 1498.3,924.8 1509.5,931.8C1520.6,938.8 1534.7,947.6 1546.0,954.5C1557.3,961.5 1571.6,970.3 1582.9,977.3C1594.3,984.2 1614.3,996.5 1620.0,1000.0"></path></svg></div><div class="rib" style="top:68%;height:28%;--amp:40.6px" data-y0="480"><svg viewBox="0 0 1440 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="vg6" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6DBE45"></stop><stop offset="52%" stop-color="#2E7A62"></stop><stop offset="100%" stop-color="#6DBE45"></stop></linearGradient></defs><path pathLength="1" class="ribbon" stroke="url(#vg6)" d="M-180.0,0.0C-175.3,3.5 -158.7,15.8 -149.3,22.7C-139.9,29.7 -128.1,38.5 -118.8,45.5C-109.5,52.4 -97.8,61.2 -88.6,68.2C-79.4,75.2 -67.9,83.9 -58.9,90.9C-49.8,97.9 -38.5,106.7 -29.7,113.6C-20.9,120.6 -9.9,129.4 -1.4,136.4C7.2,143.3 17.8,152.1 26.1,159.1C34.3,166.1 44.6,174.8 52.5,181.8C60.4,188.8 70.2,197.6 77.7,204.5C85.2,211.5 94.5,220.3 101.6,227.3C108.7,234.2 117.4,243.0 124.1,250.0C130.7,257.0 138.8,265.8 145.0,272.7C151.1,279.7 158.6,288.5 164.2,295.5C169.9,302.4 176.7,311.2 181.7,318.2C186.8,325.2 192.9,333.9 197.4,340.9C201.9,347.9 207.2,356.7 211.1,363.6C215.0,370.6 219.6,379.4 222.9,386.4C226.2,393.3 229.9,402.1 232.6,409.1C235.2,416.1 238.2,424.8 240.2,431.8C242.2,438.8 244.3,447.6 245.6,454.5C247.0,461.5 248.2,470.3 248.9,477.3C249.6,484.2 250.0,493.0 250.0,500.0C250.0,507.0 249.6,515.8 248.9,522.7C248.2,529.7 247.0,538.5 245.6,545.5C244.3,552.4 242.2,561.2 240.2,568.2C238.2,575.2 235.2,583.9 232.6,590.9C229.9,597.9 226.2,606.7 222.9,613.6C219.6,620.6 215.0,629.4 211.1,636.4C207.2,643.3 201.9,652.1 197.4,659.1C192.9,666.1 186.8,674.8 181.7,681.8C176.7,688.8 169.9,697.6 164.2,704.5C158.6,711.5 151.1,720.3 145.0,727.3C138.8,734.2 130.7,743.0 124.1,750.0C117.4,757.0 108.7,765.8 101.6,772.7C94.5,779.7 85.2,788.5 77.7,795.5C70.2,802.4 60.4,811.2 52.5,818.2C44.6,825.2 34.3,833.9 26.1,840.9C17.8,847.9 7.2,856.7 -1.4,863.6C-9.9,870.6 -20.9,879.4 -29.7,886.4C-38.5,893.3 -49.8,902.1 -58.9,909.1C-67.9,916.1 -79.4,924.8 -88.6,931.8C-97.8,938.8 -109.5,947.6 -118.8,954.5C-128.1,961.5 -139.9,970.3 -149.3,977.3C-158.7,984.2 -175.3,996.5 -180.0,1000.0"></path></svg></div></div>
-  <div class="layer">
-    <div class="s-head">
-      <div class="rv">
-        <div class="eyebrow mono">Ce que ça répond</div>
-        <h2>Trois questions, et la réponse<br><span class='it'>n'est jamais au même endroit.</span></h2>
-      </div>
-      <p class="s-note rv d2">On n'ouvre pas un logiciel RSE par curiosité. On l'ouvre parce qu'on vient de vous poser une de ces trois questions.</p>
+<dialog class="menu" id="menu" aria-label="Menu">
+  <div class="menu-in">
+    <div class="menu-top">
+      <img src="/brand/riseva-full.png" alt="Riseva" width="392" height="88">
+      <button class="menu-close" id="menuClose" type="button" aria-label="Fermer le menu">
+        <span></span><span></span></button>
     </div>
+    <nav class="menu-links" aria-label="Sections de la page">
+      <a href="#mecanisme">Comment ça marche</a>
+      <a href="#outil">L'outil</a>
+      <a href="#saison">La saison</a>
+      <a href="#prix">Tarif</a>
+      <a href="#questions">Questions</a>
+      <a class="menu-alt" href="/associations.html">Associations</a>
+    </nav>
+    <a class="btn btn-lg" href="/inscription.html">Se préinscrire</a>
+    <p class="menu-note">Préinscription gratuite, sans carte, sans engagement.</p>
+  </div>
+</dialog>
 
-    <div class="verre verre-anim">
-      <i class="verre-lumiere" aria-hidden="true"></i>
-      <i class="verre-eclat" aria-hidden="true"></i>
-
-      <div class="verre-tete">
-        <span class="verre-produit"><span class="verre-marque" aria-hidden="true">R</span>Riseva, tableau de bord</span>
-        <span class="verre-demo mono"><i aria-hidden="true"></i>Jeu de démonstration</span>
+<main id="contenu">
+<section class="hero" id="hero">
+  <div class="wrap">
+    <div class="hero-txt">
+      <h1>Tous vos sites dans un seul rapport.<br>Et vos équipes sur le terrain.</h1>
+      <p class="lede">Des associations à moins de trente kilomètres de vos sites, refuges,
+        épiceries solidaires, chantiers de plantation, publient ce qui leur manque. Vos salariés
+        se proposent. L'association confirme ce qui a eu lieu. Cette confirmation, datée, entre
+        dans votre rapport RSE.</p>
+      <div class="cta">
+        <a class="btn btn-lg" href="#prix">Calculer mon tarif</a>
+        <a class="btn btn-lg btn-2" href="/app/?demo=1">Ouvrir la démonstration</a>
       </div>
-
-      <div class="verre-intro">
-        <p><b>La même donnée, du site jusqu'au rapport.</b> Rien n'est ressaisi, et
-          rien n'est estimé sans que la page le dise.</p>
-        <div class="verre-chiffres">
-          <span class="verre-chiffre"><b>8</b><span>rubriques au choix</span></span>
-          <span class="verre-chiffre"><b>27</b><span>valeurs collectées</span></span>
-          <span class="verre-chiffre"><b>10</b><span>taux calculés</span></span>
-        </div>
-      </div>
-
-      <div class="verre-grille">
-      <article class="verre-zone verre-zone--large">
-        <span class="verre-num" aria-hidden="true">1</span>
-        <div class="verre-zone-texte">
-          <span class="verre-puce mono">En réunion budget</span>
-          <h3>« Combien de vos sites ont répondu&nbsp;?&nbsp;»</h3>
-          <p>Vous cochez les rubriques d'une période parmi 8. Chaque établissement voit sa part sur son écran, avec <b>ce qu'on compte et ce qu'on ne compte pas</b>.</p>
-          <p class="verre-ecrans mono">Écrans : Données sociales, Sites et quotas, Vue consolidée</p>
-        </div>
-        <figure class="mini">
-          <div class="mini-barre"><i></i><i></i><i></i><span class="mono">Sites et quotas</span></div>
-          <div class="mini-corps">
-            <div class="mini-ligne"><span>Rennes - Sud</span><span class="mini-etat mini-etat--ok">Approuvé</span></div>
-            <div class="mini-ligne"><span>Lyon - Vaise</span><span class="mini-etat mini-etat--ok">Approuvé</span></div>
-            <div class="mini-ligne"><span>Lille - Seclin</span><span class="mini-etat mini-etat--attente">En attente</span></div>
-            <div class="mini-ligne"><span>Brest - Port</span><span class="mini-etat mini-etat--muet">Non commencé</span></div>
-            <div class="mini-jauge"><i style="width:64%"></i></div>
-            <div class="mini-ligne"><span>Établissements ayant répondu</span><span>64&nbsp;%</span></div>
-          </div>
-          <figcaption class="mini-note">Maquette de l'écran « Sites et quotas », avec un jeu de démonstration.</figcaption>
-        </figure>
-      </article>
-
-      <article class="verre-zone">
-        <span class="verre-num" aria-hidden="true">2</span>
-        <span class="verre-puce mono">Questionnaire fournisseur</span>
-        <h3>« D'où sort ce chiffre&nbsp;?&nbsp;»</h3>
-        <p>27 valeurs collectées, 10 taux calculés en rapport de sommes, jamais en moyenne de taux. Chaque saisie porte qui l'a remplie, qui l'a approuvée (jamais la même personne) et <b>les pièces qui la justifient</b>.</p>
-        <figure class="mini">
-          <div class="mini-barre"><i></i><i></i><i></i><span class="mono">Rapport, taux de fréquence</span></div>
-          <div class="mini-corps">
-            <div class="mini-ligne"><span>Formule</span><span>AT x 1 000 000 / heures</span></div>
-            <div class="mini-ligne"><span>Période</span><span>2026, 4e trimestre</span></div>
-            <div class="mini-ligne"><span>Sites derrière la somme</span><span class="mini-etat mini-etat--ok">22 sur 22</span></div>
-            <div class="mini-ligne"><span>Valeurs approuvées</span><span class="mini-etat mini-etat--ok">Par le référent</span></div>
-            <div class="mini-ligne"><span>Pièces jointes</span><span class="mini-etat mini-etat--muet">9 justificatifs</span></div>
-          </div>
-          <figcaption class="mini-note">Maquette de la fiche d'un taux consolidé, avec sa formule et ses sources.</figcaption>
-        </figure>
-        <p class="verre-ecrans mono">Écrans : Rapports, Fiche VSME, Mécénat</p>
-      </article>
-
-      <article class="verre-zone">
-        <span class="verre-num" aria-hidden="true">3</span>
-        <span class="verre-puce mono">Vos salariés, vos candidats</span>
-        <h3>« Qu'est-ce que vos équipes ont fait cette année&nbsp;?&nbsp;»</h3>
-        <p>Bénévolat, dons de matériel, mécénat de compétences et dons en argent passent par le même écran, et <b>c'est l'association qui confirme</b> chacun.</p>
-        <figure class="photo verre-photo">
-        <picture><source type="image/webp" srcset="/photos/refuge-sortie-760.webp 760w, /photos/refuge-sortie-1120.webp 1120w" sizes="(max-width: 900px) 92vw, 46vw">
-        <img src="/photos/refuge-sortie.jpg" alt="Deux bénévoles sortent quatre chiens de refuge sur un chemin de campagne, en plein soleil" loading="lazy" decoding="async"
-             width="1358" height="772"></picture>
-      </figure>
-        <p class="verre-ecrans mono">Écrans : Annonces, Nos missions, Associations</p>
-      </article>
-      </div>
+      <p class="hero-note">À partir de 2&nbsp;400&nbsp;€ HT la saison, tarif
+        public. Rien par salarié, rien par module. Première saison&nbsp;: janvier 2027.</p>
     </div>
-
-    <p class="s-note s-note--trois">Ce que vous restituerez ne vient pas de vous&nbsp;:
-      <b>c'est l'association qui l'a confirmé</b>.</p>
-
-    <ol class="flux"><li class="flux-c rv d0"><b class="mono">L'association</b><span>publie un besoin, à moins de trente kilomètres d'un de vos sites</span></li><li class="flux-c rv d1"><b class="mono">Vos équipes</b><span>le voient sur leur écran et s'y rendent ensemble</span></li><li class="flux-c rv d2"><b class="mono">L'association</b><span>confirme ce qui a eu lieu. Sans elle, le résultat reste estimé</span></li><li class="flux-c rv d3"><b class="mono">Riseva</b><span>consolide, avec la date et la source de chaque ligne</span></li><li class="flux-c rv d4"><b class="mono">Vous</b><span>retrouvez le résultat dans votre rapport, sans l'avoir écrit</span></li></ol>
-
+    <figure class="shot shot-hero"><picture><source media="(max-width: 640px)" width="860" height="1660" type="image/webp" srcset="/captures/admin-tableau-mobile-760.webp 760w" sizes="92vw"><source media="(max-width: 640px)" srcset="/captures/admin-tableau-mobile.jpg" width="860" height="1660"><source type="image/webp" srcset="/captures/admin-tableau-760.webp 760w, /captures/admin-tableau-1120.webp 1120w, /captures/admin-tableau-1440.webp 1440w" sizes="(max-width: 1240px) 94vw, 1180px"><img src="/captures/admin-tableau.jpg" alt="Le tableau de bord d'une entreprise dans Riseva : salariés mobilisés, missions validées, heures consacrées, associations soutenues, et l'état de chaque site" loading="eager" fetchpriority="high" decoding="async" width="2560" height="1010"></picture></figure>
   </div>
 </section>
 
-<section id="outil-rse" class="band">
-  <div class="layer">
-    <div class="s-head">
-      <div class="rv">
-        <div class="eyebrow mono">L'outil RSE</div>
-        <h2>Ce que vous ne referez plus<br><span class='it'>à la main.</span></h2>
+<section class="s" id="mecanisme">
+  <div class="wrap">
+  <div class="s-head">
+    <h2>De l'annonce au rapport, sans ressaisir la mission.</h2>
+    <p class="s-intro">Quatre écrans du produit, issus du jeu de démonstration. L'interface est réelle, les noms et les chiffres sont fictifs.</p>
+  </div>
+  <svg class="riviere" viewBox="0 0 1180 24" preserveAspectRatio="none" aria-hidden="true">
+    <path class="riviere-t" d="M0 12 C 140 12, 200 4, 320 8 S 560 20, 700 12 S 980 2, 1180 10"/>
+  </svg>
+  <ol class="moments">
+    <li class="moment">
+      <div class="moment-txt">
+        <p class="moment-n" aria-hidden="true">1</p>
+        <h3>L'association publie</h3>
+        <p>Elle écrit ce qui lui manque, la date et le nombre de places. Son annonce apparaît chez les salariés des entreprises abonnées dont un site est à moins de trente kilomètres.</p>
       </div>
-      <p class="s-note rv d2">Obtenir les chiffres de chaque site, relancer jusqu'à ce que le dernier réponde, et garder sous chaque total la trace de qui l'a saisi.</p>
-    </div>
-
-    <ul class="benef">
-      <li class="rv">
-        <b>Vous demandez une fois</b>
-        <span>Vous cochez les rubriques de la période. L'écran dit combien de valeurs chaque
-          site devra trouver, avant que la collecte parte.</span>
-      </li>
-      <li class="rv d1">
-        <b>Personne ne relance</b>
-        <span>Le rappel part tout seul et il ne vient pas de vous. Vous voyez qui manque,
-          nommément.</span>
-      </li>
-      <li class="rv d2">
-        <b>Le rapport existe déjà</b>
-        <span>Totaux, taux calculés en rapport de sommes, valeurs manquantes site par site.
-          En classeur et en CSV.</span>
-      </li>
-    </ul>
-
-    <ol class="flux"><li class="flux-c rv d0"><b class="mono">Jour 1</b><span>vous cochez les rubriques et la date limite</span></li><li class="flux-c rv d1"><b class="mono">Jour 2</b><span>chaque site voit sa part, sans rien installer</span></li><li class="flux-c rv d2"><b class="mono">J-7, J-2</b><span>le rappel part tout seul</span></li><li class="flux-c rv d3"><b class="mono">Échéance</b><span>vous voyez qui manque, nommément</span></li><li class="flux-c rv d4"><b class="mono">Le lendemain</b><span>le rapport est là, daté, avec sa méthode</span></li></ol>
-
-    <p class="s-note s-note--preuve"><b>Et chaque chiffre garde sa source.</b> Cinq écrans de
-      l'application, tels qu'ils s'affichent, avec un jeu de démonstration.</p>
-
-<div class="ong">
-      <div class="ong-bar" role="tablist"><input class="ong-r" type="radio" name="ong" id="ong-miss" checked><label class="ong-l" for="ong-miss">Les missions</label><input class="ong-r" type="radio" name="ong" id="ong-rapp"><label class="ong-l" for="ong-rapp">Les rapports</label><input class="ong-r" type="radio" name="ong" id="ong-meca"><label class="ong-l" for="ong-meca">Le dossier de mécénat</label><input class="ong-r" type="radio" name="ong" id="ong-indi"><label class="ong-l" for="ong-indi">Les indicateurs</label><input class="ong-r" type="radio" name="ong" id="ong-grpe"><label class="ong-l" for="ong-grpe">Le groupe entier</label></div>
-      <div class="ong-panneaux"><div class="ong-p" data-ong="miss"><figure class="shot">
-        <picture><source type="image/webp" srcset="/captures/missions-760.webp 760w, /captures/missions-1120.webp 1120w, /captures/missions-1440.webp 1440w" sizes="(max-width: 900px) 92vw, 86vw">
-        <img src="/captures/missions.jpg" alt="La liste des missions d'une entreprise, avec leur état de confirmation" loading="lazy" decoding="async"
-             width="1984" height="1120"></picture>
-        <figcaption class="mono">Chaque mission, son association, son état</figcaption>
-      </figure></div><div class="ong-p" data-ong="rapp"><figure class="shot">
-        <picture><source type="image/webp" srcset="/captures/rapports-760.webp 760w, /captures/rapports-1120.webp 1120w, /captures/rapports-1440.webp 1440w" sizes="(max-width: 900px) 92vw, 86vw">
-        <img src="/captures/rapports.jpg" alt="Le rapport trimestriel d'une entreprise dans Riseva" loading="lazy" decoding="async"
-             width="1984" height="1196"></picture>
-        <figcaption class="mono">Les rapports, en CSV et en PDF</figcaption>
-      </figure></div><div class="ong-p" data-ong="meca"><figure class="shot">
-        <picture><source type="image/webp" srcset="/captures/mecenat-760.webp 760w, /captures/mecenat-1120.webp 1120w, /captures/mecenat-1440.webp 1440w" sizes="(max-width: 900px) 92vw, 86vw">
-        <img src="/captures/mecenat.jpg" alt="Le calcul du mécénat ligne par ligne : dons versés, mécénat de compétences au coût de revient, assiette, plafond, report" loading="lazy" decoding="async"
-             width="1900" height="1240"></picture>
-        <figcaption class="mono">Le calcul, ligne par ligne</figcaption>
-      </figure></div><div class="ong-p" data-ong="indi"><figure class="shot">
-        <picture><source type="image/webp" srcset="/captures/indicateurs-formule-760.webp 760w, /captures/indicateurs-formule-1120.webp 1120w, /captures/indicateurs-formule-1440.webp 1440w" sizes="(max-width: 900px) 92vw, 86vw">
-        <img src="/captures/indicateurs-formule.jpg" alt="Les taux de sécurité consolidés, chacun avec sa formule sous son libellé, et la colonne approuvé séparée de la colonne provisoire" loading="lazy" decoding="async"
-             width="1784" height="1240"></picture>
-        <figcaption class="mono">Chaque taux avec sa formule</figcaption>
-      </figure></div><div class="ong-p" data-ong="grpe"><figure class="shot">
-        <picture><source type="image/webp" srcset="/captures/groupe-760.webp 760w, /captures/groupe-1120.webp 1120w, /captures/groupe-1440.webp 1440w" sizes="(max-width: 900px) 92vw, 86vw">
-        <img src="/captures/groupe.jpg" alt="La vue consolidée d'un groupe : sociétés, sites et indicateurs réunis" loading="lazy" decoding="async"
-             width="1984" height="1040"></picture>
-        <figcaption class="mono">Un groupe, ses sociétés, ses établissements</figcaption>
-      </figure></div></div>
-    </div>
-
-    <dl class="faits4 faits4--serre">
-      <div><dt class="mono">Le dictionnaire</dt><dd>ce qu'on compte et ce qu'on ne compte
-        pas, daté</dd></div>
-      <div><dt class="mono">Le registre de sécurité</dt><dd>événements, circonstances, plan
-        d'actions</dd></div>
-      <div><dt class="mono">La fiche VSME</dt><dd>les onze rubriques de la norme européenne
-        volontaire</dd></div>
-      <div><dt class="mono">Groupes et filiales</dt><dd>trois niveaux, chaque société avec son
-        SIREN, et <b>payer la facture ne donne pas accès aux personnes d'une filiale</b></dd></div>
-    </dl>
+      <figure class="shot shot-tapis"><picture><source media="(max-width: 640px)" width="680" height="1070" type="image/webp" srcset="/captures/annonce-carte-mobile-760.webp 760w" sizes="92vw"><source media="(max-width: 640px)" srcset="/captures/annonce-carte-mobile.jpg" width="680" height="1070"><source type="image/webp" srcset="/captures/annonce-carte-760.webp 760w" sizes="(max-width: 640px) 92vw, (max-width: 900px) 84vw, (max-width: 1240px) 46vw, 516px"><img src="/captures/annonce-carte.jpg" alt="Une annonce telle qu'un salarié la voit : le format, l'objectif, la date, les places restantes, et le bouton Participer" loading="lazy" decoding="async" width="922" height="884" style="max-width:min(100%,516px)"></picture></figure>
+    </li>
+    <li class="moment">
+      <div class="moment-txt">
+        <p class="moment-n" aria-hidden="true">2</p>
+        <h3>Vos salariés se proposent</h3>
+        <p>Depuis leur espace, sur la date qui leur convient, sur leur temps de travail si l'annonce le prévoit. L'association voit qui vient, et peut refuser sans se justifier.</p>
+      </div>
+      <figure class="shot shot-tapis"><picture><source type="image/webp" srcset="/captures/qui-vient-760.webp 760w, /captures/qui-vient-1120.webp 1120w" sizes="(max-width: 640px) 92vw, (max-width: 900px) 84vw, (max-width: 1240px) 46vw, 516px"><img src="/captures/qui-vient.jpg" alt="La liste de qui vient, côté association : le salarié, son entreprise, la mission et la date" loading="lazy" decoding="async" width="1284" height="441" style="max-width:min(100%,479px)"></picture></figure>
+    </li>
+    <li class="moment">
+      <div class="moment-txt">
+        <p class="moment-n" aria-hidden="true">3</p>
+        <h3>L'association confirme</h3>
+        <p>Après la mission, elle reçoit un courriel. Une question, trois réponses, dont « réalisée partiellement » avec le chiffre réel. Sa réponse fait foi.</p>
+      <p class="moment-note">Sans réponse sous quatorze jours, la mission est <b>clôturée automatiquement sans confirmation</b>&nbsp;: son résultat reste marqué estimé partout, dans vos rapports aussi.</p>
+      </div>
+      <figure class="shot shot-tapis"><picture><source media="(max-width: 640px)" width="780" height="1418" type="image/webp" srcset="/captures/confirmation-mobile-760.webp 760w" sizes="92vw"><source media="(max-width: 640px)" srcset="/captures/confirmation-mobile.jpg" width="780" height="1418"><source type="image/webp" srcset="/captures/confirmation-760.webp 760w, /captures/confirmation-1120.webp 1120w" sizes="(max-width: 640px) 92vw, (max-width: 900px) 84vw, (max-width: 1240px) 46vw, 516px"><img src="/captures/confirmation.jpg" alt="La page qu'ouvre le courriel de confirmation : une question, trois réponses, réalisée comme prévu, réalisée partiellement, non réalisée" loading="lazy" decoding="async" width="1280" height="1160" style="max-width:min(100%,717px)"></picture></figure>
+    </li>
+    <li class="moment">
+      <div class="moment-txt">
+        <p class="moment-n" aria-hidden="true">4</p>
+        <h3>Le fait entre dans votre rapport</h3>
+        <p>La mission apparaît dans votre tableau avec son état, confirmée, engagée ou clôturée sans confirmation, puis dans le rapport du trimestre. Personne ne la recopie.</p>
+      </div>
+      <figure class="shot shot-tapis"><picture><source media="(max-width: 640px)" width="780" height="1106" type="image/webp" srcset="/captures/mission-lignes-mobile-760.webp 760w" sizes="92vw"><source media="(max-width: 640px)" srcset="/captures/mission-lignes-mobile.jpg" width="780" height="1106"><source type="image/webp" srcset="/captures/mission-lignes-760.webp 760w, /captures/mission-lignes-1120.webp 1120w, /captures/mission-lignes-1440.webp 1440w" sizes="(max-width: 640px) 92vw, (max-width: 900px) 84vw, (max-width: 1240px) 46vw, 516px"><img src="/captures/mission-lignes.jpg" alt="Trois lignes du tableau des missions d'une entreprise, avec leur état : en attente de l'association, engagée, clôturée sans confirmation" loading="lazy" decoding="async" width="1384" height="756" style="max-width:min(100%,775px)"></picture></figure>
+    </li>
+  </ol>
+  <p class="s-croise">Vous êtes une association&nbsp;? <a href="/associations.html">La page qui vous
+    est destinée</a>&nbsp;: gratuite, sans exclusivité, sans commission.</p>
   </div>
 </section>
 
-<section id="challenge" class="chal verre-sect">
-  <div class="chal-fond" aria-hidden="true">
-    <img src="/photos/berge-ramassage.jpg" alt="" loading="lazy" decoding="async"
-         width="1358" height="772">
+<section class="s s-sunk" id="outil">
+  <div class="wrap">
+  <div class="s-head">
+    <p class="eyebrow">L'outil RSE</p>
+    <h2>Ce que vous ne referez<br>plus à la main.</h2>
   </div>
-  <div class="layer">
-    <div class="verre chal-verre verre-anim">
-      <i class="verre-lumiere" aria-hidden="true"></i>
-      <i class="verre-eclat" aria-hidden="true"></i>
-      <div class="chal-tete">
-        <p class="eyebrow mono">Le challenge</p>
-        <h2>Douze mois plus tard,<br><span class="it">vous n'avez pas de bilan à écrire.</span></h2>
-        <p class="chal-p">Des associations vérifiées publient ce dont elles ont besoin près de
-          chacun de vos sites. Vos équipes s'y rendent ensemble.</p>
-      </div>
-      <!-- Trois grands nombres sous un titre retrospectif, sur une
-           photographie : c'est la grammaire visuelle d'un cas client, et la
-           page jure quelques ecrans plus bas n'avoir aucun resultat a montrer.
-           Les legendes disaient deja qu'il s'agit de parametres ; le sur-titre
-           le dit avant qu'on lise les legendes. -->
-      <p class="chal-cle mono">Les trois paramètres de la saison</p>
-      <div class="verre-chiffres chal-chiffres">
-        <span class="verre-chiffre"><b>12</b><span>mois, sans reconduction tacite</span></span>
-        <span class="verre-chiffre"><b>4</b><span>rapports, un par trimestre</span></span>
-        <span class="verre-chiffre"><b>30&nbsp;km</b><span>autour de chaque site</span></span>
-      </div>
-      <ol class="chal-temps">
-        <li><b class="mono">Janvier</b><span>Vous diffusez un lien. Chacun crée son compte.</span></li>
-        <li><b class="mono">Février à octobre</b><span>Les missions se font, l'association confirme.</span></li>
-        <li><b class="mono">Chaque trimestre</b><span>Le rapport se génère tout seul.</span></li>
-        <li><b class="mono">Mi-janvier</b><span>Le bilan annuel, avec son dossier de traçabilité.</span></li>
-      </ol>
+  <div class="outil-a">
+    <div class="outil-txt">
+      <p class="q">Combien de vos sites ont répondu&nbsp;?</p>
+      <h3>Le compte des sites qui ont répondu, pendant la collecte.</h3>
+      <p>Chaque campagne de collecte a son échéance&nbsp;; chaque site, un référent qui saisit,
+        et un administrateur qui approuve. Vous voyez combien de sites ont répondu, ce qui attend
+        une approbation et ce qu'il manque, pendant la collecte plutôt qu'après. Un site qui n'a
+        pas répondu reste marqué sans réponse, jamais complété avec le chiffre d'avant.</p>
+    </div>
+    <figure class="shot"><picture><source media="(max-width: 640px)" width="780" height="2138" type="image/webp" srcset="/captures/collecte-mobile-760.webp 760w" sizes="92vw"><source media="(max-width: 640px)" srcset="/captures/collecte-mobile.jpg" width="780" height="2138"><source type="image/webp" srcset="/captures/collecte-760.webp 760w, /captures/collecte-1120.webp 1120w, /captures/collecte-1440.webp 1440w" sizes="(max-width: 900px) 92vw, (max-width: 1240px) 56vw, 691px"><img src="/captures/collecte.jpg" alt="La carte Collecte des indicateurs d'une entreprise : les sites qui ont répondu, les valeurs approuvées, celles en attente d'approbation, et l'échéance" loading="lazy" decoding="async" width="1584" height="1348"></picture></figure>
+  </div>
+  <div class="outil-bc">
+    <div class="outil-b">
+      <p class="q">D'où sort ce chiffre&nbsp;?</p>
+      <h3>Chaque taux avec sa formule et ses sources.</h3>
+      <p>Un taux de périmètre est un rapport de sommes, jamais une moyenne de taux. Seules les
+        valeurs approuvées entrent dans un rapport ou dans une réponse à un client&nbsp;; les
+        autres restent marquées provisoires.</p>
+      <figure class="shot"><picture><source media="(max-width: 640px)" width="780" height="1688" type="image/webp" srcset="/captures/indicateurs-formule-mobile-760.webp 760w" sizes="92vw"><source media="(max-width: 640px)" srcset="/captures/indicateurs-formule-mobile.jpg" width="780" height="1688"><source type="image/webp" srcset="/captures/indicateurs-formule-760.webp 760w, /captures/indicateurs-formule-1120.webp 1120w" sizes="(max-width: 640px) 92vw, (max-width: 1240px) 46vw, 566px"><img src="/captures/indicateurs-formule.jpg" alt="Le tableau consolidé des indicateurs : chaque taux avec sa formule, sa valeur approuvée et sa valeur provisoire" loading="lazy" decoding="async" width="1370" height="1190"></picture></figure>
+    </div>
+    <div class="outil-c">
+      <p class="q">Qu'est-ce que vos équipes ont fait cette année&nbsp;?</p>
+      <h3>La liste des missions, avec leur état.</h3>
+      <p>Association, salarié, date, points, et ce que l'association a répondu. C'est ce tableau
+        que le rapport reprend, rien n'est retraité entre les deux.</p>
+      <figure class="shot"><picture><source media="(max-width: 640px)" width="780" height="1670" type="image/webp" srcset="/captures/missions-mobile-760.webp 760w" sizes="92vw"><source media="(max-width: 640px)" srcset="/captures/missions-mobile.jpg" width="780" height="1670"><source type="image/webp" srcset="/captures/missions-760.webp 760w, /captures/missions-1120.webp 1120w, /captures/missions-1440.webp 1440w" sizes="(max-width: 640px) 92vw, (max-width: 1240px) 46vw, 566px"><img src="/captures/missions.jpg" alt="Le tableau des missions d'une entreprise : mission, association, salarié, date, points, état" loading="lazy" decoding="async" width="1784" height="1366"></picture></figure>
     </div>
   </div>
-</section>
-
-<section id="equipes">
-  <div class="layer">
-    <div class="s-head">
-      <div class="rv">
-        <div class="eyebrow mono">Côté salariés</div>
-        <h2>Un lien, une affiche,<br><span class='it'>et chacun peut se proposer.</span></h2>
-      </div>
-      <p class="s-note rv d2">Un salarié qui se sent inscrit d'office ne revient pas une deuxième fois. Il faut donc qu'il croise l'information là où il est, et qu'il y aille de lui-même.</p>
-    </div>
-
-    <div class="duo duo--pile">
-      <figure class="shot">
-        <picture><source type="image/webp" srcset="/captures/salarie-saison-760.webp 760w, /captures/salarie-saison-1120.webp 1120w, /captures/salarie-saison-1440.webp 1440w" sizes="(max-width: 900px) 92vw, 49vw">
-        <img src="/captures/salarie-saison.jpg" alt="Le tableau de bord d'un salarié : ses points, et l'objectif collectif de son site" loading="lazy" decoding="async"
-             width="2264" height="718"></picture>
-        <figcaption class="mono">L'objectif de son site</figcaption>
-      </figure>
-      <figure class="shot">
-        <picture><source type="image/webp" srcset="/captures/salarie-actions-760.webp 760w, /captures/salarie-actions-1120.webp 1120w" sizes="(max-width: 900px) 92vw, 35vw">
-        <img src="/captures/salarie-actions.jpg" alt="La liste des besoins publiés par les associations proches du site du salarié" loading="lazy" decoding="async"
-             width="1284" height="780"></picture>
-        <figcaption class="mono">Les besoins près de chez lui</figcaption>
-      </figure>
-    </div>
-
-    <!-- La phrase disait mot pour mot ce que la capture de gauche affiche deja,
-         deux cents pixels plus haut. Tant que la capture etait recadree et
-         illisible, le doublon ne se voyait pas ; entiere, il saute aux yeux.
-         Elle dit maintenant ce que la capture ne dit pas : a quoi sert de
-         compter ainsi. -->
-    <p class="s-note s-note--grand">Le compteur d'un site ne bouge que lorsqu'une personne
-      y va <b>pour la première fois</b>. C'est ce qui empêche une saison entière de se jouer
-      entre les cinq mêmes volontaires.
-      <a class="tlink" href="/app/?demo=1">Explorer l'espace salarié</a></p>
-
-
-    <div class="aff-scene">
-      <figure class="photo photo--mur">
-        <picture><source type="image/webp" srcset="/photos/affiche-bureau-760.webp 760w, /photos/affiche-bureau-1120.webp 1120w, /photos/affiche-bureau-1440.webp 1440w" sizes="(max-width: 900px) 92vw, 46vw">
-        <img src="/photos/affiche-bureau.jpg" alt="L'affiche A3 que Riseva génère, entière, posée devant un plateau de bureaux : le nom d'une entreprise de démonstration, la saison, les formats proposés, le lien d'inscription et son code QR" loading="lazy" decoding="async"
-             width="1640" height="1140"></picture>
-      </figure>
-      <p class="aff-mention mono">Affiche sortie du jeu de démonstration : le nom d'entreprise
-        et les nombres du bas de page en viennent, ils ne décrivent aucune saison réalisée.</p>
-      <div class="aff-encart">
-        <figure class="photo shot--affiche">
-        <picture><source type="image/webp" srcset="/photos/affiche-qr-760.webp 760w, /photos/affiche-qr-1120.webp 1120w" sizes="(max-width: 900px) 92vw, 46vw">
-        <img src="/photos/affiche-qr.jpg" alt="Le bas de l'affiche : le code QR et le lien d'inscription de l'entreprise, en toutes lettres à côté" loading="lazy" decoding="async"
-             width="1400" height="484"></picture>
-      </figure>
-        <p class="mono">Le code QR porte le lien de vos équipes. Il se scanne pour de bon.</p>
-      </div>
-      <div class="aff-texte">
-        <h3>Elle porte le lien de votre entreprise</h3>
-        <p>Chaque affiche est générée avec le lien d'inscription de vos équipes et le code QR
-          qui va avec. Un salarié le scanne depuis la salle de pause et son compte est ouvert
-          avant qu'il soit remonté à son poste.</p>
-        <h3>Quatre envois compris</h3>
-        <p>Elles partent imprimées, en nombre suffisant pour tous vos sites, à quatre moments
-          de la saison. Un site qui ouvre en cours d'année la réimprime lui-même.</p>
-        <p class="s-note"><a class="tlink" href="/app/?demo=1">Voir l'écran des supports</a></p>
-      </div>
-    </div>
-
-    <!-- La vraie question de l'acheteur n'est pas « comment mes salaries verront
-         le lien », c'est « est-ce que quelqu'un va participer ». On peut montrer
-         le lien, l'affiche et le code QR ; on ne peut pas montrer l'adoption,
-         parce qu'aucune saison n'a encore eu lieu. Le dire est moins vendeur que
-         se taire, et c'est la seule reponse compatible avec le reste de la
-         page. -->
-    <p class="s-note s-note--franchise">Riseva met les besoins à portée de vos salariés.
-      <b>Leur participation reste volontaire</b>, et nous ne vous promettons pas un taux
-      d'engagement que nous n'avons pas encore mesuré.</p>
+  <p class="s-liens">Aussi dans la démonstration&nbsp;: le dictionnaire des données, le registre des
+    événements de sécurité, la fiche VSME, la vue groupe.
+    <a href="/app/?demo=1">Ouvrir la démonstration</a></p>
   </div>
 </section>
 
-<section id="associations" class="band-moss verre-sect">
-  <div class="layer">
-    <!-- C'etait une riviere au petit matin. Les deux images les plus grandes de
-         la page etaient alors un sous-bois et un plan d'eau : survolee sans etre
-         lue, la vitrine disait « ecologie » alors que Riseva couvre bien plus
-         large, et son propre bareme parle de refuges, de collectes et de
-         maraudes autant que de plantations. Celle-ci montre une mission en
-         train d'avoir lieu, ce qui est justement ce que l'association confirme
-         dans la section qu'elle ouvre. -->
-    <!-- `tailles` n'est pas decoratif : la valeur par defaut de photo() decrit
-         une demi-colonne (46vw), et cette image-ci occupe toute la largeur de
-         la bande. Le navigateur, croyant remplir 662 px, servait le fichier de
-         760 px dans une boite de 1 273 : la photographie de couverture de la
-         page etait agrandie de quatre-vingt-douze pour cent. C'est la seule
-         chose que ce parametre corrige, et c'est la raison pour laquelle une
-         recette le mesure desormais sur la page rendue. -->
-    <figure class="photo photo--couverture">
-        <picture><source type="image/webp" srcset="/photos/maraude-760.webp 760w, /photos/maraude-1120.webp 1120w" sizes="(max-width: 900px) 92vw, 88vw">
-        <img src="/photos/maraude.jpg" alt="Un bol chaud passe de main en main au-dessus d'une table de distribution alimentaire, devant une camionnette, en fin de journée" loading="lazy" decoding="async"
-             width="1358" height="772"></picture>
-      </figure>
-    <div class="s-head">
-      <div class="rv">
-        <div class="eyebrow mono">La confirmation</div>
-        <h2>Ce qui est confirmé<br><span class='it'>entre dans votre bilan.</span></h2>
-      </div>
-      <p class="s-note rv d2">Et ce qui ne l'est pas y reste marqué comme tel. Le chiffre final vient de la structure qui était sur place : une déclaration datée, tracée et attribuée. Ce n'est pas une attestation et cela ne vaut ni contrôle ni certification, mais c'est déjà tout autre chose qu'un chiffre que vous auriez écrit vous-même.</p>
-    </div>
-
-    <!-- Trois photographies en vignettes tenaient ici, refuge, plantation, maraude.
-         Une rangee de trois images egales, sans legende, juste sous une photographie
-         de couverture : quatre images pour la meme idee, et le motif se reconnait
-         avant qu'on regarde ce qu'il y a dessus. La couverture reste, seule et
-         grande ; ce que les trois vignettes montraient est nomme en toutes lettres
-         dans la liste des formats, quelques lignes plus bas. -->
-
-    <div class="verre asso-verre verre-anim">
-      <i class="verre-lumiere" aria-hidden="true"></i>
-      <i class="verre-eclat" aria-hidden="true"></i>
-      <figure class="shot">
-        <picture><source type="image/webp" srcset="/captures/asso-valider-760.webp 760w, /captures/asso-valider-1120.webp 1120w, /captures/asso-valider-1440.webp 1440w" sizes="(max-width: 900px) 92vw, 86vw">
-        <img src="/captures/asso-valider.jpg" alt="L'écran par lequel une association confirme ce qui a été réalisé" loading="lazy" decoding="async"
-             width="1784" height="760"></picture>
-        <figcaption class="mono">La confirmation, en un clic</figcaption>
-      </figure>
-    </div>
-
-    <ul class="trois">
-      <li><b>Aucun abonnement, aucune commission.</b> Une association ne paie jamais rien, et
-        Riseva ne prélève rien sur ses dons.</li>
-      <li><b>Une confirmation courte, sans se connecter.</b> Un lien dans un message après
-        la date prévue, trois réponses sur la page qu'il ouvre, et c'est terminé.</li>
-      <li><b>Rien à produire pour vous.</b> Passé quatorze jours sans réponse, c'est la
-        <b>clôture automatique</b> : la mission se ferme et son résultat reste marqué
-        <b>estimé</b> partout où il apparaît, vos rapports compris.</li>
-    </ul>
-
-    <div class="fmt-bloc fmt-bloc--incruste">
-      <h3 class="fmt-titre">Ce qu'une association peut proposer</h3>
-      <ul class="fmt-lignes">
-        <li><div><b>Une demi-journée de bénévolat</b> : chantier, collecte,
-          entretien.</div><span>150 pts</span></li>
-        <li><div><b>Une mission de compétence</b> sur le temps de
-          travail.</div><span>200 pts</span></li>
-        <li><div><b>Le parrainage d'un animal</b> dans un refuge, pour une
-          année.</div><span>250 pts</span></li>
-        <li><div><b>L'adoption d'un animal</b>, confirmée par le
-          refuge.</div><span>400 pts</span></li>
-        <li><div><b>Un don de matériel</b> : c'est l'association qui déclare ce qu'elle a
-          reçu.</div><span>100 pts</span></li>
-        <li><div><b>Un don en argent, par carte</b>, encaissé par <b>HelloAsso</b> pour
-          l'association, <b>sans transiter par Riseva</b>.</div><span>1 pt / 10 €</span></li>
+<section class="s" id="equipes">
+  <div class="wrap">
+  <div class="s-head">
+    <p class="eyebrow">Vos équipes</p>
+    <h2>Un lien, une affiche, et chacun peut se proposer.</h2>
+  </div>
+  <div class="equipes">
+    <div class="equipes-txt">
+      <p>Vous déclarez vos sites et nommez un référent par site. Le référent envoie le lien
+        d'inscription à ses collègues, qui ouvrent leur espace sans mot de passe. L'affiche est
+        générée avec ce lien et son code QR&nbsp;; quatre envois d'affiches et de
+        supports sont compris dans la saison, imprimés et postés à chaque site&nbsp;:
+        lancement en janvier, premier trimestre en avril, rentrée en août et clôture en novembre.</p>
+      <p>La participation reste volontaire. Aucun taux de participation n'est promis.</p>
+      <h3>Ce que ça demande chez vous</h3>
+      <ul class="liste liste-grande">
+        <li>Rien à installer. Aucun annuaire à synchroniser, aucun accès à votre réseau&nbsp;: tout
+          passe par un lien et des courriels.</li>
+        <li>Un référent par site, qui envoie le lien et saisit les indicateurs de son site à
+          chaque campagne de collecte.</li>
+        <li>Un administrateur, qui approuve les valeurs et reçoit les rapports.</li>
+        <li>Pour les missions, l'association confirme le résultat&nbsp;: vous n'avez pas à le
+          ressaisir.</li>
       </ul>
-      <p class="fmt-note"><b>Aucune commission, et Riseva n'encaisse rien.</b> Les points
-        tombent <b>quand le paiement est confirmé</b>. Ils servent au classement entre vos
-        sites, et à rien d'autre. Le barème complet, écrêtage compris, est
-        <a class="tlink" href="/reglement.html">dans le règlement</a>.</p>
     </div>
-
-    <p class="s-note"><a class="tlink" href="/asso.html?id=a1">Voir une fiche d'association</a>
-      &nbsp;-&nbsp; <a class="tlink" href="/associations.html">La page destinée aux associations</a></p>
+    <div class="aff">
+      <figure class="shot"><picture><source type="image/webp" srcset="/captures/affiche-760.webp 760w, /captures/affiche-1120.webp 1120w, /captures/affiche-1440.webp 1440w" sizes="(max-width: 900px) 92vw, (max-width: 1240px) 40vw, 484px"><img src="/captures/affiche.jpg" alt="L'affiche A3 générée par Riseva pour un site : le nom de l'entreprise, la saison, le lien d'inscription et son code QR" loading="lazy" decoding="async" width="1588" height="2246"></picture></figure>
+    </div>
+  </div>
   </div>
 </section>
 
-<section id="prix">
-  <div class="layer">
-    <div class="s-head">
-      <div class="rv">
-        <div class="eyebrow mono">Le prix</div>
-        <h2>Un tarif public,<br><span class='it'>avant de décider.</span></h2>
-      </div>
-      <p class="s-note rv d2">Une saison de douze mois, tout compris. Le tarif suit votre effectif parce que c'est lui qui détermine ce que nous produisons : les comptes, les affiches, les sites à consolider, les rapports.</p>
+<section class="s" id="saison">
+  <div class="wrap">
+  <div class="carte-sombre grain">
+    <div class="saison-txt">
+      <p class="eyebrow">La saison</p>
+      <h2>Douze mois plus tard, vous n'avez pas de bilan à écrire.</h2>
+      <ol class="temps">
+        <li><b>Janvier.</b> Le lien part, l'affiche est posée, la saison est ouverte.</li>
+        <li><b>De février à décembre.</b> Les missions se font et se confirment. Les indicateurs
+          se collectent par campagne, site par site.</li>
+        <li><b>Chaque trimestre.</b> Le rapport de la période est généré et envoyé à
+          l'administrateur, sans rien demander à personne.</li>
+        <li><b>Mi-janvier.</b> Le bilan annuel, avec son dossier de traçabilité&nbsp;: qui a
+          confirmé quoi, et quand.</li>
+      </ol>
+      <p class="saison-cle">Ce qui est confirmé entre dans votre bilan. Ce qui ne l'est pas y
+        reste marqué comme estimé.</p>
+      <p>Un classement entre entreprises comparables rythme la saison&nbsp;; la moitié basse
+        n'est jamais nommée. Le barème des points est public, dans
+        <a href="/reglement.html">le règlement</a>.</p>
+      <p><a class="btn btn-lime" href="/app/?demo=1#/rapports">Voir un rapport tel qu'il sort</a></p>
     </div>
+    <figure class="shot"><picture><source media="(max-width: 640px)" width="780" height="1582" type="image/webp" srcset="/captures/rapports-mobile-760.webp 760w" sizes="92vw"><source media="(max-width: 640px)" srcset="/captures/rapports-mobile.jpg" width="780" height="1582"><source type="image/webp" srcset="/captures/rapports-760.webp 760w, /captures/rapports-1120.webp 1120w, /captures/rapports-1440.webp 1440w" sizes="(max-width: 900px) 92vw, (max-width: 1240px) 56vw, 691px"><img src="/captures/rapports.jpg" alt="L'écran Rapports d'une entreprise : les quatre rapports trimestriels et le rapport annuel, leur période, leur état et leur envoi" loading="lazy" decoding="async" width="1784" height="1246"></picture></figure>
+  </div>
+  </div>
+</section>
 
-    <div class="tar rv">
+<section class="s s-sunk" id="prix">
+  <div class="wrap">
+  <div class="s-head">
+    <h2>Un tarif public, avant de décider.</h2>
+    <p class="s-intro">Une saison de douze mois. Le tarif suit votre effectif, parce que c'est lui qui détermine ce que nous produisons&nbsp;: les comptes, les affiches, les sites à consolider, les rapports.</p>
+  </div>
+  <div class="tarif">
+    <div class="tar-sim">
+      <p class="eyebrow">Votre tranche</p>
+      <div class="tar-sim-row">
+        <div class="champ"><label for="simEff">Effectif</label>
+          <input class="tar-in" id="simEff" type="number" min="1" max="20000" value="150" inputmode="numeric"></div>
+        <div class="champ"><label for="simSites">Sites</label>
+          <input class="tar-in" id="simSites" type="number" min="1" max="60" value="1" inputmode="numeric"></div>
+      </div>
+      <p class="tar-sim-out" id="simOut" aria-live="polite">Entrez votre effectif et le nombre de vos
+        sites&nbsp;: le montant s'affiche ici.</p>
+      <div class="tar-sim-cta">
+        <a class="btn" href="/inscription.html">Se préinscrire</a>
+        <span class="mini">Gratuit, sans carte, sans engagement.</span>
+      </div>
+    </div>
+    <div class="tar">
       <table class="tar-t">
         <caption class="sr-only">Grille tarifaire par tranche d'effectif</caption>
+        <thead><tr><th scope="col">Effectif</th><th scope="col">La saison</th><th scope="col">Sites compris</th></tr></thead>
         <tbody>
         <tr>
           <td class="tar-eff">Moins de 50 salariés</td>
-          <td class="tar-prix"><b>2&nbsp;400&nbsp;€</b> <span class="tar-ht">HT / saison</span></td>
-          <td class="tar-sites">1 site inclus</td>
+          <td class="tar-prix"><span class="tar-m"><b>2&nbsp;400&nbsp;€</b> <span class="tar-ht">HT</span></span></td>
+          <td class="tar-sites">1 site</td>
         </tr>
         <tr>
           <td class="tar-eff">50 à 199 salariés</td>
-          <td class="tar-prix"><b>4&nbsp;200&nbsp;€</b> <span class="tar-ht">HT / saison</span></td>
-          <td class="tar-sites">2 sites inclus</td>
+          <td class="tar-prix"><span class="tar-m"><b>4&nbsp;200&nbsp;€</b> <span class="tar-ht">HT</span></span></td>
+          <td class="tar-sites">2 sites</td>
         </tr>
         <tr>
           <td class="tar-eff">200 à 499 salariés</td>
-          <td class="tar-prix"><b>6&nbsp;900&nbsp;€</b> <span class="tar-ht">HT / saison</span></td>
-          <td class="tar-sites">3 sites inclus</td>
+          <td class="tar-prix"><span class="tar-m"><b>6&nbsp;900&nbsp;€</b> <span class="tar-ht">HT</span></span></td>
+          <td class="tar-sites">3 sites</td>
         </tr>
         <tr>
           <td class="tar-eff">500 à 999 salariés</td>
-          <td class="tar-prix"><b>9&nbsp;800&nbsp;€</b> <span class="tar-ht">HT / saison</span></td>
-          <td class="tar-sites">5 sites inclus</td>
+          <td class="tar-prix"><span class="tar-m"><b>9&nbsp;800&nbsp;€</b> <span class="tar-ht">HT</span></span></td>
+          <td class="tar-sites">5 sites</td>
         </tr>
         <tr>
           <td class="tar-eff">1 000 à 1 999 salariés</td>
-          <td class="tar-prix"><b>13&nbsp;800&nbsp;€</b> <span class="tar-ht">HT / saison</span></td>
-          <td class="tar-sites">8 sites inclus</td>
+          <td class="tar-prix"><span class="tar-m"><b>13&nbsp;800&nbsp;€</b> <span class="tar-ht">HT</span></span></td>
+          <td class="tar-sites">8 sites</td>
         </tr>
         <tr>
           <td class="tar-eff">2 000 salariés et plus</td>
-          <td class="tar-prix"><span class='tar-apd'>à partir de</span> <b>18&nbsp;500&nbsp;€</b> <span class="tar-ht">HT / saison</span></td>
-          <td class="tar-sites">12 sites inclus</td>
+          <td class="tar-prix"><span class='tar-apd'>à partir de</span> <span class="tar-m"><b>18&nbsp;500&nbsp;€</b> <span class="tar-ht">HT</span></span></td>
+          <td class="tar-sites">12 sites</td>
         </tr>
         </tbody>
       </table>
-      <p class="tar-n">Site supplémentaire <b>au-delà du nombre inclus dans votre tranche</b> :
-        420&nbsp;€ HT. Chaque ligne ci-dessus dit combien de sites sa tranche
-        comprend. Au-delà de deux mille salariés, le tarif est établi sur devis, à partir de
-        18&nbsp;500&nbsp;€ HT et 12 sites
-        inclus.</p>
+      <p class="tar-n">Site supplémentaire au-delà du nombre compris dans votre tranche&nbsp;:
+        <b>420&nbsp;€ HT</b>. Au-delà de deux mille salariés, le tarif est établi
+        sur devis, à partir de 18&nbsp;500&nbsp;€ HT et 12 sites compris.</p>
     </div>
-
+  </div>
+  <div class="tar-bas">
     <div class="tar-inclus">
       <h3>Ce qui est compris</h3>
-      <ul class="tar-l"><li>Tous les comptes salariés de l'effectif déclaré, sans facturation à l'utilisateur.</li><li>Quatre envois d'affiches et de supports au cours de la saison.</li><li>Les rapports trimestriels et le rapport annuel, produits et envoyés sans rien demander.</li><li>La gestion RSE interne : indicateurs, registre des événements de sécurité, plan d'actions, consolidation multi-sites.</li><li>La fiche de durabilité VSME : ce que Riseva sait, rangé dans les rubriques de la norme européenne volontaire, avec la liste de ce qu'elle ne couvre pas.</li><li>L'accès du CSE en lecture, sur des données agrégées.</li><li>Zéro commission sur les dons : Riseva n'encaisse pas.</li></ul>
-      <p class="tar-n">Ce que Riseva ne fait pas est écrit noir sur blanc, un peu plus bas :
-        <a class="tlink" href="#faq">le périmètre exact de la plateforme</a>.</p>
+      <ul class="liste"><li>Tous les comptes salariés de l'effectif déclaré, sans facturation à l'utilisateur.</li><li>Quatre envois d'affiches et de supports au cours de la saison.</li><li>Les rapports trimestriels et le rapport annuel, produits et envoyés sans rien demander.</li><li>La gestion RSE interne : indicateurs, registre des événements de sécurité, plan d'actions, consolidation multi-sites.</li><li>La fiche de durabilité VSME : ce que Riseva sait, rangé dans les rubriques de la norme européenne volontaire, avec la liste de ce qu'elle ne couvre pas.</li><li>L'accès du CSE en lecture, sur des données agrégées.</li><li>Zéro commission sur les dons : Riseva n'encaisse pas.</li></ul>
     </div>
-
-    <div class="tar-sim">
-      <p class="mono">Votre tranche</p>
-      <div class="tar-sim-row">
-        <label for="simEff">Effectif</label>
-        <input class="tar-in" id="simEff" type="number" min="1" max="20000" value="150"
-               inputmode="numeric">
-        <label for="simSites">Sites</label>
-        <input class="tar-in" id="simSites" type="number" min="1" max="60" value="1"
-               inputmode="numeric">
-      </div>
-      <p class="tar-sim-out" id="simOut" aria-live="polite"></p>
-      <p class="tar-sim-cta"><a class="btn" href="/inscription.html">Réserver une place</a>
-        <span class="mono">Le bon de commande reprend cette grille telle quelle.</span></p>
-      <div class="tar-sim-notes">
-        <p class="tar-n"><b>Tarif fondateur : -10 %</b>
-          pour les 20 premières entreprises qui signent, jusqu'au
-          31 décembre 2026. Il porte sur votre <b>première saison, et sur elle seule</b> :
-          nous ne garantissons le prix d'aucune saison que nous n'avons pas encore vécue.
-          Passé ces places, la grille s'applique telle quelle.</p>
-        <p class="tar-n"><b>Règlement :</b> 40 % à la commande,
-          avec un minimum de 900&nbsp;€ HT,
-          le solde à trente jours après l'ouverture de votre saison ; règlement intégral à la
-          commande, -3 %. L'acompte paie le premier
-          envoi d'affiches et l'ouverture de vos comptes, qui partent avant la première
-          mission. Il y a 4 envois dans la saison.</p>
-      </div>
+    <div class="tar-notes">
+      <h3>Tarif fondateur</h3>
+      <p>-10&nbsp;% pour les 20 premières
+        entreprises qui signent, jusqu'au 31 décembre 2026. Il porte sur votre première saison, et sur
+        elle seule&nbsp;: nous ne garantissons le prix d'aucune saison que nous n'avons pas encore
+        vécue.</p>
+      <h3>Règlement</h3>
+      <p>Acompte de 40&nbsp;% à la commande, 900&nbsp;€
+        HT au minimum&nbsp;: il paie le premier envoi d'affiches et l'ouverture de vos comptes, qui
+        partent avant la première mission. Solde à 30 jours après l'ouverture
+        de votre saison. Règlement intégral à la commande&nbsp;: -3&nbsp;%.
+        Le bon de commande reprend cette grille telle quelle.</p>
+      <p class="mini">Ce que Riseva ne fait pas est écrit plus bas, dans
+        <a href="#questions">le périmètre exact de la plateforme</a> et dans ce qui reste à votre
+        charge.</p>
     </div>
+  </div>
   </div>
 </section>
 
-<section id="faq" class="band">
-  <div class="layer">
-    <div class="s-head">
-      <div class="rv">
-        <div class="eyebrow mono">La FAQ</div>
-        <h2>Ce que vous voudrez vérifier<br><span class='it'>avant de signer.</span></h2>
-      </div>
-      <p class="s-note rv d2">Les questions qui décident d'une signature, et nos réponses.</p>
-    </div>
-    <div class="qa-split">
-      <div class="qa-colonne rv">
-        <ol class="qa-index" id="qaIndex" role="tablist" aria-label="Sommaire des questions">
-        <li><button class="qa-link mono is-on" type="button" role="tab" id="qa-t0" aria-controls="qa-p0" tabindex="0" aria-selected="true"><span class="qa-n">01</span>Riseva a-t-elle déjà des résultats à montrer&nbsp;?</button></li>
-      <li><button class="qa-link mono" type="button" role="tab" id="qa-t1" aria-controls="qa-p1" tabindex="-1" aria-selected="false"><span class="qa-n">02</span>Combien coûte une saison&nbsp;?</button></li>
-      <li><button class="qa-link mono" type="button" role="tab" id="qa-t2" aria-controls="qa-p2" tabindex="-1" aria-selected="false"><span class="qa-n">03</span>Qu'est-ce qui est compris dans l'abonnement&nbsp;?</button></li>
-      <li><button class="qa-link mono" type="button" role="tab" id="qa-t3" aria-controls="qa-p3" tabindex="-1" aria-selected="false"><span class="qa-n">04</span>Qu'est-ce que « démarrer » veut dire, précisément&nbsp;?</button></li>
-      <li><button class="qa-link mono" type="button" role="tab" id="qa-t4" aria-controls="qa-p4" tabindex="-1" aria-selected="false"><span class="qa-n">05</span>Est-ce que la dépense est déductible&nbsp;?</button></li>
-      <li><button class="qa-link mono" type="button" role="tab" id="qa-t5" aria-controls="qa-p5" tabindex="-1" aria-selected="false"><span class="qa-n">06</span>Quelles données sortent de chez nous&nbsp;?</button></li>
-      <li><button class="qa-link mono" type="button" role="tab" id="qa-t6" aria-controls="qa-p6" tabindex="-1" aria-selected="false"><span class="qa-n">07</span>Le classement, il sert à quoi&nbsp;?</button></li>
-      <li><button class="qa-link mono" type="button" role="tab" id="qa-t7" aria-controls="qa-p7" tabindex="-1" aria-selected="false"><span class="qa-n">08</span>Quel est le périmètre exact de la plateforme&nbsp;?</button></li>
-      <li><button class="qa-link mono" type="button" role="tab" id="qa-t8" aria-controls="qa-p8" tabindex="-1" aria-selected="false"><span class="qa-n">09</span>Qu'est-ce qui reste à ma charge&nbsp;?</button></li>
-        </ol>
-        <p class="qa-invite">Il en manque une&nbsp;? Écrivez-la-nous à <a class='tlink' href='mailto:contact@riseva.fr'>contact@riseva.fr</a>&nbsp;: elle finira ici, avec sa réponse.</p>
-      </div>
-      <div class="qa-panel rv d2" id="qaPanel">
-      <article class="qa-card is-on" id="qa-p0" role="tabpanel" aria-labelledby="qa-t0"><h3 class="qa-t">Riseva a-t-elle déjà des résultats à montrer&nbsp;?</h3><p>Non, et cette page n'en affiche aucun. La première saison démarre en janvier : les écrans montrés ici viennent d'un jeu de démonstration et servent à montrer la forme des restitutions. Les chiffres publics de la page sont des faits extérieurs, datés et sourcés.</p><p>Ce qui est contractuel dès le premier jour est écrit dans <a href='/engagements.html'>les engagements de service</a> : les cinq critères de démarrage, l'acompte remboursé s'ils ne sont pas constatés, et le délai de quatorze jours au terme duquel un résultat non confirmé reste marqué comme estimé.</p></article>
-      <article class="qa-card" hidden id="qa-p1" role="tabpanel" aria-labelledby="qa-t1"><h3 class="qa-t">Combien coûte une saison&nbsp;?</h3><p>La grille complète est <a href='#prix'>juste au-dessus</a>, avec le simulateur qui donne le montant exact pour votre effectif. Ce qu'elle ne dit pas et qui compte autant : <b>pas de facturation par salarié, pas de module en supplément, pas de commission sur les dons</b>. Les associations, elles, ne paient jamais rien.</p><p>Nous ne comparons pas notre prix à celui d'un concurrent que nous ne nommerions pas : une fourchette annoncée sans source ne vous aide pas à décider.</p></article>
-      <article class="qa-card" hidden id="qa-p2" role="tabpanel" aria-labelledby="qa-t2"><h3 class="qa-t">Qu'est-ce qui est compris dans l'abonnement&nbsp;?</h3><p>Une saison d'un an, avec les comptes correspondant à votre effectif, les formats du barème, l'accompagnement au lancement, les affiches et les supports, et les rapports trimestriels et annuel.</p><p>Sur le don en argent, une précision qui compte : Riseva <b>n'encaisse rien</b>. Le donateur paie par carte sur une page <b>HelloAsso</b>, et l'argent arrive sur le compte de l'association. Nous ne sommes donc pas un établissement de paiement, il n'y a aucune commission de notre part, et rien à attendre d'un reversement de Riseva puisque l'argent ne passe pas par elle. Les délais et les frais éventuels relèvent des conditions de HelloAsso, entre l'association et lui.</p></article>
-      <article class="qa-card" hidden id="qa-p3" role="tabpanel" aria-labelledby="qa-t3"><h3 class="qa-t">Qu'est-ce que « démarrer » veut dire, précisément&nbsp;?</h3><p>Cinq critères, constatés à la date convenue : votre espace est ouvert et le lien d'inscription fonctionne depuis un de vos postes ; les comptes commandés sont disponibles ; les formats contractuels sont actifs ; l'inventaire associatif convenu est disponible ; un rapport est exportable.</p><p>Vous avez quinze jours pour les constater. Si l'un manque et n'est pas levé sous quinze jours de plus, <b>l'acompte est remboursé intégralement</b> et aucun solde n'est dû. Le solde est facturé à l'ouverture de la saison et payable à trente jours ; si le démarrage n'est pas constaté, il n'est pas dû.</p></article>
-      <article class="qa-card" hidden id="qa-p4" role="tabpanel" aria-labelledby="qa-t4"><h3 class="qa-t">Est-ce que la dépense est déductible&nbsp;?</h3><p>Deux lignes, deux régimes. L'abonnement Riseva est une prestation de services : il entre dans vos charges, TVA récupérable. Le mécénat suit l'article 238 bis du CGI et donne droit à 60 % de réduction d'impôt jusqu'à <b>2 millions d'euros de dons sur l'exercice</b>, puis 40 % au-delà, dans la limite de 20 000 € ou 5 pour mille du chiffre d'affaires, le plus élevé des deux.</p><p>Riseva calcule une estimation à partir de ce qu'elle connaît, et attend votre chiffre d'affaires, vos dons faits ailleurs et vos reports antérieurs avant d'afficher un plafond : sans eux, le chiffre serait faux. Votre expert-comptable arrête le montant.</p></article>
-      <article class="qa-card" hidden id="qa-p5" role="tabpanel" aria-labelledby="qa-t5"><h3 class="qa-t">Quelles données sortent de chez nous&nbsp;?</h3><p>Le strict nécessaire, hébergé dans l'Union européenne. L'employeur ne voit jamais le détail nominatif des dons personnels de ses salariés, et un salarié peut se retirer sans avoir à se justifier. La base légale est l'intérêt légitime, pas le consentement : nous n'affichons donc pas de case à cocher qui n'en serait pas une.</p><p>Consulter une page publique de riseva.fr ne déclenche aucune requête vers un domaine extérieur, polices comprises. Un test de la recette échoue si ce n'est plus vrai.</p></article>
-      <article class="qa-card" hidden id="qa-p6" role="tabpanel" aria-labelledby="qa-t6"><h3 class="qa-t">Le classement, il sert à quoi&nbsp;?</h3><p>À donner un rendez-vous que personne n'a besoin d'imposer. Il se joue entre entreprises, jamais entre salariés : personne n'est noté individuellement et une équipe qui passe son tour ne pénalise personne. La moitié basse n'est jamais nommée.</p><p>Vous voyez votre score et votre rang dès trois entreprises inscrites dans votre catégorie. Le décile, lui, n'apparaît qu'à partir de <b>dix entreprises</b> dans la catégorie : un « top 10 % » sur onze entreprises désigne la première et lui prête une avance qu'elle n'a pas.</p></article>
-      <article class="qa-card" hidden id="qa-p7" role="tabpanel" aria-labelledby="qa-t7"><h3 class="qa-t">Quel est le périmètre exact de la plateforme&nbsp;?</h3><p>Riseva documente l'enregistrement administratif des associations avec la date du contrôle, les validations et qui les a faites, les méthodes de calcul publiées et refaisables à la main, les accès, les exports et les envois, ainsi que les engagements de service et ce qui se passe s'ils ne sont pas tenus.</p><p>Elle ne se substitue pas aux métiers voisins : elle ne certifie pas un impact, ne produit pas de bilan carbone, n'attribue pas de note RSE parce qu'elle serait <b>juge et partie</b>, ne remplace pas votre expert-comptable sur la valorisation d'un don, et ne dépose aucune déclaration à votre place. Elle ne classe pas non plus vos sites sur leurs accidents du travail : un classement de ce genre pousse à <b>sous-déclarer</b>, et c'est l'inverse de ce qu'on cherche. Chacun de ces points est traité en détail dans <a href='/reglement.html'>le règlement</a> et dans <a href='/engagements.html'>les engagements de service</a>.</p><p>Ce qui reste à votre charge est écrit noir sur blanc, dans la question « Qu'est-ce qui reste à ma charge&nbsp;? ».</p></article>
-      <article class="qa-card" hidden id="qa-p8" role="tabpanel" aria-labelledby="qa-t8"><h3 class="qa-t">Qu'est-ce qui reste à ma charge&nbsp;?</h3><p>Ce qui n'est pas compris dans l'abonnement, écrit noir sur blanc :</p><ul class='qa-l'><li>Le bilan carbone réglementaire et le calcul des émissions : Riseva ne collecte pas cette donnée.</li><li>L'index d'égalité professionnelle et la déclaration OETH : autres périmètres, autres règles.</li><li>Le document unique d'évaluation des risques : Riseva n'évalue pas les risques à la place de l'employeur.</li><li>L'audit des valeurs déclarées : Riseva calcule, elle ne certifie pas.</li></ul><p>Le reste, c'est-à-dire les comptes, les rapports, les supports et l'accompagnement, est <a href='#prix'>dans la grille</a>.</p></article>
-      </div>
-    </div>
+<section class="s" id="questions">
+  <div class="wrap wrap-lecture">
+  <div class="s-head">
+    <h2>Ce que vous voudrez vérifier avant de signer.</h2>
+    <p class="s-intro">Les questions qui décident d'une signature, et nos réponses. Il en manque une&nbsp;? Écrivez-la à <a href='mailto:contact@riseva.fr'>contact@riseva.fr</a>&nbsp;: elle finira ici, avec sa réponse.</p>
+  </div>
+  <div class="faq">
+    <details class="qa" open>
+      <summary><span>Riseva a-t-elle déjà des résultats à montrer&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Non, et cette page n'en affiche aucun. La première saison démarre en janvier 2027&nbsp;: les écrans montrés ici viennent d'un jeu de démonstration et servent à montrer la forme des restitutions, pas un résultat obtenu.</p><p>Ce qui est contractuel dès le premier jour est écrit dans <a href='/engagements.html'>les engagements de service</a>&nbsp;: les cinq critères de démarrage, l'acompte remboursé s'ils ne sont pas constatés, et le délai de quatorze jours au terme duquel un résultat non confirmé reste marqué comme estimé.</p></div>
+    </details>
+    <details class="qa">
+      <summary><span>Qu'est-ce que Riseva demande à mon équipe pendant l'année&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Un administrateur déclare les sites, nomme un référent par site et approuve les valeurs avant qu'elles entrent dans un rapport. Chaque référent envoie le lien d'inscription à ses collègues et saisit les indicateurs de son site à chaque campagne de collecte, avec ses pièces s'il en a. Les rapports partent tout seuls.</p><p>Pour les missions, le salarié se propose et l'association confirme le résultat&nbsp;: vous n'avez rien à ressaisir, ni fichier à tenir, ni bilan à écrire.</p></div>
+    </details>
+    <details class="qa">
+      <summary><span>Faut-il une intégration informatique&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Non. Rien à installer sur les postes, aucun annuaire à synchroniser, pas d'authentification unique à brancher, aucun accès à votre réseau. Chacun se connecte par un lien reçu par courriel, sans mot de passe. Le seul prérequis est une adresse de courriel par personne.</p></div>
+    </details>
+    <details class="qa">
+      <summary><span>Combien coûte une saison&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>La grille est <a href='#prix'>juste au-dessus</a>, avec le simulateur qui donne le montant pour votre effectif et vos sites. Ce qu'elle ne dit pas et qui compte autant&nbsp;: pas de facturation par salarié, pas de module en supplément, pas de commission sur les dons. Les associations, elles, ne paient jamais rien.</p><p>Nous ne comparons pas notre prix à celui d'un concurrent que nous ne nommerions pas&nbsp;: une fourchette annoncée sans source ne vous aide pas à décider.</p></div>
+    </details>
+    <details class="qa">
+      <summary><span>Qu'est-ce qui est compris dans l'abonnement&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Une saison d'un an, avec les comptes correspondant à votre effectif, tous les formats du barème, l'accompagnement au lancement, les quatre envois d'affiches et de supports, la gestion RSE interne, la fiche VSME, l'accès du CSE en lecture, et les rapports trimestriels et annuel.</p><p>Sur le don en argent, une précision qui compte&nbsp;: Riseva <b>n'encaisse rien</b>. Le donateur paie par virement sur le compte de l'association, ou par carte sur la page <b>HelloAsso</b> de l'association si elle en a une&nbsp;; dans les deux cas l'argent arrive chez elle sans transiter par Riseva. Nous ne sommes donc pas un établissement de paiement, il n'y a aucune commission de notre part, et rien à attendre d'un reversement de Riseva.</p></div>
+    </details>
+    <details class="qa">
+      <summary><span>Qu'est-ce que « démarrer » veut dire, précisément&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Cinq critères, constatés ensemble à la date convenue&nbsp;: votre espace est ouvert et le lien d'inscription fonctionne depuis un poste de votre réseau&nbsp;; les comptes commandés sont disponibles et le quota de chaque site est réparti&nbsp;; les formats de votre contrat sont actifs&nbsp;; des associations vérifiées et actives sont présentes autour de vos sites, et leur nombre vous est donné site par site, même quand il est faible&nbsp;; un rapport est exportable, avec la méthode de calcul à côté de chaque chiffre.</p><p>Vous avez quinze jours pour les constater. Si l'un manque et n'est pas levé dans les quinze jours suivants, <b>l'acompte est remboursé intégralement</b> et aucun solde n'est dû. Le solde est facturé à l'ouverture de la saison et payable à trente jours&nbsp;; si le démarrage n'est pas constaté, il n'est pas dû. C'est écrit dans <a href='/engagements.html'>les engagements de service</a>, mot pour mot.</p></div>
+    </details>
+    <details class="qa">
+      <summary><span>Est-ce que la dépense est déductible, et qui émet le reçu&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Deux lignes, deux régimes. L'abonnement Riseva est une prestation de services&nbsp;: il entre dans vos charges, TVA récupérable. Le mécénat suit l'article 238 bis du CGI et peut ouvrir droit à 60&nbsp;% de réduction d'impôt jusqu'à 2 millions d'euros de dons sur l'exercice, puis 40&nbsp;% au-delà, dans la limite de 20&nbsp;000&nbsp;€ ou 5 pour mille du chiffre d'affaires, le plus élevé des deux, selon la nature du don et l'éligibilité de l'organisme.</p><p>Le reçu fiscal est émis par l'association bénéficiaire, seule habilitée, au modèle Cerfa 16216 (2041-MEC-SD), sous sa numérotation et la signature d'une personne habilitée. Si elle en a donné mandat écrit à Riseva, nous préparons le document&nbsp;; elle le vérifie et le signe. Riseva ne certifie ni l'éligibilité ni les montants&nbsp;: elle calcule une estimation et attend votre chiffre d'affaires, vos dons faits ailleurs et vos reports avant d'afficher un plafond. Votre expert-comptable arrête le montant.</p></div>
+    </details>
+    <details class="qa">
+      <summary><span>Est-ce que ça compte dans un appel d'offres&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Depuis le 21 août 2026, toute nouvelle consultation engagée sous le code de la commande publique doit retenir au moins un critère prenant en compte les caractéristiques environnementales de l'offre, sous réserve des exclusions prévues par le code (loi Climat et résilience, art. 35&nbsp;; code de la commande publique, art. L. 2152-7&nbsp;; décret n°&nbsp;2022-767 du 2 mai 2022).</p><p>Riseva ne certifie rien et ne remplace pas un bilan carbone. Ce qu'elle vous donne pour répondre, c'est une liste datée de faits confirmés par des tiers, des indicateurs sociaux et sécurité avec leur formule et leurs sources, et une fiche rangée dans les rubriques de la norme volontaire VSME, avec la liste de ce qu'elle ne couvre pas.</p></div>
+    </details>
+    <details class="qa">
+      <summary><span>Quelles données sortent de chez nous&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Le strict nécessaire, hébergé dans l'Union européenne. L'employeur ne voit jamais le détail nominatif des dons personnels de ses salariés, et un salarié peut se retirer sans avoir à se justifier. La base légale est l'intérêt légitime, pas le consentement&nbsp;: nous n'affichons donc pas de case à cocher qui n'en serait pas une.</p><p>Consulter une page publique de riseva.fr ne déclenche aucune requête vers un domaine extérieur, polices comprises. Un test de la recette échoue si ce n'est plus vrai.</p></div>
+    </details>
+    <details class="qa">
+      <summary><span>Le classement, il sert à quoi&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>À donner un rendez-vous que personne n'a besoin d'imposer. Il se joue entre entreprises, jamais entre salariés&nbsp;: personne n'est noté individuellement et une équipe qui passe son tour ne pénalise personne. La moitié basse n'est jamais nommée.</p><p>Vous voyez votre score et votre rang dès trois entreprises inscrites dans votre catégorie. Le décile, lui, n'apparaît qu'à partir de <b>dix entreprises</b> dans la catégorie&nbsp;: un « top 10&nbsp;% » sur onze entreprises désigne la première et lui prête une avance qu'elle n'a pas.</p></div>
+    </details>
+    <details class="qa">
+      <summary><span>Quel est le périmètre exact de la plateforme&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Riseva documente l'enregistrement administratif des associations avec la date du contrôle, les validations et qui les a faites, les méthodes de calcul publiées et refaisables à la main, les accès, les exports et les envois, ainsi que les engagements de service et ce qui se passe s'ils ne sont pas tenus.</p><p>Elle ne se substitue pas aux métiers voisins&nbsp;: elle ne certifie pas un impact, ne produit pas de bilan carbone, n'attribue pas de note RSE parce qu'elle serait <b>juge et partie</b>, ne remplace pas votre expert-comptable sur la valorisation d'un don, et ne dépose aucune déclaration à votre place. Elle ne classe pas non plus vos sites sur leurs accidents du travail&nbsp;: un classement de ce genre pousse à <b>sous-déclarer</b>, et c'est l'inverse de ce qu'on cherche. Chacun de ces points est traité dans <a href='/reglement.html'>le règlement</a> et dans <a href='/engagements.html'>les engagements de service</a>.</p></div>
+    </details>
+    <details class="qa">
+      <summary><span>Qu'est-ce qui reste à ma charge&nbsp;?</span><i class="qa-plus" aria-hidden="true"></i></summary>
+      <div class="qa-r"><p>Ce qui n'est pas compris dans l'abonnement, écrit noir sur blanc&nbsp;:</p><ul class='liste'><li>Le bilan carbone réglementaire et le calcul des émissions : Riseva ne collecte pas cette donnée.</li><li>L'index d'égalité professionnelle et la déclaration OETH : autres périmètres, autres règles.</li><li>Le document unique d'évaluation des risques : Riseva n'évalue pas les risques à la place de l'employeur.</li><li>L'audit des valeurs déclarées : Riseva calcule, elle ne certifie pas.</li></ul><p>Le reste, c'est-à-dire les comptes, les rapports, les supports et l'accompagnement, est <a href='#prix'>dans la grille</a>.</p></div>
+    </details>
+  </div>
   </div>
 </section>
 
-<section id="rejoindre" class="bandeau">
-  <div class="layer">
-    <!-- Le titre, le paragraphe et l'appel etaient les uns sous les autres, tous
-         cales a gauche : le titre est plafonne a treize caracteres et le
-         paragraphe a cinquante-six, si bien que la moitie droite de la derniere
-         bande de la page — celle ou l'on decide — restait vide sur cinq cents
-         pixels de large. Le reste de la page place deja le titre a gauche et le
-         paragraphe a droite, dans entete() ; ce bloc etait le seul a ne pas le
-         faire. Le paragraphe passe donc a droite, et l'appel garde toute la
-         largeur sous les deux. -->
-    <div class="bandeau-in">
-      <h2>On ne vous facture pas une promesse.</h2>
-      <p>Une saison commence quand l'outil marche chez vous, pas à la signature. Cinq
-        points sont constatés ensemble, vous les vérifiez vous-même, et s'il en manque
-        un, <b>l'acompte est remboursé et le solde n'est pas dû</b>. C'est écrit dans nos
-        <a href="/engagements.html">engagements de service</a>.</p>
-      <div class="bandeau-cta">
-        <a class="btn btn-lg" href="/inscription.html"><span class="dot"></span>Réserver une place</a>
-        <span class="mono">Préinscription gratuite, sans carte bancaire, sans engagement.
-          Remise de lancement&nbsp;: vingt entreprises, jusqu'au 31&nbsp;décembre 2026.</span>
-      </div>
-    </div>
+<section class="s s-final" id="demarrer">
+  <div class="wrap wrap-lecture">
+  <h2>La saison commence quand l'outil marche chez vous.</h2>
+  <p>Le démarrage se constate à la date convenue, sur cinq critères, ceux des
+    <a href="/engagements.html">engagements de service</a>&nbsp;:</p>
+  <ul class="liste criteres">
+    <li>Votre espace est ouvert et le lien d'inscription fonctionne depuis un poste de votre
+      réseau.</li>
+    <li>Les comptes commandés sont disponibles, et le quota de chaque site est réparti.</li>
+    <li>Les formats de votre contrat sont actifs.</li>
+    <li>Des associations vérifiées et actives sont présentes autour de vos sites, et leur nombre
+      vous est donné site par site.</li>
+    <li>Un rapport est exportable, avec la méthode de calcul à côté de chaque chiffre.</li>
+  </ul>
+  <p>Vous avez quinze jours pour les constater. Si l'un manque et n'est pas levé dans les quinze
+    jours suivants, l'acompte est remboursé intégralement et aucun solde n'est dû.</p>
+  <ol class="etapes">
+    <li><b>Aujourd'hui</b>, une préinscription&nbsp;: gratuite, sans carte, sans engagement.</li>
+    <li><b>Ensuite, si vous signez</b>, un bon de commande et un acompte de
+      40&nbsp;%, remboursé si la saison ne démarre pas chez vous.</li>
+    <li><b>Puis le démarrage</b>, constaté sur les cinq critères, et la saison est ouverte.</li>
+  </ol>
+  <div class="cta">
+    <a class="btn btn-lg" href="/inscription.html">Se préinscrire</a>
+    <a class="btn btn-lg btn-2" href="/app/?demo=1">Ouvrir la démonstration</a>
+  </div>
+  <p class="mini">Tarif fondateur pour les 20 premières entreprises,
+    jusqu'au 31 décembre 2026, sur la première saison seulement.</p>
   </div>
 </section>
+</main>
 
-<footer class="foot">
-  <div class="foot-grid">
-    <div>
-      <div class="foot-brand">
+<footer class="foot" id="pied">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-id">
         <img src="/brand/riseva-full-white.png" alt="Riseva" width="392" height="88">
+        <p>La plateforme RSE qui commence par les associations&nbsp;: vos équipes sur le terrain, et ce qui est confirmé dans votre rapport.</p>
+        <p><a class="foot-croise" href="/associations.html">Vous êtes une association&nbsp;? La page qui vous est destinée.</a></p>
       </div>
-      <p>Riseva met des entreprises françaises au service des associations qui protègent le vivant, partout en France. Une saison, un barème public, un rapport qui tient debout.</p>
-    </div>
-    <div>
-      <h3 class="foot-h">La saison</h3>
-      <ul>
-        <li><a href="#plateforme">Ce que ça répond</a></li>
-        <li><a href="#outil-rse">L'outil RSE</a></li>
-        <li><a href="#challenge">Le challenge</a></li>
-        <li><a href="#equipes">Côté salariés</a></li>
-        <li><a href="#associations">Côté associations</a></li>
-        <li><a href="#prix">Le prix</a></li>
-      </ul>
-    </div>
-    <div>
-      <h3 class="foot-h">Les règles</h3>
-      <ul>
-        <li><a href="/reglement.html">Le règlement du barème</a></li>
+      <div>
+        <h2 class="foot-h">Le produit</h2>
+        <ul>
+        <li><a href="/app/?demo=1">Démonstration</a></li>
+        <li><a href="/#prix">Tarif</a></li>
+        <li><a href="/inscription.html">Préinscription 2027</a></li>
+        <li><a href="/associations.html">Pour les associations</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2 class="foot-h">Le contrat</h2>
+        <ul>
+        <li><a href="/reglement.html">Règlement de la saison</a></li>
+        <li><a href="/charte-associations.html">Charte des associations</a></li>
         <li><a href="/engagements.html">Engagements de service</a></li>
+        <li><a href="/cgv.html">Conditions de vente</a></li>
+        <li><a href="/moderation.html">Modération des annonces</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2 class="foot-h">Riseva</h2>
+        <ul>
         <li><a href="/securite.html">Sécurité</a></li>
-        <li><a href="/confidentialite.html">Confidentialité</a></li>
-      </ul>
-    </div>
-    <div>
-      <h3 class="foot-h">Aller plus loin</h3>
-      <ul>
-        <li><a href="/associations.html">Vous êtes une association</a></li>
-        <li><a href="/inscription.html">Réserver une place</a></li>
-        <li><a href="mailto:contact@riseva.fr">contact@riseva.fr</a></li>
+        <li><a href="/confidentialite.html">Données personnelles</a></li>
         <li><a href="/mentions.html">Mentions légales</a></li>
-      </ul>
+        <li><a href="mailto:contact@riseva.fr">contact@riseva.fr</a></li>
+        </ul>
+      </div>
     </div>
-  </div>
-  <div class="foot-bar">
-    <span>&copy; 2026 Riseva</span>
-    <span>Saison 2027, préinscriptions ouvertes</span>
+    <div class="foot-bar">
+      <span>&copy; 2026 Riseva. Première saison&nbsp;: janvier 2027.</span>
+      <span>Aucune requête vers un domaine tiers, polices comprises.</span>
+    </div>
   </div>
 </footer>
 

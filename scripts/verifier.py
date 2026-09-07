@@ -49,8 +49,10 @@ def main():
     # Rien ici ne fait échouer la recette : le site reste lisible avec la pile système.
     # Mais il faut que ce soit dit fort, parce qu'un déploiement sans les fichiers est
     # un déploiement au mauvais rendu, et ça ne se voit pas dans les tests.
-    manquantes = [n for n in ("bricolage-grotesque", "instrument-sans", "fraunces",
-                              "ibm-plex-mono", "inter")
+    # Deux familles depuis la refonte de septembre 2026 : Instrument Sans pour les
+    # titres, Inter pour le texte. Les trois autres etaient declarees et jamais
+    # servies ; elles ont quitte polices.css avec la refonte.
+    manquantes = [n for n in ("instrument-sans", "inter")
                   if not (RACINE / "public" / "brand" / "polices" / f"{n}.woff2").exists()]
     if manquantes:
         print("  À FAIRE  " + ", ".join(f"{n}.woff2" for n in manquantes) + " manquent.")
@@ -58,7 +60,7 @@ def main():
         print("           versionner les fichiers. En attendant, la pile système prend")
         print("           le relais : aucune requête externe, mais le rendu n'est pas celui prévu.")
     else:
-        print("  ok   les cinq polices sont servies par Riseva")
+        print("  ok   les deux polices sont servies par Riseva")
 
     titre("Codes QR")
     # L'affiche porte un code QR fabriqué ici, sans rien appeler dehors. Un
@@ -162,14 +164,11 @@ def main():
         print(sortie.rstrip())
         if code: echecs.append("contraste")
 
-        # Le contraste declare ne dit rien sous un panneau de verre : la chaine
-        # des fonds s'arrete a la premiere couleur opaque, et ce n'est pas ce
-        # qu'on voit derriere le texte. Celui-ci mesure le pixel compose, a
-        # plusieurs phases d'animation et plusieurs positions de pointeur.
-        titre("Contraste sous le verre")
-        code, sortie = lancer(f"python3 scripts/contraste-verre.py {PORT}")
-        print(sortie.rstrip())
-        if code: echecs.append("contraste sous le verre")
+        # La mesure du contraste sous le verre (contraste-verre.py) est partie
+        # avec la refonte de septembre 2026 : plus aucune surface translucide,
+        # plus aucune nappe animee, donc plus rien que la mesure declaree ne
+        # sache pas voir. La recette des vitrines verifie desormais qu'aucun
+        # degrade, verre ni flou ne revient dans la feuille.
     finally:
         os.killpg(os.getpgid(srv.pid), signal.SIGTERM)
 

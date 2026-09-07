@@ -16,10 +16,8 @@ recuperer() {
   echo "$nom.woff2  $(wc -c < "public/brand/polices/$nom.woff2") octets"
 }
 
-recuperer bricolage-grotesque    'Bricolage+Grotesque:wght@400..800'
+# Deux familles : les titres et les chiffres en Instrument Sans, le texte en Inter.
 recuperer instrument-sans        'Instrument+Sans:wght@400..700'
-recuperer fraunces               'Fraunces:ital,wght@1,400..700'
-recuperer ibm-plex-mono          'IBM+Plex+Mono:wght@400;500'
 recuperer inter                  'Inter:wght@400..600'
 
 echo "Fait. Vérifier avec : python3 scripts/verifier.py"

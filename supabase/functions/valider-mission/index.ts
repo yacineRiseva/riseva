@@ -43,7 +43,7 @@ const echappe = (t: string) =>
 const cadre = (titre: string, corps: string, code = 200) => new Response(
   `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
    <meta name="viewport" content="width=device-width,initial-scale=1">
-   <meta name="robots" content="noindex,nofollow"><title>${echappe(titre)} — Riseva</title>
+   <meta name="robots" content="noindex,nofollow"><title>${echappe(titre)} - Riseva</title>
    <style>
      body{font:16px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;color:#16211C;
        background:#F2F0E9;max-width:600px;margin:0 auto;padding:12vh 24px 6vh}
@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
         <input type="hidden" name="j" value="${echappe(jeton)}">
         <button class="oui" name="r" value="oui" type="submit">Réalisée comme prévu
           <small>Le nombre annoncé est retenu tel quel.</small></button>
-        <label for="q">Réalisée partiellement — combien exactement ?</label>
+        <label for="q">Réalisée partiellement : combien exactement ?</label>
         <input id="q" name="q" type="number" min="0" step="1" inputmode="numeric"
           placeholder="par exemple 18">
         <button name="r" value="partiel" type="submit">Réalisée partiellement
